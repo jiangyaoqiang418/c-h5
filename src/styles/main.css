@@ -1,0 +1,23 @@
+/**
+ * H5 Tailwind v4 主入口。
+ */
+@import 'tailwindcss';
+
+@theme inline {
+  --color-yb-bg: var(--yb-bg);
+  --color-yb-surface: var(--yb-surface);
+  --color-yb-hairline: var(--yb-hairline);
+  --color-yb-ink: var(--yb-ink);
+  --color-yb-ink-2: var(--yb-ink-2);
+  --color-yb-muted: var(--yb-muted);
+  --color-yb-faint: var(--yb-faint);
+  --color-yb-primary: var(--yb-primary);
+  --color-yb-primary-2: var(--yb-primary-2);
+  --color-yb-gold: var(--yb-gold);
+  --color-yb-gold-2: var(--yb-gold-2);
+  --color-yb-champagne: var(--yb-champagne);
+  --color-yb-success: var(--yb-success);
+  --color-yb-danger: var(--yb-danger);
+  --color-yb-warning: var(--yb-warning);
+  --color-yb-deep: var(--yb-deep);
+}

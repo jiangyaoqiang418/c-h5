@@ -1,0 +1,63 @@
+/**
+ * H5 全局设计 tokens —— 油宝品牌视觉系统（H5 版）
+ * 「全亮色高级感 + 科技细节点缀」
+ *
+ * H5 使用 rpx 作为设计单位（750rpx 基准）；px 单位仅用于 border 等细节
+ */
+
+:root {
+  /* ==================== 基础层 ==================== */
+  --yb-bg:           #FAFAF7;
+  --yb-surface:      #FFFFFF;
+  --yb-elevated:     #FFFFFF;
+  --yb-hairline:     #EDECE6;
+
+  /* ==================== 文字层 ==================== */
+  --yb-ink:          #0F111A;
+  --yb-ink-2:        #1D2129;
+  --yb-muted:        #6B7385;
+  --yb-faint:        #A8ADB8;
+
+  /* ==================== 品牌 accent ==================== */
+  --yb-primary:      #5B5CE7;
+  --yb-primary-2:    #7C5CFC;
+  --yb-primary-soft: rgba(91, 92, 231, 0.08);
+  --yb-gold:         #B8935A;
+  --yb-gold-2:       #D4A574;
+  --yb-champagne:    #F6EFE4;
+
+  /* ==================== 语义色 ==================== */
+  --yb-success:      #00A88A;
+  --yb-danger:       #E74C3C;
+  --yb-warning:      #D4A574;
+  --yb-info:         #5B5CE7;
+
+  /* ==================== 深色 accent ==================== */
+  --yb-deep:         #0F1B36;
+  --yb-deep-2:       #1E1F3A;
+
+  /* ==================== Typography ==================== */
+  --yb-font-display: 'PingFang SC', -apple-system, BlinkMacSystemFont, ui-sans-serif, sans-serif;
+  --yb-font-body:    'PingFang SC', -apple-system, BlinkMacSystemFont, ui-sans-serif, sans-serif;
+  --yb-font-mono:    ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+/* H5 页面基础 style */
+page {
+  background: var(--yb-bg);
+  color: var(--yb-ink-2);
+  font-family: var(--yb-font-body);
+}
+
+/* 数字字体 helper */
+.yb-mono {
+  font-family: var(--yb-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 标题字体 helper */
+.yb-display {
+  font-family: var(--yb-font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}

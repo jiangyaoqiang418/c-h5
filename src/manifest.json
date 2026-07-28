@@ -1,0 +1,20 @@
+{
+  "name": "油宝 H5",
+  "appid": "__PROTO_YOUBAO__",
+  "description": "油宝 · Web3 USDT 跨境代购 H5 端原型",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "h5": {
+    "title": "油宝 · H5",
+    "router": {
+      "mode": "hash",
+      "base": "/"
+    },
+    "devServer": {
+      "port": 5174,
+      "disableHostCheck": true
+    }
+  },
+  "vueVersion": "3"
+}

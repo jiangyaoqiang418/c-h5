@@ -1,0 +1,77 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^wd-(.*)": "wot-design-uni/components/wd-$1/wd-$1.vue"
+    }
+  },
+  "pages": [
+    { "path": "pages/index/index", "style": { "navigationStyle": "custom" } },
+    { "path": "pages/category/index", "style": { "navigationBarTitleText": "分类" } },
+    { "path": "pages/purchase/hall", "style": { "navigationBarTitleText": "求购大厅", "enablePullDownRefresh": true } },
+    { "path": "pages/cart/index", "style": { "navigationBarTitleText": "购物车" } },
+    { "path": "pages/my/index", "style": { "navigationBarTitleText": "我的" } },
+
+    { "path": "pages/product/list", "style": { "navigationBarTitleText": "商品列表", "enablePullDownRefresh": true } },
+    { "path": "pages/product/detail", "style": { "navigationStyle": "custom" } },
+    { "path": "pages/checkout/index", "style": { "navigationBarTitleText": "确认订单" } },
+    { "path": "pages/checkout/success", "style": { "navigationBarTitleText": "支付成功" } },
+    { "path": "pages/order/list", "style": { "navigationBarTitleText": "我的订单", "enablePullDownRefresh": true } },
+    { "path": "pages/order/detail", "style": { "navigationBarTitleText": "订单详情" } },
+
+    { "path": "pages/wallet/index", "style": { "navigationStyle": "custom" } },
+    { "path": "pages/wallet/history", "style": { "navigationBarTitleText": "资金流水", "enablePullDownRefresh": true } },
+    { "path": "pages/wallet/deposit", "style": { "navigationBarTitleText": "链上充值" } },
+    { "path": "pages/wallet/withdraw", "style": { "navigationBarTitleText": "转出" } },
+    { "path": "pages/finance/list", "style": { "navigationBarTitleText": "小金库" } },
+    { "path": "pages/finance/detail", "style": { "navigationBarTitleText": "产品详情" } },
+    { "path": "pages/finance/my-lockups", "style": { "navigationBarTitleText": "我的锁仓" } },
+
+    { "path": "pages/purchase/my-list", "style": { "navigationBarTitleText": "我的求购" } },
+    { "path": "pages/purchase/create", "style": { "navigationBarTitleText": "发起求购" } },
+    { "path": "pages/purchase/detail", "style": { "navigationBarTitleText": "求购详情" } },
+    { "path": "pages/aftersale/list", "style": { "navigationBarTitleText": "我的售后" } },
+    { "path": "pages/aftersale/create", "style": { "navigationBarTitleText": "申请售后" } },
+    { "path": "pages/aftersale/detail", "style": { "navigationBarTitleText": "售后详情" } },
+    { "path": "pages/im/order-group", "style": { "navigationBarTitleText": "三方群" } },
+    { "path": "pages/im/order-list", "style": { "navigationBarTitleText": "订单群聊" } },
+    { "path": "pages/message/index", "style": { "navigationBarTitleText": "消息中心" } },
+    { "path": "pages/review/write", "style": { "navigationBarTitleText": "写评价" } },
+    { "path": "pages/review/list", "style": { "navigationBarTitleText": "我的评价" } },
+
+    { "path": "pages/kyc/index", "style": { "navigationBarTitleText": "KYC 认证" } },
+    { "path": "pages/vip/index", "style": { "navigationBarTitleText": "VIP 特权" } },
+    { "path": "pages/my/addresses", "style": { "navigationBarTitleText": "地址管理" } },
+    { "path": "pages/my/points", "style": { "navigationBarTitleText": "我的积分" } },
+
+    { "path": "pages/buyer/dashboard", "style": { "navigationBarTitleText": "买手仪表盘" } },
+    { "path": "pages/buyer/products", "style": { "navigationBarTitleText": "商品管理" } },
+    { "path": "pages/buyer/product-create", "style": { "navigationBarTitleText": "上架商品" } },
+    { "path": "pages/buyer/deposit", "style": { "navigationBarTitleText": "押金管理" } },
+
+    { "path": "pages/ai/index", "style": { "navigationBarTitleText": "AI 智能导购" } },
+    { "path": "pages/announcement/index", "style": { "navigationBarTitleText": "公告中心" } },
+    { "path": "pages/help/index", "style": { "navigationBarTitleText": "帮助中心" } },
+    { "path": "pages/auth/login", "style": { "navigationBarTitleText": "登录" } }
+  ],
+  "globalStyle": {
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTitleText": "油宝",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F7F8FA"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#86909C",
+    "selectedColor": "#4D80F0",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页", "iconPath": "static/tab-home.png", "selectedIconPath": "static/tab-home-on.png" },
+      { "pagePath": "pages/category/index", "text": "分类", "iconPath": "static/tab-cat.png", "selectedIconPath": "static/tab-cat-on.png" },
+      { "pagePath": "pages/purchase/hall", "text": "求购", "iconPath": "static/tab-purchase.png", "selectedIconPath": "static/tab-purchase-on.png" },
+      { "pagePath": "pages/cart/index", "text": "购物车", "iconPath": "static/tab-cart.png", "selectedIconPath": "static/tab-cart-on.png" },
+      { "pagePath": "pages/my/index", "text": "我的", "iconPath": "static/tab-my.png", "selectedIconPath": "static/tab-my-on.png" }
+    ]
+  }
+}
