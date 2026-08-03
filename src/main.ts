@@ -2,10 +2,6 @@ import { createSSRApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
 import './styles/tokens.scss';
-import './styles/main.css';
-import { registerLucideOffline } from './utils/iconify-offline';
-
-registerLucideOffline();
 
 export function createApp() {
   const app = createSSRApp(App);

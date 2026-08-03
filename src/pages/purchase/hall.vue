@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { onPullDownRefresh } from '@dcloudio/uni-app';
-import { purchaseApi } from '@shared';
+import { buyerApi, purchaseApi } from '@shared';
 import { go } from '@/utils/navigate';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import EmptyState from '@/components/common/empty-state.vue';
-import CustomTabBar from '@/components/layout/custom-tab-bar.vue';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
@@ -21,7 +20,6 @@ async function load() {
   loading.value = true;
   try {
     if (canClaim.value && userStore.currentUser) {
-      const { buyerApi } = await import('@shared/api');
       const r = await buyerApi.fetchClaimableRequests(userStore.currentUser.id);
       list.value = r.records;
     } else {
@@ -61,7 +59,7 @@ function goCreate() {
 </script>
 
 <template>
-  <view class="hall-page">
+  <view class="hall-page h5-tab-page">
     <view class="hero">
       <text class="hero-eyebrow">PURCHASE HALL · REAL-TIME</text>
       <text class="hero-title">求购大厅</text>
@@ -98,7 +96,6 @@ function goCreate() {
         @action="goCreate"
       />
     </view>
-    <CustomTabBar current="purchase" />
   </view>
 </template>
 

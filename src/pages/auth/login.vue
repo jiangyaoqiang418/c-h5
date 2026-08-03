@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { MOCK_USERS, authApi } from '@shared';
 import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 
@@ -21,29 +20,16 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    const result = await authApi.mockLogin(form);
-    if ('error' in result) {
-      uni.showToast({ title: result.error, icon: 'none' });
-      return;
-    }
-    await userStore.login(result.user.id);
+    await userStore.login(form);
     uni.showToast({ title: '登录成功', icon: 'success' });
     setTimeout(() => go(redirect.value, true), 500);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '登录失败', icon: 'none' });
   } finally {
     submitting.value = false;
   }
 }
 
-async function oneClick(userId: number) {
-  submitting.value = true;
-  try {
-    await userStore.login(userId);
-    uni.showToast({ title: '已登录', icon: 'success' });
-    setTimeout(() => go(redirect.value, true), 500);
-  } finally {
-    submitting.value = false;
-  }
-}
 </script>
 
 <template>
@@ -55,39 +41,20 @@ async function oneClick(userId: number) {
     </view>
 
     <view class="form-card">
-      <wd-input v-model="form.email" label="邮箱" placeholder="如 wangxiaomei@bw-shop.com" />
-      <wd-input v-model="form.password" label="密码" type="password" placeholder="原型阶段，任意密码即可" />
+      <wd-input class="login-input" v-model="form.email" label="邮箱" label-width="36px" placeholder="如 wangxiaomei@bw-shop.com" />
+      <wd-input class="login-input" v-model="form.password" label="密码" label-width="36px" type="password" placeholder="请输入登录密码" />
       <wd-button type="primary" block :loading="submitting" @click="submit">登 录</wd-button>
     </view>
-
-    <view class="divider">
-      <text>演示账号一键登录</text>
-    </view>
-
-    <view class="quick-list">
-      <view
-        v-for="u in MOCK_USERS"
-        :key="u.userId"
-        class="quick-row"
-        @click="oneClick(u.userId)"
-      >
-        <view class="quick-info">
-          <text class="quick-label">{{ u.label }}</text>
-          <text class="quick-desc">{{ u.desc }}</text>
-        </view>
-        <text class="quick-arrow">›</text>
-      </view>
-    </view>
-
-    <text class="hint">原型阶段不支持新建用户，使用演示账号即可</text>
   </view>
 </template>
 
 <style lang="scss" scoped>
 .login-page {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
   background: linear-gradient(135deg, #4d80f0 0%, #722ed1 50%, #fff 50%);
-  padding: 32rpx;
+  padding: calc(32rpx + env(safe-area-inset-top)) 32rpx 32rpx;
 }
 .hero {
   text-align: center;
@@ -124,6 +91,9 @@ async function oneClick(userId: number) {
   border-radius: 16rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
+}
+.login-input {
+  --wot-cell-padding: 12px;
 }
 .divider {
   text-align: center;

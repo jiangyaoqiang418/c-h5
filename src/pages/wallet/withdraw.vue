@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { walletApi } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
 import { useUserStore, useWalletStore } from '@/stores';
+import { createWithdraw } from '@/service/api/wallet';
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
@@ -15,22 +15,18 @@ const form = reactive<{
 const submitting = ref(false);
 
 const available = computed(() => Number(walletStore.account?.available || 0));
-const fee = computed(() => Number((form.amount * 0.005 + 2).toFixed(2)));
-const total = computed(() => form.amount + fee.value);
-const net = computed(() => Math.max(0, form.amount - fee.value));
-
 const canSubmit = computed(() =>
-  form.amount > 10 && form.toAddress.length > 25 && form.agreed && total.value <= available.value
+  form.amount > 0 && form.toAddress.length > 0 && form.agreed && form.amount <= available.value
 );
 
 onMounted(async () => {
-  if (userStore.currentUser) await walletStore.fetchWallet(userStore.currentUser.id);
+  if (userStore.currentUser) await walletStore.fetchWallet();
 });
 
 function confirmWithdraw() {
   uni.showModal({
     title: '确认转出',
-    content: `金额 ${form.amount} U + 手续费 ${fee.value} U，实际到账 ${net.value} U`,
+    content: `确认提交 ${form.amount} U 的提现申请？实际手续费及到账金额以后端处理结果为准。`,
     confirmText: '确认转出',
     success: async r => {
       if (r.confirm) await doWithdraw();
@@ -42,19 +38,16 @@ async function doWithdraw() {
   if (!userStore.currentUser) return;
   submitting.value = true;
   try {
-    const r = await walletApi.withdrawMock({
-      userId: userStore.currentUser.id,
-      amount: form.amount.toFixed(2),
+    const id = await createWithdraw({
+      amount: form.amount,
       chain: form.chain,
       toAddress: form.toAddress
     });
-    if (r.ok) {
-      uni.showToast({ title: '转出成功', icon: 'success' });
-      await walletStore.refetch();
-      setTimeout(() => uni.navigateBack(), 800);
-    } else {
-      uni.showToast({ title: r.message || '失败', icon: 'none' });
-    }
+    uni.showToast({ title: `申请已提交（${id}）`, icon: 'success' });
+    await walletStore.refetch();
+    setTimeout(() => uni.navigateBack(), 800);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '提现申请失败', icon: 'none' });
   } finally {
     submitting.value = false;
   }
@@ -78,13 +71,6 @@ async function doWithdraw() {
       </wd-cell>
       <wd-input v-model="form.toAddress" label="目标地址" placeholder="请输入 USDT 收款地址" />
       <wd-input v-model="form.amount" label="转出金额" type="digit" placeholder="USDT" />
-    </view>
-
-    <view class="fee-card">
-      <view class="fee-row"><text>燃料费</text><text>U 2.00</text></view>
-      <view class="fee-row"><text>服务费 0.5%</text><text>U {{ (form.amount * 0.005).toFixed(2) }}</text></view>
-      <view class="fee-row total"><text>总费用</text><text>U {{ fee.toFixed(2) }}</text></view>
-      <view class="fee-row net"><text>实际到账</text><text>U {{ net.toFixed(2) }}</text></view>
     </view>
 
     <view class="agree-row">
@@ -112,7 +98,7 @@ async function doWithdraw() {
   background: #f7f8fa;
   padding: 16rpx;
 }
-.balance-card, .form-card, .fee-card, .agree-row {
+.balance-card, .form-card, .agree-row {
   background: #fff;
   padding: 24rpx;
   border-radius: 16rpx;
@@ -133,25 +119,6 @@ async function doWithdraw() {
   color: #4d80f0;
   font-family: ui-monospace, monospace;
   margin-top: 8rpx;
-}
-.fee-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8rpx 0;
-  font-size: 24rpx;
-  color: #4e5969;
-}
-.fee-row.total {
-  border-top: 1rpx dashed #f2f3f5;
-  margin-top: 8rpx;
-  padding-top: 16rpx;
-  font-weight: 600;
-  color: #1d2129;
-}
-.fee-row.net {
-  color: #00b42a;
-  font-weight: 700;
-  font-size: 26rpx;
 }
 .agree-row {
   font-size: 24rpx;

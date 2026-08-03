@@ -4,7 +4,6 @@ import { productApi } from '@shared';
 import { heroBrandImage, bannerImage } from '@shared/utils/image';
 import { go } from '@/utils/navigate';
 import ProductCard from '@/components/product/product-card.vue';
-import CustomTabBar from '@/components/layout/custom-tab-bar.vue';
 
 interface CategoryNode { id: number; name: string; }
 
@@ -46,7 +45,7 @@ function goPurchase() { go('/pages/purchase/hall'); }
 </script>
 
 <template>
-  <view class="home-page">
+  <view class="home-page h5-tab-page">
     <!-- ============ 顶部搜索栏 ============ -->
     <view class="top-bar">
       <view class="logo-wrap">
@@ -175,8 +174,6 @@ function goPurchase() { go('/pages/purchase/hall'); }
       </view>
     </view>
 
-    <view class="footer-space" />
-    <CustomTabBar current="home" />
   </view>
 </template>
 
@@ -532,5 +529,4 @@ function goPurchase() { go('/pages/purchase/hall'); }
   font-size: 36rpx;
   color: #FFFFFF;
 }
-.footer-space { height: 40rpx; }
 </style>

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue';
-import { Icon } from '@iconify/vue';
 import { aiApi } from '@shared';
 import { go } from '@/utils/navigate';
 import AiSuggestionList from '@/components/ai/ai-suggestion-list.vue';
@@ -71,7 +70,7 @@ function inducePurchaseFrom(text: string) {
       <view class="msg-list">
         <view v-for="(m, i) in messages" :key="i" class="msg-row" :class="m.role">
           <view v-if="m.role === 'bot'" class="bubble bot">
-            <view class="bot-avatar"><Icon icon="lucide:sparkles" width="18" /></view>
+            <view class="bot-avatar"><text>✦</text></view>
             <view class="bubble-body">
               <text class="bubble-text">{{ m.text }}</text>
               <AiSuggestionList
@@ -85,7 +84,7 @@ function inducePurchaseFrom(text: string) {
             <text class="bubble-text">{{ m.text }}</text>
           </view>
           <view v-else class="bubble bot loading">
-            <view class="bot-avatar"><Icon icon="lucide:sparkles" width="18" /></view>
+            <view class="bot-avatar"><text>✦</text></view>
             <view class="dots"><text class="dot">·</text><text class="dot">·</text><text class="dot">·</text></view>
           </view>
         </view>
@@ -114,7 +113,7 @@ function inducePurchaseFrom(text: string) {
           @confirm="() => send()"
         />
         <view class="send-btn" :class="{ active: input.trim() }" @click="() => send()">
-          <Icon icon="lucide:send" width="20" />
+          <text>➤</text>
         </view>
       </view>
     </view>

@@ -107,6 +107,9 @@ function onSortChange(v: string) {
   top: 0;
   z-index: 10;
 }
+/* #ifdef H5 */
+.search { top: 44px; }
+/* #endif */
 .search-input {
   background: #f7f8fa;
   border-radius: 32rpx;
@@ -121,6 +124,9 @@ function onSortChange(v: string) {
   top: 92rpx;
   z-index: 9;
 }
+/* #ifdef H5 */
+.sort-row { top: calc(44px + 92rpx); }
+/* #endif */
 .sort-item {
   flex: 1;
   text-align: center;

@@ -1,8 +1,9 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
-import { enums, walletApi } from '@shared';
+import { enums } from '@shared';
 import type { BucketKey } from '@shared/enums/wallet';
 import { useUserStore } from './user';
+import { fetchWalletOverview } from '@/service/api/wallet';
 
 export interface BucketView {
   key: BucketKey;
@@ -21,20 +22,16 @@ export const useWalletStore = defineStore('bw-wallet', () => {
   const loading = ref(false);
   const lastFetchedAt = ref<number>(0);
 
-  async function fetchWallet(userId: number) {
-    if (!userId) return;
+  async function fetchWallet(_legacyUserId?: number) {
+    const userStore = useUserStore();
+    if (!userStore.realUserId) return;
     loading.value = true;
     try {
-      const userStore = useUserStore();
-      const [s, ba, total] = await Promise.all([
-        walletApi.fetchMyWallet(userId),
-        userStore.isBuyerActive ? walletApi.fetchMyBuyerWallet(userId) : Promise.resolve(undefined),
-        walletApi.fetchTotalAssetsOfUser(userId)
-      ]);
-      summary.value = s;
-      buyerWallet.value = ba;
-      totalAssets.value = total.total;
-      account.value = 'account' in total ? (total.account as Api.Wallet.InternalAccount) : undefined;
+      const result = await fetchWalletOverview();
+      summary.value = result.summary;
+      buyerWallet.value = undefined;
+      totalAssets.value = result.total;
+      account.value = result.account;
       lastFetchedAt.value = Date.now();
     } finally {
       loading.value = false;
@@ -43,7 +40,7 @@ export const useWalletStore = defineStore('bw-wallet', () => {
 
   async function refetch() {
     const userStore = useUserStore();
-    if (userStore.currentUser) await fetchWallet(userStore.currentUser.id);
+    if (userStore.currentUser) await fetchWallet();
   }
 
   function clear() {

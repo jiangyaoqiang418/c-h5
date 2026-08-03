@@ -16,5 +16,18 @@
       "disableHostCheck": true
     }
   },
+  "app-plus": {
+    "usingComponents": true,
+    "nvueStyleCompiler": "uni-app",
+    "nvueCompiler": "uni-app",
+    "distribute": {
+      "android": {
+        "minSdkVersion": 26
+      },
+      "ios": {
+        "deploymentTarget": "13.0"
+      }
+    }
+  },
   "vueVersion": "3"
 }

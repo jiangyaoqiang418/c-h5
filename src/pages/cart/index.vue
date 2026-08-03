@@ -3,7 +3,6 @@ import { computed } from 'vue';
 import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go, requireLogin } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
-import CustomTabBar from '@/components/layout/custom-tab-bar.vue';
 import { useCartStore } from '@/stores';
 
 const cart = useCartStore();
@@ -30,7 +29,7 @@ async function goCheckout() {
 </script>
 
 <template>
-  <view class="cart-page">
+  <view class="cart-page h5-tab-page">
     <template v-if="items.length">
       <view class="list">
         <view v-for="item in items" :key="item.productId" class="row" :class="{ invalid: !item.available }">
@@ -83,7 +82,6 @@ async function goCheckout() {
       action-text="去逛逛"
       @action="go('/pages/index/index')"
     />
-    <CustomTabBar current="cart" />
   </view>
 </template>
 
@@ -216,6 +214,9 @@ async function goCheckout() {
   gap: 16rpx;
   border-top: 1rpx solid #f2f3f5;
 }
+/* #ifdef H5 */
+.bottom-bar { bottom: var(--window-bottom); }
+/* #endif */
 .all-check {
   display: flex;
   align-items: center;

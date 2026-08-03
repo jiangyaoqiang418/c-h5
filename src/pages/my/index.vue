@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { Icon } from '@iconify/vue';
-import { MOCK_USERS, formatAmount, formatPoints, orderApi, vipApi, walletApi } from '@shared';
+import { formatAmount, formatPoints, orderApi, vipApi, walletApi } from '@shared';
 import { go } from '@/utils/navigate';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import VipBadge from '@/components/common/vip-badge.vue';
 import KycStatusTag from '@/components/common/kyc-status-tag.vue';
-import CustomTabBar from '@/components/layout/custom-tab-bar.vue';
-import { useUserStore } from '@/stores';
+import { useUserStore, useWalletStore } from '@/stores';
 
 const userStore = useUserStore();
+const walletStore = useWalletStore();
 
 const totalAssets = ref<string>('0');
 const orderCounts = ref<Record<string, number>>({});
@@ -44,39 +43,29 @@ const cells = computed(() => {
   const buyerActive = userStore.isBuyerActive;
   if (buyerActive) {
     return [
-      { label: '买手仪表盘', icon: 'lucide:layout-dashboard', go: () => go('/pages/buyer/dashboard') },
-      { label: '商品管理', icon: 'lucide:package', go: () => go('/pages/buyer/products') },
-      { label: '买手押金', icon: 'lucide:lock', go: () => go('/pages/buyer/deposit') },
-      { label: '我的钱包', icon: 'lucide:wallet', go: () => go('/pages/wallet/index') },
-      { label: '小金库', icon: 'lucide:piggy-bank', go: () => go('/pages/finance/list') },
-      { label: '我的评价', icon: 'lucide:star', go: () => go('/pages/review/list') },
-      { label: 'VIP 特权', icon: 'lucide:crown', go: () => go('/pages/vip/index') },
-      { label: 'KYC 认证', icon: 'lucide:badge-check', go: () => go('/pages/kyc/index') }
+      { label: '买手仪表盘', icon: '▦', go: () => go('/pages/buyer/dashboard') },
+      { label: '商品管理', icon: '□', go: () => go('/pages/buyer/products') },
+      { label: '买手押金', icon: '▣', go: () => go('/pages/buyer/deposit') },
+      { label: '我的钱包', icon: '◈', go: () => go('/pages/wallet/index') },
+      { label: '小金库', icon: '◒', go: () => go('/pages/finance/list') },
+      { label: '我的评价', icon: '★', go: () => go('/pages/review/list') },
+      { label: 'VIP 特权', icon: '♛', go: () => go('/pages/vip/index') },
+      { label: 'KYC 认证', icon: '✓', go: () => go('/pages/kyc/index') }
     ];
   }
   return [
-    { label: '我的钱包', icon: 'lucide:wallet', go: () => go('/pages/wallet/index') },
-    { label: '小金库', icon: 'lucide:piggy-bank', go: () => go('/pages/finance/list') },
-    { label: '我的求购', icon: 'lucide:search', go: () => go('/pages/purchase/my-list') },
-    { label: '我的售后', icon: 'lucide:wrench', go: () => go('/pages/aftersale/list') },
-    { label: '我的评价', icon: 'lucide:star', go: () => go('/pages/review/list') },
-    { label: '我的积分', icon: 'lucide:coins', go: () => go('/pages/my/points') },
-    { label: '地址管理', icon: 'lucide:map-pin', go: () => go('/pages/my/addresses') },
-    { label: 'KYC 认证', icon: 'lucide:badge-check', go: () => go('/pages/kyc/index') },
-    { label: 'VIP 特权', icon: 'lucide:crown', go: () => go('/pages/vip/index') },
-    { label: '帮助中心', icon: 'lucide:help-circle', go: () => go('/pages/help/index') }
+    { label: '我的钱包', icon: '◈', go: () => go('/pages/wallet/index') },
+    { label: '小金库', icon: '◒', go: () => go('/pages/finance/list') },
+    { label: '我的求购', icon: '⌕', go: () => go('/pages/purchase/my-list') },
+    { label: '我的售后', icon: '◇', go: () => go('/pages/aftersale/list') },
+    { label: '我的评价', icon: '★', go: () => go('/pages/review/list') },
+    { label: '我的积分', icon: '◎', go: () => go('/pages/my/points') },
+    { label: '地址管理', icon: '⌖', go: () => go('/pages/my/addresses') },
+    { label: 'KYC 认证', icon: '✓', go: () => go('/pages/kyc/index') },
+    { label: 'VIP 特权', icon: '♛', go: () => go('/pages/vip/index') },
+    { label: '帮助中心', icon: '?', go: () => go('/pages/help/index') }
   ];
 });
-
-function switchDemoUser() {
-  uni.showActionSheet({
-    itemList: MOCK_USERS.map(u => `${u.label} · ${u.desc}`),
-    success: r => {
-      const u = MOCK_USERS[r.tapIndex];
-      userStore.switchDemoUser(u.userId);
-    }
-  });
-}
 
 function logout() {
   uni.showModal({
@@ -84,7 +73,8 @@ function logout() {
     success: r => {
       if (r.confirm) {
         userStore.logout();
-        uni.showToast({ title: '已退出', icon: 'success' });
+        walletStore.clear();
+        uni.reLaunch({ url: '/pages/auth/login' });
       }
     }
   });
@@ -104,11 +94,11 @@ function goAiChat() {
 </script>
 
 <template>
-  <view class="my-page">
+  <view class="my-page h5-tab-page">
     <!-- 用户卡 -->
     <view class="user-card">
       <view class="bell-btn" @click="goMessages">
-        <Icon icon="lucide:bell" width="20" />
+        <text class="local-icon">♢</text>
         <view v-if="unreadCount > 0" class="bell-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
       </view>
 
@@ -124,7 +114,7 @@ function goAiChat() {
             <text class="email">{{ user.email }}</text>
           </view>
         </view>
-        <text class="switch-btn" @click="switchDemoUser">切换</text>
+        <text class="switch-btn" @click="logout">退出</text>
       </view>
       <view v-else class="user-row">
         <view class="avatar">?</view>
@@ -159,7 +149,7 @@ function goAiChat() {
     <view v-if="user" class="ai-cta" @click="goAiChat">
       <view class="ai-left">
         <view class="ai-icon-wrap">
-          <Icon icon="lucide:sparkles" width="20" />
+          <text class="local-icon">✦</text>
         </view>
         <view class="ai-copy">
           <text class="ai-title">AI 智能导购</text>
@@ -196,7 +186,7 @@ function goAiChat() {
       <view class="cell-grid">
         <view v-for="c in cells" :key="c.label" class="cell" @click="c.go()">
           <view class="cell-icon-wrap">
-            <Icon :icon="c.icon" width="24" />
+            <text class="local-icon">{{ c.icon }}</text>
           </view>
           <text class="cell-label">{{ c.label }}</text>
         </view>
@@ -207,12 +197,11 @@ function goAiChat() {
     <view v-if="user" class="logout-btn" @click="logout">
       <text>退出登录</text>
     </view>
-    <view class="footer-space" />
-    <CustomTabBar current="my" />
   </view>
 </template>
 
 <style lang="scss" scoped>
+.local-icon { font-size: 32rpx; line-height: 1; }
 .my-page {
   min-height: 100vh;
   background: #FAFAF7;
@@ -456,8 +445,5 @@ function goAiChat() {
   text-align: center;
   color: #f53f3f;
   font-size: 28rpx;
-}
-.footer-space {
-  height: 32rpx;
 }
 </style>

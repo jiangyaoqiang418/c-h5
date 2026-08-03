@@ -2,6 +2,44 @@
 
 > 本文用于统一油宝 C 端 H5 的接口对接方式。说明使用中文，接口路径、字段名、代码名和 `mock` 等技术标识保持原样。
 
+## 当前执行边界（2026-08-03）
+
+### 目标与阶段
+
+- 当前唯一交付端为移动 H5、Android App、iOS App，采用 UniApp App-Vue；兼容基线为 Android 8+、iOS 13+。
+- 本轮只实施 P0 三端工程与请求基础、P1 跨端 UI 整改、P2 首批真实接口。支付、KYC 相机/上传、IM/推送、签名、商店发布和热更新属于 P3/P4，明确不在本轮范围。
+- H5、Android/iOS 统一使用 `pages.json` 的窗口级原生 tabBar；页面不得渲染底栏。五个一级页面只负责内容，并使用同一组入口和跳转规则。
+- 默认顶部导航同样由 `pages.json` 的窗口级导航栏承载；首页业务搜索头、登录页无导航、商品详情浮层返回和钱包 Hero 导航是当前已登记的自定义导航例外。
+
+### P2 前置门禁
+
+1. 实时抓取 `admin`、`user`、`order` Swagger，递归比较旧矩阵与最新文档的路径、方法、参数、必填项、requestBody、response、schema 和嵌套字段。
+2. 将差异及 A/B/C/D 结论更新到 `api-swagger-match-matrix.md`，再选择当前页面实际需要且契约完整的接口。
+3. H5 首批接入须提供可访问的 HTTP 或 HTTPS 服务地址、可登录测试账号、分类/积分/钱包测试数据、成功码规则和错误响应样例；缺少任一项时不得将页面从 Mock 切到真实接口。Android/iOS 迁移另须提供 HTTPS 地址。
+4. H5 开发环境可使用 HTTP、HTTPS、代理或 CORS；Android/iOS 直接访问 HTTPS 服务。不得为 iOS 配置 HTTP 例外，也不得在真实请求失败时回退 Mock。
+
+### 已确认的最新 Swagger 状态
+
+- Swagger 文档首页（用户提供，P2 实时审查入口）：`http://221.128.249.198:8902/doc.html#/home`。
+- 2026-08-03：`admin` 为 84 路径/85 操作/138 schema，`user` 为 19/19/45，`order` 为 40/42/50；三个文档版本均为 `v1.0.0`。
+- 首批候选仍为 `POST /user/auth/login`、`GET /user/auth/me`、`GET /order/categories/tree`、`GET /user/points/account`、`GET /user/wallet/overview`、`POST /user/withdraw/create`。
+- 已从 c-pc 的真实环境配置复核通用口径：服务分组为 `https://testhou.merchantsale.store/api/{admin,user,order}`，成功码为 `1`，登录失效码为 `-200`、强提示失效码为 `-201`；错误信息字段兼容 `message`/`msg`。H5 仅复用这些契约和地址，不复用 PC 的浏览器请求实现。
+- 2026-08-03 实测：真实服务对 `http://localhost:5173` 的带 `X-Access-Token` 跨域预检返回 HTTP 403。H5 开发必须使用 `/api/{user,order,admin}` Vite 代理；部署 H5 与 Android/iOS 需使用完整 HTTPS 服务地址，不能直连该服务的跨域 HTTP 接口。
+- 当前 Swagger 服务仅确认 HTTP 可用，HTTPS 握手失败。按当前决策，P2 可先在 H5 使用 HTTP 服务开发；本轮读取候选已使用本地受保护的测试账号、可用测试数据、成功码和错误口径完成验证（凭据不写入仓库）。后续新模块仍须满足本节门禁；提现等写操作在未记录真实请求、响应和结果页证据前，不得标记为真实验证。Android/iOS 对接继续等待 HTTPS 地址。
+
+### 2026-08-03 P2 首批 H5 实施证据
+
+| 能力 | 契约与实现 | H5 真实验证 | 当前状态 |
+|---|---|---|---|
+| 邮箱登录、当前用户 | `POST /user/auth/login` → `GET /user/auth/me`，登录后再读取积分账户 | `/api/user/*` Vite 代理返回 HTTP 200、`code: 1` | 登录页与用户 Store 已迁移 |
+| 积分账户 | `GET /user/points/account` | HTTP 200、`code: 1`，返回 `userId/points/customer/buyer` | API adapter 已接入登录后的用户状态；积分流水仍为 Mock |
+| 分类树 | `GET /order/categories/tree?onlyEnabled=true` | HTTP 200、`code: 1`，测试数据 4 个根分类 | 分类页已迁移；商品列表仍为 Mock |
+| 钱包总览 | `GET /user/wallet/overview` | HTTP 200、`code: 1`，返回 `total/currency/todayIn/todayOut/distribution` | 钱包 Store 与提现页余额已迁移；流水、充值仍为 Mock |
+| 提现创建 | `POST /user/withdraw/create` | 未提交真实写入，避免消耗测试账户资产 | 类型、adapter、提交结果提示已完成；仅待人工点击后验证真实写入与结果 |
+
+- H5 代理使用 `VITE_REAL_*_BASE_URL=/api/*`，目标服务地址仅存在于环境配置；请求层不在真实接口失败时回退 Mock。
+- 原始服务 ID 在已迁移用户模型以 `remoteId: string` 保存；仅旧 Mock 页面使用兼容展示 ID，避免把真实 `int64` 作为 API 参数转为 `number`。
+
 ## 2026-07-28 完整接口满足度扫描
 
 ### 扫描范围
@@ -11,7 +49,7 @@
 - H5 当前实际调用 65 项 Mock API 能力；静态消息中心和本地购物车作为额外交互单独核对，不计入 65 项函数统计。
 - 本次不是根据 Mock 文件名匹配，而是按页面表单、筛选、分页、详情字段、状态操作和写操作逐项核对。
 
-### Swagger 实时快照
+### Swagger 历史快照（2026-07-28）
 
 | 分组 | 文档地址 | 路径数 | 操作数 | 结论 |
 |---|---|---:|---:|---|

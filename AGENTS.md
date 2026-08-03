@@ -2,7 +2,7 @@
 
 ## Summary
 
-项目是油宝 C 端 H5，基于 `UniApp + Vue 3 + TypeScript + Pinia + wot-design-uni + Tailwind CSS`。后续接口对接沿用后台项目的处理原则：前端现有交互和业务行为优先，接口路径、字段、类型、枚举、分页及响应结构以后端 Swagger 为准。
+项目是油宝 C 端 H5，基于 `UniApp + Vue 3 + TypeScript + Pinia + wot-design-uni`。唯一交付端为移动 H5、Android App 与 iOS App，采用 App-Vue 路线；后续接口对接沿用后台项目的处理原则：前端现有交互和业务行为优先，接口路径、字段、类型、枚举、分页及响应结构以后端 Swagger 为准。
 
 ## Core Rules
 
@@ -28,7 +28,9 @@
 - 模块正式对接时，新建并复用 `src/service/request/` 与 `src/service/api/<module>.ts`；页面和 Store 只调用 API 文件，不直接调用底层 request。
 - 真实请求层的职责与后台项目保持一致：集中处理 baseURL、`X-Access-Token`、成功码、业务错误、登录失效、响应解包和错误提示；不做真实接口失败后自动回退 Mock。
 - PC/H5 与后台共用 Swagger，但只接入 C 端页面实际需要的接口；不得因 Swagger 存在而扩展前端交互。
-- H5 请求底层必须兼容目标 UniApp 运行端。正式实现前根据本次目标确认使用 `uni.request`、兼容适配器或其他方案，不因文档要求直接引入 Axios。
+- H5 请求底层必须使用 `uni.request`，集中处理 baseURL、超时、`X-Access-Token`、响应解包、业务错误和登录失效；不得复制 c-pc 的 `fetch`/`window` 实现，也不得使用后台的 Axios browser adapter。
+- 页面和 Store 禁止直接使用 `window`、`document`、`localStorage`、`sessionStorage`、Vue Router 或浏览器重定向；存储、跳转、剪贴板和网络能力一律经 UniApp API 或项目封装。
+- H5 开发/测试可临时使用 HTTP 或 HTTPS 服务；Android/iOS App 请求仅允许 HTTPS，不为 iOS 配置明文 HTTP 例外。H5 的代理/CORS 和 HTTP 地址不能成为 App 的请求依赖。
 - 真实接口字段与现有页面字段不一致时，优先在 API/adapter 边界转换；页面交互不变，字段和类型以后端返回为准。
 
 ### 类型与 ID
@@ -46,12 +48,23 @@
 - 不把当前函数型 Mock 误判为可由 Axios adapter 自动拦截。若未来需要网络型 Mock，应单独确认方案，并保持真实请求实例隔离。
 - 不为了 PC/H5 去重而跨项目搬迁或建立工作区共享包，除非用户明确要求。
 
+### 三端 UI 与构建边界
+
+- H5、Android、iOS 均使用 `pages.json` 配置的窗口级原生 tabBar；严禁在页面内容中渲染底栏。五个一级页面只负责内容，入口和跳转语义必须一致。
+- 默认顶部导航同样由 `pages.json` 的窗口级导航栏承载；仅首页业务搜索头、登录页无导航、商品详情浮层返回和钱包 Hero 导航可使用 `navigationStyle: custom`，新增例外须说明原因并完成三端验收。
+- H5 专用 DOM 选择器和滚动条美化必须置于 `#ifdef H5` 中；不得以 CSS 隐藏框架 tabBar，也不得依赖 CSS 控制 App 原生 tabBar。
+- 图标使用项目内本地 PNG/WebP 资源；不得在 App 页面中依赖 Iconify Vue、在线图标服务或内联 SVG。
+- 新增/修改页面必须避免 `backdrop-filter`、依赖浏览器 viewport 的 `100vh` 和未经真机验证的 CSS Grid；固定操作栏必须复用安全区处理。
+- 目标兼容基线为 Android 8+、iOS 13+。每个已迁移模块均需在移动 H5、Android 真机与 iOS 真机验证安全区、软键盘、返回、列表滚动和错误提示。
+
 ### 文档与状态口径
 
 - 接口计划和核对记录统一放 `docs/`，说明使用中文，技术标识保持原样。
 - 共用 Swagger 入口以 `docs/api-integration-plan.md` 记录为准，地址变化只维护文档，不凭记忆修改代码。
 - “Swagger 接口存在”“API 已封装”“页面已调用”“真实接口已验证”必须分开描述。
 - 文档中的待对接项和治理标记不自动授权修改页面、Mock、类型或接口映射。
+- 每个新真实接口模块在写代码前，必须实时抓取 `admin`、`user`、`order` Swagger，并递归比较路径、方法、参数、必填项、requestBody、response 与 schema 字段；将结果写入接口计划和匹配矩阵后才能实施。
+- P3/P4 的支付、KYC 相机/上传、IM/推送、应用签名、商店发布和热更新不在当前 P0-P2 范围内。
 
 ### Git 与开发检查
 

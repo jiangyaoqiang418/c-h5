@@ -18,29 +18,36 @@ page {
   color: #1d2129;
 }
 
+/* #ifdef H5 */
+/*
+ * 顶部导航和 tabBar 都是 UniApp 的窗口层，不属于任何页面内容。
+ * H5 通过框架变量获取它们实际占用的高度，页面只使用两者之间的空间。
+ */
+uni-page-head ~ uni-page-wrapper > uni-page-body > * {
+  min-height: calc(100vh - var(--window-top)) !important;
+  box-sizing: border-box;
+}
+uni-page-head ~ uni-page-wrapper > uni-page-body > .chat-page,
+uni-page-head ~ uni-page-wrapper > uni-page-body > .im-page {
+  height: calc(100vh - var(--window-top)) !important;
+}
+
+/* 一级 tab 页在窗口导航与原生 tabBar 之间滚动。 */
+.h5-tab-page {
+  height: calc(100vh - var(--window-bottom)) !important;
+  min-height: 0 !important;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding-bottom: 0 !important;
+}
+uni-page-head ~ uni-page-wrapper > uni-page-body > .h5-tab-page {
+  height: calc(100vh - var(--window-top) - var(--window-bottom)) !important;
+}
+
 /* H5 隐藏滚动条美化 */
 ::-webkit-scrollbar {
   display: none;
 }
 
-/* ============================================================
- * 强制隐藏 UniApp H5 原生 tabBar
- * 原生 uni-tabbar 用 static/tab-*.png 空占位 PNG（95B），z-index 998
- * 会盖住我们自定义的 <CustomTabBar>。用全局 CSS 强制隐藏。
- * 注：pages.json 的 tabBar.list 配置保留（uni.switchTab API 依赖）。
- * ============================================================ */
-uni-tabbar,
-.uni-tabbar,
-.uni-tabbar-top,
-.uni-tabbar-bottom {
-  display: none !important;
-}
-.uni-tabbar ~ .uni-placeholder,
-.uni-placeholder {
-  display: none !important;
-}
-uni-app.uni-app--showtabbar,
-uni-app.uni-app--showtabbar uni-page-wrapper {
-  padding-bottom: 0 !important;
-}
+/* #endif */
 </style>

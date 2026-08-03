@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { Icon } from '@iconify/vue';
 import { go } from '@/utils/navigate';
 
 interface Category {
@@ -21,7 +20,7 @@ function loadMock() {
   categories.value = [
     {
       key: 'system',
-      icon: 'lucide:settings-2',
+      icon: '⚙',
       title: '系统通知',
       path: '',
       unread: 2,
@@ -30,7 +29,7 @@ function loadMock() {
     },
     {
       key: 'announcement',
-      icon: 'lucide:megaphone',
+      icon: '▰',
       title: '平台公告',
       path: '/pages/announcement/index',
       unread: 1,
@@ -39,7 +38,7 @@ function loadMock() {
     },
     {
       key: 'txn',
-      icon: 'lucide:receipt',
+      icon: '▤',
       title: '交易通知',
       path: '',
       unread: 0,
@@ -49,7 +48,7 @@ function loadMock() {
     },
     {
       key: 'im',
-      icon: 'lucide:message-circle',
+      icon: '◌',
       title: '订单群聊',
       path: '/pages/im/order-list',
       unread: 3,
@@ -94,7 +93,7 @@ function open(c: Category) {
       >
         <view class="cat-left">
           <view class="cat-icon-wrap">
-            <Icon :icon="c.icon" width="24" />
+            <text class="local-icon">{{ c.icon }}</text>
             <view v-if="c.unread > 0" class="unread-dot">{{ c.unread > 99 ? '99+' : c.unread }}</view>
           </view>
         </view>
@@ -112,6 +111,7 @@ function open(c: Category) {
 </template>
 
 <style lang="scss" scoped>
+.local-icon { font-size: 34rpx; line-height: 1; }
 .msg-page {
   min-height: 100vh;
   background: #FAFAF7;

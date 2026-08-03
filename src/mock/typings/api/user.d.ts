@@ -12,6 +12,8 @@ declare namespace Api {
 
     interface UserRecord {
       id: number;
+      /** 真实服务的原始 ID；必须保持 string，禁止转为 number。 */
+      remoteId?: string;
       email: string;
       nickname: string;
       avatar?: string;

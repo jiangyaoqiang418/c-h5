@@ -1,26 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
 import { productApi } from '@shared';
+import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import ProductCard from '@/components/product/product-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
-import CustomTabBar from '@/components/layout/custom-tab-bar.vue';
-
-interface CategoryNode {
-  id: number;
-  name: string;
-  level: number;
-  children?: CategoryNode[];
-}
 
 const roots = ref<CategoryNode[]>([]);
-const activeRoot = ref<number>();
+const activeRoot = ref<string>();
 const products = ref<Api.Product.ProductRecord[]>([]);
 const loading = ref(false);
 
-async function load(id?: number) {
+async function load(id?: string) {
   loading.value = true;
   try {
-    const r = await productApi.fetchProductList({ categoryId: id, size: 30 });
+    const r = await productApi.fetchProductList({ categoryId: id ? Number(id) : undefined, size: 30 });
     products.value = r.records;
   } finally {
     loading.value = false;
@@ -28,7 +21,7 @@ async function load(id?: number) {
 }
 
 onMounted(async () => {
-  roots.value = ((await productApi.fetchCategoryTree()) as CategoryNode[]).slice(0, 12);
+  roots.value = (await fetchCategoryTree()).slice(0, 12);
   if (roots.value.length) {
     activeRoot.value = roots.value[0].id;
     load(activeRoot.value);
@@ -39,7 +32,7 @@ watch(activeRoot, id => load(id));
 </script>
 
 <template>
-  <view class="cat-page">
+  <view class="cat-page h5-tab-page">
     <view class="layout">
       <scroll-view scroll-y class="side">
         <view
@@ -59,7 +52,6 @@ watch(activeRoot, id => load(id));
         <EmptyState v-else-if="!loading" title="该分类暂无商品" />
       </scroll-view>
     </view>
-    <CustomTabBar current="category" />
   </view>
 </template>
 

@@ -3,3 +3,6 @@ allowBuilds:
   core-js: true
   esbuild: true
   vue-demi: true
+overrides:
+  rollup: 4.13.0
+  vue-router: 4.4.5

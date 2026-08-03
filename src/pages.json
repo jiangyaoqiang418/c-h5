@@ -52,7 +52,7 @@
     { "path": "pages/ai/index", "style": { "navigationBarTitleText": "AI 智能导购" } },
     { "path": "pages/announcement/index", "style": { "navigationBarTitleText": "公告中心" } },
     { "path": "pages/help/index", "style": { "navigationBarTitleText": "帮助中心" } },
-    { "path": "pages/auth/login", "style": { "navigationBarTitleText": "登录" } }
+    { "path": "pages/auth/login", "style": { "navigationStyle": "custom" } }
   ],
   "globalStyle": {
     "navigationBarBackgroundColor": "#FFFFFF",
@@ -61,7 +61,6 @@
     "backgroundColor": "#F7F8FA"
   },
   "tabBar": {
-    "custom": true,
     "color": "#86909C",
     "selectedColor": "#4D80F0",
     "backgroundColor": "#FFFFFF",

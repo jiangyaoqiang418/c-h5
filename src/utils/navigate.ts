@@ -7,6 +7,8 @@
  *   if (await requireLogin('/pages/cart/index')) { ... }
  */
 
+import { useUserStore } from '@/stores';
+
 const TAB_PATHS = new Set([
   '/pages/index/index',
   '/pages/category/index',
@@ -35,7 +37,6 @@ export function reLaunch(url: string): void {
 }
 
 export async function requireLogin(redirectUrl?: string): Promise<boolean> {
-  const { useUserStore } = await import('@/stores');
   const userStore = useUserStore();
   await userStore.init();
   if (!userStore.isLoggedIn) {
@@ -57,7 +58,6 @@ export async function requireLogin(redirectUrl?: string): Promise<boolean> {
 }
 
 export async function requireBuyer(): Promise<boolean> {
-  const { useUserStore } = await import('@/stores');
   const userStore = useUserStore();
   await userStore.init();
   const u = userStore.currentUser;
