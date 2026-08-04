@@ -18,7 +18,8 @@ pnpm typecheck
 - H5 开发默认由 UniApp/Vite 启动。
 - H5 构建产物位于 `dist/build/h5`。
 - 当前仅维护移动 H5、Android App 与 iOS App；小程序和其他端暂不构建、不验收。
-- Android/iOS 采用 UniApp App-Vue。当前 H5 开发可使用 HTTP 测试服务；App 请求必须使用 HTTPS。签名、商店发布和热更新不在当前阶段。
+- Android/iOS 采用 UniApp App-Vue。`dev:app-plus` 与 `build:app-plus` 固定加载 `.env.app`，使用完整 HTTPS 测试服务地址，不依赖 H5 的 Vite 代理。签名、商店发布和热更新不在当前阶段。
+- HBuilderX 直接运行 App 时会加载 development 环境；请求配置在 App 端使用 `.env.development` 的 `VITE_REAL_*_TARGET_URL`，H5 仍使用 `/api/*` 代理。
 
 ## 目录
 

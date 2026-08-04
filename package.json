@@ -9,8 +9,8 @@
     "dev:h5": "uni",
     "build": "uni build",
     "build:h5": "uni build",
-    "dev:app-plus": "uni -p app-plus",
-    "build:app-plus": "uni build -p app-plus",
+    "dev:app-plus": "uni -p app-plus --mode app",
+    "build:app-plus": "uni build -p app-plus --mode app",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
