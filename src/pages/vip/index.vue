@@ -1,29 +1,35 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { vipApi } from '@shared';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import VipBadge from '@/components/common/vip-badge.vue';
+import { fetchPointAccount, type PointAccount } from '@/service/api/point';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
-const audience = ref<Api.Vip.Audience>('customer');
 const configs = ref<Api.Vip.LevelConfig[]>([]);
-type VipStatus = Awaited<ReturnType<typeof vipApi.fetchMyVipStatus>>;
-const myStatus = ref<VipStatus>();
+const pointAccount = ref<PointAccount>();
+
+const audience = computed<Api.Vip.Audience>(() => (
+  userStore.isBuyerActive ? 'buyer' : 'customer'
+));
+const activeVip = computed(() => (
+  audience.value === 'buyer' ? pointAccount.value?.buyer : pointAccount.value?.customer
+));
+const vipLevel = computed<Api.User.VipLevel>(() => {
+  const level = activeVip.value?.level;
+  return level === 'VIP1' || level === 'VIP2' ? level : 'VIP0';
+});
+const points = computed(() => Number(pointAccount.value?.points ?? userStore.currentUser?.points ?? 0));
+const pointsToNext = computed(() => {
+  const nextThreshold = Number(activeVip.value?.nextThreshold);
+  if (!Number.isFinite(nextThreshold) || nextThreshold <= points.value) return undefined;
+  return nextThreshold - points.value;
+});
 
 onMounted(async () => {
   configs.value = await vipApi.fetchVipConfigs();
-  await reloadMy();
-});
-
-async function reloadMy() {
-  if (!userStore.currentUser) return;
-  myStatus.value = await vipApi.fetchMyVipStatus(userStore.currentUser.id);
-  audience.value = myStatus.value?.audience || 'customer';
-}
-
-watch(audience, async () => {
-  await reloadMy();
+  if (userStore.currentUser) pointAccount.value = await fetchPointAccount();
 });
 
 const audienceConfigs = computed(() => configs.value.filter(c => c.audience === audience.value));
@@ -53,16 +59,16 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
     <view class="hero">
       <text class="hero-title">VIP 特权中心</text>
       <view class="my-card">
-        <VipBadge v-if="myStatus" :level="myStatus.vipLevel" />
+        <VipBadge v-if="pointAccount" :level="vipLevel" />
         <view class="my-info">
-          <text class="my-points">{{ myStatus?.points || 0 }} 积分</text>
-          <text v-if="myStatus?.nextThreshold" class="my-next">距下一级还差 {{ myStatus.nextThreshold - myStatus.points }} 积分</text>
+          <text class="my-points">{{ points }} 积分</text>
+          <text v-if="pointsToNext !== undefined" class="my-next">距下一级还差 {{ pointsToNext }} 积分</text>
         </view>
       </view>
     </view>
 
     <view class="segment-wrap">
-      <AudienceSegment v-model:audience="audience" :show-buyer="true" />
+      <AudienceSegment />
     </view>
 
     <view class="table-wrap">

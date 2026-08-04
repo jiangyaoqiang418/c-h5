@@ -1,33 +1,42 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { formatAmount, formatPoints, orderApi, vipApi, walletApi } from '@shared';
+import { formatAmount, formatPoints, orderApi } from '@shared';
 import { go } from '@/utils/navigate';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import VipBadge from '@/components/common/vip-badge.vue';
 import KycStatusTag from '@/components/common/kyc-status-tag.vue';
+import { fetchPointAccount, type PointAccount } from '@/service/api/point';
 import { useUserStore, useWalletStore } from '@/stores';
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
 
-const totalAssets = ref<string>('0');
 const orderCounts = ref<Record<string, number>>({});
-const vipStatus = ref<Awaited<ReturnType<typeof vipApi.fetchMyVipStatus>>>();
+const pointAccount = ref<PointAccount>();
 const unreadCount = ref(6);
 
 const user = computed(() => userStore.currentUser);
+const totalAssets = computed(() => walletStore.totalAssets);
+const activeVip = computed(() => (
+  userStore.isBuyerActive ? pointAccount.value?.buyer : pointAccount.value?.customer
+));
+const pointsToNext = computed(() => {
+  const nextThreshold = Number(activeVip.value?.nextThreshold);
+  const points = Number(pointAccount.value?.points ?? user.value?.points ?? 0);
+  if (!Number.isFinite(nextThreshold) || nextThreshold <= points) return undefined;
+  return nextThreshold - points;
+});
 
 async function loadAll() {
   if (!user.value) return;
   const uid = user.value.id;
-  const [assets, counts, vip] = await Promise.all([
-    walletApi.fetchTotalAssetsOfUser(uid),
+  const [, counts, account] = await Promise.all([
+    walletStore.fetchWallet(),
     orderApi.countMyOrdersByStatus(uid),
-    vipApi.fetchMyVipStatus(uid)
+    fetchPointAccount()
   ]);
-  totalAssets.value = assets.total;
   orderCounts.value = counts;
-  vipStatus.value = vip;
+  pointAccount.value = account;
 }
 onMounted(loadAll);
 
@@ -142,8 +151,8 @@ function goAiChat() {
           <text class="stat-val">{{ formatPoints(user.points) }}</text>
           <text class="stat-lbl">积分</text>
         </view>
-        <view v-if="vipStatus?.nextThreshold" class="stat">
-          <text class="stat-val">{{ formatPoints(vipStatus.pointsToNext) }}</text>
+        <view v-if="pointsToNext !== undefined" class="stat">
+          <text class="stat-val">{{ formatPoints(pointsToNext) }}</text>
           <text class="stat-lbl">距升级</text>
         </view>
       </view>
