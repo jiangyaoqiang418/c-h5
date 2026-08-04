@@ -5,7 +5,12 @@ import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
-const form = reactive({ email: '', password: '' });
+const env = ((import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env || {});
+const form = reactive({
+  // 仅本机 .env.development.local 提供测试账号；生产环境不加载该文件。
+  email: String(env.VITE_DEV_LOGIN_EMAIL || ''),
+  password: String(env.VITE_DEV_LOGIN_PASSWORD || '')
+});
 const submitting = ref(false);
 const redirect = ref('/pages/my/index');
 

@@ -57,22 +57,26 @@ watch(activeRoot, id => load(id));
 
 <style lang="scss" scoped>
 .cat-page {
-  height: 100vh;
   background: #f7f8fa;
-  padding-bottom: 120rpx;
-  box-sizing: border-box;
+  overflow: hidden !important;
 }
 .layout {
   display: flex;
   height: 100%;
+  min-height: 0;
 }
 .side {
   width: 180rpx;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  /* 左侧分类栏始终填满主视图；分类较多时由 scroll-view 自身纵向滚动。 */
   background: #fff;
   border-right: 1rpx solid #f2f3f5;
 }
 .root-row {
   padding: 28rpx 24rpx;
+  background: #fff;
   font-size: 26rpx;
   color: #4e5969;
   border-left: 4rpx solid transparent;
@@ -85,6 +89,10 @@ watch(activeRoot, id => load(id));
 }
 .content {
   flex: 1;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
   padding: 16rpx;
 }
 .grid {

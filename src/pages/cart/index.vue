@@ -204,11 +204,11 @@ async function goCheckout() {
 }
 .bottom-bar {
   position: fixed;
-  bottom: calc(120rpx + env(safe-area-inset-bottom));
+  bottom: 0;
   left: 0;
   right: 0;
   background: #fff;
-  padding: 16rpx 24rpx;
+  padding: 16rpx 40rpx calc(16rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -220,7 +220,8 @@ async function goCheckout() {
 .all-check {
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  flex-shrink: 0;
+  gap: 12rpx;
 }
 .all-check .label {
   font-size: 24rpx;
