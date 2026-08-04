@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { onPullDownRefresh } from '@dcloudio/uni-app';
-import { buyerApi, purchaseApi } from '@shared';
 import { go } from '@/utils/navigate';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { claimRequest, fetchHall } from '@/service/api/purchase';
 
 const userStore = useUserStore();
 const list = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
@@ -19,13 +19,12 @@ const canClaim = computed(
 async function load() {
   loading.value = true;
   try {
-    if (canClaim.value && userStore.currentUser) {
-      const r = await buyerApi.fetchClaimableRequests(userStore.currentUser.id);
-      list.value = r.records;
-    } else {
-      const r = await purchaseApi.fetchHall({ size: 30 });
-      list.value = r.records;
-    }
+    await userStore.init();
+    const r = await fetchHall({ size: 30 });
+    list.value = r.records;
+  } catch (error) {
+    list.value = [];
+    uni.showToast({ title: error instanceof Error ? error.message : '求购大厅加载失败', icon: 'none' });
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
@@ -40,7 +39,7 @@ async function onClaim(req: Api.PurchaseRequest.PurchaseRequest) {
     uni.showToast({ title: '请先登录', icon: 'none' });
     return;
   }
-  const r = await purchaseApi.claimRequestMock(req.id, userStore.currentUser.id);
+  const r = await claimRequest(req.id);
   if (r.ok) {
     uni.showToast({ title: '接单成功', icon: 'success' });
     load();

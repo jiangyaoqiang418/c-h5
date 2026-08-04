@@ -29,6 +29,41 @@ const bucketMap: Record<string, keyof Api.Wallet.InternalAccount> = {
   DEPOSIT_GUARANTEED: 'depositGuaranteed'
 };
 
+const bucketMapReverse: Record<string, Api.Wallet.Bucket> = {
+  AVAILABLE: 'available',
+  NON_WITHDRAWABLE: 'nonWithdrawable',
+  LOCKED_FINANCE: 'lockedFinance',
+  FROZEN_ORDER: 'frozenOrder',
+  FROZEN_RISK: 'frozenRisk',
+  DEPOSIT_AVAILABLE: 'depositAvailable',
+  DEPOSIT_GUARANTEED: 'depositGuaranteed'
+};
+
+const txnTypeMap: Record<string, Api.Wallet.TxnType> = {
+  RECHARGE: 'DEPOSIT_IN',
+  RECHARGE_IN: 'DEPOSIT_IN',
+  WITHDRAW: 'WITHDRAW_OUT',
+  WITHDRAW_OUT: 'WITHDRAW_OUT',
+  ORDER_PAY: 'ORDER_FREEZE',
+  ORDER_FREEZE: 'ORDER_FREEZE',
+  ORDER_SETTLE: 'ORDER_SETTLE',
+  REFUND: 'INTERNAL_REFUND',
+  DEPOSIT_PAY: 'DEPOSIT_PLEDGE',
+  DEPOSIT_PLEDGE: 'DEPOSIT_PLEDGE',
+  DEPOSIT_RELEASE: 'DEPOSIT_RELEASE',
+  DEPOSIT_FORFEIT: 'DEPOSIT_FORFEIT',
+  FINANCE_LOCK: 'FINANCE_LOCK',
+  FINANCE_UNLOCK: 'FINANCE_UNLOCK',
+  INTEREST: 'INTEREST_ACCRUE',
+  INTEREST_ACCRUE: 'INTEREST_ACCRUE',
+  RISK_FREEZE: 'RISK_FREEZE',
+  RISK_UNFREEZE: 'RISK_UNFREEZE',
+  ADJUST_PLUS: 'ADJUST_PLUS',
+  ADJUST_MINUS: 'ADJUST_MINUS',
+  FEE: 'FEE_DEDUCT',
+  FEE_DEDUCT: 'FEE_DEDUCT'
+};
+
 function emptyAccount(): Api.Wallet.InternalAccount {
   return {
     userId: 0,
@@ -69,6 +104,49 @@ export async function fetchWalletOverview() {
     currency: wallet.currency || 'USDT',
     todayIn: String(wallet.todayIn ?? 0),
     todayOut: String(wallet.todayOut ?? 0)
+  };
+}
+
+function toIso(value: string | number): string {
+  if (typeof value === 'number' || /^\d+$/.test(value)) return new Date(Number(value)).toISOString();
+  return value;
+}
+
+function toTxn(dto: Api.RealWallet.WalletLedgerDTO): Api.Wallet.Txn {
+  const bucketFrom = dto.fromType ? bucketMapReverse[dto.fromType] : undefined;
+  const bucketTo = dto.toType ? bucketMapReverse[dto.toType] : undefined;
+  const direction: Api.Wallet.Txn['direction'] = bucketTo && !bucketFrom ? 'in' : 'out';
+  const type = txnTypeMap[dto.bizType] || txnTypeMap[dto.bizGroup || ''] || (direction === 'in' ? 'ADJUST_PLUS' : 'ADJUST_MINUS');
+
+  return {
+    id: dto.id as unknown as number,
+    userId: dto.userId as unknown as number,
+    userName: '',
+    type,
+    direction,
+    amount: String(dto.amount ?? 0),
+    balanceAfter: String(dto.toBalanceAfter ?? dto.fromBalanceAfter ?? 0),
+    bucketFrom,
+    bucketTo,
+    remark: dto.remark || dto.bizTypeText || dto.bizGroupText,
+    createdAt: toIso(dto.createdAt)
+  };
+}
+
+export async function fetchWalletLedger(query: { current?: number; size?: number } = {}) {
+  const page = await realUserRequest<Api.RealWallet.WalletLedgerPage, Api.RealWallet.WalletLedgerPageQuery>({
+    url: '/wallet/ledger/page',
+    method: 'POST',
+    data: {
+      pageNo: query.current || 1,
+      pageSize: query.size || 20
+    }
+  });
+  return {
+    current: page.current || page.pageNo || query.current || 1,
+    size: page.size || page.pageSize || query.size || 20,
+    total: page.total,
+    records: page.records.map(toTxn)
   };
 }
 

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { purchaseApi } from '@shared';
 import { go } from '@/utils/navigate';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { cancelPurchase, fetchMyPurchases } from '@/service/api/purchase';
 
 const userStore = useUserStore();
 const activeKey = ref('all');
 const list = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
+const loading = ref(false);
 
 const TABS: { key: string; label: string; statuses?: Api.PurchaseRequest.RequestStatus[] }[] = [
   { key: 'all', label: '全部' },
@@ -20,10 +21,16 @@ const TABS: { key: string; label: string; statuses?: Api.PurchaseRequest.Request
 ];
 
 async function load() {
-  if (!userStore.currentUser) return;
-  const tab = TABS.find(t => t.key === activeKey.value);
-  const r = await purchaseApi.fetchMyPurchases(userStore.currentUser.id, tab?.statuses);
-  list.value = r.records;
+  loading.value = true;
+  try {
+    await userStore.init();
+    if (!userStore.realUserId) return;
+    const tab = TABS.find(t => t.key === activeKey.value);
+    const r = await fetchMyPurchases(userStore.realUserId, tab?.statuses);
+    list.value = r.records;
+  } finally {
+    loading.value = false;
+  }
 }
 onShow(load);
 watch(activeKey, load);
@@ -33,7 +40,7 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
     title: '撤销求购？',
     success: async r => {
       if (r.confirm) {
-        await purchaseApi.cancelPurchaseMock(req.id, '顾客撤销');
+        await cancelPurchase(req.id);
         load();
       }
     }
@@ -56,7 +63,7 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
         <PurchaseRequestCard v-for="r in list" :key="r.id" :request="r" mode="mine" @cancel="onCancel" />
       </view>
       <EmptyState
-        v-else
+        v-else-if="!loading"
         title="暂无求购"
         description="发起求购让全球买手为您代购"
         action-text="发起求购"

@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { productApi, purchaseApi } from '@shared';
 import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
+import { fetchCategoryTree } from '@/service/api/category';
+import { createPurchase } from '@/service/api/purchase';
 
 const userStore = useUserStore();
 const submitting = ref(false);
 
-interface CategoryNode { id: number; name: string; children?: CategoryNode[]; }
 const categoryNames = ref<string[]>([]);
-const categoryIds = ref<number[]>([]);
+const categoryIds = ref<string[]>([]);
 
 const form = reactive({
   productTitle: '',
   productDescription: '',
   categoryName: '',
-  categoryId: 0,
+  categoryId: '',
   budgetAmount: 500,
   expectedDays: 14,
   overseasCustoms: false,
@@ -26,13 +26,12 @@ const form = reactive({
 
 onLoad(query => {
   if (query?.productHint) form.productTitle = decodeURIComponent(query.productHint as string);
-  if (query?.categoryId) form.categoryId = Number(query.categoryId);
+  if (query?.categoryId) form.categoryId = String(query.categoryId);
 });
 
 onMounted(async () => {
-  const tree = (await productApi.fetchCategoryTree()) as CategoryNode[];
-  const leaves: { id: number; name: string }[] = [];
-  tree.forEach(t => leaves.push({ id: t.id, name: t.name }));
+  const tree = await fetchCategoryTree({ onlyEnabled: true });
+  const leaves = tree.map(item => ({ id: item.id, name: item.name }));
   categoryNames.value = leaves.map(l => l.name);
   categoryIds.value = leaves.map(l => l.id);
 });
@@ -51,7 +50,8 @@ async function submit() {
   if (!form.productTitle.trim()) return uni.showToast({ title: '请输入商品名', icon: 'none' });
   if (!form.categoryId) return uni.showToast({ title: '请选择分类', icon: 'none' });
   if (form.appeal.trim().length < 10) return uni.showToast({ title: '说明至少 10 字', icon: 'none' });
-  if (!userStore.currentUser) return;
+  await userStore.init();
+  if (!userStore.realUserId) return;
   uni.showModal({
     title: '确认发起求购？',
     content: `预算 U ${form.budgetAmount} · 期望 ${form.expectedDays} 天内`,
@@ -59,8 +59,7 @@ async function submit() {
       if (!r.confirm) return;
       submitting.value = true;
       try {
-        const res = await purchaseApi.createPurchaseMock({
-          customerId: userStore.currentUser!.id,
+        const res = await createPurchase({
           productTitle: form.productTitle.trim(),
           productDescription: form.productDescription.trim() || form.appeal.trim(),
           categoryId: form.categoryId,
@@ -69,7 +68,7 @@ async function submit() {
           overseasCustoms: form.overseasCustoms,
           aftersaleType: form.aftersaleType,
           appeal: form.appeal.trim()
-        });
+        }, userStore.realUserId);
         uni.showToast({ title: '发起成功', icon: 'success' });
         setTimeout(() => go(`/pages/purchase/detail?id=${res.id}`, true), 600);
       } finally {

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app';
-import { walletApi } from '@shared';
 import TxnRow from '@/components/wallet/txn-row.vue';
 import TxnDetailPopup from '@/components/wallet/txn-detail-popup.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { fetchWalletLedger } from '@/service/api/wallet';
 
 const userStore = useUserStore();
 const list = ref<Api.Wallet.Txn[]>([]);
@@ -14,10 +14,11 @@ const popupOpen = ref(false);
 const drawerTxn = ref<Api.Wallet.Txn>();
 
 async function load() {
+  await userStore.init();
   if (!userStore.currentUser) return;
   loading.value = true;
   try {
-    const r = await walletApi.fetchMyTxns({ userId: userStore.currentUser.id, size: 50 });
+    const r = await fetchWalletLedger({ size: 50 });
     list.value = r.records;
   } finally {
     loading.value = false;

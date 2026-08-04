@@ -59,6 +59,17 @@
 - 本机回归账号保存在 Git 忽略文件 `.h5-test-account.local`，文档只记录读取方式，密码不得提交到远端历史。
 - Chrome H5 回归已验证登录、“我的”和“VIP 特权”页面；真实返回与页面一致：积分 `0`、顾客等级 `VIP0`、下一阈值 `1000`、钱包总额 `0`。未触发提现或积分申诉真实写入。
 
+### 2026-08-04 H5 钱包流水与求购闭环
+
+- 最新 Swagger 计数仍为 `admin` 84 路径/85 操作/138 schema、`user` 19/19/45、`order` 40/42/50，`notify` 仍返回 HTTP 404；本轮关键钱包和求购契约与既有矩阵一致。
+- 钱包首页“最近交易”和资金流水页已从 `@shared` Mock 切换到 `POST /user/wallet/ledger/page`。adapter 将 `bizType/bizGroup/fromType/toType` 映射到现有流水类型和资产桶，Long ID 只做类型兼容，不做数值转换。
+- Chrome 真实账号回归中钱包流水返回 `code: 1、total: 0`；钱包首页显示“暂无交易”，资金流水页显示“暂无流水”，均无请求或脚本错误。非空流水、链上 hash、地址和费用拆分仍需具备对应数据后验证。
+- 已新增求购真实 adapter，并迁移发起求购、我的求购、大厅、详情、撤销和抢单入口：`POST /order/demands/create`、`POST /order/demands/my/page`、`POST /order/demands/hall/page`、`GET /order/demands/detail`、`POST /order/demands/cancel`、`POST /order/demands/grab`。
+- 后端状态已在 adapter 映射为当前页面状态：`OPEN -> pushing`、`TAKEN -> claimed`、`CANCELED/VOID -> cancelled`；路由和写操作保留真实 Long ID 原值。求购分类路径由真实分类树递归派生，历史数据引用已删除分类时明确显示“分类已失效”，不伪造分类名称。
+- Chrome 使用回归账号创建测试求购 `2084594988764192770`，详情正确回显标题、分类、预算 `U 500.00`、说明和“推送中”；随后调用撤销接口，详情与“我的求购”列表均回显“已取消”。测试记录未留在可接单状态。
+- 普通顾客调用求购大厅返回“请先申请成为买手”，页面显示空态且无未捕获错误，不回退 Mock。抢单接口和页面入口已接入，但当前账号角色为 `CUSTOMER`、KYC 为 `UNSUBMITTED`，仍需买手账号完成真实写入验证。
+- Swagger 未返回推送批次、推送日志、客户/买手名称和取消原因；真实详情不展示这些无契约数据，等待后端补充，不使用 Mock 拼接。
+
 ## 2026-07-28 完整接口满足度扫描
 
 ### 扫描范围

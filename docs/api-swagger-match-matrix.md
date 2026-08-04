@@ -56,6 +56,19 @@
 - 本机 H5 回归账号只保存在 Git 忽略文件 `.h5-test-account.local`，凭据不进入仓库和远端历史。
 - 本轮只执行真实读取和页面回显验证，未执行提现创建或积分申诉写入。
 
+## 2026-08-04 H5 钱包流水与求购闭环
+
+| 前端能力 | 最新 Swagger 契约 | API/页面状态 | 真实验证证据 | 保留缺口 |
+|---|---|---|---|---|
+| 钱包最近交易/资金流水 | `POST /user/wallet/ledger/page`，body 为 `pageNo/pageSize/bizGroup/bizType` | `src/service/api/wallet.ts`、钱包首页、资金流水页已调用 | Chrome 返回 `code: 1、total: 0`，两个空态正常且无错误 | 缺链上 hash、地址、引用和费用拆分；非空记录待验证 |
+| 发起求购 | `POST /order/demands/create` | 真实 adapter 与发起页已调用 | 创建测试求购 `2084594988764192770` 成功，并由详情接口回读 | 图片上传尚未进入当前 H5 表单流程 |
+| 我的求购/详情 | `POST /order/demands/my/page`、`GET /order/demands/detail?id=` | 我的列表、详情和 Long ID 路由已迁移 | 真实 `OPEN/CANCELED` 记录与新建记录均正确回显；分类路径来自真实分类树 | 缺推送批次/日志、客户/买手名称和取消原因 |
+| 撤销求购 | `POST /order/demands/cancel`，body 为 Long `id` | 列表与详情撤销入口已调用 | 新建测试求购由 `OPEN` 变为 `CANCELED`，列表和详情同步为“已取消” | 后端不接收前端原有撤销原因 |
+| 求购大厅/抢单 | `POST /order/demands/hall/page`、`POST /order/demands/grab` | 大厅读取与抢单入口已迁移 | 普通顾客收到“请先申请成为买手”，页面空态且无未捕获错误 | 抢单需已通过 KYC 的买手账号验证 |
+
+- 求购状态映射为 `OPEN -> pushing`、`TAKEN -> claimed`、`CANCELED/VOID -> cancelled`；所有新接入 Long ID 在运行时保留原始字符串，不在页面层使用 `Number()`/`parseInt()`。
+- 历史求购引用的分类若已不在最新分类树中，页面明确显示“分类已失效 · 原 ID”；不从 Mock 补名称，也不把真实请求失败回退 Mock。
+
 ## 满足度口径
 
 | 等级 | 含义 |

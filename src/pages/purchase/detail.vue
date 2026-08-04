@@ -1,28 +1,35 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { enums, purchaseApi } from '@shared';
+import { enums } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
 import PushTierBadge from '@/components/purchase/push-tier-badge.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { cancelPurchase, claimRequest, fetchPurchaseDetail } from '@/service/api/purchase';
 
 const userStore = useUserStore();
 const request = ref<Api.PurchaseRequest.PurchaseRequest>();
-const id = ref<number>();
+const id = ref<string>();
 const logs = ref<Api.PurchaseRequest.PushLog[]>([]);
+const loading = ref(true);
 
 onLoad(async query => {
-  id.value = Number(query?.id);
-  if (id.value) {
-    const r = await purchaseApi.fetchPurchaseDetail(id.value);
-    request.value = r.request;
-    logs.value = r.pushLogs;
+  try {
+    await userStore.init();
+    id.value = query?.id ? String(query.id) : undefined;
+    if (id.value) {
+      const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
+      request.value = r.request;
+      logs.value = r.pushLogs;
+    }
+  } finally {
+    loading.value = false;
   }
 });
 
 const statusMeta = computed(() => (request.value ? enums.PURCHASE_STATUS_META[request.value.status] : undefined));
-const isMy = computed(() => userStore.currentUser?.id === request.value?.customerId);
+const isMy = computed(() => !!userStore.realUserId && userStore.realUserId === String(request.value?.customerId || ''));
 const canClaim = computed(() => {
   if (!request.value || !userStore.currentUser) return false;
   return request.value.status === 'pushing' && userStore.isBuyerActive && userStore.currentUser.kycStatus === 'approved';
@@ -30,7 +37,7 @@ const canClaim = computed(() => {
 
 async function reload() {
   if (id.value) {
-    const r = await purchaseApi.fetchPurchaseDetail(id.value);
+    const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
     request.value = r.request;
     logs.value = r.pushLogs;
   }
@@ -38,7 +45,7 @@ async function reload() {
 
 async function claim() {
   if (!request.value || !userStore.currentUser) return;
-  const r = await purchaseApi.claimRequestMock(request.value.id, userStore.currentUser.id);
+  const r = await claimRequest(request.value.id);
   if (r.ok) {
     uni.showToast({ title: '接单成功', icon: 'success' });
     reload();
@@ -51,7 +58,7 @@ function cancel() {
     title: '撤销求购？',
     success: async r => {
       if (r.confirm) {
-        await purchaseApi.cancelPurchaseMock(request.value!.id, '顾客撤销');
+        await cancelPurchase(request.value!.id);
         reload();
       }
     }
@@ -88,7 +95,7 @@ function cancel() {
       <text class="appeal">{{ request.appeal }}</text>
     </view>
 
-    <view v-if="request.status === 'pushing'" class="section">
+    <view v-if="request.status === 'pushing' && (request.currentPushLevel || request.pushedToBuyerIds.length)" class="section">
       <text class="section-title">推送轨迹</text>
       <view class="push-row">
         <PushTierBadge v-if="request.currentPushLevel" :level="request.currentPushLevel" />
@@ -109,7 +116,7 @@ function cancel() {
       <wd-button v-if="isMy && ['pending_audit', 'pushing'].includes(request.status)" type="error" plain @click="cancel">撤销</wd-button>
     </view>
   </view>
-  <EmptyState v-else title="求购不存在" />
+  <EmptyState v-else-if="!loading" title="求购不存在" />
 </template>
 
 <style lang="scss" scoped>
