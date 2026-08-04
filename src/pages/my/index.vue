@@ -40,6 +40,11 @@ const orderTabs = computed(() => [
 ]);
 
 const cells = computed(() => {
+  if (!user.value) {
+    return [
+      { label: '帮助中心', icon: '?', go: () => go('/pages/help/index') }
+    ];
+  }
   const buyerActive = userStore.isBuyerActive;
   if (buyerActive) {
     return [
@@ -97,7 +102,7 @@ function goAiChat() {
   <view class="my-page h5-tab-page">
     <!-- 用户卡 -->
     <view class="user-card">
-      <view class="bell-btn" @click="goMessages">
+      <view v-if="user" class="bell-btn" @click="goMessages">
         <text class="local-icon">♢</text>
         <view v-if="unreadCount > 0" class="bell-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
       </view>
@@ -115,7 +120,7 @@ function goAiChat() {
           </view>
         </view>
       </view>
-      <view v-else class="user-row">
+      <view v-else class="user-row guest">
         <view class="avatar">?</view>
         <view class="info">
           <text class="name">未登录</text>
@@ -180,9 +185,9 @@ function goAiChat() {
     <!-- 快捷入口 -->
     <view class="section">
       <view class="section-head">
-        <text class="section-title">{{ userStore.isBuyerActive ? '买手中心' : '功能中心' }}</text>
+        <text class="section-title">{{ !user ? '服务中心' : userStore.isBuyerActive ? '买手中心' : '功能中心' }}</text>
       </view>
-      <view class="cell-grid">
+      <view class="cell-grid" :class="{ guest: !user }">
         <view v-for="c in cells" :key="c.label" class="cell" @click="c.go()">
           <view class="cell-icon-wrap">
             <text class="local-icon">{{ c.icon }}</text>
@@ -247,6 +252,18 @@ function goAiChat() {
   align-items: center;
   gap: 16rpx;
   padding-right: 80rpx;
+}
+.user-row.guest {
+  padding-right: 0;
+}
+.user-row.guest .info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8rpx;
+}
+.user-row.guest .email {
+  display: block;
 }
 .avatar {
   width: 96rpx;
@@ -413,6 +430,14 @@ function goAiChat() {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12rpx;
+}
+.cell-grid.guest {
+  display: flex;
+  justify-content: center;
+}
+.cell-grid.guest .cell {
+  width: 25%;
+  box-sizing: border-box;
 }
 .cell {
   display: flex;
