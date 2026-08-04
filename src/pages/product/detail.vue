@@ -72,7 +72,7 @@ function goBack() {
     <!-- 顶部返回 (glass) -->
     <view class="nav">
       <view class="nav-btn" @click="goBack">
-        <text class="chev">‹</text>
+        <view class="chev" />
       </view>
     </view>
 
@@ -242,9 +242,14 @@ function goBack() {
   justify-content: center;
 }
 .chev {
-  font-size: 48rpx;
-  color: #0F111A;
-  line-height: 1;
+  position: relative;
+  left: 4rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-left: 5rpx solid #0F111A;
+  border-bottom: 5rpx solid #0F111A;
+  box-sizing: border-box;
+  transform: rotate(45deg);
 }
 
 /* Gallery */

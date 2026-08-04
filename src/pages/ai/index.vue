@@ -92,13 +92,13 @@ function inducePurchaseFrom(text: string) {
         <!-- 首屏推荐 chips -->
         <view v-if="messages.length === 1" class="preset-row">
           <text class="preset-label">试试这些：</text>
-          <scroll-view scroll-x class="preset-scroll">
+          <view class="preset-scroll">
             <view class="preset-chips">
               <view v-for="p in PRESETS" :key="p" class="preset-chip" @click="send(p)">
                 <text>{{ p }}</text>
               </view>
             </view>
-          </scroll-view>
+          </view>
         </view>
       </view>
     </scroll-view>
@@ -226,21 +226,26 @@ function inducePurchaseFrom(text: string) {
   padding: 0 8rpx;
 }
 .preset-scroll {
-  white-space: nowrap;
+  width: 100%;
 }
 .preset-chips {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
   padding: 0 8rpx 8rpx;
 }
 .preset-chip {
   display: inline-flex;
+  flex-shrink: 0;
   padding: 14rpx 24rpx;
   background: #FFFFFF;
   border: 1rpx solid #EDECE6;
   border-radius: 999rpx;
   font-size: 24rpx;
   color: #0F111A;
+  white-space: nowrap;
+}
+.preset-chip text {
   white-space: nowrap;
 }
 

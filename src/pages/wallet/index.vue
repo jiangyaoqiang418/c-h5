@@ -76,7 +76,7 @@ function bucketLabel(key: string): string {
     <view class="hero">
       <view class="nav">
         <view class="nav-btn" @click="goBack">
-          <text class="chev">‹</text>
+          <view class="chev" />
         </view>
         <text class="nav-title">我的钱包</text>
       </view>
@@ -177,9 +177,14 @@ function bucketLabel(key: string): string {
   justify-content: center;
 }
 .chev {
-  font-size: 48rpx;
-  color: #0F111A;
-  line-height: 1;
+  position: relative;
+  left: 4rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-left: 5rpx solid #0F111A;
+  border-bottom: 5rpx solid #0F111A;
+  box-sizing: border-box;
+  transform: rotate(45deg);
 }
 .nav-title {
   font-size: 30rpx;

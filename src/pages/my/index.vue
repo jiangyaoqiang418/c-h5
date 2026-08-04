@@ -108,13 +108,12 @@ function goAiChat() {
           <view class="name-row">
             <text class="name">{{ user.nickname }}</text>
             <VipBadge :level="user.vipLevel" />
+            <KycStatusTag :status="user.kycStatus" light />
           </view>
           <view class="tag-row">
-            <KycStatusTag :status="user.kycStatus" />
             <text class="email">{{ user.email }}</text>
           </view>
         </view>
-        <text class="switch-btn" @click="logout">退出</text>
       </view>
       <view v-else class="user-row">
         <view class="avatar">?</view>
@@ -269,10 +268,12 @@ function goAiChat() {
   display: flex;
   gap: 8rpx;
   align-items: center;
+  flex-wrap: nowrap;
 }
 .name {
   font-size: 32rpx;
   font-weight: 700;
+  white-space: nowrap;
 }
 .tag-row {
   display: flex;
@@ -283,14 +284,13 @@ function goAiChat() {
 .email {
   font-size: 22rpx;
   opacity: 0.85;
-}
-.switch-btn {
-  font-size: 22rpx;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 6rpx 12rpx;
-  border-radius: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .segment-row {
+  display: flex;
+  justify-content: center;
   margin-top: 24rpx;
 }
 .stats-row {

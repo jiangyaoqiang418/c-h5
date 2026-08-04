@@ -188,8 +188,9 @@ function goPurchase() { go('/pages/purchase/hall'); }
 
 /* ========== 顶部 ========== */
 .top-bar {
-  padding: env(safe-area-inset-top) 32rpx 16rpx;
-  background: #FAFAF7;
+  padding: calc(env(safe-area-inset-top) + 16rpx) 32rpx 16rpx;
+  background: #FFFFFF;
+  border-bottom: 1rpx solid #EDECE6;
   display: flex;
   align-items: center;
   gap: 20rpx;

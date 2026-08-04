@@ -30,7 +30,7 @@ function goBack() {
 <template>
   <view class="earn-hero">
     <view class="nav">
-      <view class="nav-btn" @click="goBack"><text class="chev">‹</text></view>
+      <view class="nav-btn" @click="goBack"><view class="chev" /></view>
       <text class="nav-title">小金库</text>
     </view>
     <text class="hero-eyebrow">EARN BALANCE</text>
@@ -74,9 +74,14 @@ function goBack() {
   justify-content: center;
 }
 .chev {
-  font-size: 48rpx;
-  color: #0F111A;
-  line-height: 1;
+  position: relative;
+  left: 4rpx;
+  width: 28rpx;
+  height: 28rpx;
+  border-left: 5rpx solid #0F111A;
+  border-bottom: 5rpx solid #0F111A;
+  box-sizing: border-box;
+  transform: rotate(45deg);
 }
 .nav-title {
   font-size: 30rpx;
