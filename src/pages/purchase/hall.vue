@@ -39,12 +39,16 @@ async function onClaim(req: Api.PurchaseRequest.PurchaseRequest) {
     uni.showToast({ title: '请先登录', icon: 'none' });
     return;
   }
-  const r = await claimRequest(req.id);
-  if (r.ok) {
-    uni.showToast({ title: '接单成功', icon: 'success' });
-    load();
-  } else {
-    uni.showToast({ title: r.message || '接单失败', icon: 'none' });
+  try {
+    const r = await claimRequest(req.id);
+    if (r.ok) {
+      uni.showToast({ title: '接单成功', icon: 'success' });
+      load();
+    } else {
+      uni.showToast({ title: r.message || '接单失败', icon: 'none' });
+    }
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '接单失败', icon: 'none' });
   }
 }
 

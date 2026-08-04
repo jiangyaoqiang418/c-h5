@@ -28,15 +28,20 @@ const pointsToNext = computed(() => {
 });
 
 async function loadAll() {
+  await userStore.init();
   if (!user.value) return;
-  const uid = user.value.id;
-  const [, counts, account] = await Promise.all([
-    walletStore.fetchWallet(),
-    orderApi.countMyOrdersByStatus(uid),
-    fetchPointAccount()
-  ]);
-  orderCounts.value = counts;
-  pointAccount.value = account;
+  try {
+    const uid = user.value.id;
+    const [, counts, account] = await Promise.all([
+      walletStore.fetchWallet(),
+      orderApi.countMyOrdersByStatus(uid),
+      fetchPointAccount()
+    ]);
+    orderCounts.value = counts;
+    pointAccount.value = account;
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '账户数据加载失败', icon: 'none' });
+  }
 }
 onMounted(loadAll);
 

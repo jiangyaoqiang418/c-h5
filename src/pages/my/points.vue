@@ -21,12 +21,17 @@ const appealReason = ref('');
 const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.balanceAfter ?? 0);
 
 async function load() {
+  await userStore.init();
   if (!userStore.currentUser) return;
-  if (activeKey.value === 'log') {
-    const r = await fetchPointLedger({ pageNo: 1, pageSize: 50 });
-    logs.value = r.records;
-  } else if (activeKey.value === 'rule' && !rules.value.length) {
-    rules.value = await mockPointApi.fetchPointRules();
+  try {
+    if (activeKey.value === 'log') {
+      const r = await fetchPointLedger({ pageNo: 1, pageSize: 50 });
+      logs.value = r.records;
+    } else if (activeKey.value === 'rule' && !rules.value.length) {
+      rules.value = await mockPointApi.fetchPointRules();
+    }
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '积分数据加载失败', icon: 'none' });
   }
 }
 onMounted(load);

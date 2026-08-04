@@ -69,6 +69,18 @@
 - 求购状态映射为 `OPEN -> pushing`、`TAKEN -> claimed`、`CANCELED/VOID -> cancelled`；所有新接入 Long ID 在运行时保留原始字符串，不在页面层使用 `Number()`/`parseInt()`。
 - 历史求购引用的分类若已不在最新分类树中，页面明确显示“分类已失效 · 原 ID”；不从 Mock 补名称，也不把真实请求失败回退 Mock。
 
+## 2026-08-04 买手申请状态与页面初始化前置复核
+
+| 前端能力 | 最新 Swagger 契约 | 适配结论 | 实施前状态 |
+|---|---|---|---|
+| 当前买手申请状态 | `GET /user/buyer/application`；响应可为空，非空时包含 `id/userId/realName/contact/reason/status/reviewRemark/reviewerId/appliedAt/reviewedAt` | `status` 仅为 `PENDING/APPROVED/REJECTED`；Long ID 保留原值。可用于修正现有身份切换提示，不新增申请流程 | API、用户 Store 和身份切换组件已接入；真实账号返回 `PENDING` |
+| 已接入账户页面初始化 | 复用现有 `GET /user/auth/me`、`GET /user/points/account`、`GET /user/wallet/overview` | H5 直接刷新时页面生命周期不能假定全局异步初始化已经结束；页面应先复用 `userStore.init()`，再发起既有请求 | “我的”、VIP、积分和提现页已修复，并补充已迁移页面读取/写操作的错误提示 |
+
+- 2026-08-04 实时计数仍为 `admin` 84 路径/85 操作/138 schema、`user` 19/19/45、`order` 40/42/50，`notify` 为 HTTP 404；相对当天上一轮快照无变化。
+- 买手申请接口只用于读取并展示当前状态；本次不新增买手申请表单，也不把接口失败回退为 Mock 状态。
+- Chrome 直接刷新“我的”、VIP、积分和提现页后分别回显真实余额 `U 0.00`、积分 `0`、下一等级阈值 `1000`、积分流水空态和提现可用余额 `U 0.00`；所访问页面控制台无 `error/warn`。
+- Chrome 当前可完成页面导航和读取，但自动化点击输入未被浏览器接收，因此“买手申请审核中”Toast 尚缺浏览器点击证据；真实接口已单独回读为 `PENDING`，不得把该提示标为已完成交互验证。
+
 ## 满足度口径
 
 | 等级 | 含义 |

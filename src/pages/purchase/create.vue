@@ -30,10 +30,14 @@ onLoad(query => {
 });
 
 onMounted(async () => {
-  const tree = await fetchCategoryTree({ onlyEnabled: true });
-  const leaves = tree.map(item => ({ id: item.id, name: item.name }));
-  categoryNames.value = leaves.map(l => l.name);
-  categoryIds.value = leaves.map(l => l.id);
+  try {
+    const tree = await fetchCategoryTree({ onlyEnabled: true });
+    const leaves = tree.map(item => ({ id: item.id, name: item.name }));
+    categoryNames.value = leaves.map(l => l.name);
+    categoryIds.value = leaves.map(l => l.id);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
+  }
 });
 
 function selectCategory() {
@@ -71,6 +75,8 @@ async function submit() {
         }, userStore.realUserId);
         uni.showToast({ title: '发起成功', icon: 'success' });
         setTimeout(() => go(`/pages/purchase/detail?id=${res.id}`, true), 600);
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '求购提交失败', icon: 'none' });
       } finally {
         submitting.value = false;
       }

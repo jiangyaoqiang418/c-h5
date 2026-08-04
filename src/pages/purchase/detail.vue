@@ -23,6 +23,8 @@ onLoad(async query => {
       request.value = r.request;
       logs.value = r.pushLogs;
     }
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '求购详情加载失败', icon: 'none' });
   } finally {
     loading.value = false;
   }
@@ -37,19 +39,27 @@ const canClaim = computed(() => {
 
 async function reload() {
   if (id.value) {
-    const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
-    request.value = r.request;
-    logs.value = r.pushLogs;
+    try {
+      const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
+      request.value = r.request;
+      logs.value = r.pushLogs;
+    } catch (error) {
+      uni.showToast({ title: error instanceof Error ? error.message : '求购详情加载失败', icon: 'none' });
+    }
   }
 }
 
 async function claim() {
   if (!request.value || !userStore.currentUser) return;
-  const r = await claimRequest(request.value.id);
-  if (r.ok) {
-    uni.showToast({ title: '接单成功', icon: 'success' });
-    reload();
-  } else uni.showToast({ title: r.message || '失败', icon: 'none' });
+  try {
+    const r = await claimRequest(request.value.id);
+    if (r.ok) {
+      uni.showToast({ title: '接单成功', icon: 'success' });
+      reload();
+    } else uni.showToast({ title: r.message || '失败', icon: 'none' });
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '接单失败', icon: 'none' });
+  }
 }
 
 function cancel() {
@@ -58,8 +68,12 @@ function cancel() {
     title: '撤销求购？',
     success: async r => {
       if (r.confirm) {
-        await cancelPurchase(request.value!.id);
-        reload();
+        try {
+          await cancelPurchase(request.value!.id);
+          reload();
+        } catch (error) {
+          uni.showToast({ title: error instanceof Error ? error.message : '撤销失败', icon: 'none' });
+        }
       }
     }
   });

@@ -42,9 +42,13 @@ const bucketsWithPct = computed(() =>
 async function loadAll() {
   await userStore.init();
   if (!userStore.currentUser) return;
-  await walletStore.fetchWallet(userStore.currentUser.id);
-  const r = await fetchWalletLedger({ size: 5 });
-  recent.value = r.records;
+  try {
+    await walletStore.fetchWallet(userStore.currentUser.id);
+    const r = await fetchWalletLedger({ size: 5 });
+    recent.value = r.records;
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '钱包数据加载失败', icon: 'none' });
+  }
 }
 onShow(loadAll);
 

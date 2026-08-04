@@ -28,6 +28,8 @@ async function load() {
     const tab = TABS.find(t => t.key === activeKey.value);
     const r = await fetchMyPurchases(userStore.realUserId, tab?.statuses);
     list.value = r.records;
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '求购列表加载失败', icon: 'none' });
   } finally {
     loading.value = false;
   }
@@ -40,8 +42,12 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
     title: '撤销求购？',
     success: async r => {
       if (r.confirm) {
-        await cancelPurchase(req.id);
-        load();
+        try {
+          await cancelPurchase(req.id);
+          load();
+        } catch (error) {
+          uni.showToast({ title: error instanceof Error ? error.message : '撤销失败', icon: 'none' });
+        }
       }
     }
   });

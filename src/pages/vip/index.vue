@@ -28,8 +28,13 @@ const pointsToNext = computed(() => {
 });
 
 onMounted(async () => {
-  configs.value = await vipApi.fetchVipConfigs();
-  if (userStore.currentUser) pointAccount.value = await fetchPointAccount();
+  await userStore.init();
+  try {
+    configs.value = await vipApi.fetchVipConfigs();
+    if (userStore.currentUser) pointAccount.value = await fetchPointAccount();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : 'VIP 数据加载失败', icon: 'none' });
+  }
 });
 
 const audienceConfigs = computed(() => configs.value.filter(c => c.audience === audience.value));

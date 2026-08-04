@@ -21,10 +21,14 @@ async function load(id?: string) {
 }
 
 onMounted(async () => {
-  roots.value = (await fetchCategoryTree()).slice(0, 12);
-  if (roots.value.length) {
-    activeRoot.value = roots.value[0].id;
-    load(activeRoot.value);
+  try {
+    roots.value = (await fetchCategoryTree()).slice(0, 12);
+    if (roots.value.length) {
+      activeRoot.value = roots.value[0].id;
+      load(activeRoot.value);
+    }
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
   }
 });
 

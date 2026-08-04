@@ -20,6 +20,8 @@ async function load() {
   try {
     const r = await fetchWalletLedger({ size: 50 });
     list.value = r.records;
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '流水加载失败', icon: 'none' });
   } finally {
     loading.value = false;
     uni.stopPullDownRefresh();
