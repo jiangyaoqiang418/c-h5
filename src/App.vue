@@ -23,6 +23,10 @@ page {
  * 顶部导航和 tabBar 都是 UniApp 的窗口层，不属于任何页面内容。
  * H5 通过框架变量获取它们实际占用的高度，页面只使用两者之间的空间。
  */
+uni-page-head {
+  box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.1);
+}
+
 uni-page-head ~ uni-page-wrapper > uni-page-body > * {
   min-height: calc(100vh - var(--window-top)) !important;
   box-sizing: border-box;

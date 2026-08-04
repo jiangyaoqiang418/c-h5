@@ -188,9 +188,13 @@ function goPurchase() { go('/pages/purchase/hall'); }
 
 /* ========== 顶部 ========== */
 .top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   padding: calc(env(safe-area-inset-top) + 16rpx) 32rpx 16rpx;
   background: #FFFFFF;
   border-bottom: 1rpx solid #EDECE6;
+  box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.1);
   display: flex;
   align-items: center;
   gap: 20rpx;
