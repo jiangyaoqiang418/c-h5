@@ -1,33 +1,38 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { pointApi } from '@shared';
+import { pointApi as mockPointApi } from '@shared';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import {
+  fetchPointLedger,
+  submitPointAppeal,
+  type PointLedgerView
+} from '@/service/api/point';
 
 const userStore = useUserStore();
 const activeKey = ref<'log' | 'rule'>('log');
-const logs = ref<Api.Point.LogEntry[]>([]);
+const logs = ref<PointLedgerView[]>([]);
 const rules = ref<Api.Point.Rule[]>([]);
 
 const appealPopup = ref(false);
-const appealLog = ref<Api.Point.LogEntry>();
+const appealLog = ref<PointLedgerView>();
 const appealReason = ref('');
 
-const balance = computed(() => logs.value[0]?.balanceAfter ?? 0);
+const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.balanceAfter ?? 0);
 
 async function load() {
   if (!userStore.currentUser) return;
   if (activeKey.value === 'log') {
-    const r = await pointApi.fetchMyPointLogs({ userId: userStore.currentUser.id, size: 50 });
+    const r = await fetchPointLedger({ pageNo: 1, pageSize: 50 });
     logs.value = r.records;
   } else if (activeKey.value === 'rule' && !rules.value.length) {
-    rules.value = await pointApi.fetchPointRules();
+    rules.value = await mockPointApi.fetchPointRules();
   }
 }
 onMounted(load);
 watch(activeKey, load);
 
-function openAppeal(l: Api.Point.LogEntry) {
+function openAppeal(l: PointLedgerView) {
   appealLog.value = l;
   appealReason.value = '';
   appealPopup.value = true;
@@ -36,17 +41,19 @@ function openAppeal(l: Api.Point.LogEntry) {
 async function submitAppeal() {
   if (!appealLog.value) return;
   if (appealReason.value.trim().length < 5) return uni.showToast({ title: '理由 ≥ 5 字', icon: 'none' });
-  const r = await pointApi.appealPointLogMock({ logId: appealLog.value.id, reason: appealReason.value.trim() });
-  if (r.ok) {
+  try {
+    await submitPointAppeal({ ledgerId: appealLog.value.id, reason: appealReason.value.trim() });
     uni.showToast({ title: '已提交', icon: 'success' });
     appealPopup.value = false;
-    load();
-  } else uni.showToast({ title: r.message || '失败', icon: 'none' });
+    await load();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '提交失败', icon: 'none' });
+  }
 }
 
-function labelOf(code: Api.Point.BehaviorCode): string {
+function labelOf(code: string, fallback?: string): string {
   const r = rules.value.find(x => x.code === code);
-  return r?.label || code;
+  return r?.label || fallback || code;
 }
 </script>
 
@@ -67,7 +74,7 @@ function labelOf(code: Api.Point.BehaviorCode): string {
       <view v-if="logs.length">
         <view v-for="l in logs" :key="l.id" class="log-row">
           <view class="log-main">
-            <text class="log-title">{{ labelOf(l.behavior) }}</text>
+            <text class="log-title">{{ labelOf(l.behavior, l.behaviorName) }}</text>
             <text class="log-time">{{ new Date(l.createdAt).toLocaleString() }}</text>
           </view>
           <view class="log-right">

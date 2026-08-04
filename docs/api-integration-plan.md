@@ -40,6 +40,16 @@
 - H5 代理使用 `VITE_REAL_*_BASE_URL=/api/*`，目标服务地址仅存在于环境配置；请求层不在真实接口失败时回退 Mock。
 - 原始服务 ID 在已迁移用户模型以 `remoteId: string` 保存；仅旧 Mock 页面使用兼容展示 ID，避免把真实 `int64` 作为 API 参数转为 `number`。
 
+### 2026-08-04 积分流水与申诉前置复核
+
+- 实时读取结果仍为 `admin` 84 路径/85 操作/138 schema、`user` 19/19/45、`order` 40/42/50，版本均为 `v1.0.0`，与 2026-08-03 快照一致。
+- `POST /user/points/ledger/page` 的 requestBody 为 `PointLedgerPageQuery`，页面只需传 `pageNo/pageSize`；接口按当前登录用户强制过滤，不从旧 Mock 页面透传 `userId`。
+- 流水响应包含 `id/userId/behaviorCode/behaviorName/score/balanceAfter/appealable/appealStatus/createdAt`，可在 API adapter 保留 Long ID 字符串并适配当前列表交互。
+- `POST /user/points/appeals/submit` 必填 `ledgerId/reason`，`reason` 最长 500，返回申诉 Long ID；仅完成契约复核，真实写入仍须在存在可申诉扣分流水时单独验证。
+- 积分规则仍只有 `admin` 分组读取能力，C 端访问契约未确认，本次继续保留原 Mock 规则展示，不扩大迁移范围。
+- 已新增真实积分流水 adapter，并将“我的积分”流水列表切换到 `POST /user/points/ledger/page`；2026-08-04 Chrome 登录测试账号后页面正常返回空记录并显示原有空态，未出现请求或脚本错误。
+- 申诉弹窗已改为调用 `POST /user/points/appeals/submit`，但测试账号当前无可申诉扣分流水，因此未触发真实写入；积分规则标签仍读取 Mock，并已确认原展示行为不变。
+
 ## 2026-07-28 完整接口满足度扫描
 
 ### 扫描范围

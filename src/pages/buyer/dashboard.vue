@@ -86,7 +86,7 @@ async function refreshOrders() {
           <view class="hero-name-row">
             <text class="hero-name">{{ user?.nickname || '买手' }}</text>
           </view>
-          <text class="hero-sub">✓ 累计完成 <text class="strong">{{ stats.orderTotal }}</text> 单</text>
+          <view class="hero-sub">✓ 累计完成 <text class="strong">{{ stats.orderTotal }}</text> 单</view>
         </view>
       </view>
       <view class="hero-stats">

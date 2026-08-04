@@ -80,7 +80,7 @@ function open(c: Category) {
 <template>
   <view class="msg-page">
     <view class="summary" v-if="totalUnread > 0">
-      <text>共 <text class="hl">{{ totalUnread }}</text> 条未读消息</text>
+      <view>共 <text class="hl">{{ totalUnread }}</text> 条未读消息</view>
     </view>
 
     <view class="cat-list">

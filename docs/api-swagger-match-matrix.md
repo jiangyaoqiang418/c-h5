@@ -35,6 +35,16 @@
 - H5 直连该服务的跨域预检返回 HTTP 403；上述读取验证经本地 `/api/*` Vite 代理完成。部署 H5 与 Android/iOS 仍须完整 HTTPS 服务地址。
 - 状态严格区分：前四项为真实读取已验证；提现仅为 API 已封装和页面已调用，不能标记真实接口已验证。
 
+## 2026-08-04 积分流水与申诉前置复核
+
+| 前端能力 | 最新 Swagger 契约 | 适配结论 | 当前状态 |
+|---|---|---|---|
+| 积分流水 | `POST /user/points/ledger/page`，body 为 `pageNo/pageSize/userId/behaviorCode`；返回 `PageResult<PointLedgerDTO>` | 后端按当前登录用户强制过滤，页面不传 `userId`；Long ID 保留字符串，时间戳在 adapter 转为页面展示时间 | API/页面已迁移；Chrome 真实账号读取为空记录，空态正常且无请求错误 |
+| 扣分申诉 | `POST /user/points/appeals/submit`，`ledgerId/reason` 必填，`reason` 最长 500；返回申诉 Long ID | 当前弹窗和提交顺序保持不变，仅替换真实 API；没有可申诉流水时不执行写入验证 | API/页面已迁移；测试账号无可申诉记录，真实写入未验证 |
+| 积分规则 | 当前只有 `GET /admin/point-rules/list` | 未确认 C 端访问权限，继续保留 Mock，不因同页迁移而调用 admin 接口 | 本次不迁移 |
+
+- 2026-08-04 实时计数仍为 `admin` 84/85/138、`user` 19/19/45、`order` 40/42/50，未发现相对 2026-08-03 的路径、操作或 schema 数量变化。
+
 ## 满足度口径
 
 | 等级 | 含义 |

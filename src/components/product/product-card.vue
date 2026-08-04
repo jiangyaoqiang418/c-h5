@@ -11,7 +11,6 @@ const props = defineProps<Props>();
 
 const imgError = ref(false);
 const cover = computed(() => {
-  if (imgError.value) return 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect width=%22100%22 height=%22100%22 fill=%22%23EDECE6%22/></svg>';
   return props.product.images?.[0]?.url || productImageUrl(props.product.id, 400, props.product.categoryPath);
 });
 
@@ -27,7 +26,8 @@ function goDetail() {
 <template>
   <view class="p-card" @click="goDetail">
     <view class="cover-wrap">
-      <image :src="cover" mode="aspectFill" class="cover" @error="onImgError" />
+      <image v-if="!imgError" :src="cover" mode="aspectFill" class="cover" @error="onImgError" />
+      <view v-else class="cover image-fallback">暂无图片</view>
       <view v-if="product.overseasCustoms" class="badge overseas">
         <text>🌏 海外直邮</text>
       </view>
@@ -73,6 +73,13 @@ function goDetail() {
   width: 100%;
   height: 100%;
   display: block;
+}
+.image-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #86909c;
+  font-size: 22rpx;
 }
 .badge {
   position: absolute;

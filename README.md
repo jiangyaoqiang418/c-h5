@@ -38,9 +38,9 @@ src/
 
 ## 当前数据与请求状态
 
-- 页面和 Store 通过 `@shared` 直接调用 `src/mock/api/*.ts`。
+- 已迁移页面和 Store 调用 `src/service/api/`，未迁移模块继续通过 `@shared` 调用 `src/mock/api/*.ts`。
 - Mock 使用内存数据和 `Promise + setTimeout` 模拟异步与分页。
-- 当前没有 Axios、`fetch` 或真实 API 请求封装。后续真实请求只使用 `uni.request`；不得复制 PC 或后台项目的浏览器请求实现。
+- 当前已建立基于 `uni.request` 的真实请求封装，并接入登录、当前用户、积分账户、分类树、钱包总览和提现创建；项目不使用 Axios 或 `fetch`。
 - 当前 Mock 不经过网络，因此不能直接使用后台项目的 Axios browser adapter 进行拦截。
 - PC 与 H5 的 `src/mock/` 当前内容一致，但分别存放在两个项目中，运行时互不依赖。
 
@@ -48,9 +48,9 @@ src/
 
 - C 端与后台系统共用 Swagger / Knife4j：`http://221.128.249.198:8902/doc.html`。
 - 交互逻辑以前端现有页面为准；路径、字段、类型、枚举、分页和响应结构以后端接口为准。
-- 后续按模块建立 `src/service/request/`、`src/service/api/` 和 `src/typings/api/`，请求职责与后台项目保持一致。
+- 后续模块复用现有 `src/service/request/`，并按模块补充 `src/service/api/` 和 `src/typings/api/`。
 - 未对接模块继续使用现有 Mock；已切真实接口的模块不自动 fallback Mock。
-- H5 的底层传输实现需兼容目标 UniApp 运行端，正式实施时单独确认。
+- H5 的真实请求统一使用 `uni.request`，开发环境通过 Vite `/api/*` 代理访问测试服务。
 - 页面/Store 不直接使用浏览器的 `window`、`localStorage`、`fetch` 或 Vue Router；存储、跳转和网络能力统一使用 UniApp API。
 - H5、Android/iOS 均使用 `pages.json` 的窗口级原生 tabBar；页面仅渲染内容，图标使用项目内本地图片资源。
 - 默认顶部导航由 `pages.json` 承载；首页、登录、商品详情和钱包是已登记的自定义导航例外。

@@ -119,12 +119,12 @@ async function submit() {
       </view>
 
       <view v-if="step === 3" class="form summary">
-        <text class="row"><text class="lbl">标题：</text>{{ form.title }}</text>
-        <text class="row"><text class="lbl">分类：</text>{{ categoryName() }}</text>
-        <text class="row"><text class="lbl">售价：</text>U {{ form.price }}</text>
-        <text class="row"><text class="lbl">库存：</text>{{ form.stock }}</text>
-        <text class="row"><text class="lbl">海外：</text>{{ form.overseasCustoms ? '是' : '否' }}</text>
-        <text class="row"><text class="lbl">图片：</text>{{ form.images.length }} 张</text>
+        <view class="row"><text class="lbl">标题：</text>{{ form.title }}</view>
+        <view class="row"><text class="lbl">分类：</text>{{ categoryName() }}</view>
+        <view class="row"><text class="lbl">售价：</text>U {{ form.price }}</view>
+        <view class="row"><text class="lbl">库存：</text>{{ form.stock }}</view>
+        <view class="row"><text class="lbl">海外：</text>{{ form.overseasCustoms ? '是' : '否' }}</view>
+        <view class="row"><text class="lbl">图片：</text>{{ form.images.length }} 张</view>
       </view>
     </view>
 

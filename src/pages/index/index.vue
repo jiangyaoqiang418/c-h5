@@ -66,7 +66,9 @@ function goPurchase() { go('/pages/purchase/hall'); }
           <text class="dot"></text>
           <text>油宝 · Web3 USDT 跨境代购</text>
         </view>
-        <text class="hero-title">高级选品\n<text class="accent">链上撮合</text></text>
+        <view class="hero-title">高级选品
+          <text class="accent">链上撮合</text>
+        </view>
         <text class="hero-sub">全球买手 24h 内响应 · 押金担保售后无忧</text>
         <view class="hero-ctas">
           <view class="btn-primary" @click="goSearch">探索商品 →</view>

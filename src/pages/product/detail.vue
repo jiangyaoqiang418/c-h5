@@ -116,11 +116,11 @@ function goBack() {
           <text>{{ priceSet(product.price).rateLabel }}</text>
         </view>
         <view class="price-fees">
-          <text class="fee-item">运费 <text class="fee-num">{{ formatUsdt(product.shippingFee) }}</text></text>
+          <view class="fee-item">运费 <text class="fee-num">{{ formatUsdt(product.shippingFee) }}</text></view>
           <text class="fee-sep"> | </text>
-          <text class="fee-item">税费 <text class="fee-num">{{ formatUsdt(product.tax) }}</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></text>
+          <view class="fee-item">税费 <text class="fee-num">{{ formatUsdt(product.tax) }}</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></view>
           <text class="fee-sep"> | </text>
-          <text class="fee-item">库存 <text class="fee-num">{{ product.stock }} 件</text></text>
+          <view class="fee-item">库存 <text class="fee-num">{{ product.stock }} 件</text></view>
         </view>
       </view>
 
@@ -372,6 +372,8 @@ function goBack() {
   color: #1D2129;
 }
 .fee-item {
+  display: inline-flex;
+  align-items: center;
   color: #6B7385;
 }
 .fee-num {

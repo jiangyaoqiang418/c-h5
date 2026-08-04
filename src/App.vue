@@ -44,6 +44,23 @@ uni-page-head ~ uni-page-wrapper > uni-page-body > .h5-tab-page {
   height: calc(100vh - var(--window-top) - var(--window-bottom)) !important;
 }
 
+/* 移动浏览器地址栏伸缩时优先使用动态视口高度，旧浏览器继续使用上方 100vh。 */
+@supports (height: 100dvh) {
+  uni-page-head ~ uni-page-wrapper > uni-page-body > * {
+    min-height: calc(100dvh - var(--window-top)) !important;
+  }
+  uni-page-head ~ uni-page-wrapper > uni-page-body > .chat-page,
+  uni-page-head ~ uni-page-wrapper > uni-page-body > .im-page {
+    height: calc(100dvh - var(--window-top)) !important;
+  }
+  .h5-tab-page {
+    height: calc(100dvh - var(--window-bottom)) !important;
+  }
+  uni-page-head ~ uni-page-wrapper > uni-page-body > .h5-tab-page {
+    height: calc(100dvh - var(--window-top) - var(--window-bottom)) !important;
+  }
+}
+
 /* H5 隐藏滚动条美化 */
 ::-webkit-scrollbar {
   display: none;

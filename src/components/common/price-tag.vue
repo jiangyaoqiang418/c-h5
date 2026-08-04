@@ -38,21 +38,21 @@ const set = computed(() => priceSet(props.price));
     </view>
     <!-- fees strip: U 单币 -->
     <view v-if="showFee" class="fees-strip">
-      <text v-if="shippingFee != null" class="fee-item">
+      <view v-if="shippingFee != null" class="fee-item">
         <text class="fee-label">运费 </text>
         <text class="fee-num">{{ formatUsdt(shippingFee) }}</text>
-      </text>
+      </view>
       <text v-if="shippingFee != null && tax != null" class="fee-sep"> | </text>
-      <text v-if="tax != null" class="fee-item">
+      <view v-if="tax != null" class="fee-item">
         <text class="fee-label">税费 </text>
         <text class="fee-num">{{ formatUsdt(tax) }}</text>
         <InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="22" />
-      </text>
+      </view>
       <text v-if="stock != null" class="fee-sep"> | </text>
-      <text v-if="stock != null" class="fee-item">
+      <view v-if="stock != null" class="fee-item">
         <text class="fee-label">库存 </text>
         <text class="fee-num">{{ stock }} 件</text>
-      </text>
+      </view>
     </view>
   </view>
 </template>
@@ -113,7 +113,8 @@ const set = computed(() => priceSet(props.price));
   color: #1D2129;
 }
 .fee-item {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
 }
 .fee-label {
   color: #6B7385;
