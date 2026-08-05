@@ -136,6 +136,21 @@ function bucketLabel(key: string): string {
       </view>
     </view>
 
+    <view class="section">
+      <text class="sec-eyebrow">FUND ORDERS</text>
+      <text class="sec-title">充提记录</text>
+      <view class="record-links">
+        <view class="record-link" @click="go('/pages/wallet/recharge-list')">
+          <view><text class="record-title">充值记录</text><text class="record-sub">查看充值地址与到账状态</text></view>
+          <text class="record-arrow">›</text>
+        </view>
+        <view class="record-link" @click="go('/pages/wallet/withdraw-list')">
+          <view><text class="record-title">提现记录</text><text class="record-sub">查看审核与链上到账状态</text></view>
+          <text class="record-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 最近交易 -->
     <view class="section">
       <view class="section-bar">
@@ -365,4 +380,10 @@ function bucketLabel(key: string): string {
   font-size: 20rpx;
   color: #A8ADB8;
 }
+.record-links { border-top: 1rpx solid #edece6; }
+.record-link { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; border-bottom: 1rpx solid #edece6; }
+.record-link:last-child { border-bottom: none; }
+.record-title { display: block; font-size: 26rpx; font-weight: 600; color: #0f111a; }
+.record-sub { display: block; margin-top: 6rpx; font-size: 22rpx; color: #86909c; }
+.record-arrow { font-size: 40rpx; color: #c9cdd4; }
 </style>

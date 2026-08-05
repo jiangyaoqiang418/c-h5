@@ -19,6 +19,11 @@ export interface WithdrawParams {
   amount: number;
 }
 
+export interface RechargeParams {
+  chain: 'TRON' | 'ETH' | 'BSC';
+  amount: number;
+}
+
 const bucketMap: Record<string, keyof Api.Wallet.InternalAccount> = {
   AVAILABLE: 'available',
   NON_WITHDRAWABLE: 'nonWithdrawable',
@@ -152,4 +157,32 @@ export async function fetchWalletLedger(query: { current?: number; size?: number
 
 export function createWithdraw(params: WithdrawParams): Promise<string | number> {
   return realUserRequest<string | number, WithdrawParams>({ url: '/withdraw/create', method: 'POST', data: params });
+}
+
+export function createRecharge(params: RechargeParams): Promise<string | number> {
+  return realUserRequest<string | number, RechargeParams>({ url: '/recharge/create', method: 'POST', data: params });
+}
+
+export function fetchRechargePage(query: { pageNo?: number; pageSize?: number; status?: string } = {}) {
+  return realUserRequest<Api.RealWallet.RechargePage, typeof query>({
+    url: '/recharge/page',
+    method: 'POST',
+    data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 50, status: query.status }
+  });
+}
+
+export function fetchRechargeDetail(id: string | number) {
+  return realUserRequest<Api.RealWallet.RechargeVO>({ url: '/recharge/detail', params: { id } });
+}
+
+export function fetchWithdrawPage(query: { pageNo?: number; pageSize?: number; status?: string } = {}) {
+  return realUserRequest<Api.RealWallet.WithdrawPage, typeof query>({
+    url: '/withdraw/page',
+    method: 'POST',
+    data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 50, status: query.status }
+  });
+}
+
+export function fetchWithdrawDetail(id: string | number) {
+  return realUserRequest<Api.RealWallet.WithdrawVO>({ url: '/withdraw/detail', params: { id } });
 }

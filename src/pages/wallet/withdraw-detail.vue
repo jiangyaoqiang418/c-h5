@@ -1,0 +1,61 @@
+<script setup lang="ts">
+import { ref } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
+import { fetchWithdrawDetail } from '@/service/api/wallet';
+import { formatAmount } from '@/utils/format-bridge';
+
+const detail = ref<Api.RealWallet.WithdrawVO>();
+
+function copy(value?: string) {
+  if (value) uni.setClipboardData({ data: value, success: () => uni.showToast({ title: '已复制', icon: 'none' }) });
+}
+
+function formatTime(value?: string | number): string {
+  if (!value) return '-';
+  const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
+}
+
+async function load(id: string) {
+  try {
+    detail.value = await fetchWithdrawDetail(id);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '提现详情加载失败', icon: 'none' });
+  }
+}
+
+onLoad(query => load(String(query?.id || '')));
+</script>
+
+<template>
+  <view v-if="detail" class="detail-page">
+    <view class="summary">
+      <text class="status">{{ detail.statusText || detail.status }}</text>
+      <text class="amount">U {{ formatAmount(detail.amount) }}</text>
+      <text class="chain">USDT-{{ detail.chain }}</text>
+    </view>
+    <view class="section">
+      <view class="row"><text class="label">提现单 ID</text><text>{{ detail.id }}</text></view>
+      <view class="block"><text class="label">到账地址</text><text class="block-value">{{ detail.toAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.toAddress)">复制地址</wd-button></view>
+      <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
+      <view v-if="detail.reviewComment" class="block"><text class="label">审核意见</text><text class="reason">{{ detail.reviewComment }}</text></view>
+      <view v-if="detail.failReason" class="block"><text class="label">失败原因</text><text class="reason">{{ detail.failReason }}</text></view>
+      <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
+      <view class="row"><text class="label">完成时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
+    </view>
+  </view>
+</template>
+
+<style lang="scss" scoped>
+.detail-page { min-height: 100vh; padding: 16rpx; box-sizing: border-box; background: #f7f8fa; }
+.summary, .section { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
+.summary { text-align: center; }
+.status, .chain { display: block; color: #86909c; font-size: 23rpx; }
+.amount { display: block; margin: 14rpx 0; color: #f53f3f; font-size: 52rpx; font-weight: 700; font-family: ui-monospace, monospace; }
+.row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; font-size: 23rpx; }
+.label { color: #86909c; }
+.block { padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; }
+.block-value, .reason { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 8rpx; background: #f7f8fa; font-size: 21rpx; line-height: 1.6; word-break: break-all; }
+.block-value { font-family: ui-monospace, monospace; }
+.reason { color: #f53f3f; }
+</style>

@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { formatAmount } from '@/utils/format-bridge';
 import { useUserStore, useWalletStore } from '@/stores';
 import { createWithdraw } from '@/service/api/wallet';
+import { go } from '@/utils/navigate';
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
@@ -49,9 +50,9 @@ async function doWithdraw() {
       chain: form.chain,
       toAddress: form.toAddress
     });
-    uni.showToast({ title: `申请已提交（${id}）`, icon: 'success' });
+    uni.showToast({ title: '申请已提交', icon: 'success' });
     await walletStore.refetch();
-    setTimeout(() => uni.navigateBack(), 800);
+    setTimeout(() => go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(id))}`, true), 800);
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '提现申请失败', icon: 'none' });
   } finally {
