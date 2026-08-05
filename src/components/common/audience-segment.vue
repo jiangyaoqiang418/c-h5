@@ -1,28 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
 
 const value = computed(() => (userStore.isBuyerActive ? 'buyer' : 'customer'));
 
-const buyerBlockedMessage = computed(() => {
-  if (userStore.buyerApplicationLoadFailed) return '买手状态加载失败，请稍后重试';
-  if (userStore.buyerApplication?.status === 'PENDING') return '买手申请审核中';
-  if (userStore.buyerApplication?.status === 'REJECTED') return '买手申请未通过';
-  if (userStore.buyerApplication?.status === 'APPROVED') {
-    return userStore.currentUser?.kycStatus === 'approved' ? '买手身份尚未生效' : '买手申请已通过，请先完成 KYC 认证';
-  }
-  return userStore.currentUser?.kycStatus === 'approved' ? '请先申请成为买手' : '请先完成 KYC 认证';
-});
-
 function onChange(v: 'customer' | 'buyer') {
   if (v === 'buyer' && !userStore.canSwitchToBuyer) {
-    uni.showToast({ title: buyerBlockedMessage.value, icon: 'none' });
-    const shouldOpenKyc = !userStore.buyerApplication || userStore.buyerApplication.status === 'APPROVED';
-    if (!userStore.buyerApplicationLoadFailed && shouldOpenKyc && userStore.currentUser?.kycStatus !== 'approved') {
-      setTimeout(() => uni.navigateTo({ url: '/pages/kyc/index' }), 800);
+    if (userStore.buyerApplicationLoadFailed) {
+      uni.showToast({ title: '买手状态加载失败，请稍后重试', icon: 'none' });
+      return;
     }
+    go('/pages/buyer/apply');
     return;
   }
   userStore.setAudience(v);

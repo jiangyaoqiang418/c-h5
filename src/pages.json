@@ -44,6 +44,7 @@
     { "path": "pages/my/addresses", "style": { "navigationBarTitleText": "地址管理" } },
     { "path": "pages/my/points", "style": { "navigationBarTitleText": "我的积分" } },
 
+    { "path": "pages/buyer/apply", "style": { "navigationBarTitleText": "买手申请" } },
     { "path": "pages/buyer/dashboard", "style": { "navigationBarTitleText": "买手仪表盘" } },
     { "path": "pages/buyer/products", "style": { "navigationBarTitleText": "商品管理" } },
     { "path": "pages/buyer/product-create", "style": { "navigationBarTitleText": "上架商品" } },

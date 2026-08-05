@@ -20,13 +20,15 @@ export const useUserStore = defineStore('bw-user', () => {
     return raw === 'buyer' ? 'buyer' : 'customer';
   }
 
-  async function loadBuyerApplication() {
+  async function refreshBuyerApplication() {
     try {
       buyerApplication.value = await fetchBuyerApplication();
       buyerApplicationLoadFailed.value = false;
+      return buyerApplication.value;
     } catch {
       buyerApplication.value = undefined;
       buyerApplicationLoadFailed.value = true;
+      return undefined;
     }
   }
 
@@ -37,7 +39,7 @@ export const useUserStore = defineStore('bw-user', () => {
         currentUser.value = result;
         realUserId.value = result.remoteId;
         currentAudience.value = result.isBuyer && result.kycStatus === 'approved' ? loadAudienceFromStorage() : 'customer';
-        await loadBuyerApplication();
+        await refreshBuyerApplication();
       } catch {
         realAuthApi.logoutLocal();
         storage.remove(STORAGE_KEY.currentUserId);
@@ -62,7 +64,7 @@ export const useUserStore = defineStore('bw-user', () => {
     realUserId.value = result.remoteId;
     currentAudience.value = 'customer';
     storage.set(STORAGE_KEY.currentAudience, 'customer');
-    await loadBuyerApplication();
+    await refreshBuyerApplication();
   }
 
   function logout() {
@@ -104,6 +106,7 @@ export const useUserStore = defineStore('bw-user', () => {
     init,
     login,
     logout,
-    setAudience
+    setAudience,
+    refreshBuyerApplication
   };
 });

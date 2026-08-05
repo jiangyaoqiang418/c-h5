@@ -76,6 +76,7 @@ const cells = computed(() => {
     { label: '我的钱包', icon: '◈', go: () => go('/pages/wallet/index') },
     { label: '小金库', icon: '◒', go: () => go('/pages/finance/list') },
     { label: '我的求购', icon: '⌕', go: () => go('/pages/purchase/my-list') },
+    { label: '买手申请', icon: '▤', go: () => go('/pages/buyer/apply') },
     { label: '我的售后', icon: '◇', go: () => go('/pages/aftersale/list') },
     { label: '我的评价', icon: '★', go: () => go('/pages/review/list') },
     { label: '我的积分', icon: '◎', go: () => go('/pages/my/points') },
