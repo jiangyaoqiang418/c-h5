@@ -86,7 +86,7 @@
 |---:|---|---|---|
 | 1 | 更新接口文档基线 | 已完成本轮深扫更新 | 保持 Swagger、API 封装、页面调用、真实验证四种状态分离 |
 | 2 | 打通买手申请 | API、页面和入口已接入；真实审核中、已通过状态已验证 | 待无申请/驳回账号验证提交和驳回后重提 |
-| 3 | 接入买手商品管理 | API、上传、列表、创建、详情、上下架页面已接入 | 待买手账号验证图片上传、创建、审核状态和上下架写入 |
+| 3 | 接入买手商品管理 | API、上传、分页列表、创建、详情、上下架页面已接入 | 待非空多页数据和买手账号验证图片上传、创建、审核状态、上下架写入 |
 | 4 | 接入首页商品读取 | 推荐、热销、新品、秒杀、Banner、公开详情和浏览打点已接入 | 待非空商品数据验证；综合筛选列表继续保留 Mock |
 | 5 | 补齐资金记录 | 充值/提现列表、详情和入口已接入 | 待有记录账号验证状态、金额、地址、memo 和时间回显 |
 | 6 | 改造真实充值流程 | 页面已接入；登录账号三条链真实创建均失败 | 待后端确认失败原因后验证订单、地址/memo 和到账状态；页面不再模拟到账 |
@@ -96,7 +96,7 @@
 - 本次深扫确认 `POST /user/buyer/apply` 必填 `realName/contact/reason`，申请说明长度 10-500，返回 Long 申请单 ID；已有待审核申请或已是买手时后端拒绝重复提交。
 - 已新增 `src/pages/buyer/apply.vue`，复用现有表单卡、状态卡和 UniApp 导航；未申请和已驳回状态可填写申请，审核中和已通过状态只展示结果。身份切换和“我的”功能区均可进入该页。
 - 页面提交后刷新 `GET /user/buyer/application`，接口错误直接展示，不回退 Mock。当前缺少可安全提交的新账号，因此本节仅标记“API 已封装 + 页面已调用”，不得标记真实写入已验证。
-- 买手商品页已接入 `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf` 和 `POST /order/files/upload`。图片先上传并保留后端 `bucket/filePath`，创建后展示审核状态，不伪装成直接上架。
+- 买手商品页已接入 `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf` 和 `POST /order/files/upload`。列表按后端 `total` 触底续页，切换状态或返回页面时重置第一页；图片先上传并保留后端 `bucket/filePath`，创建后展示审核状态，不伪装成直接上架。
 - 首页已接入推荐、热销、新品、秒杀、Banner、公开商品详情和浏览打点。首页真实商品通过 `source=real` 进入真实详情；综合商品列表仍使用原 Mock，两条数据源不互相 fallback，真实 Long 商品 ID 不进入旧 Mock 购物车交易链。
 - 钱包已新增充值/提现列表与详情入口；充值页调用 `POST /user/recharge/create` 后展示真实收款地址和 memo，并刷新 `GET /user/recharge/detail` 状态。提现成功后进入真实提现详情。以上写操作均尚未使用当前账号完成真实回归。
 - 积分页已接入 `POST /user/points/appeals/page`，沿用现有列表与空态样式展示行为、原积分、申诉原因、审核状态、审核意见和提交/审核时间；当前只完成 API 封装和页面调用。

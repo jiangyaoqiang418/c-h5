@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onReachBottom, onShow } from '@dcloudio/uni-app';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { fetchMyProducts, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
@@ -12,7 +12,11 @@ const userStore = useUserStore();
 const activeKey = ref<Api.RealProduct.ProductQueryStatus | 'all'>('all');
 const list = ref<Api.RealProduct.ProductDTO[]>([]);
 const loading = ref(false);
+const pageNo = ref(1);
+const total = ref(0);
+const pageSize = 50;
 const categoryNames = ref<Record<string, string>>({});
+let loadToken = 0;
 
 const TABS: { key: Api.RealProduct.ProductQueryStatus | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -37,24 +41,33 @@ function statusType(status: Api.RealProduct.ProductStatus): 'success' | 'warning
   return 'default';
 }
 
-async function load() {
+async function load(reset = true) {
+  if (loading.value && !reset) return;
   await userStore.init();
   if (!userStore.currentUser) return;
+  const targetPage = reset ? 1 : pageNo.value + 1;
+  const status = activeKey.value;
+  const token = ++loadToken;
   loading.value = true;
   try {
     if (!Object.keys(categoryNames.value).length) {
       collectCategoryNames(await fetchCategoryTree({ onlyEnabled: true }));
     }
     const result = await fetchMyProducts({
-      pageNo: 1,
-      pageSize: 50,
-      status: activeKey.value === 'all' ? undefined : activeKey.value
+      pageNo: targetPage,
+      pageSize,
+      status: status === 'all' ? undefined : status
     });
-    list.value = result.records || [];
+    if (token !== loadToken) return;
+    const records = result.records || [];
+    list.value = reset ? records : list.value.concat(records);
+    pageNo.value = result.pageNo || result.current || targetPage;
+    total.value = result.total;
   } catch (error) {
+    if (token !== loadToken) return;
     uni.showToast({ title: error instanceof Error ? error.message : '商品列表加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (token === loadToken) loading.value = false;
   }
 }
 
@@ -78,7 +91,10 @@ function toggleShelf(product: Api.RealProduct.ProductDTO) {
 }
 
 onShow(load);
-watch(activeKey, load);
+watch(activeKey, () => load());
+onReachBottom(() => {
+  if (list.value.length < total.value) load(false);
+});
 </script>
 
 <template>
@@ -88,8 +104,7 @@ watch(activeKey, load);
     </wd-tabs>
 
     <view class="list">
-      <view v-if="loading" class="loading">加载中...</view>
-      <view v-else-if="list.length">
+      <view v-if="list.length">
         <view
           v-for="product in list"
           :key="String(product.id)"
@@ -120,7 +135,8 @@ watch(activeKey, load);
           </view>
         </view>
       </view>
-      <EmptyState v-else title="暂无商品" />
+      <EmptyState v-else-if="!loading" title="暂无商品" />
+      <view v-if="loading" class="loading">加载中...</view>
     </view>
 
     <view class="fab" @click="go('/pages/buyer/product-create')">+ 发布</view>
