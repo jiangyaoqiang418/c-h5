@@ -145,6 +145,22 @@
 | 确认收货 | `POST /order/orders/confirm` | A | 核心操作存在；后端不接收前端预留的收货视频 |
 | 取消订单 | `POST /order/orders/cancel` | C | 后端只接收订单 ID，无法传递现有取消原因；取消/退款语义合并 |
 
+### 2026-08-05 订单契约逐字段复核
+
+| 专项 | live Swagger 事实 | H5 当前需求 | 结论 |
+|---|---|---|---|
+| 地址 | 三个分组无地址接口；`OrderCreateQO` 无 `addressId` | 地址 CRUD、默认地址、下单地址选择、历史地址快照 | 阻塞下单迁移 |
+| 多商品 | `orders/create` 每次只接收一个 `productId` | 购物车多商品一次结算 | 需批量接口或确认逐单创建、幂等和部分失败方案 |
+| 金额 | DTO 有 `originalAmount/totalAmount/unitPrice`，无 `shippingFee/taxFee` | 商品、运费、税费和应付总额分开展示 | 需补费用快照并确认计算公式、精度和改价语义 |
+| 状态 | DTO 为 7 状态；分页描述只列 5 状态 | H5 为 10 状态并包含采购、售后确认、保修和归档 | 需后端扩展或产品确认收敛，不能前端自行猜测 |
+| 物流 | `orders/ship` 只接收订单 ID；DTO 无物流字段 | 地址、采购/发货凭证、承运商、单号、预计到达和轨迹 | 阻塞卖家真实发货 |
+| 取消 | `orders/cancel` 只接收 ID | 取消原因、取消方和取消时间 | 需补字段或确认移除现有交互 |
+| 退款 | 仅申请、审核、按退款 ID 查详情 | 五类售后、证据、部分退款、列表、按订单查询、撤销和历史 | 只能覆盖简单退款，不能直接替换售后模块 |
+| 展示与时间线 | DTO 仅买卖双方 ID 和四个时间字段 | 买卖双方名称、完整进度、取消/退款关联 | 需补名称、关联 ID、原因和状态时间 |
+| Long ID | 订单、商品、用户、场次、退款均为 `int64` | H5/JavaScript 保持精度 | 后端需确认 JSON 字符串序列化并接受字符串 ID |
+
+完整后端确认问题与前端实施门禁见 `docs/order-contract-confirmation.md`。本专项只完成 Swagger 核对与缺口整理；真实订单 API 尚未封装，页面仍使用 Mock，也未进行真实订单回归。
+
 ## 钱包、充值与提现
 
 | 前端需求 | Swagger 匹配 | 等级 | 关键差异 |
@@ -156,6 +172,8 @@
 | 充值/提现记录 | `POST /user/recharge/page`、`GET /user/recharge/detail`、`POST /user/withdraw/page`、`GET /user/withdraw/detail` | B | API、页面和入口已接入；Long ID 保留原值，真实非空记录待验证 |
 | 平台链钱包列表 | 无 C 端接口 | D | `admin` 钱包配置不在当前 C 端 Swagger 范围 |
 | 发起提现 | `POST /user/withdraw/create` | B | chain/toAddress/amount 匹配；前端支付密码不在接口中，KYC/风控前置规则需后端确认 |
+
+- 2026-08-05 登录账号补充写入回归：`TRON/ETH/BSC` 均未创建出充值单，充值列表保持空记录。请求字段与 live `RechargeCreateQO` 一致，但具体业务错误码未保留；当前状态为“页面已调用、真实写入失败、原因待后端确认”，不是“真实验证通过”。
 
 ## 积分与 VIP
 
