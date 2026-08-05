@@ -1,208 +1,117 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { walletApi } from '@shared';
-import { useUserStore } from '@/stores';
+import { computed, onUnmounted, reactive, ref } from 'vue';
+import { createRecharge, fetchRechargeDetail } from '@/service/api/wallet';
+import { go } from '@/utils/navigate';
 
-const userStore = useUserStore();
-const wallets = ref<Api.Wallet.ChainWallet[]>([]);
-const amount = ref(100);
-const chain = ref<'TRC20' | 'ERC20' | 'BSC'>('TRC20');
+const form = reactive<{ chain: 'TRON' | 'ETH' | 'BSC'; amount: number }>({ chain: 'TRON', amount: 100 });
 const submitting = ref(false);
+const detail = ref<Api.RealWallet.RechargeVO>();
+let pollingTimer: ReturnType<typeof setInterval> | undefined;
 
-const chainOptions: { value: 'TRC20' | 'ERC20' | 'BSC'; label: string }[] = [
-  { value: 'TRC20', label: 'TRC20 (推荐)' },
-  { value: 'ERC20', label: 'ERC20' },
-  { value: 'BSC', label: 'BSC' }
-];
+const canSubmit = computed(() => Number(form.amount) > 0);
 
-onMounted(async () => {
-  wallets.value = await walletApi.fetchPlatformChainWallets();
-});
+function copy(value?: string) {
+  if (!value) return;
+  uni.setClipboardData({ data: value, success: () => uni.showToast({ title: '已复制', icon: 'none' }) });
+}
 
-async function startOkx() {
-  if (!userStore.currentUser) return;
-  if (amount.value <= 0) {
-    uni.showToast({ title: '请输链上充值额', icon: 'none' });
-    return;
-  }
-  const chainMap: Record<'TRC20' | 'ERC20' | 'BSC', Api.Wallet.Chain> = { TRC20: 'TRON', ERC20: 'ETH', BSC: 'BSC' };
-  const target = wallets.value.find(w => w.chain === chainMap[chain.value] && w.purpose === 'income');
-  if (!target) {
-    uni.showToast({ title: '暂无链上充值通道', icon: 'none' });
-    return;
-  }
-  submitting.value = true;
-  uni.showLoading({ title: 'OKX 钱包唤起中…' });
+async function refreshDetail(showError = true) {
+  if (!detail.value?.id) return;
   try {
-    await new Promise(r => setTimeout(r, 1200));
-    const r = await walletApi.depositMock({
-      userId: userStore.currentUser.id,
-      amount: amount.value.toFixed(2),
-      chain: chain.value,
-      fromAddress: 'TOkxUser' + userStore.currentUser.id,
-      chainWalletId: target.id
-    });
-    if (r.ok) {
-      uni.hideLoading();
-      uni.showToast({ title: `链上充值成功 +U ${amount.value}`, icon: 'success' });
+    detail.value = await fetchRechargeDetail(detail.value.id);
+    if (detail.value.status !== 'PENDING' && pollingTimer) {
+      clearInterval(pollingTimer);
+      pollingTimer = undefined;
     }
+  } catch (error) {
+    if (showError) uni.showToast({ title: error instanceof Error ? error.message : '充值状态刷新失败', icon: 'none' });
+  }
+}
+
+function startPolling() {
+  if (pollingTimer) clearInterval(pollingTimer);
+  pollingTimer = setInterval(() => refreshDetail(false), 5000);
+}
+
+async function submit() {
+  if (!canSubmit.value) return uni.showToast({ title: '请输入有效充值金额', icon: 'none' });
+  submitting.value = true;
+  try {
+    const id = await createRecharge({ chain: form.chain, amount: Number(form.amount) });
+    detail.value = await fetchRechargeDetail(id);
+    uni.showToast({ title: '充值单已创建', icon: 'success' });
+    if (detail.value.status === 'PENDING') startPolling();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '充值单创建失败', icon: 'none' });
   } finally {
     submitting.value = false;
-    uni.hideLoading();
   }
 }
 
-function copyAddr(addr: string) {
-  uni.setClipboardData({ data: addr, success: () => uni.showToast({ title: '已复制', icon: 'none' }) });
-}
+onUnmounted(() => {
+  if (pollingTimer) clearInterval(pollingTimer);
+});
 </script>
 
 <template>
   <view class="deposit-page">
-    <view class="okx-card">
-      <view class="okx-head">
-        <view class="okx-logo">OKX</view>
-        <view>
-          <text class="title">OKX 钱包快速链上充值</text>
-          <text class="sub">原型模拟，1.2s 后到账</text>
-        </view>
-      </view>
-      <wd-input v-model="amount" label="链上充值金额" type="digit" placeholder="USDT" />
-      <view class="chain-row">
-        <text class="chain-label">链选择</text>
-        <view class="chain-options">
-          <view
-            v-for="o in chainOptions"
-            :key="o.value"
-            class="chain-opt"
-            :class="{ active: chain === o.value }"
-            @click="chain = o.value"
-          >
-            <text>{{ o.label }}</text>
-          </view>
-        </view>
-      </view>
-      <wd-button type="primary" block :loading="submitting" @click="startOkx">打开 OKX 钱包链上充值 U {{ amount }}</wd-button>
+    <view class="form-card">
+      <text class="title">创建链上充值单</text>
+      <text class="tip">选择链和申报金额后，按返回的平台地址及备注完成转账。</text>
+      <wd-cell title="链选择">
+        <wd-radio-group v-model="form.chain" inline>
+          <wd-radio value="TRON">TRC20</wd-radio>
+          <wd-radio value="ETH">ERC20</wd-radio>
+          <wd-radio value="BSC">BSC</wd-radio>
+        </wd-radio-group>
+      </wd-cell>
+      <wd-input v-model="form.amount" label="充值金额" type="digit" placeholder="USDT" />
+      <wd-button type="primary" block :disabled="!canSubmit" :loading="submitting" class="submit-btn" @click="submit">创建充值单</wd-button>
     </view>
 
-    <view class="addr-section">
-      <text class="section-title">链上手动转入</text>
-      <view v-for="w in wallets" :key="w.id" class="addr-card">
-        <view class="addr-head">
-          <wd-tag :type="w.chain === 'TRON' ? 'danger' : w.chain === 'ETH' ? 'primary' : 'warning'" plain size="small">USDT-{{ w.chain }}</wd-tag>
-          <text class="addr-name">{{ w.name }}</text>
-        </view>
-        <text class="addr-text">{{ w.address }}</text>
-        <wd-button plain size="small" @click="copyAddr(w.address)">复制地址</wd-button>
-        <text class="warn">⚠️ 请仅向此地址转入 USDT-{{ w.chain }}，转错币种将丢失</text>
+    <view v-if="detail" class="detail-card">
+      <view class="detail-head">
+        <text class="title">转账信息</text>
+        <wd-tag :type="detail.status === 'CONFIRMED' ? 'success' : detail.status === 'CANCELED' ? 'danger' : 'warning'">
+          {{ detail.statusText || detail.status }}
+        </wd-tag>
       </view>
+      <view class="row"><text class="label">充值单 ID</text><text class="value">{{ detail.id }}</text></view>
+      <view class="row"><text class="label">链</text><text class="value">{{ detail.chain }}</text></view>
+      <view class="row"><text class="label">金额</text><text class="value">U {{ detail.amount }}</text></view>
+      <view class="block-row">
+        <text class="label">平台充值地址</text>
+        <text class="block-value">{{ detail.depositAddress || '-' }}</text>
+        <wd-button plain size="small" @click="copy(detail.depositAddress)">复制地址</wd-button>
+      </view>
+      <view class="block-row">
+        <text class="label">转账备注 Memo</text>
+        <text class="block-value">{{ detail.memo || String(detail.id) }}</text>
+        <wd-button plain size="small" @click="copy(detail.memo || String(detail.id))">复制备注</wd-button>
+      </view>
+      <text class="warning">请核对链、地址和备注。转错链或遗漏备注可能导致无法自动到账。</text>
+      <wd-button v-if="detail.status === 'PENDING'" block plain class="refresh-btn" @click="refreshDetail()">刷新到账状态</wd-button>
+      <wd-button block plain class="refresh-btn" @click="go('/pages/wallet/recharge-list')">查看充值记录</wd-button>
+    </view>
+
+    <view v-else class="record-entry" @click="go('/pages/wallet/recharge-list')">
+      <text>查看充值记录</text><text>›</text>
     </view>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.deposit-page {
-  min-height: 100vh;
-  background: #f7f8fa;
-}
-.okx-card, .addr-section {
-  background: #fff;
-  padding: 32rpx;
-  margin-bottom: 16rpx;
-}
-.okx-head {
-  display: flex;
-  gap: 16rpx;
-  align-items: center;
-  margin-bottom: 24rpx;
-  padding: 24rpx;
-  background: linear-gradient(135deg, #fff7e6 0%, #fff 60%);
-  border-radius: 16rpx;
-}
-.okx-logo {
-  width: 80rpx;
-  height: 80rpx;
-  background: #000;
-  color: #fff;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-family: ui-monospace, monospace;
-}
-.title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-}
-.sub {
-  display: block;
-  font-size: 22rpx;
-  color: #86909c;
-  margin-top: 4rpx;
-}
-.chain-row {
-  padding: 24rpx 0;
-}
-.chain-label {
-  font-size: 24rpx;
-  color: #4e5969;
-}
-.chain-options {
-  display: flex;
-  gap: 12rpx;
-  margin-top: 12rpx;
-}
-.chain-opt {
-  flex: 1;
-  text-align: center;
-  padding: 16rpx;
-  border: 2rpx solid #f2f3f5;
-  border-radius: 8rpx;
-  font-size: 24rpx;
-}
-.chain-opt.active {
-  border-color: #4d80f0;
-  color: #4d80f0;
-  background: #f3f7ff;
-}
-.section-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  margin-bottom: 16rpx;
-}
-.addr-card {
-  background: #f7f8fa;
-  border-radius: 12rpx;
-  padding: 20rpx;
-  margin-bottom: 16rpx;
-}
-.addr-head {
-  display: flex;
-  gap: 8rpx;
-  align-items: center;
-  margin-bottom: 8rpx;
-}
-.addr-name {
-  font-size: 22rpx;
-  color: #4e5969;
-}
-.addr-text {
-  display: block;
-  font-family: ui-monospace, monospace;
-  font-size: 22rpx;
-  background: #fff;
-  padding: 12rpx;
-  border-radius: 8rpx;
-  word-break: break-all;
-  margin: 8rpx 0;
-}
-.warn {
-  font-size: 20rpx;
-  color: #ff7d00;
-  display: block;
-  margin-top: 8rpx;
-}
+.deposit-page { min-height: 100vh; box-sizing: border-box; padding: 16rpx; background: #f7f8fa; }
+.form-card, .detail-card, .record-entry { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
+.title { font-size: 28rpx; font-weight: 600; color: #1d2129; }
+.tip { display: block; margin: 10rpx 0 20rpx; color: #86909c; font-size: 23rpx; line-height: 1.6; }
+.submit-btn, .refresh-btn { margin-top: 20rpx; }
+.detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
+.row { display: flex; justify-content: space-between; gap: 20rpx; padding: 18rpx 0; border-bottom: 1rpx solid #f7f8fa; font-size: 24rpx; }
+.label { color: #86909c; }
+.value { color: #1d2129; font-family: ui-monospace, monospace; }
+.block-row { padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; }
+.block-value { display: block; margin: 10rpx 0; padding: 16rpx; border-radius: 8rpx; background: #f7f8fa; color: #1d2129; font-family: ui-monospace, monospace; font-size: 22rpx; word-break: break-all; }
+.warning { display: block; margin-top: 20rpx; color: #ff7d00; font-size: 22rpx; line-height: 1.6; }
+.record-entry { display: flex; justify-content: space-between; color: #4e5969; font-size: 24rpx; }
 </style>
