@@ -77,3 +77,54 @@ export function submitPointAppeal(params: Api.Point.RealAppealSubmitParams): Pro
     data: params
   });
 }
+
+export interface PointAppealView {
+  id: string;
+  ledgerId: string;
+  behaviorCode: string;
+  behaviorName: string;
+  originalScore: number;
+  reason: string;
+  status: Api.Point.RealAppealStatus;
+  reviewComment: string;
+  createdAt: string | number;
+  reviewedAt?: string | number;
+}
+
+export interface PointAppealPage {
+  current: number;
+  size: number;
+  total: number;
+  records: PointAppealView[];
+}
+
+function toPointAppealView(record: Api.Point.RealAppealDTO): PointAppealView {
+  return {
+    id: String(record.id),
+    ledgerId: String(record.ledgerId),
+    behaviorCode: record.behaviorCode || '',
+    behaviorName: record.behaviorName || record.behaviorCode || '积分变动',
+    originalScore: Number(record.originalScore || 0),
+    reason: record.reason,
+    status: record.status,
+    reviewComment: record.reviewComment || record.decision || '',
+    createdAt: record.createdAt,
+    reviewedAt: record.reviewedAt
+  };
+}
+
+export async function fetchPointAppeals(
+  query: Api.Point.RealAppealPageQuery = {}
+): Promise<PointAppealPage> {
+  const page = await realUserRequest<Api.Point.RealAppealPage, Api.Point.RealAppealPageQuery>({
+    url: '/points/appeals/page',
+    method: 'POST',
+    data: query
+  });
+  return {
+    current: page.pageNo,
+    size: page.pageSize,
+    total: page.total,
+    records: page.records.map(toPointAppealView)
+  };
+}

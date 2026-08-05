@@ -4,14 +4,17 @@ import { pointApi as mockPointApi } from '@shared';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import {
+  fetchPointAppeals,
   fetchPointLedger,
   submitPointAppeal,
+  type PointAppealView,
   type PointLedgerView
 } from '@/service/api/point';
 
 const userStore = useUserStore();
-const activeKey = ref<'log' | 'rule'>('log');
+const activeKey = ref<'log' | 'appeal' | 'rule'>('log');
 const logs = ref<PointLedgerView[]>([]);
+const appeals = ref<PointAppealView[]>([]);
 const rules = ref<Api.Point.Rule[]>([]);
 
 const appealPopup = ref(false);
@@ -27,6 +30,13 @@ async function load() {
     if (activeKey.value === 'log') {
       const r = await fetchPointLedger({ pageNo: 1, pageSize: 50 });
       logs.value = r.records;
+    } else if (activeKey.value === 'appeal') {
+      const r = await fetchPointAppeals({
+        pageNo: 1,
+        pageSize: 50,
+        userId: userStore.realUserId
+      });
+      appeals.value = r.records;
     } else if (activeKey.value === 'rule' && !rules.value.length) {
       rules.value = await mockPointApi.fetchPointRules();
     }
@@ -60,6 +70,17 @@ function labelOf(code: string, fallback?: string): string {
   const r = rules.value.find(x => x.code === code);
   return r?.label || fallback || code;
 }
+
+function appealStatusText(status: Api.Point.RealAppealStatus): string {
+  return { PENDING: '待审核', APPROVED: '已通过', REJECTED: '已驳回' }[status];
+}
+
+function formatDate(value?: string | number): string {
+  if (!value) return '-';
+  const timestamp = typeof value === 'number' || /^\d+$/.test(value) ? Number(value) : value;
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
 </script>
 
 <template>
@@ -72,6 +93,7 @@ function labelOf(code: string, fallback?: string): string {
 
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab name="log" title="积分流水" />
+      <wd-tab name="appeal" title="申诉记录" />
       <wd-tab name="rule" title="积分规则" />
     </wd-tabs>
 
@@ -80,7 +102,7 @@ function labelOf(code: string, fallback?: string): string {
         <view v-for="l in logs" :key="l.id" class="log-row">
           <view class="log-main">
             <text class="log-title">{{ labelOf(l.behavior, l.behaviorName) }}</text>
-            <text class="log-time">{{ new Date(l.createdAt).toLocaleString() }}</text>
+            <text class="log-time">{{ formatDate(l.createdAt) }}</text>
           </view>
           <view class="log-right">
             <text class="log-change" :class="{ pos: l.change > 0, neg: l.change < 0 }">{{ l.change > 0 ? '+' : '' }}{{ l.change }}</text>
@@ -90,6 +112,27 @@ function labelOf(code: string, fallback?: string): string {
         </view>
       </view>
       <EmptyState v-else title="暂无流水" />
+    </view>
+
+    <view v-else-if="activeKey === 'appeal'" class="list">
+      <view v-if="appeals.length">
+        <view v-for="item in appeals" :key="item.id" class="appeal-row">
+          <view class="appeal-head">
+            <text class="appeal-title">{{ item.behaviorName }}</text>
+            <text class="appeal-status" :class="`status-${item.status.toLowerCase()}`">
+              {{ appealStatusText(item.status) }}
+            </text>
+          </view>
+          <text class="appeal-score">原积分变动 {{ item.originalScore > 0 ? '+' : '' }}{{ item.originalScore }}</text>
+          <text class="appeal-reason">{{ item.reason }}</text>
+          <text v-if="item.reviewComment" class="appeal-review">审核意见：{{ item.reviewComment }}</text>
+          <view class="appeal-times">
+            <text>提交 {{ formatDate(item.createdAt) }}</text>
+            <text v-if="item.reviewedAt">审核 {{ formatDate(item.reviewedAt) }}</text>
+          </view>
+        </view>
+      </view>
+      <EmptyState v-else title="暂无申诉记录" />
     </view>
 
     <view v-else class="list">
@@ -145,6 +188,31 @@ function labelOf(code: string, fallback?: string): string {
 .log-change.neg { color: #f53f3f; }
 .appeal-btn { font-size: 22rpx; color: #4d80f0; }
 .appeal-tag { font-size: 22rpx; color: #ff9a02; }
+.appeal-row {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 12rpx;
+}
+.appeal-head { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; }
+.appeal-title { font-size: 26rpx; font-weight: 600; }
+.appeal-status { flex-shrink: 0; font-size: 22rpx; }
+.status-pending { color: #ff9a02; }
+.status-approved { color: #00b42a; }
+.status-rejected { color: #f53f3f; }
+.appeal-score { display: block; margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
+.appeal-reason { display: block; margin-top: 12rpx; font-size: 24rpx; color: #4e5969; line-height: 1.6; }
+.appeal-review {
+  display: block;
+  margin-top: 12rpx;
+  padding: 16rpx;
+  border-radius: 8rpx;
+  background: #f7f8fa;
+  font-size: 22rpx;
+  color: #4e5969;
+  line-height: 1.5;
+}
+.appeal-times { display: flex; flex-direction: column; gap: 4rpx; margin-top: 12rpx; font-size: 20rpx; color: #86909c; }
 .rule-row {
   background: #fff;
   border-radius: 16rpx;

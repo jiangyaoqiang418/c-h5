@@ -34,5 +34,39 @@ declare namespace Api {
       ledgerId: string;
       reason: string;
     }
+
+    type RealAppealStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+    interface RealAppealPageQuery {
+      pageNo?: number;
+      pageSize?: number;
+      keyword?: string;
+      status?: RealAppealStatus;
+      userId?: string | number;
+    }
+
+    interface RealAppealDTO {
+      id: string | number;
+      ledgerId: string | number;
+      userId: string | number;
+      userNickname?: string;
+      behaviorCode?: string;
+      behaviorName?: string;
+      originalScore?: string | number;
+      reason: string;
+      status: RealAppealStatus;
+      decision?: string;
+      reviewComment?: string;
+      reviewerId?: string | number;
+      createdAt: string | number;
+      reviewedAt?: string | number;
+    }
+
+    interface RealAppealPage {
+      pageNo: number;
+      pageSize: number;
+      total: number;
+      records: RealAppealDTO[];
+    }
   }
 }
