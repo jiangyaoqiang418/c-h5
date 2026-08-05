@@ -66,6 +66,7 @@ src/
 - [真实接口接入计划](./docs/api-integration-plan.md)
 - [Swagger 真实接口匹配矩阵](./docs/api-swagger-match-matrix.md)
 - [H5 订单契约确认清单](./docs/order-contract-confirmation.md)
+- [H5 P2 跨设备接手说明](./docs/p2-handoff.md)
 
 ## 当前 Swagger 满足度
 
