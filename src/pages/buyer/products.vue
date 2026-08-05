@@ -1,86 +1,157 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { buyerApi } from '@shared';
+import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
+import { fetchMyProducts, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
-const activeKey = ref<Api.Product.ProductStatus | 'all'>('all');
-const list = ref<Api.Product.ProductRecord[]>([]);
+const activeKey = ref<Api.RealProduct.ProductQueryStatus | 'all'>('all');
+const list = ref<Api.RealProduct.ProductDTO[]>([]);
+const loading = ref(false);
+const categoryNames = ref<Record<string, string>>({});
 
-const TABS: { key: Api.Product.ProductStatus | 'all'; label: string }[] = [
+const TABS: { key: Api.RealProduct.ProductQueryStatus | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
-  { key: 'NORMAL', label: '正常' },
-  { key: 'PENDING_AUDIT', label: '待审核' },
-  { key: 'FROZEN', label: '已冻结' }
+  { key: 'PENDING', label: '待审核' },
+  { key: 'ON_SALE', label: '在售' },
+  { key: 'OFF_SHELF', label: '已下架' },
+  { key: 'REJECTED', label: '已驳回' }
 ];
 
-async function load() {
-  if (!userStore.currentUser) return;
-  const status = activeKey.value === 'all' ? undefined : activeKey.value;
-  const r = await buyerApi.fetchMyProducts(userStore.currentUser.id, status);
-  list.value = r.records;
+function collectCategoryNames(nodes: CategoryNode[], parents: string[] = []) {
+  nodes.forEach(node => {
+    const path = [...parents, node.name];
+    categoryNames.value[String(node.id)] = path.join(' / ');
+    if (node.children?.length) collectCategoryNames(node.children, path);
+  });
 }
+
+function statusType(status: Api.RealProduct.ProductStatus): 'success' | 'warning' | 'danger' | 'default' {
+  if (status === 'ON_SALE') return 'success';
+  if (status === 'REVIEWING') return 'warning';
+  if (status === 'REJECTED' || status === 'FROZEN') return 'danger';
+  return 'default';
+}
+
+async function load() {
+  await userStore.init();
+  if (!userStore.currentUser) return;
+  loading.value = true;
+  try {
+    if (!Object.keys(categoryNames.value).length) {
+      collectCategoryNames(await fetchCategoryTree({ onlyEnabled: true }));
+    }
+    const result = await fetchMyProducts({
+      pageNo: 1,
+      pageSize: 50,
+      status: activeKey.value === 'all' ? undefined : activeKey.value
+    });
+    list.value = result.records || [];
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '商品列表加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
+  }
+}
+
+function toggleShelf(product: Api.RealProduct.ProductDTO) {
+  const onShelf = product.status === 'OFF_SHELF';
+  uni.showModal({
+    title: onShelf ? '确认上架' : '确认下架',
+    content: onShelf ? '重新上架后，顾客可继续购买该商品。' : '下架后，顾客将无法继续购买该商品。',
+    confirmText: onShelf ? '确认上架' : '确认下架',
+    success: async result => {
+      if (!result.confirm) return;
+      try {
+        await setProductShelf(product.id, onShelf);
+        uni.showToast({ title: onShelf ? '已上架' : '已下架', icon: 'success' });
+        await load();
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '商品状态更新失败', icon: 'none' });
+      }
+    }
+  });
+}
+
 onShow(load);
 watch(activeKey, load);
 </script>
 
 <template>
-  <view class="bp-page">
+  <view class="products-page">
     <wd-tabs v-model="activeKey" sticky>
-      <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
+      <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
     </wd-tabs>
+
     <view class="list">
-      <view v-if="list.length">
-        <view v-for="p in list" :key="p.id" class="card" @click="go(`/pages/product/detail?id=${p.id}`)">
-          <image :src="p.images[0]?.url" mode="aspectFill" class="cover" />
+      <view v-if="loading" class="loading">加载中...</view>
+      <view v-else-if="list.length">
+        <view
+          v-for="product in list"
+          :key="String(product.id)"
+          class="product-card"
+          @click="go(`/pages/buyer/product-detail?id=${encodeURIComponent(String(product.id))}`)"
+        >
+          <image v-if="product.images?.[0]" :src="product.images[0]" mode="aspectFill" class="cover" />
+          <view v-else class="cover placeholder">暂无图片</view>
           <view class="info">
-            <text class="title">{{ p.title }}</text>
-            <text class="cat">{{ p.categoryPath }}</text>
+            <text class="title">{{ product.title }}</text>
+            <text class="category">{{ categoryNames[String(product.categoryId)] || `分类 ${product.categoryId}` }}</text>
             <view class="meta">
-              <text class="price">U {{ formatAmount(p.price) }}</text>
-              <text class="stock">库存 {{ p.stock }}</text>
+              <text class="price">U {{ formatAmount(product.price) }}</text>
+              <text class="stock">库存 {{ product.stock }}</text>
             </view>
-            <view class="tags">
-              <wd-tag size="small" :type="p.status === 'NORMAL' ? 'success' : 'default'">{{ p.status }}</wd-tag>
+            <view class="card-foot">
+              <wd-tag size="small" :type="statusType(product.status)">{{ product.statusText || product.status }}</wd-tag>
+              <wd-button
+                v-if="product.status === 'ON_SALE' || product.status === 'OFF_SHELF'"
+                plain
+                size="small"
+                @click.stop="toggleShelf(product)"
+              >
+                {{ product.status === 'ON_SALE' ? '下架' : '上架' }}
+              </wd-button>
             </view>
+            <text v-if="product.reviewComment" class="review-comment">审核意见：{{ product.reviewComment }}</text>
           </view>
         </view>
       </view>
       <EmptyState v-else title="暂无商品" />
     </view>
 
-    <view class="fab" @click="go('/pages/buyer/product-create')">+ 上架</view>
+    <view class="fab" @click="go('/pages/buyer/product-create')">+ 发布</view>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.bp-page { min-height: 100vh; background: #f7f8fa; padding-bottom: 200rpx; }
+.products-page { min-height: 100vh; background: #f7f8fa; padding-bottom: 200rpx; }
 .list { padding: 16rpx; }
-.card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 12rpx;
+.loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
+.product-card {
   display: flex;
   gap: 16rpx;
+  margin-bottom: 12rpx;
+  padding: 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
 }
 .cover { width: 160rpx; height: 160rpx; border-radius: 12rpx; background: #f7f8fa; flex-shrink: 0; }
-.info { flex: 1; display: flex; flex-direction: column; }
-.title { font-size: 26rpx; font-weight: 600; line-height: 1.3; }
-.cat { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
-.meta { display: flex; justify-content: space-between; margin-top: 8rpx; align-items: center; }
+.cover.placeholder { display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 20rpx; }
+.info { flex: 1; min-width: 0; }
+.title { display: block; font-size: 26rpx; font-weight: 600; line-height: 1.4; color: #1d2129; }
+.category { display: block; margin-top: 4rpx; font-size: 22rpx; color: #86909c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { display: flex; justify-content: space-between; align-items: center; margin-top: 10rpx; }
 .price { font-size: 30rpx; color: #f53f3f; font-weight: 700; font-family: ui-monospace, monospace; }
 .stock { font-size: 22rpx; color: #4e5969; }
-.tags { margin-top: 8rpx; }
+.card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10rpx; }
+.review-comment { display: block; margin-top: 10rpx; font-size: 22rpx; line-height: 1.5; color: #f53f3f; }
 .fab {
   position: fixed; right: 32rpx; bottom: calc(48rpx + env(safe-area-inset-bottom));
-  background: #4d80f0; color: #fff;
-  padding: 20rpx 32rpx; border-radius: 48rpx;
-  font-size: 26rpx;
-  box-shadow: 0 8rpx 24rpx rgba(77,128,240,0.4);
+  padding: 20rpx 32rpx; border-radius: 48rpx; background: #4d80f0; color: #fff;
+  font-size: 26rpx; box-shadow: 0 8rpx 24rpx rgba(77, 128, 240, 0.4);
 }
 </style>

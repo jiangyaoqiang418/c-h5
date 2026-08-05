@@ -10,6 +10,17 @@ export interface RequestOptions<TData = unknown> {
   timeout?: number;
 }
 
+export interface UploadOptions {
+  url: string;
+  filePath: string;
+  name: string;
+  params?: Record<string, string | number | boolean | undefined | null>;
+  formData?: Record<string, string | number | boolean>;
+  header?: Record<string, string>;
+  requireToken?: boolean;
+  timeout?: number;
+}
+
 export interface ServiceEnvelope<T> {
   code?: number | string;
   message?: string;

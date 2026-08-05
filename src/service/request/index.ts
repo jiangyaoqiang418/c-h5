@@ -1,5 +1,5 @@
 import { clearAccessToken, getAccessToken } from './token';
-import { RequestError, type RequestOptions, type ServiceEnvelope } from './type';
+import { RequestError, type RequestOptions, type ServiceEnvelope, type UploadOptions } from './type';
 import { realServiceConfig } from '../config';
 
 const DEFAULT_TIMEOUT = 15_000;
@@ -47,6 +47,15 @@ function throwBusinessError(body: ServiceEnvelope<unknown>): never {
   throw new RequestError({ kind: 'business', message, code: body.code });
 }
 
+function unwrapBody<T>(body: unknown): T {
+  if (!isEnvelope(body)) return body as T;
+  const code = body.code === undefined || body.code === null ? '' : String(body.code);
+  if ((code && code !== realServiceConfig.successCode) || body.success === false) {
+    throwBusinessError(body);
+  }
+  return body.data as T;
+}
+
 export function createRequest(baseURL: string) {
   return async function request<T, TData = unknown>(options: RequestOptions<TData>): Promise<T> {
     if (!baseURL || !isAllowedServiceURL(baseURL)) {
@@ -84,20 +93,64 @@ export function createRequest(baseURL: string) {
       throw new RequestError({ kind: 'http', message: `请求失败（${response.statusCode}）`, statusCode: response.statusCode });
     }
 
-    const body = response.data;
-    if (!isEnvelope(body)) return body as T;
-    const code = body.code === undefined || body.code === null ? '' : String(body.code);
-    if ((code && code !== realServiceConfig.successCode) || body.success === false) {
-      throwBusinessError(body);
+    return unwrapBody<T>(response.data);
+  };
+}
+
+export function createUpload(baseURL: string) {
+  return async function upload<T>(options: UploadOptions): Promise<T> {
+    if (!baseURL || !isAllowedServiceURL(baseURL)) {
+      throw new RequestError({ kind: 'config', message: '真实服务地址未配置，或当前端不允许使用 HTTP 地址' });
     }
-    return body.data as T;
+
+    const token = options.requireToken === false ? '' : getAccessToken();
+    const header: Record<string, string> = { ...options.header };
+    if (token) header['X-Access-Token'] = token;
+
+    let response: { statusCode: number; data: string };
+    try {
+      response = await new Promise((resolve, reject) => {
+        uni.uploadFile({
+          url: appendParams(`${baseURL.replace(/\/$/, '')}/${options.url.replace(/^\//, '')}`, options.params),
+          filePath: options.filePath,
+          name: options.name,
+          formData: options.formData,
+          header,
+          timeout: options.timeout || DEFAULT_TIMEOUT,
+          success: resolve,
+          fail: reject
+        });
+      });
+    } catch (error) {
+      throw new RequestError({
+        kind: 'network',
+        message: error instanceof Error ? error.message : '文件上传失败'
+      });
+    }
+
+    if (response.statusCode === 401) {
+      notifyLoginExpired();
+      throw new RequestError({ kind: 'unauthorized', message: '登录已失效', statusCode: response.statusCode });
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new RequestError({ kind: 'http', message: `上传失败（${response.statusCode}）`, statusCode: response.statusCode });
+    }
+
+    let body: unknown;
+    try {
+      body = JSON.parse(response.data);
+    } catch {
+      body = response.data;
+    }
+    return unwrapBody<T>(body);
   };
 }
 
 export const realAdminRequest = createRequest(realServiceConfig.admin);
 export const realUserRequest = createRequest(realServiceConfig.user);
 export const realOrderRequest = createRequest(realServiceConfig.order);
+export const realOrderUpload = createUpload(realServiceConfig.order);
 
 export { clearAccessToken, getAccessToken, setAccessToken } from './token';
 export { RequestError } from './type';
-export type { RequestOptions, ServiceEnvelope } from './type';
+export type { RequestOptions, ServiceEnvelope, UploadOptions } from './type';

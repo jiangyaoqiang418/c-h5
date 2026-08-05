@@ -47,6 +47,7 @@
     { "path": "pages/buyer/apply", "style": { "navigationBarTitleText": "买手申请" } },
     { "path": "pages/buyer/dashboard", "style": { "navigationBarTitleText": "买手仪表盘" } },
     { "path": "pages/buyer/products", "style": { "navigationBarTitleText": "商品管理" } },
+    { "path": "pages/buyer/product-detail", "style": { "navigationBarTitleText": "商品详情" } },
     { "path": "pages/buyer/product-create", "style": { "navigationBarTitleText": "上架商品" } },
     { "path": "pages/buyer/deposit", "style": { "navigationBarTitleText": "押金管理" } },
 
