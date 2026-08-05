@@ -130,11 +130,16 @@ onLoad(async query => {
   isRealProduct.value = query?.source === 'real';
   try {
     if (isRealProduct.value) {
-      const [record, categories] = await Promise.all([
+      const [recordResult, categoriesResult] = await Promise.allSettled([
         fetchStorefrontProductDetail(rawId),
         fetchCategoryTree({ onlyEnabled: true })
       ]);
-      product.value = fromReal(record, categoryPathOf(categories, record.categoryId) || `分类 ${record.categoryId}`);
+      if (recordResult.status === 'rejected') throw recordResult.reason;
+      const record = recordResult.value;
+      const categoryPath = categoriesResult.status === 'fulfilled'
+        ? categoryPathOf(categoriesResult.value, record.categoryId)
+        : undefined;
+      product.value = fromReal(record, categoryPath || `分类 ${record.categoryId}`);
       recordProductBrowse(rawId).catch(() => undefined);
       return;
     }

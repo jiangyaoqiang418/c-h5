@@ -60,7 +60,7 @@ function toFlashProduct(item: Api.RealProduct.FlashSaleItemVO): Api.RealProduct.
 onMounted(async () => {
   loading.value = true;
   try {
-    const [cats, recommends, bestSellers, arrivals, flashSale, banners] = await Promise.all([
+    const results = await Promise.allSettled([
       fetchCategoryTree({ onlyEnabled: true }),
       fetchStorefrontRecommend(6),
       fetchBestSellers(1, 6),
@@ -68,14 +68,22 @@ onMounted(async () => {
       fetchFlashSale(4),
       fetchBanners()
     ]);
-    categoryRoots.value = cats.slice(0, 10);
-    recommended.value = recommends;
-    hot.value = bestSellers.records || [];
-    newest.value = arrivals.records || [];
-    flashItems.value = flashSale;
-    flash.value = flashSale.map(toFlashProduct);
-    promoBanners.value = banners.filter(item => item.enabled !== false).slice(0, 2);
-    countdownTimer = setInterval(() => { now.value = Date.now(); }, 1000);
+    const [cats, recommends, bestSellers, arrivals, flashSale, banners] = results;
+    if (cats.status === 'fulfilled') categoryRoots.value = cats.value.slice(0, 10);
+    if (recommends.status === 'fulfilled') recommended.value = recommends.value;
+    if (bestSellers.status === 'fulfilled') hot.value = bestSellers.value.records || [];
+    if (arrivals.status === 'fulfilled') newest.value = arrivals.value.records || [];
+    if (flashSale.status === 'fulfilled') {
+      flashItems.value = flashSale.value;
+      flash.value = flashSale.value.map(toFlashProduct);
+      if (flashItems.value.length) countdownTimer = setInterval(() => { now.value = Date.now(); }, 1000);
+    }
+    if (banners.status === 'fulfilled') {
+      promoBanners.value = banners.value.filter(item => item.enabled !== false).slice(0, 2);
+    }
+    if (results.some(result => result.status === 'rejected')) {
+      uni.showToast({ title: '部分首页数据加载失败', icon: 'none' });
+    }
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '首页数据加载失败', icon: 'none' });
   } finally {
