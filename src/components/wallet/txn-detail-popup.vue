@@ -2,10 +2,11 @@
 import { computed } from 'vue';
 import { enums } from '@shared';
 import { formatAmount, shortAddress } from '@/utils/format-bridge';
+import type { WalletTxnView } from '@/service/api/wallet';
 
 interface Props {
   visible: boolean;
-  txn?: Api.Wallet.Txn;
+  txn?: WalletTxnView;
 }
 const props = defineProps<Props>();
 defineEmits<{ (e: 'update:visible', v: boolean): void }>();

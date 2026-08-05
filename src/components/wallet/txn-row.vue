@@ -2,12 +2,13 @@
 import { computed } from 'vue';
 import { enums } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
+import type { WalletTxnView } from '@/service/api/wallet';
 
 interface Props {
-  txn: Api.Wallet.Txn;
+  txn: WalletTxnView;
 }
 const props = defineProps<Props>();
-defineEmits<{ (e: 'detail', t: Api.Wallet.Txn): void }>();
+defineEmits<{ (e: 'detail', t: WalletTxnView): void }>();
 
 const meta = computed(() => enums.TXN_TYPE_META[props.txn.type]);
 const sign = computed(() => (props.txn.direction === 'in' ? '+' : '-'));

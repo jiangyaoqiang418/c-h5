@@ -7,13 +7,13 @@ import TxnRow from '@/components/wallet/txn-row.vue';
 import TxnDetailPopup from '@/components/wallet/txn-detail-popup.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore, useWalletStore } from '@/stores';
-import { fetchWalletLedger } from '@/service/api/wallet';
+import { fetchWalletLedger, type WalletTxnView } from '@/service/api/wallet';
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
-const recent = ref<Api.Wallet.Txn[]>([]);
+const recent = ref<WalletTxnView[]>([]);
 const popupOpen = ref(false);
-const drawerTxn = ref<Api.Wallet.Txn>();
+const drawerTxn = ref<WalletTxnView>();
 
 import { getUsdtCnyRate } from '@shared/utils/currency';
 const cnyRate = getUsdtCnyRate();
@@ -52,7 +52,7 @@ async function loadAll() {
 }
 onShow(loadAll);
 
-function openTxn(t: Api.Wallet.Txn) {
+function openTxn(t: WalletTxnView) {
   drawerTxn.value = t;
   popupOpen.value = true;
 }

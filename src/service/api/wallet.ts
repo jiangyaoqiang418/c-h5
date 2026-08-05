@@ -24,6 +24,11 @@ export interface RechargeParams {
   amount: number;
 }
 
+export interface WalletTxnView extends Omit<Api.Wallet.Txn, 'id' | 'userId'> {
+  id: string | number;
+  userId: string | number;
+}
+
 const bucketMap: Record<string, keyof Api.Wallet.InternalAccount> = {
   AVAILABLE: 'available',
   NON_WITHDRAWABLE: 'nonWithdrawable',
@@ -117,15 +122,15 @@ function toIso(value: string | number): string {
   return value;
 }
 
-function toTxn(dto: Api.RealWallet.WalletLedgerDTO): Api.Wallet.Txn {
+function toTxn(dto: Api.RealWallet.WalletLedgerDTO): WalletTxnView {
   const bucketFrom = dto.fromType ? bucketMapReverse[dto.fromType] : undefined;
   const bucketTo = dto.toType ? bucketMapReverse[dto.toType] : undefined;
-  const direction: Api.Wallet.Txn['direction'] = bucketTo && !bucketFrom ? 'in' : 'out';
+  const direction: WalletTxnView['direction'] = bucketTo && !bucketFrom ? 'in' : 'out';
   const type = txnTypeMap[dto.bizType] || txnTypeMap[dto.bizGroup || ''] || (direction === 'in' ? 'ADJUST_PLUS' : 'ADJUST_MINUS');
 
   return {
-    id: dto.id as unknown as number,
-    userId: dto.userId as unknown as number,
+    id: dto.id,
+    userId: dto.userId,
     userName: '',
     type,
     direction,

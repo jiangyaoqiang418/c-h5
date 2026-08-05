@@ -93,6 +93,7 @@
 - 2026-08-05 买手商品列表已补齐基于 `pageNo/pageSize/total` 的触底分页，状态页签切换和页面返回会重置第一页；当前真实账号列表为空，因此非空多页拼接仍待有数据账号验证。
 - 2026-08-05 积分流水和积分申诉记录已分别补齐触底分页；Chrome 已登录账号验证两个列表空态及积分三页签往返正常、无新增控制台错误，非空多页拼接待有数据账号验证。
 - 2026-08-05 再次抓取 `swagger-config` 和 `user` OpenAPI，充值/提现分页与详情 4 个操作的路径、方法、分页结构和 VO 字段未变化；两个记录页已补齐触底分页，已登录账号真实空态和无新增控制台错误已验证，非空列表、详情跳转与多页拼接待有数据账号验证。
+- 2026-08-05 钱包流水分页契约同步复核通过，全部流水页已补齐触底续页；真实 `WalletLedgerDTO.id/userId` 通过专用展示类型保留原始 `string | number`，钱包首页和流水空态经已登录账号验证，无新增控制台错误。
 
 | 深扫补充能力 | Swagger 接口 | 契约结论 | 当前前端状态 |
 |---|---|---|---|
@@ -171,7 +172,7 @@
 |---|---|---|---|
 | 钱包总览 | `GET /user/wallet/overview` | B | total/todayIn/todayOut/distribution 可适配；前端固定桶字段和钱包地址需由 distribution 映射或后端补充 |
 | 总资产 | `GET /user/wallet/overview` 的 `total` | A | 金额为 number，前端应在 API 层转为字符串展示，避免页面浮点运算 |
-| 钱包流水 | `POST /user/wallet/ledger/page` | C | 有分页、业务类型和余额；缺链上 hash、地址、refType/refId、费用拆分，筛选项也少于 PC/H5 Mock |
+| 钱包流水 | `POST /user/wallet/ledger/page` | C | API、首页最近交易和全部流水触底分页已接入，Long ID 保留原值，真实空态已验证；接口仍缺链上 hash、地址、refType/refId、费用拆分和现有筛选项 |
 | 发起充值 | `POST /user/recharge/create` + `GET /user/recharge/detail` | C | 页面已改为创建真实充值单、展示 depositAddress/memo 并刷新状态；真实创建和到账流转待验证 |
 | 充值/提现记录 | `POST /user/recharge/page`、`GET /user/recharge/detail`、`POST /user/withdraw/page`、`GET /user/withdraw/detail` | B | API、触底分页页面和入口已接入；Long ID 保留原值，真实空态已验证，非空记录待验证 |
 | 平台链钱包列表 | 无 C 端接口 | D | `admin` 钱包配置不在当前 C 端 Swagger 范围 |
