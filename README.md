@@ -17,6 +17,7 @@ pnpm typecheck
 
 - H5 开发默认由 UniApp/Vite 启动。
 - H5 构建产物位于 `dist/build/h5`。
+- H5 部署包使用同源 `/api/*` 请求地址，部署服务器必须把 `/api/user`、`/api/order`、`/api/admin` 反向代理到对应测试服务；不要让浏览器直接跨域访问测试服务，否则会触发 CORS。
 - 当前仅维护移动 H5、Android App 与 iOS App；小程序和其他端暂不构建、不验收。
 - Android/iOS 采用 UniApp App-Vue。`dev:app-plus` 与 `build:app-plus` 固定加载 `.env.app`，使用完整 HTTPS 测试服务地址，不依赖 H5 的 Vite 代理。签名、商店发布和热更新不在当前阶段。
 - HBuilderX 直接运行 App 时会加载 development 环境；请求配置在 App 端使用 `.env.development` 的 `VITE_REAL_*_TARGET_URL`，H5 仍使用 `/api/*` 代理。
@@ -53,7 +54,7 @@ src/
 - 交互逻辑以前端现有页面为准；路径、字段、类型、枚举、分页和响应结构以后端接口为准。
 - 后续模块复用现有 `src/service/request/`，并按模块补充 `src/service/api/` 和 `src/typings/api/`。
 - 未对接模块继续使用现有 Mock；已切真实接口的模块不自动 fallback Mock。
-- H5 的真实请求统一使用 `uni.request`，开发环境通过 Vite `/api/*` 代理访问测试服务。
+- H5 的真实请求统一使用 `uni.request`，开发环境通过 Vite `/api/*` 代理访问测试服务，部署环境通过服务器 `/api/*` 反向代理访问测试服务。
 - 页面/Store 不直接使用浏览器的 `window`、`localStorage`、`fetch` 或 Vue Router；存储、跳转和网络能力统一使用 UniApp API。
 - H5、Android/iOS 均使用 `pages.json` 的窗口级原生 tabBar；页面仅渲染内容，图标使用项目内本地图片资源。
 - 默认顶部导航由 `pages.json` 承载；首页、登录、商品详情和钱包是已登记的自定义导航例外。

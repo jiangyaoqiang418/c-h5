@@ -17,7 +17,7 @@
 1. 实时抓取 `admin`、`user`、`order` Swagger，递归比较旧矩阵与最新文档的路径、方法、参数、必填项、requestBody、response、schema 和嵌套字段。
 2. 将差异及 A/B/C/D 结论更新到 `api-swagger-match-matrix.md`，再选择当前页面实际需要且契约完整的接口。
 3. H5 首批接入须提供可访问的 HTTP 或 HTTPS 服务地址、可登录测试账号、分类/积分/钱包测试数据、成功码规则和错误响应样例；缺少任一项时不得将页面从 Mock 切到真实接口。Android/iOS 迁移另须提供 HTTPS 地址。
-4. H5 开发环境可使用 HTTP、HTTPS、代理或 CORS；Android/iOS 直接访问 HTTPS 服务。不得为 iOS 配置 HTTP 例外，也不得在真实请求失败时回退 Mock。
+4. H5 开发环境使用 `/api/*` Vite 代理，H5 部署环境使用同源 `/api/*` 服务器反向代理；Android/iOS 直接访问 HTTPS 服务。不得为 iOS 配置 HTTP 例外，也不得在真实请求失败时回退 Mock。
 
 ### 已确认的最新 Swagger 状态
 
@@ -25,7 +25,7 @@
 - 2026-08-03：`admin` 为 84 路径/85 操作/138 schema，`user` 为 19/19/45，`order` 为 40/42/50；三个文档版本均为 `v1.0.0`。
 - 首批候选仍为 `POST /user/auth/login`、`GET /user/auth/me`、`GET /order/categories/tree`、`GET /user/points/account`、`GET /user/wallet/overview`、`POST /user/withdraw/create`。
 - 已从 c-pc 的真实环境配置复核通用口径：服务分组为 `https://testhou.merchantsale.store/api/{admin,user,order}`，成功码为 `1`，登录失效码为 `-200`、强提示失效码为 `-201`；错误信息字段兼容 `message`/`msg`。H5 仅复用这些契约和地址，不复用 PC 的浏览器请求实现。
-- 2026-08-03 实测：真实服务对 `http://localhost:5173` 的带 `X-Access-Token` 跨域预检返回 HTTP 403。H5 开发必须使用 `/api/{user,order,admin}` Vite 代理；部署 H5 与 Android/iOS 需使用完整 HTTPS 服务地址，不能直连该服务的跨域 HTTP 接口。
+- 2026-08-03 实测：真实服务对 `http://localhost:5173` 的带 `X-Access-Token` 跨域预检返回 HTTP 403。H5 开发必须使用 `/api/{user,order,admin}` Vite 代理；部署 H5 与 c-pc 一样使用同源 `/api/*` 服务器反向代理，Android/iOS 使用完整 HTTPS 服务地址。
 - 当前 Swagger 服务仅确认 HTTP 可用，HTTPS 握手失败。按当前决策，P2 可先在 H5 使用 HTTP 服务开发；本轮读取候选已使用本地受保护的测试账号、可用测试数据、成功码和错误口径完成验证（凭据不写入仓库）。后续新模块仍须满足本节门禁；提现等写操作在未记录真实请求、响应和结果页证据前，不得标记为真实验证。Android/iOS 对接继续等待 HTTPS 地址。
 
 ### 2026-08-03 P2 首批 H5 实施证据
