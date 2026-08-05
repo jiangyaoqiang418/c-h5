@@ -1,47 +1,100 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { productApi } from '@shared';
-import { heroBrandImage, bannerImage } from '@shared/utils/image';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { heroBrandImage } from '@shared/utils/image';
+import { fetchCategoryTree } from '@/service/api/category';
+import {
+  fetchBanners,
+  fetchBestSellers,
+  fetchFlashSale,
+  fetchNewArrivals,
+  fetchStorefrontRecommend
+} from '@/service/api/product';
 import { go } from '@/utils/navigate';
 import ProductCard from '@/components/product/product-card.vue';
 
-interface CategoryNode { id: number; name: string; }
+interface CategoryNode { id: string; name: string; }
 
 const loading = ref(true);
 const categoryRoots = ref<CategoryNode[]>([]);
-const hot = ref<Api.Product.ProductRecord[]>([]);
-const newest = ref<Api.Product.ProductRecord[]>([]);
-const flash = ref<Api.Product.ProductRecord[]>([]);
+const recommended = ref<Api.RealProduct.ProductDTO[]>([]);
+const hot = ref<Api.RealProduct.ProductDTO[]>([]);
+const newest = ref<Api.RealProduct.ProductDTO[]>([]);
+const flash = ref<Api.RealProduct.ProductDTO[]>([]);
+const flashItems = ref<Api.RealProduct.FlashSaleItemVO[]>([]);
+const promoBanners = ref<Api.RealProduct.BannerDTO[]>([]);
+const now = ref(Date.now());
+let countdownTimer: ReturnType<typeof setInterval> | undefined;
 
 const heroImage = heroBrandImage('luxury', 900);
 
-const promoBanners = [
-  { title: '小金库 · 日结 8.5%', subtitle: 'VIP 加成 · 新人 100U', tag: 'FINANCE', image: bannerImage(0, 600) },
-  { title: '海外直邮 24h 接单', subtitle: '全球买手三方担保', tag: 'GLOBAL', image: bannerImage(1, 600) }
-];
-
 const categoryIcons = ['📱', '💻', '⌚️', '👜', '👟', '🧴', '🍱', '🎮', '📷', '🚲'];
+
+const countdown = computed(() => {
+  const endTimes = flashItems.value
+    .map(item => Number(item.sessionEndTime))
+    .filter(value => Number.isFinite(value) && value > now.value);
+  if (!endTimes.length) return '进行中';
+  const seconds = Math.max(0, Math.floor((Math.min(...endTimes) - now.value) / 1000));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return [hours, minutes, secs].map(value => String(value).padStart(2, '0')).join(':');
+});
+
+function toFlashProduct(item: Api.RealProduct.FlashSaleItemVO): Api.RealProduct.ProductDTO {
+  return {
+    id: item.productId,
+    sellerId: '',
+    title: item.title,
+    categoryId: '',
+    price: item.flashPrice,
+    stock: item.stock,
+    afterSaleType: 'NONE',
+    status: 'ON_SALE',
+    statusText: '秒杀中',
+    salesCount: item.salesCount,
+    images: item.image ? [item.image] : []
+  };
+}
 
 onMounted(async () => {
   loading.value = true;
   try {
-    const [cats, recs] = await Promise.all([
-      productApi.fetchCategoryTree() as Promise<CategoryNode[]>,
-      productApi.fetchHomeRecommends()
+    const [cats, recommends, bestSellers, arrivals, flashSale, banners] = await Promise.all([
+      fetchCategoryTree({ onlyEnabled: true }),
+      fetchStorefrontRecommend(6),
+      fetchBestSellers(1, 6),
+      fetchNewArrivals(1, 6),
+      fetchFlashSale(4),
+      fetchBanners()
     ]);
     categoryRoots.value = cats.slice(0, 10);
-    hot.value = recs.hot.slice(0, 6);
-    newest.value = recs.newest.slice(0, 6);
-    flash.value = recs.flash.slice(0, 4);
+    recommended.value = recommends;
+    hot.value = bestSellers.records || [];
+    newest.value = arrivals.records || [];
+    flashItems.value = flashSale;
+    flash.value = flashSale.map(toFlashProduct);
+    promoBanners.value = banners.filter(item => item.enabled !== false).slice(0, 2);
+    countdownTimer = setInterval(() => { now.value = Date.now(); }, 1000);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '首页数据加载失败', icon: 'none' });
   } finally {
     loading.value = false;
   }
 });
 
-function goCategory(id?: number) { go(`/pages/product/list${id ? `?categoryId=${id}` : ''}`); }
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer);
+});
+
+function goCategory(id?: string | number) { go(`/pages/product/list${id ? `?categoryId=${encodeURIComponent(String(id))}` : ''}`); }
 function goSearch() { go('/pages/product/list'); }
 function goAi() { go('/pages/ai/index'); }
 function goPurchase() { go('/pages/purchase/hall'); }
+function goBanner(path?: string) {
+  if (path?.startsWith('/pages/')) go(path);
+  else goSearch();
+}
 </script>
 
 <template>
@@ -102,7 +155,7 @@ function goPurchase() { go('/pages/purchase/hall'); }
           <text class="section-title">限时秒杀</text>
         </view>
         <view class="countdown">
-          <text>⏱ 02:14:38</text>
+          <text>⏱ {{ countdown }}</text>
         </view>
       </view>
       <scroll-view scroll-x class="flash-scroll">
@@ -115,13 +168,13 @@ function goPurchase() { go('/pages/purchase/hall'); }
     </view>
 
     <!-- ============ 双 promo banner ============ -->
-    <view class="promo-grid">
+    <view v-if="promoBanners.length" class="promo-grid">
       <view
         v-for="(b) in promoBanners"
-        :key="b.title"
+        :key="String(b.id)"
         class="promo-banner"
         :style="{ backgroundImage: `url(${b.image})` }"
-        @click="goSearch"
+        @click="goBanner(b.pathTo)"
       >
         <view class="promo-overlay"></view>
         <view class="promo-content">
@@ -129,6 +182,19 @@ function goPurchase() { go('/pages/purchase/hall'); }
           <text class="promo-title">{{ b.title }}</text>
           <text class="promo-sub">{{ b.subtitle }}</text>
         </view>
+      </view>
+    </view>
+
+    <!-- ============ 为你推荐 ============ -->
+    <view v-if="recommended.length" class="section">
+      <view class="section-bar">
+        <view class="title-group">
+          <view class="sec-tag recommend"><text>FOR YOU</text></view>
+          <text class="section-title">为你推荐</text>
+        </view>
+      </view>
+      <view class="grid">
+        <ProductCard v-for="p in recommended" :key="String(p.id)" :product="p" />
       </view>
     </view>
 
@@ -385,6 +451,7 @@ function goPurchase() { go('/pages/purchase/hall'); }
   letter-spacing: 2rpx;
 }
 .sec-tag.flash { background: rgba(231, 76, 60, 0.1); color: #E74C3C; }
+.sec-tag.recommend { background: rgba(77, 128, 240, 0.1); color: #4D80F0; }
 .sec-tag.hot   { background: rgba(91, 92, 231, 0.1); color: #5B5CE7; }
 .sec-tag.new   { background: rgba(0, 168, 138, 0.1); color: #00A88A; }
 .section-title {

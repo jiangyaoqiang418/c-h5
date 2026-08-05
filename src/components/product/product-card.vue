@@ -5,30 +5,45 @@ import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 
 interface Props {
-  product: Api.Product.ProductRecord;
+  product: Api.Product.ProductRecord | Api.RealProduct.ProductDTO;
 }
 const props = defineProps<Props>();
 
+function isReal(record: Api.Product.ProductRecord | Api.RealProduct.ProductDTO): record is Api.RealProduct.ProductDTO {
+  return 'afterSaleType' in record;
+}
+
 const imgError = ref(false);
 const cover = computed(() => {
-  return props.product.images?.[0]?.url || productImageUrl(props.product.id, 400, props.product.categoryPath);
+  const first = props.product.images?.[0];
+  if (typeof first === 'string') return first;
+  if (first?.url) return first.url;
+  if ('categoryPath' in props.product) return productImageUrl(props.product.id, 400, props.product.categoryPath);
+  return '';
 });
+const isRealProduct = computed(() => isReal(props.product));
+const overseas = computed(() => isReal(props.product) ? !!props.product.overseasClearance : !!props.product.overseasCustoms);
+const categoryLabel = computed(() => (
+  'categoryPath' in props.product ? props.product.categoryPath.split('/').pop() || '油宝甄选' : '油宝甄选'
+));
+const sellerLabel = computed(() => 'sellerName' in props.product ? props.product.sellerName : '认证买手');
 
 function onImgError() {
   imgError.value = true;
 }
 
 function goDetail() {
-  go(`/pages/product/detail?id=${props.product.id}`);
+  const source = isRealProduct.value ? '&source=real' : '';
+  go(`/pages/product/detail?id=${encodeURIComponent(String(props.product.id))}${source}`);
 }
 </script>
 
 <template>
   <view class="p-card" @click="goDetail">
     <view class="cover-wrap">
-      <image v-if="!imgError" :src="cover" mode="aspectFill" class="cover" @error="onImgError" />
+      <image v-if="cover && !imgError" :src="cover" mode="aspectFill" class="cover" @error="onImgError" />
       <view v-else class="cover image-fallback">暂无图片</view>
-      <view v-if="product.overseasCustoms" class="badge overseas">
+      <view v-if="overseas" class="badge overseas">
         <text>🌏 海外直邮</text>
       </view>
       <view v-if="product.stock === 0" class="sold-out">
@@ -36,14 +51,14 @@ function goDetail() {
       </view>
     </view>
     <view class="info">
-      <text class="brand">{{ (product.categoryPath || '').split('/').pop() || '油宝甄选' }}</text>
+      <text class="brand">{{ categoryLabel }}</text>
       <text class="title">{{ product.title }}</text>
       <view class="price-row">
         <text class="cny">{{ formatUsdt(product.price) }}</text>
         <text class="usdt">≈ {{ formatCny(product.price) }}</text>
       </view>
       <view class="bottom">
-        <text class="seller">{{ product.sellerName }}</text>
+        <text class="seller">{{ sellerLabel }}</text>
         <text class="sales">销 {{ product.salesCount || 0 }}</text>
       </view>
     </view>

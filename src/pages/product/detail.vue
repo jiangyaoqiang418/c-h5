@@ -1,65 +1,178 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { enums, productApi, reviewApi } from '@shared';
-import { avatarUrl, productImageUrl } from '@shared/utils/image';
+import { productApi, reviewApi } from '@shared';
+import { avatarUrl } from '@shared/utils/image';
 import { formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
+import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
+import { fetchStorefrontProductDetail, recordProductBrowse } from '@/service/api/product';
 import { go, requireLogin } from '@/utils/navigate';
 import { useCartStore } from '@/stores';
 import VipBadge from '@/components/common/vip-badge.vue';
 import ReviewStars from '@/components/common/review-stars.vue';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 
+interface ProductView {
+  id: string | number;
+  legacyId?: number;
+  title: string;
+  sellerId: string | number;
+  sellerName: string;
+  categoryPath: string;
+  price: string | number;
+  shippingFee: string | number;
+  tax: string | number;
+  stock: number;
+  images: string[];
+  summary: string;
+  description: string;
+  aftersaleType: Api.Product.AftersaleType;
+  overseasCustoms: boolean;
+  status: Api.Product.ProductStatus;
+  shelfStatus: Api.Product.ShelfStatus;
+  salesCount: string | number;
+  favoriteCount: string | number;
+}
+
 const cart = useCartStore();
-const product = ref<Api.Product.ProductRecord>();
+const product = ref<ProductView>();
 const reviews = ref<Api.Review.ReviewRecord[]>([]);
 const sellerScore = ref<Api.Review.UserScoreSummary>();
 const qty = ref(1);
+const isRealProduct = ref(false);
 
-const aftersaleMeta = computed(() =>
-  product.value ? enums.AFTERSALE_TYPE_META[product.value.aftersaleType] : undefined
-);
-const canBuy = computed(
-  () => product.value && product.value.status === 'NORMAL' && product.value.shelfStatus === 'on-shelf' && product.value.stock > 0
-);
-const sellerAvatar = computed(() => (product.value ? avatarUrl(product.value.sellerId) : ''));
+function toAfterSaleType(value?: string): Api.Product.AftersaleType {
+  if (value === 'NONE') return 'none';
+  if (value === 'SHOP_WARRANTY') return 'shop-warranty';
+  if (value === 'NATIONAL_WARRANTY') return 'national-warranty';
+  return '7day-no-reason';
+}
 
-const images = computed(() => {
-  if (!product.value?.images?.length) {
-    return [productImageUrl(product.value?.id || 1, 720, product.value?.categoryPath)];
+function categoryPathOf(nodes: CategoryNode[], id: string | number, parents: string[] = []): string | undefined {
+  for (const node of nodes) {
+    const path = [...parents, node.name];
+    if (String(node.id) === String(id)) return path.join(' / ');
+    const childPath = categoryPathOf(node.children || [], id, path);
+    if (childPath) return childPath;
   }
-  return product.value.images.map(i => i.url);
+  return undefined;
+}
+
+function fromMock(record: Api.Product.ProductRecord): ProductView {
+  return {
+    id: record.id,
+    legacyId: record.id,
+    title: record.title,
+    sellerId: record.sellerId,
+    sellerName: record.sellerName,
+    categoryPath: record.categoryPath,
+    price: record.price,
+    shippingFee: record.shippingFee,
+    tax: record.tax,
+    stock: record.stock,
+    images: record.images.map(item => item.url),
+    summary: record.summary,
+    description: record.description,
+    aftersaleType: record.aftersaleType,
+    overseasCustoms: !!record.overseasCustoms,
+    status: record.status,
+    shelfStatus: record.shelfStatus,
+    salesCount: record.salesCount,
+    favoriteCount: record.favoriteCount
+  };
+}
+
+function fromReal(record: Api.RealProduct.ProductDTO, categoryPath: string): ProductView {
+  return {
+    id: record.id,
+    title: record.title,
+    sellerId: record.sellerId,
+    sellerName: '认证买手',
+    categoryPath,
+    price: record.price,
+    shippingFee: record.shippingFee || 0,
+    tax: record.taxFee || 0,
+    stock: record.stock,
+    images: record.images || [],
+    summary: record.brief || '',
+    description: record.description || '',
+    aftersaleType: toAfterSaleType(record.afterSaleType),
+    overseasCustoms: !!record.overseasClearance,
+    status: record.status === 'ON_SALE' ? 'NORMAL' : 'FROZEN',
+    shelfStatus: record.status === 'ON_SALE' ? 'on-shelf' : 'off-shelf',
+    salesCount: record.salesCount || 0,
+    favoriteCount: record.favoriteCount || 0
+  };
+}
+
+const aftersaleLabel = computed(() => {
+  const labels: Record<Api.Product.AftersaleType, string> = {
+    none: '无售后',
+    '7day-no-reason': '7天无理由',
+    'shop-warranty': '店铺保修',
+    'national-warranty': '全国联保'
+  };
+  return product.value ? labels[product.value.aftersaleType] : '';
 });
+const canBuy = computed(() => (
+  !isRealProduct.value
+  && product.value?.status === 'NORMAL'
+  && product.value.shelfStatus === 'on-shelf'
+  && product.value.stock > 0
+));
+const sellerAvatar = computed(() => (
+  !isRealProduct.value && product.value?.legacyId ? avatarUrl(product.value.legacyId) : ''
+));
 
 onLoad(async query => {
-  const id = Number(query?.id);
-  if (!id) return;
-  product.value = await productApi.fetchProductDetail(id);
-  if (product.value) {
-    const [r, s] = await Promise.all([
-      productApi.fetchProductReviews(product.value.id, 1, 5),
-      reviewApi.fetchUserScoreSummary(product.value.sellerId)
+  const rawId = String(query?.id || '');
+  if (!rawId) return;
+  isRealProduct.value = query?.source === 'real';
+  try {
+    if (isRealProduct.value) {
+      const [record, categories] = await Promise.all([
+        fetchStorefrontProductDetail(rawId),
+        fetchCategoryTree({ onlyEnabled: true })
+      ]);
+      product.value = fromReal(record, categoryPathOf(categories, record.categoryId) || `分类 ${record.categoryId}`);
+      recordProductBrowse(rawId).catch(() => undefined);
+      return;
+    }
+
+    const mockId = Number(rawId);
+    if (!Number.isSafeInteger(mockId)) return;
+    const record = await productApi.fetchProductDetail(mockId);
+    if (!record) return;
+    product.value = fromMock(record);
+    const [reviewPage, score] = await Promise.all([
+      productApi.fetchProductReviews(record.id, 1, 5),
+      reviewApi.fetchUserScoreSummary(record.sellerId)
     ]);
-    reviews.value = r.records;
-    sellerScore.value = s;
+    reviews.value = reviewPage.records;
+    sellerScore.value = score;
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '商品详情加载失败', icon: 'none' });
   }
 });
 
 function addToCart() {
-  if (!product.value) return;
-  cart.add(product.value.id, qty.value);
+  if (!product.value?.legacyId) return showTradeUnavailable();
+  cart.add(product.value.legacyId, qty.value);
   uni.showToast({ title: '已加入购物车', icon: 'success' });
 }
 
 async function buyNow() {
-  if (!product.value) return;
-  cart.add(product.value.id, qty.value);
-  if (await requireLogin(`/pages/product/detail?id=${product.value.id}`)) go('/pages/checkout/index');
+  if (!product.value?.legacyId) return showTradeUnavailable();
+  cart.add(product.value.legacyId, qty.value);
+  if (await requireLogin(`/pages/product/detail?id=${product.value.legacyId}`)) go('/pages/checkout/index');
+}
+
+function showTradeUnavailable() {
+  uni.showToast({ title: '该商品暂不支持结算', icon: 'none' });
 }
 
 function startPurchase() {
-  if (!product.value) return;
-  go(`/pages/purchase/create?productHint=${encodeURIComponent(product.value.title)}`);
+  if (product.value) go(`/pages/purchase/create?productHint=${encodeURIComponent(product.value.title)}`);
 }
 
 function goBack() {
@@ -69,560 +182,112 @@ function goBack() {
 
 <template>
   <view v-if="product" class="detail-page">
-    <!-- 顶部返回 (glass) -->
-    <view class="nav">
-      <view class="nav-btn" @click="goBack">
-        <view class="chev" />
-      </view>
-    </view>
+    <view class="nav"><view class="nav-btn" @click="goBack"><view class="chev" /></view></view>
 
-    <!-- 沉浸式 swiper -->
-    <view class="gallery-wrap">
-      <swiper :indicator-dots="true" :autoplay="false" circular class="gallery" indicator-color="rgba(255,255,255,0.4)" indicator-active-color="#FFFFFF">
-        <swiper-item v-for="(url, i) in images" :key="i">
-          <image :src="url" mode="aspectFill" class="gallery-img" />
-        </swiper-item>
-      </swiper>
-    </view>
+    <swiper :indicator-dots="true" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
+      <swiper-item v-for="(url, index) in product.images" :key="`${url}-${index}`">
+        <image :src="url" mode="aspectFill" class="gallery-image" />
+      </swiper-item>
+      <swiper-item v-if="!product.images.length"><view class="gallery-empty">暂无图片</view></swiper-item>
+    </swiper>
 
-    <!-- 内容 sheet (上抬覆盖) -->
     <view class="content-sheet">
-      <!-- 品牌/类别 label -->
-      <view class="brand-label">
-        <text>📂 {{ product.categoryPath }}</text>
-      </view>
-
-      <!-- 标题 -->
+      <text class="category">{{ product.categoryPath }}</text>
       <text class="title">{{ product.title }}</text>
-      <text class="summary">{{ product.summary }}</text>
+      <text v-if="product.summary" class="summary">{{ product.summary }}</text>
 
-      <!-- Rating summary -->
       <view v-if="sellerScore" class="rating-summary">
         <ReviewStars :score="Number(sellerScore.avgScore)" size="sm" show-score />
-        <text class="rev-count">· {{ sellerScore.receivedTotal }} 评价</text>
+        <text>· {{ sellerScore.receivedTotal }} 评价</text>
       </view>
 
-      <!-- 价格块 (USDT 主 / CNY 副 / 汇率) -->
       <view class="price-block">
-        <view class="price-main">
-          <text class="usdt-value">{{ priceSet(product.price).usdt }}</text>
-          <view class="tag-live"><text>⚡ USDT</text></view>
-        </view>
-        <view class="price-sub">
-          <text class="approx">≈ </text>
-          <text class="cny-value">{{ priceSet(product.price).cny }}</text>
-        </view>
-        <view class="price-rate">
-          <text>{{ priceSet(product.price).rateLabel }}</text>
-        </view>
-        <view class="price-fees">
-          <view class="fee-item">运费 <text class="fee-num">{{ formatUsdt(product.shippingFee) }}</text></view>
-          <text class="fee-sep"> | </text>
-          <view class="fee-item">税费 <text class="fee-num">{{ formatUsdt(product.tax) }}</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></view>
-          <text class="fee-sep"> | </text>
-          <view class="fee-item">库存 <text class="fee-num">{{ product.stock }} 件</text></view>
+        <text class="price-main">{{ priceSet(product.price).usdt }}</text>
+        <text class="price-sub">≈ {{ priceSet(product.price).cny }}</text>
+        <view class="fee-row">
+          <text>运费 {{ formatUsdt(product.shippingFee) }}</text>
+          <text>税费 {{ formatUsdt(product.tax) }}<InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></text>
+          <text>库存 {{ product.stock }}</text>
         </view>
       </view>
 
-      <!-- Overseas warn -->
-      <view v-if="product.overseasCustoms" class="overseas-warn">
-        <text class="warn-icon">🌏</text>
-        <view class="warn-text">
-          <text class="warn-title">海外直邮商品</text>
-          <text class="warn-sub">过关后不可退换，请认真挑选</text>
-        </view>
+      <view v-if="product.overseasCustoms" class="overseas-warn">海外直邮商品，过关后不可退换</view>
+
+      <view class="tag-row">
+        <text class="tag">{{ aftersaleLabel }}</text>
+        <text class="tag">销量 {{ product.salesCount }}</text>
+        <text class="tag">收藏 {{ product.favoriteCount }}</text>
       </view>
 
-      <!-- Tag group -->
-      <view class="tag-group">
-        <view class="chip">
-          <text>🛡️ {{ aftersaleMeta?.label }}</text>
-        </view>
-        <view class="chip">
-          <text>📦 库存 {{ product.stock }}</text>
-        </view>
-        <view class="chip">
-          <text>📈 销量 {{ product.salesCount || 0 }}</text>
-        </view>
-        <view class="chip">
-          <text>❤️ 收藏 {{ product.favoriteCount || 0 }}</text>
-        </view>
-      </view>
-
-      <!-- Seller Profile 卡 -->
-      <view class="seller-card">
-        <image :src="sellerAvatar" class="seller-avatar" />
+      <view class="seller-section">
+        <image v-if="sellerAvatar" :src="sellerAvatar" class="seller-avatar" />
+        <view v-else class="seller-avatar placeholder">买</view>
         <view class="seller-info">
-          <view class="seller-top">
-            <text class="seller-name">{{ product.sellerName }}</text>
-            <VipBadge level="VIP1" size="sm" />
-            <view class="verified"><text>✓ 认证买手</text></view>
-          </view>
-          <view v-if="sellerScore" class="seller-stats">
-            <text>⭐ {{ sellerScore.avgScore }} · {{ sellerScore.receivedTotal }} 评价 · 好评 {{ sellerScore.goodRate }}</text>
-          </view>
+          <view class="seller-head"><text class="seller-name">{{ product.sellerName }}</text><VipBadge level="VIP1" size="sm" /></view>
+          <text class="seller-sub">平台认证买手</text>
         </view>
       </view>
 
-      <!-- 用户评价 -->
       <view v-if="reviews.length" class="section">
-        <view class="section-head">
-          <text class="section-title">用户评价</text>
-          <text class="section-count">共 {{ reviews.length }} 条</text>
-        </view>
-        <view v-for="r in reviews.slice(0, 3)" :key="r.id" class="review-mini">
-          <view class="rev-head">
-            <image :src="avatarUrl(r.fromUserId)" class="rev-avatar" />
-            <text class="rev-name">{{ r.fromUserName }}</text>
-            <ReviewStars :score="r.score" size="sm" />
-          </view>
-          <text class="rev-text">{{ r.content }}</text>
+        <text class="section-title">用户评价</text>
+        <view v-for="review in reviews.slice(0, 3)" :key="review.id" class="review-row">
+          <view class="review-head"><text>{{ review.fromUserName }}</text><ReviewStars :score="review.score" size="sm" /></view>
+          <text class="review-text">{{ review.content }}</text>
         </view>
       </view>
 
-      <!-- 商品详情 -->
       <view class="section">
         <text class="section-title">商品详情</text>
-        <text class="desc">{{ product.description || '暂无详情' }}</text>
+        <text class="description">{{ product.description || '暂无详情' }}</text>
       </view>
-
-      <view class="footer-space" />
     </view>
 
-    <!-- 底部固定操作栏 -->
     <view class="bottom-bar">
-      <view class="ic-btn" @click="startPurchase">
-        <text class="ic">✨</text>
-        <text class="ic-lbl">求购</text>
+      <view class="tool" @click="startPurchase"><text class="tool-icon">✨</text><text>求购</text></view>
+      <view class="tool" @click="go('/pages/cart/index')"><text class="tool-icon">🛒</text><text>购物车</text></view>
+      <view class="quantity">
+        <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="qty = Math.min(product.stock, qty + 1)">+</text>
       </view>
-      <view class="ic-btn" @click="go('/pages/cart/index')">
-        <text class="ic">🛒</text>
-        <text class="ic-lbl">购物车</text>
-      </view>
-      <view class="qty-block">
-        <text class="qty-btn" @click="qty = Math.max(1, qty - 1)">−</text>
-        <text class="qty-val">{{ qty }}</text>
-        <text class="qty-btn" @click="qty = Math.min(product.stock, qty + 1)">+</text>
-      </view>
-      <view class="cta-group">
-        <view class="cta ghost" :class="{ disabled: !canBuy }" @click="canBuy && addToCart()">
-          <text>加购</text>
-        </view>
-        <view class="cta primary" :class="{ disabled: !canBuy }" @click="canBuy && buyNow()">
-          <text>立即购买</text>
-        </view>
-      </view>
+      <wd-button plain :disabled="!canBuy" @click="canBuy ? addToCart() : showTradeUnavailable()">加购</wd-button>
+      <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
     </view>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.detail-page {
-  min-height: 100vh;
-  background: #FAFAF7;
-  padding-bottom: 200rpx;
-}
-.nav {
-  position: fixed;
-  top: env(safe-area-inset-top);
-  left: 0;
-  z-index: 100;
-  padding: 24rpx;
-}
-.nav-btn {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20rpx);
-  border: 1rpx solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4rpx 16rpx rgba(15, 17, 26, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.chev {
-  position: relative;
-  left: 4rpx;
-  width: 28rpx;
-  height: 28rpx;
-  border-left: 5rpx solid #0F111A;
-  border-bottom: 5rpx solid #0F111A;
-  box-sizing: border-box;
-  transform: rotate(45deg);
-}
-
-/* Gallery */
-.gallery-wrap {
-  position: relative;
-}
-.gallery {
-  height: 750rpx;
-  background: #EDECE6;
-}
-.gallery-img {
-  width: 100%;
-  height: 100%;
-}
-
-/* Content sheet (上抬) */
-.content-sheet {
-  position: relative;
-  margin-top: -48rpx;
-  background: #FFFFFF;
-  border-radius: 40rpx 40rpx 0 0;
-  padding: 40rpx 32rpx 32rpx;
-  z-index: 2;
-}
-.brand-label {
-  display: inline-block;
-  padding: 6rpx 16rpx;
-  background: #FAFAF7;
-  border-radius: 999rpx;
-  font-size: 20rpx;
-  color: #6B7385;
-  margin-bottom: 16rpx;
-}
-.title {
-  display: block;
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #0F111A;
-  line-height: 1.3;
-  letter-spacing: -1rpx;
-}
-.summary {
-  display: block;
-  font-size: 24rpx;
-  color: #6B7385;
-  margin-top: 8rpx;
-  line-height: 1.5;
-}
-.rating-summary {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-top: 16rpx;
-  font-size: 22rpx;
-  color: #6B7385;
-}
-.rev-count {
-  font-size: 22rpx;
-  color: #6B7385;
-}
-
-/* Price block */
-.price-block {
-  background: #F6EFE4;
-  border: 1rpx solid rgba(184, 147, 90, 0.15);
-  border-radius: 24rpx;
-  padding: 28rpx 32rpx;
-  margin-top: 24rpx;
-}
-.price-main {
-  display: flex;
-  align-items: baseline;
-  gap: 16rpx;
-}
-.price-main .usdt-value {
-  font-family: ui-monospace, monospace;
-  font-size: 68rpx;
-  font-weight: 700;
-  color: #0F111A;
-  letter-spacing: -2rpx;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.price-sub {
-  display: flex;
-  align-items: baseline;
-  margin-top: 12rpx;
-  font-family: ui-monospace, monospace;
-  font-size: 26rpx;
-  color: #6B7385;
-}
-.price-sub .approx {
-  color: #A8ADB8;
-}
-.price-sub .cny-value {
-  color: #1D2129;
-  font-weight: 600;
-}
-.price-rate {
-  margin-top: 4rpx;
-  font-family: ui-monospace, monospace;
-  font-size: 20rpx;
-  color: #A8ADB8;
-  letter-spacing: -0.5rpx;
-}
-.tag-live {
-  padding: 4rpx 14rpx;
-  background: #0F111A;
-  color: #D4A574;
-  border-radius: 999rpx;
-  font-size: 18rpx;
-  font-weight: 600;
-  letter-spacing: 1rpx;
-  margin-left: 12rpx;
-  align-self: center;
-}
-.price-fees {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  padding-top: 16rpx;
-  border-top: 1rpx solid rgba(184, 147, 90, 0.2);
-  margin-top: 16rpx;
-  font-size: 22rpx;
-  color: #1D2129;
-}
-.fee-item {
-  display: inline-flex;
-  align-items: center;
-  color: #6B7385;
-}
-.fee-num {
-  font-family: ui-monospace, monospace;
-  color: #1D2129;
-  font-weight: 600;
-  margin-left: 4rpx;
-}
-.fee-sep {
-  color: rgba(184, 147, 90, 0.4);
-}
-
-/* Overseas warn */
-.overseas-warn {
-  display: flex;
-  align-items: flex-start;
-  gap: 12rpx;
-  padding: 20rpx 24rpx;
-  background: rgba(231, 76, 60, 0.08);
-  border-left: 6rpx solid #E74C3C;
-  border-radius: 12rpx;
-  margin-top: 20rpx;
-}
-.warn-icon {
-  font-size: 36rpx;
-}
-.warn-title {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #E74C3C;
-}
-.warn-sub {
-  display: block;
-  font-size: 22rpx;
-  color: #E74C3C;
-  opacity: 0.86;
-  margin-top: 4rpx;
-}
-
-/* Tag group */
-.tag-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-top: 24rpx;
-}
-.chip {
-  padding: 8rpx 16rpx;
-  background: #FAFAF7;
-  border: 1rpx solid #EDECE6;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-  color: #1D2129;
-}
-
-/* Seller card */
-.seller-card {
-  margin-top: 32rpx;
-  padding: 24rpx;
-  background: #FAFAF7;
-  border: 1rpx solid #EDECE6;
-  border-radius: 24rpx;
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-.seller-avatar {
-  width: 100rpx;
-  height: 100rpx;
-  border-radius: 50%;
-  background: #F6EFE4;
-}
-.seller-info { flex: 1; min-width: 0; }
-.seller-top {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-.seller-name {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #0F111A;
-}
-.verified {
-  padding: 4rpx 12rpx;
-  background: rgba(0, 168, 138, 0.1);
-  color: #00A88A;
-  border-radius: 999rpx;
-  font-size: 18rpx;
-  font-weight: 500;
-}
-.seller-stats {
-  display: block;
-  font-size: 22rpx;
-  color: #6B7385;
-  margin-top: 6rpx;
-}
-
-/* Section */
-.section {
-  margin-top: 40rpx;
-  padding-top: 32rpx;
-  border-top: 1rpx solid #EDECE6;
-}
-.section-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 20rpx;
-}
-.section-title {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #0F111A;
-  letter-spacing: -0.5rpx;
-}
-.section-count {
-  font-size: 22rpx;
-  color: #6B7385;
-}
-.review-mini {
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #EDECE6;
-}
-.review-mini:last-child {
-  border-bottom: none;
-}
-.rev-head {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin-bottom: 8rpx;
-}
-.rev-avatar {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  background: #F6EFE4;
-}
-.rev-name {
-  font-size: 24rpx;
-  font-weight: 600;
-  color: #0F111A;
-  flex: 1;
-}
-.rev-text {
-  display: block;
-  font-size: 24rpx;
-  color: #1D2129;
-  line-height: 1.6;
-  padding-left: 60rpx;
-}
-.desc {
-  display: block;
-  font-size: 26rpx;
-  color: #1D2129;
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-.footer-space { height: 40rpx; }
-
-/* Bottom bar */
-.bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(20rpx);
-  border-top: 1rpx solid #EDECE6;
-  padding: 16rpx 24rpx;
-  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-.ic-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 4rpx 12rpx;
-}
-.ic {
-  font-size: 36rpx;
-}
-.ic-lbl {
-  font-size: 18rpx;
-  color: #6B7385;
-  margin-top: 2rpx;
-}
-.qty-block {
-  display: flex;
-  align-items: center;
-  background: #FAFAF7;
-  border: 1rpx solid #EDECE6;
-  border-radius: 999rpx;
-  margin-right: 8rpx;
-}
-.qty-btn {
-  width: 56rpx;
-  height: 56rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  color: #0F111A;
-}
-.qty-val {
-  min-width: 48rpx;
-  text-align: center;
-  font-size: 26rpx;
-  font-weight: 600;
-  font-family: ui-monospace, monospace;
-  color: #0F111A;
-}
-.cta-group {
-  display: flex;
-  gap: 8rpx;
-  flex: 1;
-}
-.cta {
-  flex: 1;
-  padding: 20rpx 0;
-  border-radius: 999rpx;
-  text-align: center;
-  font-size: 26rpx;
-  font-weight: 600;
-  transition: transform 0.15s;
-}
-.cta:active {
-  transform: scale(0.97);
-}
-.cta.ghost {
-  background: #FAFAF7;
-  color: #0F111A;
-  border: 1rpx solid #EDECE6;
-}
-.cta.primary {
-  background: #0F111A;
-  color: #FFFFFF;
-}
-.cta.disabled {
-  opacity: 0.4;
-}
+.detail-page { min-height: 100vh; padding-bottom: 180rpx; background: #fafaf7; }
+.nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
+.nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.92); }
+.chev { width: 24rpx; height: 24rpx; border-left: 5rpx solid #0f111a; border-bottom: 5rpx solid #0f111a; transform: rotate(45deg); }
+.gallery { height: 750rpx; background: #edece6; }
+.gallery-image { width: 100%; height: 100%; }
+.gallery-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #86909c; font-size: 24rpx; }
+.content-sheet { position: relative; z-index: 2; margin-top: -48rpx; padding: 40rpx 32rpx; border-radius: 40rpx 40rpx 0 0; background: #fff; }
+.category { display: inline-block; padding: 6rpx 16rpx; border-radius: 8rpx; background: #fafaf7; color: #6b7385; font-size: 20rpx; }
+.title { display: block; margin-top: 16rpx; color: #0f111a; font-size: 40rpx; font-weight: 700; line-height: 1.35; }
+.summary { display: block; margin-top: 8rpx; color: #6b7385; font-size: 24rpx; line-height: 1.5; }
+.rating-summary { display: flex; align-items: center; gap: 8rpx; margin-top: 16rpx; color: #6b7385; font-size: 22rpx; }
+.price-block { margin-top: 24rpx; padding: 28rpx; border-radius: 16rpx; background: #f6efe4; }
+.price-main { display: block; color: #0f111a; font-size: 60rpx; font-weight: 700; font-family: ui-monospace, monospace; }
+.price-sub { display: block; margin-top: 8rpx; color: #6b7385; font-size: 24rpx; }
+.fee-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(184,147,90,0.2); color: #6b7385; font-size: 22rpx; }
+.overseas-warn { margin-top: 20rpx; padding: 20rpx; border-left: 6rpx solid #e74c3c; border-radius: 8rpx; background: rgba(231,76,60,0.08); color: #e74c3c; font-size: 24rpx; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
+.tag { padding: 8rpx 16rpx; border: 1rpx solid #edece6; border-radius: 8rpx; background: #fafaf7; color: #1d2129; font-size: 22rpx; }
+.seller-section { display: flex; align-items: center; gap: 20rpx; margin-top: 32rpx; padding: 24rpx; border: 1rpx solid #edece6; border-radius: 16rpx; background: #fafaf7; }
+.seller-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #f6efe4; }
+.seller-avatar.placeholder { display: flex; align-items: center; justify-content: center; color: #b8935a; font-size: 32rpx; font-weight: 700; }
+.seller-info { flex: 1; }
+.seller-head { display: flex; align-items: center; gap: 12rpx; }
+.seller-name { font-size: 28rpx; font-weight: 700; color: #0f111a; }
+.seller-sub { display: block; margin-top: 6rpx; color: #6b7385; font-size: 22rpx; }
+.section { margin-top: 36rpx; padding-top: 28rpx; border-top: 1rpx solid #edece6; }
+.section-title { display: block; margin-bottom: 16rpx; color: #0f111a; font-size: 30rpx; font-weight: 700; }
+.review-row { padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
+.review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
+.review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
+.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #edece6; background: #fff; }
+.tool { display: flex; flex-direction: column; align-items: center; min-width: 72rpx; color: #6b7385; font-size: 18rpx; }
+.tool-icon { font-size: 30rpx; }
+.quantity { display: flex; align-items: center; gap: 18rpx; padding: 12rpx 16rpx; border-radius: 8rpx; background: #fafaf7; font-size: 24rpx; }
 </style>
