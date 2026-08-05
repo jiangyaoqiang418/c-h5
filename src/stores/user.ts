@@ -24,6 +24,20 @@ export const useUserStore = defineStore('bw-user', () => {
     try {
       buyerApplication.value = await fetchBuyerApplication();
       buyerApplicationLoadFailed.value = false;
+
+      if (buyerApplication.value?.status === 'APPROVED' && !currentUser.value?.isBuyer) {
+        try {
+          const result = await realAuthApi.fetchCurrentUser();
+          currentUser.value = result;
+          realUserId.value = result.remoteId;
+          currentAudience.value = result.isBuyer && result.kycStatus === 'approved'
+            ? loadAudienceFromStorage()
+            : 'customer';
+        } catch {
+          currentAudience.value = 'customer';
+        }
+      }
+
       return buyerApplication.value;
     } catch {
       buyerApplication.value = undefined;
