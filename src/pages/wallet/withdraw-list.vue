@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app';
+import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app';
 import { fetchWithdrawPage } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
@@ -8,6 +8,10 @@ import EmptyState from '@/components/common/empty-state.vue';
 
 const list = ref<Api.RealWallet.WithdrawVO[]>([]);
 const loading = ref(false);
+const pageNo = ref(1);
+const total = ref(0);
+const pageSize = 50;
+let loadToken = 0;
 
 function statusType(status: Api.RealWallet.WithdrawStatus): 'success' | 'warning' | 'danger' {
   if (status === 'SUCCESS') return 'success';
@@ -21,21 +25,34 @@ function formatTime(value?: string | number): string {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
-async function load() {
+async function load(reset = true) {
+  if (loading.value && !reset) return;
+  const targetPage = reset ? 1 : pageNo.value + 1;
+  const token = ++loadToken;
   loading.value = true;
   try {
-    const page = await fetchWithdrawPage({ pageSize: 50 });
-    list.value = page.records || [];
+    const page = await fetchWithdrawPage({ pageNo: targetPage, pageSize });
+    if (token !== loadToken) return;
+    const records = page.records || [];
+    list.value = reset ? records : list.value.concat(records);
+    pageNo.value = page.pageNo || targetPage;
+    total.value = page.total;
   } catch (error) {
+    if (token !== loadToken) return;
     uni.showToast({ title: error instanceof Error ? error.message : '提现记录加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
-    uni.stopPullDownRefresh();
+    if (token === loadToken) {
+      loading.value = false;
+      uni.stopPullDownRefresh();
+    }
   }
 }
 
-onShow(load);
-onPullDownRefresh(load);
+onShow(() => load());
+onPullDownRefresh(() => load());
+onReachBottom(() => {
+  if (list.value.length < total.value) load(false);
+});
 </script>
 
 <template>
@@ -54,6 +71,7 @@ onPullDownRefresh(load);
       </view>
     </view>
     <EmptyState v-else-if="!loading" title="暂无提现记录" action-text="发起提现" @action="go('/pages/wallet/withdraw')" />
+    <view v-if="loading" class="loading">加载中...</view>
   </view>
 </template>
 
@@ -65,4 +83,5 @@ onPullDownRefresh(load);
 .amount { display: block; margin: 18rpx 0 8rpx; font-size: 36rpx; font-weight: 700; color: #f53f3f; font-family: ui-monospace, monospace; }
 .address { display: block; margin-bottom: 16rpx; color: #86909c; font-size: 21rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .foot { color: #86909c; font-size: 22rpx; }
+.loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
 </style>

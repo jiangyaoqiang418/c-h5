@@ -92,11 +92,12 @@
 - 2026-08-05 后续审核回归：同一申请已变为 `APPROVED`，H5 正确显示审核意见 `ok`；申请刷新逻辑会在通过后重新读取 `auth/me`，同步可能变化的买手角色。账号 KYC 仍未提交，买手商品真实列表继续为空，商品写入未验证。
 - 2026-08-05 买手商品列表已补齐基于 `pageNo/pageSize/total` 的触底分页，状态页签切换和页面返回会重置第一页；当前真实账号列表为空，因此非空多页拼接仍待有数据账号验证。
 - 2026-08-05 积分流水和积分申诉记录已分别补齐触底分页；Chrome 已登录账号验证两个列表空态及积分三页签往返正常、无新增控制台错误，非空多页拼接待有数据账号验证。
+- 2026-08-05 再次抓取 `swagger-config` 和 `user` OpenAPI，充值/提现分页与详情 4 个操作的路径、方法、分页结构和 VO 字段未变化；两个记录页已补齐触底分页，已登录账号真实空态和无新增控制台错误已验证，非空列表、详情跳转与多页拼接待有数据账号验证。
 
 | 深扫补充能力 | Swagger 接口 | 契约结论 | 当前前端状态 |
 |---|---|---|---|
 | 注册、资料修改 | `POST /user/auth/register`、`PUT /user/auth/profile` | 核心字段完整 | 无对应页面，未封装 |
-| 充值/提现记录与详情 | `/user/recharge/page`、`/user/recharge/detail`、`/user/withdraw/page`、`/user/withdraw/detail` | 记录和详情字段完整 | API、页面、路由和钱包入口已接入；真实非空记录未验证 |
+| 充值/提现记录与详情 | `/user/recharge/page`、`/user/recharge/detail`、`/user/withdraw/page`、`/user/withdraw/detail` | 记录和详情字段完整 | API、分页页面、路由和钱包入口已接入；真实空态已验证，非空记录未验证 |
 | 积分申诉记录 | `POST /user/points/appeals/page` | 可展示审核状态与意见 | API 和积分页签已接入；真实非空记录未验证 |
 | 买手申请提交 | `POST /user/buyer/apply` | A；`reason` 10-500 字 | API 和页面已接入，真实写入未验证 |
 | 收藏、浏览打点 | `/order/products/favorite`、`favorites/page`、`products/view`、`storefront/browse` | 独立能力完整 | 首页真实详情已接浏览打点；收藏仍未接入 |
@@ -172,7 +173,7 @@
 | 总资产 | `GET /user/wallet/overview` 的 `total` | A | 金额为 number，前端应在 API 层转为字符串展示，避免页面浮点运算 |
 | 钱包流水 | `POST /user/wallet/ledger/page` | C | 有分页、业务类型和余额；缺链上 hash、地址、refType/refId、费用拆分，筛选项也少于 PC/H5 Mock |
 | 发起充值 | `POST /user/recharge/create` + `GET /user/recharge/detail` | C | 页面已改为创建真实充值单、展示 depositAddress/memo 并刷新状态；真实创建和到账流转待验证 |
-| 充值/提现记录 | `POST /user/recharge/page`、`GET /user/recharge/detail`、`POST /user/withdraw/page`、`GET /user/withdraw/detail` | B | API、页面和入口已接入；Long ID 保留原值，真实非空记录待验证 |
+| 充值/提现记录 | `POST /user/recharge/page`、`GET /user/recharge/detail`、`POST /user/withdraw/page`、`GET /user/withdraw/detail` | B | API、触底分页页面和入口已接入；Long ID 保留原值，真实空态已验证，非空记录待验证 |
 | 平台链钱包列表 | 无 C 端接口 | D | `admin` 钱包配置不在当前 C 端 Swagger 范围 |
 | 发起提现 | `POST /user/withdraw/create` | B | chain/toAddress/amount 匹配；前端支付密码不在接口中，KYC/风控前置规则需后端确认 |
 
