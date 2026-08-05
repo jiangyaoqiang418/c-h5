@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { onReachBottom } from '@dcloudio/uni-app';
 import { pointApi as mockPointApi } from '@shared';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
@@ -16,6 +17,13 @@ const activeKey = ref<'log' | 'appeal' | 'rule'>('log');
 const logs = ref<PointLedgerView[]>([]);
 const appeals = ref<PointAppealView[]>([]);
 const rules = ref<Api.Point.Rule[]>([]);
+const loading = ref(false);
+const logPageNo = ref(1);
+const logTotal = ref(0);
+const appealPageNo = ref(1);
+const appealTotal = ref(0);
+const pageSize = 50;
+let loadToken = 0;
 
 const appealPopup = ref(false);
 const appealLog = ref<PointLedgerView>();
@@ -23,29 +31,48 @@ const appealReason = ref('');
 
 const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.balanceAfter ?? 0);
 
-async function load() {
+async function load(reset = true) {
+  if (loading.value && !reset) return;
   await userStore.init();
   if (!userStore.currentUser) return;
+  const tab = activeKey.value;
+  const token = ++loadToken;
+  loading.value = true;
   try {
-    if (activeKey.value === 'log') {
-      const r = await fetchPointLedger({ pageNo: 1, pageSize: 50 });
-      logs.value = r.records;
-    } else if (activeKey.value === 'appeal') {
+    if (tab === 'log') {
+      const targetPage = reset ? 1 : logPageNo.value + 1;
+      const r = await fetchPointLedger({ pageNo: targetPage, pageSize });
+      if (token !== loadToken) return;
+      logs.value = reset ? r.records : logs.value.concat(r.records);
+      logPageNo.value = r.current || targetPage;
+      logTotal.value = r.total;
+    } else if (tab === 'appeal') {
+      const targetPage = reset ? 1 : appealPageNo.value + 1;
       const r = await fetchPointAppeals({
-        pageNo: 1,
-        pageSize: 50,
+        pageNo: targetPage,
+        pageSize,
         userId: userStore.realUserId
       });
-      appeals.value = r.records;
-    } else if (activeKey.value === 'rule' && !rules.value.length) {
+      if (token !== loadToken) return;
+      appeals.value = reset ? r.records : appeals.value.concat(r.records);
+      appealPageNo.value = r.current || targetPage;
+      appealTotal.value = r.total;
+    } else if (!rules.value.length) {
       rules.value = await mockPointApi.fetchPointRules();
     }
   } catch (error) {
+    if (token !== loadToken) return;
     uni.showToast({ title: error instanceof Error ? error.message : '积分数据加载失败', icon: 'none' });
+  } finally {
+    if (token === loadToken) loading.value = false;
   }
 }
 onMounted(load);
-watch(activeKey, load);
+watch(activeKey, () => load());
+onReachBottom(() => {
+  if (activeKey.value === 'log' && logs.value.length < logTotal.value) load(false);
+  if (activeKey.value === 'appeal' && appeals.value.length < appealTotal.value) load(false);
+});
 
 function openAppeal(l: PointLedgerView) {
   appealLog.value = l;
@@ -111,7 +138,7 @@ function formatDate(value?: string | number): string {
           </view>
         </view>
       </view>
-      <EmptyState v-else title="暂无流水" />
+      <EmptyState v-else-if="!loading" title="暂无流水" />
     </view>
 
     <view v-else-if="activeKey === 'appeal'" class="list">
@@ -132,7 +159,7 @@ function formatDate(value?: string | number): string {
           </view>
         </view>
       </view>
-      <EmptyState v-else title="暂无申诉记录" />
+      <EmptyState v-else-if="!loading" title="暂无申诉记录" />
     </view>
 
     <view v-else class="list">
@@ -146,6 +173,8 @@ function formatDate(value?: string | number): string {
         </view>
       </view>
     </view>
+
+    <view v-if="loading" class="loading">加载中...</view>
 
     <wd-popup v-model="appealPopup" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
@@ -170,6 +199,7 @@ function formatDate(value?: string | number): string {
 .hero-amount { display: block; font-size: 80rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0; }
 .hero-hint { display: block; font-size: 22rpx; opacity: 0.8; }
 .list { padding: 16rpx; }
+.loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
 .log-row {
   background: #fff;
   border-radius: 16rpx;
