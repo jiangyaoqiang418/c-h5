@@ -173,7 +173,7 @@ export async function cancelPurchase(id: string | number) {
     method: 'POST',
     data: { id }
   });
-  return { ok: true };
+  return { ok: true, message: '' };
 }
 
 export async function claimRequest(id: string | number) {
@@ -182,5 +182,5 @@ export async function claimRequest(id: string | number) {
     method: 'POST',
     data: { id }
   });
-  return { ok: true };
+  return { ok: true, message: '' };
 }
