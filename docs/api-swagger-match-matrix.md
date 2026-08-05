@@ -4,7 +4,7 @@
 
 ## 扫描范围与 Swagger 快照
 
-- 前端：41 个页面、33 个组件、4 个 Store、16 个 Mock API 模块及相关类型。
+- 前端当前为 47 个页面、32 个组件、4 个 Store；历史 65 项 Mock API 能力统计口径保持不变。
 - 当前实际调用：65 项 Mock API 能力。
 - 共用入口：`http://221.128.249.198:8902/doc.html`。
 - 2026-07-28 实时读取：`admin` 83 路径/84 操作，`user` 19/19，`order` 40/42。
@@ -81,6 +81,24 @@
 - Chrome 直接刷新“我的”、VIP、积分和提现页后分别回显真实余额 `U 0.00`、积分 `0`、下一等级阈值 `1000`、积分流水空态和提现可用余额 `U 0.00`；所访问页面控制台无 `error/warn`。
 - Chrome 当前可完成页面导航和读取，但自动化点击输入未被浏览器接收，因此“买手申请审核中”Toast 尚缺浏览器点击证据；真实接口已单独回读为 `PENDING`，不得把该提示标为已完成交互验证。
 
+## 2026-08-05 深度复核与 P2 下一批
+
+- 重新读取 `swagger-config` 及全部有效分组：`admin` 84 路径/85 操作/138 schema、`user` 19/19/45、`order` 40/42/50，版本均为 `v1.0.0`；`notify` 仍为 HTTP 404。路径数量与 2026-08-04 一致，本次发现属于旧矩阵能力清单遗漏，不是后端新增路径。
+- `POST /user/buyer/apply` 的 `BuyerApplyQO` 必填 `realName/contact/reason`，其中 `reason` 长度为 10-500；返回申请单 Long ID。已增加真实 API、买手申请页面、状态刷新和“我的”/身份切换入口，写入尚未使用真实账号验证。
+- 65 项既有 Mock 能力的 A/B/C/D 比例暂不调整：下表多数接口对应当前 H5 新入口，或仍因字段不足保持 C；不能把 Swagger 存在直接计入已接入满足率。
+- 2026-08-05 H5 公开回归：首页真实分类返回 4 个根分类；真实商品聚合当前为空，积分申诉页签空态正常；受保护的新页面均能触发登录拦截。因本机无测试账号，认证后非空数据和写入仍未验证。
+
+| 深扫补充能力 | Swagger 接口 | 契约结论 | 当前前端状态 |
+|---|---|---|---|
+| 注册、资料修改 | `POST /user/auth/register`、`PUT /user/auth/profile` | 核心字段完整 | 无对应页面，未封装 |
+| 充值/提现记录与详情 | `/user/recharge/page`、`/user/recharge/detail`、`/user/withdraw/page`、`/user/withdraw/detail` | 记录和详情字段完整 | API、页面、路由和钱包入口已接入；真实非空记录未验证 |
+| 积分申诉记录 | `POST /user/points/appeals/page` | 可展示审核状态与意见 | API 和积分页签已接入；真实非空记录未验证 |
+| 买手申请提交 | `POST /user/buyer/apply` | A；`reason` 10-500 字 | API 和页面已接入，真实写入未验证 |
+| 收藏、浏览打点 | `/order/products/favorite`、`favorites/page`、`products/view`、`storefront/browse` | 独立能力完整 | 首页真实详情已接浏览打点；收藏仍未接入 |
+| 商品上下架、类目申请、秒杀报名 | `/order/products/shelf`、`categories/apply/*`、`flash-sale/*` | 卖家操作契约基本完整 | 商品上下架已接入；类目申请和秒杀报名仍无入口 |
+| 卖家改价、发货 | `PUT /order/orders/price`、`POST /order/orders/ship` | 改价可接；发货仅传订单 ID | 未接入；发货缺承运商和运单号 |
+| 退款申请、审核、详情 | `/order/orders/refund/*` | 只能满足简单退款 | 不能替代现有完整售后工单 |
+
 ## 满足度口径
 
 | 等级 | 含义 |
@@ -106,8 +124,8 @@
 | 前端需求 | 关键数据/筛选 | Swagger 匹配 | 等级 | 差异 |
 |---|---|---|---|---|
 | 分类树 | id、name、level、parentId、path、icon、productCount、children | `GET /order/categories/tree` | B | 返回 id/parentId/level/name/sort/enabled/source/childCount/children；缺 code、icon、完整 path、productCount、时间字段 |
-| 首页推荐聚合 | hot、newest、flash、topCategories、topSellers | `/order/storefront/recommend`、`best-sellers/page`、`new-arrivals/page`、`flash-sale`、`banners/list` | C | 可组合商品榜单、秒杀和 Banner；没有 topCategories/topSellers 分布，返回结构需重组 |
-| 公开商品详情 | 商品、卖家、分类、价格、库存、图文、售后、销量/浏览/收藏 | `GET /order/storefront/product/detail` | C | 缺 sellerName、categoryPath、aftersaleDays；images 为字符串数组；状态和字段命名不同 |
+| 首页推荐聚合 | hot、newest、flash、topCategories、topSellers | `/order/storefront/recommend`、`best-sellers/page`、`new-arrivals/page`、`flash-sale`、`banners/list` | C | 推荐、热销、新品、秒杀和 Banner 已接入；仍缺 topCategories/topSellers 分布，真实非空数据待验证 |
+| 公开商品详情 | 商品、卖家、分类、价格、库存、图文、售后、销量/浏览/收藏 | `GET /order/storefront/product/detail` | C | 真实详情与浏览打点已接入；仍缺 sellerName、categoryPath、aftersaleDays，真实商品暂不进入旧 Mock 购物车 |
 | 商品分页/搜索 | keyword、categoryId、售后类型、海外、价格区间、销量/最新/价格排序 | 无公开通用分页接口 | D | `products/my/page` 只查当前卖家商品；榜单接口不支持现有综合筛选 |
 | 商品评价分页/评分摘要 | 评价方向、用户、分数、内容、标签、图片、汇总 | 无 | D | 当前 Swagger 没有评价接口 |
 
@@ -132,7 +150,8 @@
 | 钱包总览 | `GET /user/wallet/overview` | B | total/todayIn/todayOut/distribution 可适配；前端固定桶字段和钱包地址需由 distribution 映射或后端补充 |
 | 总资产 | `GET /user/wallet/overview` 的 `total` | A | 金额为 number，前端应在 API 层转为字符串展示，避免页面浮点运算 |
 | 钱包流水 | `POST /user/wallet/ledger/page` | C | 有分页、业务类型和余额；缺链上 hash、地址、refType/refId、费用拆分，筛选项也少于 PC/H5 Mock |
-| 发起充值 | `POST /user/recharge/create` + `GET /user/recharge/detail` | C | 可创建并获取 depositAddress/txHash/status；当前页面先展示平台链钱包再模拟入账，流程契约不同 |
+| 发起充值 | `POST /user/recharge/create` + `GET /user/recharge/detail` | C | 页面已改为创建真实充值单、展示 depositAddress/memo 并刷新状态；真实创建和到账流转待验证 |
+| 充值/提现记录 | `POST /user/recharge/page`、`GET /user/recharge/detail`、`POST /user/withdraw/page`、`GET /user/withdraw/detail` | B | API、页面和入口已接入；Long ID 保留原值，真实非空记录待验证 |
 | 平台链钱包列表 | 无 C 端接口 | D | `admin` 钱包配置不在当前 C 端 Swagger 范围 |
 | 发起提现 | `POST /user/withdraw/create` | B | chain/toAddress/amount 匹配；前端支付密码不在接口中，KYC/风控前置规则需后端确认 |
 
@@ -143,6 +162,7 @@
 | 我的积分与双身份 VIP | `GET /user/points/account` | B | points、customer/buyer 等级、阈值和 benefits 齐全；需适配为前端 audience/config 结构 |
 | 积分流水 | `POST /user/points/ledger/page` | B | 核心字段齐全；时间为时间戳，查询缺日期范围和 onlyAppealable |
 | 扣分申诉 | `POST /user/points/appeals/submit` | A | `ledgerId/reason` 可直接匹配 |
+| 积分申诉记录 | `POST /user/points/appeals/page` | A | API 和页面已接入；展示状态、审核意见和时间，真实非空数据待验证 |
 | 积分规则展示 | `GET /admin/point-rules/list` | C | 字段较完整，但属于 admin 分组，Swagger 未声明 C 端访问契约 |
 | 全等级 VIP 配置展示 | `GET /admin/vip-configs/get` | C | 可返回双角色维度和等级；同样缺少 C 端公开接口确认 |
 
@@ -150,7 +170,8 @@
 
 | 前端需求 | Swagger 匹配 | 等级 | 关键差异 |
 |---|---|---|---|
-| 我的商品/创建商品 | `POST /order/products/my/page`、`POST /order/products/create`、`POST /order/files/upload` | B | 核心能力存在；图片需先上传得到 bucket/filePath，字段和售后枚举需转换 |
+| 买手申请提交/状态 | `POST /user/buyer/apply`、`GET /user/buyer/application` | A | API、页面与入口已接入；真实提交和驳回后重提尚待验证 |
+| 我的商品/创建商品 | `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf`、`POST /order/files/upload` | B | API 和页面已接入；图片先上传得到 bucket/filePath，创建/上下架真实写入待验证 |
 | 可接求购/抢单 | `POST /order/demands/hall/page`、`POST /order/demands/grab` | C | 操作存在，但大厅 DTO 缺客户名、分类路径、推送层级/时间、审核和取消信息 |
 | 买手订单 | `POST /order/orders/sold/page` | C | 基本列表存在，缺当前页面需要的采购/物流截图、承运商、地址和细分状态 |
 | 买手押金与经营统计 | `GET /user/wallet/overview`、`GET /user/buyer/application` | C | 无专门押金余额、冻结担保、完成率、好评率、投诉率和发货时效接口 |
