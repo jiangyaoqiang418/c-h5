@@ -64,16 +64,21 @@ async function submit() {
     const addr = selectedAddr.value;
     let firstId: number | undefined;
     for (const item of items.value) {
-      if (!item.product) continue;
+      if (
+        !item.product
+        || item.source !== 'mock'
+        || typeof item.productId !== 'number'
+        || typeof item.product.sellerId !== 'number'
+      ) continue;
       const order = await orderApi.createOrderMock({
         customerId: userId,
         productId: item.productId,
         shopperId: item.product.sellerId,
         productTitle: item.product.title,
-        productCover: item.product.images?.[0]?.url,
+        productCover: item.product.cover,
         price: (Number(item.product.price) * item.qty).toFixed(2),
-        shippingFee: item.product.shippingFee,
-        tax: item.product.tax,
+        shippingFee: String(item.product.shippingFee),
+        tax: String(item.product.tax),
         receiverName: addr.receiverName,
         receiverPhone: addr.receiverPhone,
         shippingAddress: `${addr.province}${addr.city}${addr.district}${addr.detail}`,
@@ -85,7 +90,7 @@ async function submit() {
         return;
       }
       if (firstId == null) firstId = order.id;
-      cart.remove(item.productId);
+      cart.remove(item.key);
     }
     uni.showToast({ title: '支付成功', icon: 'success' });
     if (firstId) reLaunch(`/pages/checkout/success?orderId=${firstId}`);
@@ -112,9 +117,9 @@ async function submit() {
 
     <view class="block">
       <text class="block-title">2. 商品清单 ({{ items.length }})</text>
-      <view v-for="item in items" :key="item.productId" class="goods-row">
+      <view v-for="item in items" :key="item.key" class="goods-row">
         <image
-          :src="item.product?.images?.[0]?.url || `https://picsum.photos/seed/${item.productId}/120/120`"
+          :src="item.product?.cover || `https://picsum.photos/seed/${item.productId}/120/120`"
           class="goods-cover"
           mode="aspectFill"
         />

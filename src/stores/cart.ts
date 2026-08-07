@@ -5,14 +5,31 @@ import { PRODUCTS } from '@shared/mock/data/products';
 import { storage } from '@/utils/storage';
 
 export interface CartItem {
-  productId: number;
+  productId: string | number;
+  source: 'mock' | 'real';
   qty: number;
   addedAt: string;
   selected: boolean;
+  snapshot?: CartProductSnapshot;
+}
+
+export interface CartProductSnapshot {
+  id: string | number;
+  title: string;
+  sellerId: string | number;
+  sellerName: string;
+  cover?: string;
+  price: string | number;
+  shippingFee: string | number;
+  tax: string | number;
+  stock: number;
+  aftersaleType: Api.Product.AftersaleType;
+  overseasCustoms?: boolean;
 }
 
 export interface EnrichedCartItem extends CartItem {
-  product?: Api.Product.ProductRecord;
+  key: string;
+  product?: CartProductSnapshot;
   available: boolean;
   subtotal: string;
   shippingFee: string;
@@ -20,10 +37,34 @@ export interface EnrichedCartItem extends CartItem {
   lineTotal: string;
 }
 
+function itemKey(source: CartItem['source'], productId: CartItem['productId']): string {
+  return `${source}:${String(productId)}`;
+}
+
+function mockSnapshot(product: Api.Product.ProductRecord): CartProductSnapshot {
+  return {
+    id: product.id,
+    title: product.title,
+    sellerId: product.sellerId,
+    sellerName: product.sellerName,
+    cover: product.images?.[0]?.url,
+    price: product.price,
+    shippingFee: product.shippingFee,
+    tax: product.tax,
+    stock: product.stock,
+    aftersaleType: product.aftersaleType,
+    overseasCustoms: product.overseasCustoms
+  };
+}
+
 function enrich(item: CartItem): EnrichedCartItem {
-  const product = PRODUCTS.find(p => p.id === item.productId);
-  const available =
-    !!product && product.status === 'NORMAL' && product.shelfStatus === 'on-shelf' && product.stock > 0;
+  const mockProduct = item.source === 'mock' && typeof item.productId === 'number'
+    ? PRODUCTS.find(product => product.id === item.productId)
+    : undefined;
+  const product = item.source === 'real' ? item.snapshot : mockProduct ? mockSnapshot(mockProduct) : undefined;
+  const available = item.source === 'real'
+    ? !!product && product.stock > 0
+    : !!mockProduct && mockProduct.status === 'NORMAL' && mockProduct.shelfStatus === 'on-shelf' && mockProduct.stock > 0;
   const price = product ? Number(product.price) : 0;
   const shipping = product ? Number(product.shippingFee) : 0;
   const tax = product ? Number(product.tax) : 0;
@@ -31,6 +72,7 @@ function enrich(item: CartItem): EnrichedCartItem {
   const lineTotal = (price * item.qty + shipping + tax).toFixed(2);
   return {
     ...item,
+    key: itemKey(item.source, item.productId),
     product,
     available,
     subtotal,
@@ -53,8 +95,20 @@ export const useCartStore = defineStore('bw-cart', () => {
     try {
       const raw = storage.get<string>(STORAGE_KEY.cart);
       if (raw) {
-        const parsed = JSON.parse(raw) as CartItem[];
-        items.value = parsed.map(i => ({ ...i, selected: i.selected !== false }));
+        const parsed = JSON.parse(raw) as Array<Partial<CartItem> & { productId?: unknown }>;
+        items.value = parsed.flatMap(item => {
+          if (typeof item.productId !== 'string' && typeof item.productId !== 'number') return [];
+          const source: CartItem['source'] = item.source === 'real' ? 'real' : 'mock';
+          if (source === 'real' && !item.snapshot) return [];
+          return [{
+            productId: item.productId,
+            source,
+            qty: Math.max(1, Number(item.qty) || 1),
+            addedAt: item.addedAt || new Date().toISOString(),
+            selected: item.selected !== false,
+            snapshot: source === 'real' ? item.snapshot : undefined
+          }];
+        });
       }
     } catch {
       items.value = [];
@@ -63,31 +117,46 @@ export const useCartStore = defineStore('bw-cart', () => {
   }
 
   function add(productId: number, qty = 1) {
-    const exist = items.value.find(i => i.productId === productId);
+    const key = itemKey('mock', productId);
+    const exist = items.value.find(item => itemKey(item.source, item.productId) === key);
     if (exist) {
       exist.qty += qty;
       exist.selected = true;
     } else {
-      items.value.unshift({ productId, qty, addedAt: new Date().toISOString(), selected: true });
+      items.value.unshift({ productId, source: 'mock', qty, addedAt: new Date().toISOString(), selected: true });
     }
     persist();
   }
 
-  function update(productId: number, qty: number) {
-    const exist = items.value.find(i => i.productId === productId);
+  function addReal(snapshot: CartProductSnapshot, qty = 1) {
+    const productId = snapshot.id;
+    const key = itemKey('real', productId);
+    const exist = items.value.find(item => itemKey(item.source, item.productId) === key);
+    if (exist) {
+      exist.qty += qty;
+      exist.selected = true;
+      exist.snapshot = snapshot;
+    } else {
+      items.value.unshift({ productId, source: 'real', qty, addedAt: new Date().toISOString(), selected: true, snapshot });
+    }
+    persist();
+  }
+
+  function update(key: string, qty: number) {
+    const exist = items.value.find(item => itemKey(item.source, item.productId) === key);
     if (exist) {
       exist.qty = Math.max(1, qty);
       persist();
     }
   }
 
-  function remove(productId: number) {
-    items.value = items.value.filter(i => i.productId !== productId);
+  function remove(key: string) {
+    items.value = items.value.filter(item => itemKey(item.source, item.productId) !== key);
     persist();
   }
 
-  function setSelected(productId: number, selected: boolean) {
-    const exist = items.value.find(i => i.productId === productId);
+  function setSelected(key: string, selected: boolean) {
+    const exist = items.value.find(item => itemKey(item.source, item.productId) === key);
     if (exist) {
       exist.selected = selected;
       persist();
@@ -145,6 +214,7 @@ export const useCartStore = defineStore('bw-cart', () => {
     grandTotal,
     init,
     add,
+    addReal,
     update,
     remove,
     setSelected,

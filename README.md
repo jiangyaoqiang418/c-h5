@@ -45,6 +45,7 @@ src/
 - 已迁移页面和 Store 调用 `src/service/api/`，未迁移模块继续通过 `@shared` 调用 `src/mock/api/*.ts`。
 - Mock 使用内存数据和 `Promise + setTimeout` 模拟异步与分页。
 - 当前已建立基于 `uni.request` 的真实请求封装，并接入登录、当前用户、积分账户、积分流水/申诉/申诉记录、收货地址、分类树、首页与公开商品分页、买手商品管理、钱包总览/流水/充提记录/充值创建、提现创建、买手申请提交/状态和求购创建/列表/详情/撤销/抢单；项目不使用 Axios 或 `fetch`。
+- 购物车使用 `source + Long productId + 商品快照` 区分真实与 Mock 商品；真实商品可持久化加购，但在真实合并下单迁移完成前禁止进入 Mock 结算链。
 - 当前 Mock 不经过网络，因此不能直接使用后台项目的 Axios browser adapter 进行拦截。
 - PC 与 H5 的 `src/mock/` 当前内容一致，但分别存放在两个项目中，运行时互不依赖。
 

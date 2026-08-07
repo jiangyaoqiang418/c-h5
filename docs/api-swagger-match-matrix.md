@@ -28,6 +28,7 @@
 - order 新增 `POST /storefront/products/page`、`POST /orders/create-batch`、`POST /orders/group/pay`；公开商品分页覆盖关键字、分类后代、价格、售后、海外和五类排序，合并下单最多 20 项且整批失败不落单，订单组可一次付款。
 - `OrderCreateQO` 已新增必填 `addressId` 和可选 `idempotencyKey`；`OrderDTO` 已新增订单组、买卖双方名称、地址快照、运费/税费、物流、取消原因/操作人/时间和退款摘要；发货及取消请求也已补齐物流与原因字段。订单状态仍为 7 类，完整五类售后仍未补齐，需继续 adapter/产品口径确认。
 - `POST /storefront/products/page` 已封装并由综合商品列表、分类页调用；`DEFAULT/SALES/NEW/PRICE_ASC/PRICE_DESC` 和字符串分类 ID 实测均返回成功码 `1`。当前真实商品 `total: 0`，已验证空态但未验证非空筛选、排序和触底分页。
+- 真实商品详情已可写入带 `source: real` 的本地购物车快照，Long 商品 ID 不转 number；Mock 购物车记录继续兼容。真实条目在合并下单迁移前被结算入口拦截，避免误生成 Mock 订单；因真实商品为 0，尚无页面加购证据。
 - 地址类型、adapter 和现有地址页读取/新增/设默认/删除已迁移；测试账号隔离回归中新增、详情、设默认、删除均成功码 `1`，地址数 `2→3→2` 且无测试残留。Long ID 为字符串，非空必填字段完整；H5 页面非空视觉交互仍待回归。
 
 ## 2026-08-03 实时复核与迁移门禁

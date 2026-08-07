@@ -12,16 +12,20 @@ function setAll(v: boolean) {
   cart.setAllSelected(v);
 }
 
-function remove(productId: number) {
+function remove(key: string) {
   uni.showModal({
     title: '从购物车移除？',
-    success: r => r.confirm && cart.remove(productId)
+    success: r => r.confirm && cart.remove(key)
   });
 }
 
 async function goCheckout() {
   if (cart.selectedQty === 0) {
     uni.showToast({ title: '请先勾选商品', icon: 'none' });
+    return;
+  }
+  if (cart.selectedItems.some(item => item.source === 'real')) {
+    uni.showToast({ title: '真实商品订单正在接入，请先取消勾选', icon: 'none' });
     return;
   }
   if (await requireLogin('/pages/cart/index')) go('/pages/checkout/index');
@@ -32,13 +36,13 @@ async function goCheckout() {
   <view class="cart-page h5-tab-page">
     <template v-if="items.length">
       <view class="list">
-        <view v-for="item in items" :key="item.productId" class="row" :class="{ invalid: !item.available }">
-          <view class="check" @click="cart.setSelected(item.productId, !item.selected)">
+        <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">
+          <view class="check" @click="cart.setSelected(item.key, !item.selected)">
             <text class="dot" :class="{ on: item.selected }">{{ item.selected ? '✓' : '' }}</text>
           </view>
           <image
             v-if="item.product"
-            :src="item.product.images?.[0]?.url || `https://picsum.photos/seed/${item.productId}/200/200`"
+            :src="item.product.cover || `https://picsum.photos/seed/${item.productId}/200/200`"
             mode="aspectFill"
             class="cover"
           />
@@ -51,13 +55,13 @@ async function goCheckout() {
                 <text class="price-usdt">≈ {{ formatCny(item.product?.price || 0) }}</text>
               </view>
               <view class="qty">
-                <text class="qty-btn" @click="cart.update(item.productId, item.qty - 1)">-</text>
+                <text class="qty-btn" @click="cart.update(item.key, item.qty - 1)">-</text>
                 <text class="qty-val">{{ item.qty }}</text>
-                <text class="qty-btn" @click="cart.update(item.productId, item.qty + 1)">+</text>
+                <text class="qty-btn" @click="cart.update(item.key, item.qty + 1)">+</text>
               </view>
             </view>
           </view>
-          <text class="del" @click="remove(item.productId)">✕</text>
+          <text class="del" @click="remove(item.key)">✕</text>
         </view>
       </view>
 

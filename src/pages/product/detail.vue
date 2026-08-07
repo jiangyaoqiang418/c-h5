@@ -114,12 +114,12 @@ const aftersaleLabel = computed(() => {
   };
   return product.value ? labels[product.value.aftersaleType] : '';
 });
-const canBuy = computed(() => (
-  !isRealProduct.value
-  && product.value?.status === 'NORMAL'
+const canAdd = computed(() => (
+  product.value?.status === 'NORMAL'
   && product.value.shelfStatus === 'on-shelf'
   && product.value.stock > 0
 ));
+const canBuy = computed(() => canAdd.value && !isRealProduct.value);
 const sellerAvatar = computed(() => (
   !isRealProduct.value && product.value?.legacyId ? avatarUrl(product.value.legacyId) : ''
 ));
@@ -161,8 +161,26 @@ onLoad(async query => {
 });
 
 function addToCart() {
-  if (!product.value?.legacyId) return showTradeUnavailable();
-  cart.add(product.value.legacyId, qty.value);
+  if (!product.value) return;
+  if (isRealProduct.value) {
+    cart.addReal({
+      id: product.value.id,
+      title: product.value.title,
+      sellerId: product.value.sellerId,
+      sellerName: product.value.sellerName,
+      cover: product.value.images[0],
+      price: product.value.price,
+      shippingFee: product.value.shippingFee,
+      tax: product.value.tax,
+      stock: product.value.stock,
+      aftersaleType: product.value.aftersaleType,
+      overseasCustoms: product.value.overseasCustoms
+    }, qty.value);
+  } else if (product.value.legacyId) {
+    cart.add(product.value.legacyId, qty.value);
+  } else {
+    return;
+  }
   uni.showToast({ title: '已加入购物车', icon: 'success' });
 }
 
@@ -253,8 +271,8 @@ function goBack() {
       <view class="quantity">
         <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="qty = Math.min(product.stock, qty + 1)">+</text>
       </view>
-      <wd-button plain :disabled="!canBuy" @click="canBuy ? addToCart() : showTradeUnavailable()">加购</wd-button>
-      <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
+      <wd-button plain :disabled="!canAdd" @click="canAdd ? addToCart() : showTradeUnavailable()">加购</wd-button>
+      <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">{{ isRealProduct ? '订单接入中' : '立即购买' }}</wd-button>
     </view>
   </view>
 </template>
