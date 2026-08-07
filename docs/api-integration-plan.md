@@ -47,6 +47,7 @@
 - order 恢复后再次实测 `swagger-config`、`/order/v3/api-docs`、`/api/order/back/hello` 和 `/api/order/categories/tree?onlyEnabled=true` 均为 HTTP 200；此前 404 仅作为短时可用性记录，不再阻塞后续 P2。
 - 公开商品分页已新增真实类型和 `fetchStorefrontProducts` adapter，综合商品列表与分类页不再调用 `@shared` 商品列表 Mock；路由分类 ID 保留字符串，商品卡兼容 `coverImage/categoryName/sellerName`。五种 `sortBy` 与分类筛选均返回成功码 `1`，当前 `total: 0`，因此只完成真实空态和参数验证，非空卡片、多页拼接与筛选结果仍待商品数据。
 - 购物车已新增真实/Mock 来源隔离和统一商品快照：旧持久化记录自动按 Mock 兼容，真实商品 Long ID 保留原值，商品详情允许真实商品加购。真实条目不会进入现有 Mock 结算，结算页对来源再次防御；待 `create-batch` adapter 和真实商品数据完成后再开放真实提交。当前无公开商品，真实加购只完成类型与构建验证。
+- 订单只读层已新增完整 `OrderDTO/OrderPage` 类型以及买入分页、卖出分页、详情 adapter。测试账号买入/卖出列表均返回成功码 `1`、`total: 0`；页面尚未替换，因为 `PAID` 无法无依据拆成现有“采购中/已采购”，`COMPLETED` 也无法拆成“已完成/保修/归档”。状态产品口径确认前仅保留 API 层，不用猜测映射伪装页面完成。
 
 ### 2026-08-03 P2 首批 H5 实施证据
 
