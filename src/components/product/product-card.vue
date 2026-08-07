@@ -5,17 +5,20 @@ import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 
 interface Props {
-  product: Api.Product.ProductRecord | Api.RealProduct.ProductDTO;
+  product: Api.Product.ProductRecord | Api.RealProduct.ProductDTO | Api.RealProduct.ProductListVO;
 }
 const props = defineProps<Props>();
 
-function isReal(record: Api.Product.ProductRecord | Api.RealProduct.ProductDTO): record is Api.RealProduct.ProductDTO {
+function isReal(
+  record: Api.Product.ProductRecord | Api.RealProduct.ProductDTO | Api.RealProduct.ProductListVO
+): record is Api.RealProduct.ProductDTO | Api.RealProduct.ProductListVO {
   return 'afterSaleType' in record;
 }
 
 const imgError = ref(false);
 const cover = computed(() => {
-  const first = props.product.images?.[0];
+  if ('coverImage' in props.product && props.product.coverImage) return props.product.coverImage;
+  const first = 'images' in props.product ? props.product.images?.[0] : undefined;
   if (typeof first === 'string') return first;
   if (first?.url) return first.url;
   if ('categoryPath' in props.product) return productImageUrl(props.product.id, 400, props.product.categoryPath);
@@ -24,7 +27,11 @@ const cover = computed(() => {
 const isRealProduct = computed(() => isReal(props.product));
 const overseas = computed(() => isReal(props.product) ? !!props.product.overseasClearance : !!props.product.overseasCustoms);
 const categoryLabel = computed(() => (
-  'categoryPath' in props.product ? props.product.categoryPath.split('/').pop() || '油宝甄选' : '油宝甄选'
+  'categoryPath' in props.product
+    ? props.product.categoryPath.split('/').pop() || '油宝甄选'
+    : 'categoryName' in props.product && props.product.categoryName
+      ? props.product.categoryName
+      : '油宝甄选'
 ));
 const sellerLabel = computed(() => 'sellerName' in props.product ? props.product.sellerName : '认证买手');
 

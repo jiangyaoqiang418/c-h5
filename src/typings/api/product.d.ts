@@ -60,6 +60,43 @@ declare namespace Api {
       categoryId?: string | number;
     }
 
+    type PublicProductSort = 'DEFAULT' | 'SALES' | 'NEW' | 'PRICE_ASC' | 'PRICE_DESC';
+
+    interface PublicProductPageQuery {
+      pageNo?: number;
+      pageSize?: number;
+      keyword?: string;
+      categoryId?: string | number;
+      minPrice?: number;
+      maxPrice?: number;
+      afterSaleType?: AfterSaleType;
+      overseasClearance?: boolean;
+      sortBy?: PublicProductSort;
+    }
+
+    interface ProductListVO {
+      id: string | number;
+      title: string;
+      coverImage?: string;
+      price: number;
+      salesCount?: string | number;
+      stock: number;
+      categoryId: string | number;
+      categoryName?: string;
+      afterSaleType: AfterSaleType;
+      afterSaleTypeText?: string;
+      overseasClearance?: boolean;
+      sellerId: string | number;
+      sellerName?: string;
+    }
+
+    interface PublicProductPage {
+      pageNo?: number;
+      pageSize?: number;
+      total: number;
+      records: ProductListVO[];
+    }
+
     interface ProductCreateParams {
       title: string;
       categoryId: string | number;

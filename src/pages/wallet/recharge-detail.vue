@@ -32,7 +32,7 @@ onLoad(query => load(String(query?.id || '')));
     <view class="summary">
       <text class="status">{{ detail.statusText || detail.status }}</text>
       <text class="amount">U {{ formatAmount(detail.amount) }}</text>
-      <text class="chain">USDT-{{ detail.chain }}</text>
+      <text class="chain">{{ detail.chainLabel || `USDT-${detail.chain}` }}</text>
     </view>
     <view class="section">
       <view class="row"><text class="label">充值单 ID</text><text>{{ detail.id }}</text></view>

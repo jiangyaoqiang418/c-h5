@@ -36,11 +36,14 @@ onLoad(query => load(String(query?.id || '')));
     </view>
     <view class="section">
       <view class="row"><text class="label">提现单 ID</text><text>{{ detail.id }}</text></view>
+      <view v-if="detail.fee !== undefined" class="row"><text class="label">手续费</text><text>U {{ formatAmount(detail.fee) }}</text></view>
+      <view v-if="detail.actualAmount !== undefined" class="row"><text class="label">实际到账</text><text>U {{ formatAmount(detail.actualAmount) }}</text></view>
       <view class="block"><text class="label">到账地址</text><text class="block-value">{{ detail.toAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.toAddress)">复制地址</wd-button></view>
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
       <view v-if="detail.reviewComment" class="block"><text class="label">审核意见</text><text class="reason">{{ detail.reviewComment }}</text></view>
       <view v-if="detail.failReason" class="block"><text class="label">失败原因</text><text class="reason">{{ detail.failReason }}</text></view>
       <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
+      <view v-if="detail.paidAt" class="row"><text class="label">支付时间</text><text>{{ formatTime(detail.paidAt) }}</text></view>
       <view class="row"><text class="label">完成时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
     </view>
   </view>

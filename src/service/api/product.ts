@@ -14,6 +14,24 @@ export function fetchMyProducts(query: Api.RealProduct.ProductPageQuery = {}) {
   });
 }
 
+export function fetchStorefrontProducts(query: Api.RealProduct.PublicProductPageQuery = {}) {
+  return realOrderRequest<Api.RealProduct.PublicProductPage, Api.RealProduct.PublicProductPageQuery>({
+    url: '/storefront/products/page',
+    method: 'POST',
+    data: {
+      pageNo: query.pageNo || 1,
+      pageSize: query.pageSize || 20,
+      keyword: query.keyword,
+      categoryId: query.categoryId,
+      minPrice: query.minPrice,
+      maxPrice: query.maxPrice,
+      afterSaleType: query.afterSaleType,
+      overseasClearance: query.overseasClearance,
+      sortBy: query.sortBy || 'DEFAULT'
+    }
+  });
+}
+
 export function fetchBuyerProductDetail(id: string | number) {
   return realOrderRequest<Api.RealProduct.ProductDTO>({
     url: '/products/detail',

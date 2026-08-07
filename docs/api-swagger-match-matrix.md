@@ -11,6 +11,25 @@
 - `notify` 的 `/notify/v3/api-docs` 返回 HTTP 404。
 - 表中 `/user/...`、`/order/...`、`/admin/...` 用首段标识 Swagger 分组；分组内原始 path 分别从 `/auth/...`、`/orders/...` 等开始，后续同源请求前缀按请求层配置确定。
 
+## 2026-08-07 实时漂移复核与下一批门禁
+
+| 分组 | 2026-08-03 基线 | 2026-08-07 | 递归操作差异 | 当前结论 |
+|---|---:|---:|---:|---|
+| `admin` | 84 路径 / 85 操作 / 138 schema | 107 / 108 / 187 | 新增 25、删除 2、变更 3 | 已显著漂移；任何 admin 新模块都须重新逐契约筛选 |
+| `user` | 19 / 19 / 45 | 32 / 32 / 63 | 新增 13、删除 0、变更 8 | 原操作仍在；地址可适配接入，钱包存在增量字段 |
+| `order` | 40 / 42 / 50 | 43 / 45 / 63 | 新增 3、删除 0、变更 11 | 文档和网关均已恢复 HTTP 200；可按新契约继续筛选迁移 |
+| `notify` | 文档 HTTP 404 | 文档 HTTP 404 | 不适用 | 仍不可用 |
+
+- 基线使用保留的 2026-08-03 原始 JSON；2026-08-05 文档已确认其路径、操作和 schema 数不变。本次递归比较覆盖方法、参数、required、requestBody、response 及嵌套 schema。
+- `user` 新增地址 7 个操作：`/addresses/create`、`update`、`default`、`delete`、`list`、`page`、`detail`；保存必填 `country/detailAddress/receiverName/receiverPhone`，Long ID 保留原值。判定 B，可迁移当前地址列表、新增、设默认和删除交互，编辑/分页/详情只封装契约、不新增页面交互。
+- `RechargeVO.chainLabel` 与 `WithdrawVO.fee/actualAmount/paidAt` 为增量字段，判定 B；同步真实类型与详情显示即可。`WalletVO.todayIn/todayOut` 仅澄清为外部链上流入/流出，前端不得解释为全部当日资金变化。
+- KYC 新增提交/详情但当前页面还依赖相机和文件上传，判定 C 且属于 P3；买手押金新增分页/缴纳/退还但缺押金汇总与经营统计，判定 C；`GET /recharge/chains` 契约可读但按当前任务边界暂不实施。
+- order 曾短时从分组配置消失且接口返回 404；最新复核时 `swagger-config` 已重新包含 order，文档、健康检查和分类树均为 HTTP 200。该事件记录为短时可用性波动，不再作为持续阻塞。
+- order 新增 `POST /storefront/products/page`、`POST /orders/create-batch`、`POST /orders/group/pay`；公开商品分页覆盖关键字、分类后代、价格、售后、海外和五类排序，合并下单最多 20 项且整批失败不落单，订单组可一次付款。
+- `OrderCreateQO` 已新增必填 `addressId` 和可选 `idempotencyKey`；`OrderDTO` 已新增订单组、买卖双方名称、地址快照、运费/税费、物流、取消原因/操作人/时间和退款摘要；发货及取消请求也已补齐物流与原因字段。订单状态仍为 7 类，完整五类售后仍未补齐，需继续 adapter/产品口径确认。
+- `POST /storefront/products/page` 已封装并由综合商品列表、分类页调用；`DEFAULT/SALES/NEW/PRICE_ASC/PRICE_DESC` 和字符串分类 ID 实测均返回成功码 `1`。当前真实商品 `total: 0`，已验证空态但未验证非空筛选、排序和触底分页。
+- 地址类型、adapter 和现有地址页读取/新增/设默认/删除已迁移；本地测试账号只读列表返回成功码 `1`、0 条记录，真实空态成立。写操作与非空 Long ID/字段回显尚未验证。
+
 ## 2026-08-03 实时复核与迁移门禁
 
 | 分组 | 2026-07-28 | 2026-08-03 | 结论 |
@@ -117,7 +136,7 @@
 | D 当前缺失 | `admin`、`user`、`order` 中均无满足当前能力的接口 |
 | 本地能力 | 当前交互不要求后端接口，不计入接口满足度 |
 
-按 65 项已调用 Mock API 能力统计：A 4、B 13、C 19、D 29；A+B 约 `26%`，A+B+C 约 `55%`。
+2026-07-28 的 65 项历史 Mock 能力统计为 A 4、B 13、C 19、D 29，仅作为旧基线。2026-08-07 的 user/order 均有显著新增与 schema 变化，最新总数须在逐项重算全部 65 项后另行发布；当前先更新已确认变化的地址、公开商品、订单和 KYC 行，禁止直接用新增接口数量修正百分比。
 
 ## 认证与当前用户
 
@@ -134,7 +153,7 @@
 | 分类树 | id、name、level、parentId、path、icon、productCount、children | `GET /order/categories/tree` | B | 返回 id/parentId/level/name/sort/enabled/source/childCount/children；缺 code、icon、完整 path、productCount、时间字段 |
 | 首页推荐聚合 | hot、newest、flash、topCategories、topSellers | `/order/storefront/recommend`、`best-sellers/page`、`new-arrivals/page`、`flash-sale`、`banners/list` | C | 推荐、热销、新品、秒杀和 Banner 已接入；仍缺 topCategories/topSellers 分布，真实非空数据待验证 |
 | 公开商品详情 | 商品、卖家、分类、价格、库存、图文、售后、销量/浏览/收藏 | `GET /order/storefront/product/detail` | C | 真实详情与浏览打点已接入；仍缺 sellerName、categoryPath、aftersaleDays，真实商品暂不进入旧 Mock 购物车 |
-| 商品分页/搜索 | keyword、categoryId、售后类型、海外、价格区间、销量/最新/价格排序 | 无公开通用分页接口 | D | `products/my/page` 只查当前卖家商品；榜单接口不支持现有综合筛选 |
+| 商品分页/搜索 | keyword、categoryId、售后类型、海外、价格区间、销量/最新/价格排序 | `POST /order/storefront/products/page` | B | adapter、综合列表与分类页已迁移；五种排序和分类参数成功码 `1`，真实数据为 0，待非空分页和筛选结果验证 |
 | 商品评价分页/评分摘要 | 评价方向、用户、分数、内容、标签、图片、汇总 | 无 | D | 当前 Swagger 没有评价接口 |
 
 ## 购物车、地址与订单
@@ -142,16 +161,18 @@
 | 前端需求 | Swagger 匹配 | 等级 | 关键差异 |
 |---|---|---|---|
 | 本地购物车增删改选 | 无需后端 | 本地能力 | 当前使用 Pinia/local storage，真实结算前只需重新校验商品 |
-| 地址列表/新增/设默认/删除 | 无 | D | 三组 Swagger 均无收货地址接口 |
-| 下单 | `POST /order/orders/create` | C | 后端仅 `productId/quantity/sessionId/remark`；前端需要地址、收件人、运费、税费、多购物项及售后上下文 |
-| 订单列表 | `POST /order/orders/bought/page` | C | 基本分页存在；前端 10 状态与后端 7 状态不一致，DTO 缺买手名称、地址、物流、售后配置和金额拆分 |
-| 订单详情 | `GET /order/orders/detail` | C | 缺 receiver、shippingAddress、shippingFee、tax、物流单号/承运商、截图、保修、售后关联和状态时间线字段 |
+| 地址列表/新增/设默认/删除 | `/user/addresses/list`、`create`、`default`、`delete` | B | 契约完整；`country/detailAddress/receiverName/receiverPhone` 必填，页面字段在 adapter 映射，Long ID 保留原值 |
+| 下单 | `POST /order/orders/create`、`POST /order/orders/create-batch` | B | 单品/最多20项合并下单均支持 `addressId/idempotencyKey`；整批失败不落单，返回订单组号、订单 ID 和总金额 |
+| 订单列表 | `POST /order/orders/bought/page` | C | DTO 已补名称、地址、物流、金额和退款摘要；前端 10 状态与后端 7 状态仍需产品/adapter 收敛 |
+| 订单详情 | `GET /order/orders/detail` | B/C | 地址快照、费用、物流、取消和退款摘要已补齐；仍缺物流轨迹、预计送达、完整五类售后与保修/归档语义 |
 | 订单状态计数 | 多次调用 `orders/bought/page` 可派生 | B | 无独立统计接口；需按状态请求或由列表数据派生，注意分页总数 |
-| 支付 | `POST /order/orders/pay` | A | 核心操作存在，ID 需按 Long 原值透传 |
+| 支付 | `POST /order/orders/pay`、`POST /order/orders/group/pay` | A/B | 支持单笔和订单组一次付款；Long ID 保留原值，组号按字符串透传 |
 | 确认收货 | `POST /order/orders/confirm` | A | 核心操作存在；后端不接收前端预留的收货视频 |
-| 取消订单 | `POST /order/orders/cancel` | C | 后端只接收订单 ID，无法传递现有取消原因；取消/退款语义合并 |
+| 取消订单 | `POST /order/orders/cancel` | B | `id/reason` 均必填，DTO 返回取消原因、时间和操作人；取消/退款资金语义仍需真实状态回归 |
 
 ### 2026-08-05 订单契约逐字段复核
+
+> 本表保留 2026-08-05 历史缺口；地址、多商品、金额、物流和取消项已由 2026-08-07 新契约大部分解决，最新结论以上方实时复核和当前能力行为准。
 
 | 专项 | live Swagger 事实 | H5 当前需求 | 结论 |
 |---|---|---|---|
@@ -216,7 +237,7 @@
 
 | 模块 | H5 现有需求 | 当前结论 |
 |---|---|---|
-| KYC | 状态、实名/证件/人脸/手机提交、审核结果 | D：无 C 端 KYC 接口 |
+| KYC | 状态、实名/证件/人脸/手机提交、审核结果 | C：已有 `/user/kyc/submit` 与 `/user/kyc/detail`，但当前页面所需相机/文件上传仍未形成 C 端闭环，且属于 P3 |
 | 理财 | 产品列表/详情、认购、我的锁仓、提前解锁 | D：无理财接口 |
 | 评价 | 商品评价、我的评价、评分摘要、提交评价 | D：无评价接口 |
 | 完整售后 | 5 类工单、证据、列表、详情、历史、取消 | D/C：只有订单退款申请/审核/详情，不能满足现有售后模型 |

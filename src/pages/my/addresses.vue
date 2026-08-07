@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { addressApi } from '@shared';
+import {
+  createAddress,
+  deleteAddress,
+  fetchMyAddresses,
+  setDefaultAddress,
+  type AddressRecord
+} from '@/service/api/address';
 import { parseAddress } from '@/utils/address-parser';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
-const list = ref<addressApi.AddressRecord[]>([]);
+const list = ref<AddressRecord[]>([]);
 const popupOpen = ref(false);
 const smartText = ref('');
 
@@ -22,8 +28,13 @@ const form = reactive({
 });
 
 async function load() {
+  await userStore.init();
   if (!userStore.currentUser) return;
-  list.value = await addressApi.fetchMyAddresses(userStore.currentUser.id);
+  try {
+    list.value = await fetchMyAddresses();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '地址加载失败', icon: 'none' });
+  }
 }
 onShow(load);
 
@@ -72,24 +83,36 @@ async function save() {
   if (!form.province || !form.city || !form.detail) {
     return uni.showToast({ title: '请填写完整地址', icon: 'none' });
   }
-  await addressApi.createAddress({ userId: userStore.currentUser.id, ...form });
-  uni.showToast({ title: '已添加', icon: 'success' });
-  popupOpen.value = false;
-  load();
+  try {
+    await createAddress({ ...form });
+    uni.showToast({ title: '已添加', icon: 'success' });
+    popupOpen.value = false;
+    await load();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '地址添加失败', icon: 'none' });
+  }
 }
 
-async function setDefault(a: addressApi.AddressRecord) {
-  await addressApi.setDefault(a.id);
-  load();
+async function setDefault(a: AddressRecord) {
+  try {
+    await setDefaultAddress(a.id);
+    await load();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '设置默认地址失败', icon: 'none' });
+  }
 }
 
-function onLongPress(a: addressApi.AddressRecord) {
+function onLongPress(a: AddressRecord) {
   uni.showActionSheet({
     itemList: ['设为默认', '删除'],
     success: async r => {
-      if (r.tapIndex === 0) await addressApi.setDefault(a.id);
-      else if (r.tapIndex === 1) await addressApi.deleteAddress(a.id);
-      load();
+      try {
+        if (r.tapIndex === 0) await setDefaultAddress(a.id);
+        else if (r.tapIndex === 1) await deleteAddress(a.id);
+        await load();
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '地址操作失败', icon: 'none' });
+      }
     }
   });
 }

@@ -1,23 +1,53 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import { productApi } from '@shared';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
+import { fetchStorefrontProducts } from '@/service/api/product';
 import ProductCard from '@/components/product/product-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 
 const roots = ref<CategoryNode[]>([]);
 const activeRoot = ref<string>();
-const products = ref<Api.Product.ProductRecord[]>([]);
+const products = ref<Api.RealProduct.ProductListVO[]>([]);
 const loading = ref(false);
+const current = ref(1);
+const total = ref(0);
+const pageSize = 20;
+let loadSequence = 0;
 
-async function load(id?: string) {
+async function load(id?: string, reset = false) {
+  if (!id || (loading.value && !reset)) return;
+  if (reset) {
+    current.value = 1;
+    products.value = [];
+    total.value = 0;
+  }
+  const sequence = ++loadSequence;
+  const requestedPage = current.value;
   loading.value = true;
   try {
-    const r = await productApi.fetchProductList({ categoryId: id ? Number(id) : undefined, size: 30 });
-    products.value = r.records;
+    const r = await fetchStorefrontProducts({
+      categoryId: id,
+      pageNo: current.value,
+      pageSize,
+      sortBy: 'DEFAULT'
+    });
+    if (sequence !== loadSequence) return;
+    products.value = reset ? r.records : products.value.concat(r.records);
+    total.value = r.total;
+  } catch (error) {
+    if (sequence === loadSequence) {
+      if (!reset && current.value === requestedPage) current.value = Math.max(1, requestedPage - 1);
+      uni.showToast({ title: error instanceof Error ? error.message : '分类商品加载失败', icon: 'none' });
+    }
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
+}
+
+function loadMore() {
+  if (loading.value || products.value.length >= total.value) return;
+  current.value += 1;
+  load(activeRoot.value);
 }
 
 onMounted(async () => {
@@ -25,14 +55,13 @@ onMounted(async () => {
     roots.value = (await fetchCategoryTree()).slice(0, 12);
     if (roots.value.length) {
       activeRoot.value = roots.value[0].id;
-      load(activeRoot.value);
     }
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
   }
 });
 
-watch(activeRoot, id => load(id));
+watch(activeRoot, id => load(id, true));
 </script>
 
 <template>
@@ -49,7 +78,7 @@ watch(activeRoot, id => load(id));
           <text>{{ r.name }}</text>
         </view>
       </scroll-view>
-      <scroll-view scroll-y class="content">
+      <scroll-view scroll-y class="content" @scrolltolower="loadMore">
         <view v-if="products.length" class="grid">
           <ProductCard v-for="p in products" :key="p.id" :product="p" />
         </view>

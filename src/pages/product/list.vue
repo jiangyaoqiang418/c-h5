@@ -1,47 +1,68 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { onLoad, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
-import { productApi } from '@shared';
+import { fetchStorefrontProducts } from '@/service/api/product';
 import ProductCard from '@/components/product/product-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 
-const list = ref<Api.Product.ProductRecord[]>([]);
+type SortKey = 'sales' | 'newest' | 'price-asc' | 'price-desc';
+
+const sortMap: Record<SortKey, Api.RealProduct.PublicProductSort> = {
+  sales: 'DEFAULT',
+  newest: 'NEW',
+  'price-asc': 'PRICE_ASC',
+  'price-desc': 'PRICE_DESC'
+};
+
+const list = ref<Api.RealProduct.ProductListVO[]>([]);
 const total = ref(0);
 const current = ref(1);
 const size = 20;
 const loading = ref(false);
 const keyword = ref('');
-const categoryId = ref<number | undefined>();
-const sortKey = ref<'sales' | 'newest' | 'price-asc' | 'price-desc'>('sales');
+const categoryId = ref<string>();
+const sortKey = ref<SortKey>('sales');
+let loadSequence = 0;
 
 onLoad(query => {
   if (query?.keyword) keyword.value = String(query.keyword);
-  if (query?.categoryId) categoryId.value = Number(query.categoryId);
-  if (query?.sort) sortKey.value = query.sort as typeof sortKey.value;
+  if (query?.categoryId) categoryId.value = String(query.categoryId);
+  if (query?.sort && query.sort in sortMap) sortKey.value = query.sort as SortKey;
   load(true);
 });
 
 async function load(reset = false) {
-  if (loading.value) return;
+  if (loading.value && !reset) return;
   if (reset) {
     current.value = 1;
     list.value = [];
+    total.value = 0;
   }
+  const sequence = ++loadSequence;
+  const requestedPage = current.value;
   loading.value = true;
   try {
-    const r = await productApi.fetchProductList({
-      current: current.value,
-      size,
+    const r = await fetchStorefrontProducts({
+      pageNo: current.value,
+      pageSize: size,
       keyword: keyword.value || undefined,
       categoryId: categoryId.value,
-      sort: sortKey.value
+      sortBy: sortMap[sortKey.value]
     });
+    if (sequence !== loadSequence) return;
     if (reset) list.value = r.records;
     else list.value = list.value.concat(r.records);
     total.value = r.total;
+  } catch (error) {
+    if (sequence === loadSequence) {
+      if (!reset && current.value === requestedPage) current.value = Math.max(1, requestedPage - 1);
+      uni.showToast({ title: error instanceof Error ? error.message : '商品列表加载失败', icon: 'none' });
+    }
   } finally {
-    loading.value = false;
-    uni.stopPullDownRefresh();
+    if (sequence === loadSequence) {
+      loading.value = false;
+      uni.stopPullDownRefresh();
+    }
   }
 }
 
@@ -61,7 +82,7 @@ const SORTS = [
 ] as const;
 
 function onSortChange(v: string) {
-  sortKey.value = v as typeof sortKey.value;
+  sortKey.value = v as SortKey;
   load(true);
 }
 </script>
