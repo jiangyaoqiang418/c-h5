@@ -76,7 +76,7 @@ onReachBottom(() => {
 </template>
 
 <style lang="scss" scoped>
-.list-page { min-height: 100vh; padding: 16rpx; box-sizing: border-box; background: #f7f8fa; }
+.list-page { min-height: 100%; padding: 16rpx; box-sizing: border-box; background: #f7f8fa; }
 .record-card { margin-bottom: 12rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
 .head, .foot { display: flex; align-items: center; justify-content: space-between; }
 .chain { font-size: 24rpx; font-weight: 600; color: #1d2129; }

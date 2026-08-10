@@ -67,7 +67,7 @@ async function onUnlock(o: Api.FinanceProduct.LockupOrder) {
 
 <style lang="scss" scoped>
 .my-lockup-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
 }
 .list {

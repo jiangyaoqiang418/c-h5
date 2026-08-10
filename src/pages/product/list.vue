@@ -117,7 +117,7 @@ function onSortChange(v: string) {
 
 <style lang="scss" scoped>
 .list-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
   padding-bottom: 32rpx;
 }
@@ -161,11 +161,12 @@ function onSortChange(v: string) {
   border-bottom: 4rpx solid #4d80f0;
 }
 .grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
   padding: 16rpx;
 }
+.grid > * { width: calc((100% - 16rpx) / 2); min-width: 0; }
 .loading, .no-more {
   text-align: center;
   padding: 32rpx;

@@ -67,5 +67,29 @@ declare namespace Api {
       total: number;
       records: OrderDTO[];
     }
+
+    interface OrderCreateItemParams {
+      productId: LongId;
+      quantity?: number;
+      sessionId?: LongId;
+    }
+
+    interface OrderCreateBatchParams {
+      addressId: LongId;
+      items: OrderCreateItemParams[];
+      idempotencyKey?: string;
+      remark?: string;
+    }
+
+    interface OrderGroupVO {
+      orderGroupNo: string;
+      orderIds: LongId[];
+      totalAmount?: string | number;
+    }
+
+    interface OrderCancelParams {
+      id: LongId;
+      reason: string;
+    }
   }
 }

@@ -1,0 +1,731 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "代购电商平台 API",
+    "description": "Spring Cloud Alibaba 微服务接口文档",
+    "version": "v1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://221.128.249.198:9003",
+      "description": "Generated server url"
+    }
+  ],
+  "tags": [
+    {
+      "name": "站内IM",
+      "description": "C 端会话/消息(文字/图片/语音)。实时推送经 WebSocket /im?token=xxx(需登录)"
+    },
+    {
+      "name": "站内通知",
+      "description": "C 端站内通知列表/已读(需登录)"
+    }
+  ],
+  "paths": {
+    "/notifications/read": {
+      "put": {
+        "tags": [
+          "站内通知"
+        ],
+        "summary": "标记已读",
+        "operationId": "read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationReadQO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultBoolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "put": {
+        "tags": [
+          "站内通知"
+        ],
+        "summary": "全部已读",
+        "operationId": "readAll",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultBoolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/page": {
+      "post": {
+        "tags": [
+          "站内通知"
+        ],
+        "summary": "通知分页",
+        "description": "当前登录用户的站内通知,可只看未读",
+        "operationId": "page",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPageQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultPageResultNotificationVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/im/messages/send": {
+      "post": {
+        "tags": [
+          "站内IM"
+        ],
+        "summary": "发送消息",
+        "description": "文字/图片/语音;图片语音先经上传接口取得URL再发;返回消息ID",
+        "operationId": "send",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImSendMessageQO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultLong"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/im/messages/page": {
+      "post": {
+        "tags": [
+          "站内IM"
+        ],
+        "summary": "会话消息分页",
+        "description": "倒序;拉取即标记已读到最新",
+        "operationId": "messages",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImMessagePageQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultPageResultImMessageVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/im/conversations/page": {
+      "post": {
+        "tags": [
+          "站内IM"
+        ],
+        "summary": "我的会话分页",
+        "description": "按最后消息时间倒序,含未读数",
+        "operationId": "conversations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImConversationPageQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultPageResultImConversationVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/unread/count": {
+      "get": {
+        "tags": [
+          "站内通知"
+        ],
+        "summary": "未读数",
+        "operationId": "unreadCount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultLong"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/im/conversations/by-order": {
+      "get": {
+        "tags": [
+          "站内IM"
+        ],
+        "summary": "按订单取会话",
+        "description": "取某订单的三方群会话(需为其成员)",
+        "operationId": "byOrder",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "query",
+            "description": "订单ID",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "example": 9001
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultImConversationVO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/back/hello": {
+      "get": {
+        "tags": [
+          "联通性测试"
+        ],
+        "summary": "hello 测试",
+        "operationId": "hello",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResultString"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "NotificationReadQO": {
+        "required": [
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "通知ID",
+            "format": "int64",
+            "example": 9001
+          }
+        }
+      },
+      "ApiResultBoolean": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "boolean"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NotificationPageQuery": {
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unreadOnly": {
+            "type": "boolean",
+            "description": "只看未读:true只未读,留空全部",
+            "example": true
+          }
+        }
+      },
+      "ApiResultPageResultNotificationVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultNotificationVO"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NotificationVO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "通知ID",
+            "format": "int64",
+            "example": 9001
+          },
+          "channel": {
+            "type": "string",
+            "description": "渠道",
+            "example": "IN_APP"
+          },
+          "templateCode": {
+            "type": "string",
+            "description": "模板编码"
+          },
+          "title": {
+            "type": "string",
+            "description": "标题"
+          },
+          "content": {
+            "type": "string",
+            "description": "内容"
+          },
+          "readFlag": {
+            "type": "boolean",
+            "description": "是否已读"
+          },
+          "createdAt": {
+            "type": "integer",
+            "description": "创建时间(毫秒时间戳)",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultNotificationVO": {
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationVO"
+            }
+          }
+        }
+      },
+      "ImSendMessageQO": {
+        "required": [
+          "conversationId",
+          "msgType"
+        ],
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "integer",
+            "description": "会话ID",
+            "format": "int64",
+            "example": 9001
+          },
+          "msgType": {
+            "type": "string",
+            "description": "消息类型:TEXT文字/IMAGE图片/VOICE语音",
+            "example": "TEXT",
+            "enum": [
+              "TEXT",
+              "IMAGE",
+              "VOICE",
+              "ORDER_CARD",
+              "SYSTEM"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "description": "文字内容(TEXT必填)",
+            "example": "在的，可以小刀吗"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "description": "图片/语音完整URL(IMAGE/VOICE必填)"
+          },
+          "duration": {
+            "type": "integer",
+            "description": "语音时长秒(VOICE)",
+            "format": "int32",
+            "example": 8
+          }
+        }
+      },
+      "ApiResultLong": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ImMessagePageQuery": {
+        "required": [
+          "conversationId"
+        ],
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "conversationId": {
+            "type": "integer",
+            "description": "会话ID",
+            "format": "int64",
+            "example": 9001
+          }
+        }
+      },
+      "ApiResultPageResultImMessageVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultImMessageVO"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ImMessageVO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "消息ID",
+            "format": "int64",
+            "example": 9001
+          },
+          "conversationId": {
+            "type": "integer",
+            "description": "会话ID",
+            "format": "int64",
+            "example": 9001
+          },
+          "senderId": {
+            "type": "integer",
+            "description": "发送人ID(空为系统)",
+            "format": "int64",
+            "example": 1024
+          },
+          "senderRole": {
+            "type": "string",
+            "description": "发送人角色:CUSTOMER/SELLER/ADMIN(系统为空)",
+            "example": "CUSTOMER"
+          },
+          "msgType": {
+            "type": "string",
+            "description": "消息类型:TEXT/IMAGE/VOICE/ORDER_CARD/SYSTEM",
+            "example": "TEXT"
+          },
+          "content": {
+            "type": "string",
+            "description": "文字内容 或 订单卡片JSON"
+          },
+          "mediaUrl": {
+            "type": "string",
+            "description": "图片/语音完整URL"
+          },
+          "duration": {
+            "type": "integer",
+            "description": "语音时长(秒)",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "integer",
+            "description": "发送时间(毫秒时间戳)",
+            "format": "int64"
+          }
+        }
+      },
+      "PageResultImMessageVO": {
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImMessageVO"
+            }
+          }
+        }
+      },
+      "ImConversationPageQuery": {
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResultPageResultImConversationVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResultImConversationVO"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ImConversationVO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "会话ID",
+            "format": "int64",
+            "example": 9001
+          },
+          "title": {
+            "type": "string",
+            "description": "标题",
+            "example": "订单 1789456123456789"
+          },
+          "bizType": {
+            "type": "string",
+            "description": "业务类型",
+            "example": "ORDER"
+          },
+          "bizId": {
+            "type": "integer",
+            "description": "业务ID(订单群为订单ID)",
+            "format": "int64",
+            "example": 9001
+          },
+          "myRole": {
+            "type": "string",
+            "description": "我的角色:CUSTOMER/SELLER/ADMIN",
+            "example": "CUSTOMER"
+          },
+          "lastMessageAt": {
+            "type": "integer",
+            "description": "最后消息时间(毫秒时间戳)",
+            "format": "int64"
+          },
+          "lastMessagePreview": {
+            "type": "string",
+            "description": "最后消息预览"
+          },
+          "unreadCount": {
+            "type": "integer",
+            "description": "未读数",
+            "format": "int64",
+            "example": 0
+          }
+        }
+      },
+      "PageResultImConversationVO": {
+        "type": "object",
+        "properties": {
+          "pageNo": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImConversationVO"
+            }
+          }
+        }
+      },
+      "ApiResultImConversationVO": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ImConversationVO"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiResultString": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "x-openapi": {
+    "x-setting": null,
+    "x-markdownFiles": []
+  }
+}

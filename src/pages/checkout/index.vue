@@ -194,9 +194,9 @@ async function submit() {
 
 <style lang="scss" scoped>
 .checkout-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
-  padding-bottom: 160rpx;
+  padding-bottom: calc(144rpx + env(safe-area-inset-bottom));
 }
 .block {
   background: #fff;
@@ -303,9 +303,7 @@ async function submit() {
   padding: 24rpx;
   font-size: 24rpx;
 }
-.footer-space {
-  height: 32rpx;
-}
+.footer-space { display: none; }
 .bottom-bar {
   position: fixed;
   bottom: 0;

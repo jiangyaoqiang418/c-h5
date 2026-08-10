@@ -157,7 +157,7 @@ onMounted(load);
 
 <style lang="scss" scoped>
 .apply-page {
-  min-height: 100vh;
+  min-height: 100%;
   box-sizing: border-box;
   background: #f7f8fa;
   padding: 16rpx;

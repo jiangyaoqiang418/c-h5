@@ -54,7 +54,7 @@ async function openDetail(a: Api.Cms.Announcement) {
 </template>
 
 <style lang="scss" scoped>
-.ann-page { min-height: 100vh; background: #f7f8fa; }
+.ann-page { min-height: 100%; background: #f7f8fa; }
 .list { padding: 16rpx; }
 .popup { padding: 32rpx; max-height: 80vh; }
 .popup-title { display: block; font-size: 32rpx; font-weight: 700; }

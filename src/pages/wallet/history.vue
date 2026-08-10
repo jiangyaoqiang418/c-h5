@@ -65,7 +65,7 @@ function openTxn(t: WalletTxnView) {
 
 <style lang="scss" scoped>
 .history-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
 }
 .list {

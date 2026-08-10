@@ -142,7 +142,7 @@ async function doTransferOut() {
 </template>
 
 <style lang="scss" scoped>
-.dep-page { min-height: 100vh; background: #f7f8fa; }
+.dep-page { min-height: 100%; background: #f7f8fa; }
 .hero { background: linear-gradient(135deg, #722ed1 0%, #4d80f0 100%); color: #fff; padding: 48rpx 32rpx; }
 .hero-label { display: block; font-size: 22rpx; opacity: 0.8; }
 .hero-amount { display: block; font-size: 64rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0 24rpx; }
@@ -157,8 +157,8 @@ async function doTransferOut() {
 .hero-actions > * { flex: 1; }
 .section { background: #fff; margin-top: 16rpx; padding: 24rpx; }
 .section-title { display: block; font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; }
-.kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
-.kv { background: #f7f8fa; border-radius: 12rpx; padding: 16rpx; }
+.kv-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.kv { width: calc((100% - 16rpx) / 2); box-sizing: border-box; background: #f7f8fa; border-radius: 12rpx; padding: 16rpx; }
 .k { display: block; font-size: 22rpx; color: #86909c; }
 .v { display: block; font-size: 30rpx; font-weight: 700; color: #1d2129; margin-top: 4rpx; }
 .txn-row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }

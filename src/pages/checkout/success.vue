@@ -28,7 +28,7 @@ onLoad(async query => {
 
 <style lang="scss" scoped>
 .success-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #fff;
   display: flex;
   flex-direction: column;

@@ -19,6 +19,24 @@ page {
 }
 
 /*
+ * App-Vue 的页面可视区已经由原生导航栏和 tabBar 裁剪。
+ * 页面根节点再使用 100vh 会把窗口层重复算入高度，造成真机滚动到底部空白。
+ * 默认页面统一以宿主页面高度为基准；自定义导航页仍由各自内容决定高度。
+ */
+/* #ifdef APP-PLUS */
+page > * {
+  min-height: 100% !important;
+  box-sizing: border-box;
+}
+
+page > .chat-page,
+page > .im-page,
+page > .login-page {
+  height: 100% !important;
+}
+/* #endif */
+
+/*
  * 顶部导航和 tabBar 都是 UniApp 的窗口层，不属于任何页面内容。
  * 五个一级页本身作为滚动容器，始终只占两者之间的区域；这一规则同时适用于
  * 移动 H5 与 App，避免 App 端页面滚动到原生导航栏或 tabBar 下方。

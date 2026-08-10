@@ -38,6 +38,6 @@ watch(activeKey, load);
 </template>
 
 <style lang="scss" scoped>
-.review-list { min-height: 100vh; background: #f7f8fa; }
+.review-list { min-height: 100%; background: #f7f8fa; }
 .list { padding: 16rpx; }
 </style>

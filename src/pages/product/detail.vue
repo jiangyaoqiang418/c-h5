@@ -278,7 +278,7 @@ function goBack() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100vh; padding-bottom: 180rpx; background: #fafaf7; }
+.detail-page { min-height: 100%; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); background: #fafaf7; }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.92); }
 .chev { width: 24rpx; height: 24rpx; border-left: 5rpx solid #0f111a; border-bottom: 5rpx solid #0f111a; transform: rotate(45deg); }

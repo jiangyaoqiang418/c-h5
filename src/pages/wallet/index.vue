@@ -172,7 +172,7 @@ function bucketLabel(key: string): string {
 
 <style lang="scss" scoped>
 .wallet-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding-bottom: 40rpx;
 }

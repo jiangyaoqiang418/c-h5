@@ -112,12 +112,12 @@ function goDetail() {
   color: #B8935A;
 }
 .body {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
   gap: 20rpx;
   align-items: flex-start;
 }
 .left {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8rpx;

@@ -97,8 +97,9 @@ function inducePurchase() {
   color: #c9cdd4;
 }
 .grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
 }
+.grid > * { width: calc((100% - 16rpx) / 2); min-width: 0; }
 </style>

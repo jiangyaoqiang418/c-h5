@@ -101,7 +101,7 @@ async function doWithdraw() {
 
 <style lang="scss" scoped>
 .withdraw-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
   padding: 16rpx;
 }

@@ -114,7 +114,7 @@ async function submit() {
 </template>
 
 <style lang="scss" scoped>
-.review-write { min-height: 100vh; background: #f7f8fa; padding: 16rpx; }
+.review-write { min-height: 100%; background: #f7f8fa; padding: 16rpx; }
 .order-card {
   background: #fff;
   border-radius: 16rpx;

@@ -176,7 +176,7 @@ async function refreshOrders() {
 
 <style lang="scss" scoped>
 .dash-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding-bottom: 60rpx;
 }
@@ -242,11 +242,12 @@ async function refreshOrders() {
 .strong { color: #FFFFFF; font-weight: 700; }
 .hero-stats {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 16rpx;
 }
 .stat {
+  flex: 1;
+  min-width: 0;
   padding: 16rpx;
   background: rgba(255, 255, 255, 0.08);
   border: 1rpx solid rgba(255, 255, 255, 0.12);

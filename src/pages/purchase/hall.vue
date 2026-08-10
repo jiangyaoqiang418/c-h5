@@ -104,7 +104,7 @@ function goCreate() {
 
 <style lang="scss" scoped>
 .hall-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding-bottom: 160rpx;
 }

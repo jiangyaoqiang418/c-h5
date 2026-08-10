@@ -186,7 +186,7 @@ async function submit() {
 </template>
 
 <style lang="scss" scoped>
-.create-page { min-height: 100vh; box-sizing: border-box; background: #f7f8fa; padding: 16rpx 16rpx 200rpx; }
+.create-page { min-height: 100%; box-sizing: border-box; background: #f7f8fa; padding: 16rpx 16rpx 200rpx; }
 .content { min-height: 400rpx; margin-top: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
 .hint { display: block; margin-bottom: 16rpx; font-size: 22rpx; color: #86909c; }
 .image-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }

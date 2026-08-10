@@ -46,7 +46,7 @@ onLoad(query => load(String(query?.id || '')));
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100vh; padding: 16rpx; box-sizing: border-box; background: #f7f8fa; }
+.detail-page { min-height: 100%; padding: 16rpx; box-sizing: border-box; background: #f7f8fa; }
 .summary, .section { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
 .summary { text-align: center; }
 .status, .chain { display: block; color: #86909c; font-size: 23rpx; }

@@ -118,7 +118,7 @@ function aftersale(o: Api.Order.OrderRecord) {
 
 <style lang="scss" scoped>
 .order-list-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
   padding-bottom: 32rpx;
 }

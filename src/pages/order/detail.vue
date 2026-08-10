@@ -159,9 +159,9 @@ function goReview() {
 
 <style lang="scss" scoped>
 .detail-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
-  padding-bottom: 200rpx;
+  padding-bottom: calc(144rpx + env(safe-area-inset-bottom));
 }
 .hero {
   background: linear-gradient(135deg, #fff 0%, #f7faff 100%);

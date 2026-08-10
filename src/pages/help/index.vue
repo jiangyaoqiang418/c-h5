@@ -97,7 +97,7 @@ const AGREEMENT_LINKS: { kind: Api.Cms.AgreementKind; label: string }[] = [
 </template>
 
 <style lang="scss" scoped>
-.help-page { min-height: 100vh; background: #f7f8fa; }
+.help-page { min-height: 100%; background: #f7f8fa; }
 .search { padding: 16rpx; background: #fff; }
 .search-input {
   height: 72rpx;

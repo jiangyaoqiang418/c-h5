@@ -135,9 +135,9 @@ function cancel() {
 
 <style lang="scss" scoped>
 .detail-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
-  padding-bottom: 180rpx;
+  padding-bottom: calc(144rpx + env(safe-area-inset-bottom));
 }
 .hero {
   background: #fff;

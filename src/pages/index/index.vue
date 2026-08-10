@@ -255,7 +255,7 @@ function goBanner(path?: string) {
 
 <style lang="scss" scoped>
 .home-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding-bottom: 160rpx;
 }
@@ -339,8 +339,7 @@ function goBanner(path?: string) {
   align-items: center;
   gap: 10rpx;
   padding: 8rpx 20rpx;
-  background: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(20rpx);
+  background: rgba(15, 17, 26, 0.32);
   border: 1rpx solid rgba(255, 255, 255, 0.28);
   border-radius: 999rpx;
   font-size: 20rpx;
@@ -403,11 +402,13 @@ function goBanner(path?: string) {
   padding: 24rpx 12rpx;
   border: 1rpx solid #EDECE6;
   box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.04);
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 20rpx 12rpx;
 }
 .cat-cell {
+  width: calc((100% - 48rpx) / 5);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -494,19 +495,22 @@ function goBanner(path?: string) {
   width: 320rpx;
 }
 .grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 20rpx;
 }
+.grid > * { width: calc((100% - 20rpx) / 2); min-width: 0; }
 
 /* ========== Promo banners ========== */
 .promo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
   margin: 32rpx;
 }
 .promo-banner {
+  width: calc((100% - 16rpx) / 2);
+  box-sizing: border-box;
   position: relative;
   aspect-ratio: 4 / 5;
   border-radius: 24rpx;

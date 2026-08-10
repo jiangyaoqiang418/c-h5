@@ -72,7 +72,7 @@ function openGroup() {
 </template>
 
 <style lang="scss" scoped>
-.as-detail { min-height: 100vh; background: #f7f8fa; }
+.as-detail { min-height: 100%; background: #f7f8fa; }
 .hero { background: #fff; padding: 32rpx; }
 .code { display: block; font-family: ui-monospace, monospace; font-size: 22rpx; color: #86909c; margin: 12rpx 0; }
 .type { display: block; font-size: 30rpx; font-weight: 700; }

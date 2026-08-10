@@ -163,7 +163,7 @@ async function submit() {
 </template>
 
 <style lang="scss" scoped>
-.kyc-page { min-height: 100vh; background: #f7f8fa; padding: 16rpx; padding-bottom: 200rpx; }
+.kyc-page { min-height: 100%; background: #f7f8fa; padding: 16rpx; padding-bottom: 200rpx; }
 .approved-card { background: #fff; border-radius: 16rpx; padding: 32rpx; }
 .approved-head { display: flex; gap: 20rpx; align-items: center; padding-bottom: 24rpx; border-bottom: 1rpx solid #f2f3f5; }
 .ok-icon { font-size: 72rpx; }

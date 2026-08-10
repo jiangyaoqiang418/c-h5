@@ -81,7 +81,7 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
 
 <style lang="scss" scoped>
 .my-purchase-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
 }
 .hero {

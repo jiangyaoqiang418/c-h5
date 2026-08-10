@@ -117,7 +117,7 @@ onLoad(query => {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100vh; box-sizing: border-box; padding-bottom: 180rpx; background: #f7f8fa; }
+.detail-page { min-height: 100%; box-sizing: border-box; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); background: #f7f8fa; }
 .loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 .gallery { width: 100%; height: 600rpx; background: #f2f3f5; }
 .gallery-image { width: 100%; height: 100%; }

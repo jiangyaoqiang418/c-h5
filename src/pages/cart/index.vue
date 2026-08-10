@@ -91,9 +91,10 @@ async function goCheckout() {
 
 <style lang="scss" scoped>
 .cart-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #f7f8fa;
-  padding-bottom: 280rpx;
+  /* 仅预留结算栏本身的高度，tabBar 已由窗口层扣除。 */
+  padding-bottom: calc(184rpx + env(safe-area-inset-bottom));
 }
 .list {
   padding: 16rpx;

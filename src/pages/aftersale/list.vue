@@ -59,6 +59,6 @@ function onCancel(c: Api.Order.AftersaleCase) {
 </template>
 
 <style lang="scss" scoped>
-.as-list-page { min-height: 100vh; background: #f7f8fa; }
+.as-list-page { min-height: 100%; background: #f7f8fa; }
 .list { padding: 16rpx; }
 </style>

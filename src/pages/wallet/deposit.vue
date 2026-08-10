@@ -101,7 +101,7 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
-.deposit-page { min-height: 100vh; box-sizing: border-box; padding: 16rpx; background: #f7f8fa; }
+.deposit-page { min-height: 100%; box-sizing: border-box; padding: 16rpx; background: #f7f8fa; }
 .form-card, .detail-card, .record-entry { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
 .title { font-size: 28rpx; font-weight: 600; color: #1d2129; }
 .tip { display: block; margin: 10rpx 0 20rpx; color: #86909c; font-size: 23rpx; line-height: 1.6; }

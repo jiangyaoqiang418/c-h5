@@ -34,7 +34,7 @@ onShow(load);
 
 <style lang="scss" scoped>
 .list-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding: 16rpx;
 }

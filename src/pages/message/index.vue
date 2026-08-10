@@ -113,7 +113,7 @@ function open(c: Category) {
 <style lang="scss" scoped>
 .local-icon { font-size: 34rpx; line-height: 1; }
 .msg-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding: 20rpx 24rpx;
 }

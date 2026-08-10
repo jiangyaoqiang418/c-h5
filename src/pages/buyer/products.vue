@@ -144,7 +144,7 @@ onReachBottom(() => {
 </template>
 
 <style lang="scss" scoped>
-.products-page { min-height: 100vh; background: #f7f8fa; padding-bottom: 200rpx; }
+.products-page { min-height: 100%; background: #f7f8fa; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
 .list { padding: 16rpx; }
 .loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 .product-card {

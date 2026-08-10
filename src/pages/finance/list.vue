@@ -91,7 +91,7 @@ function goWithdraw() {
 
 <style lang="scss" scoped>
 .finance-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding-bottom: 60rpx;
 }

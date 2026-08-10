@@ -222,7 +222,7 @@ function goAiChat() {
 <style lang="scss" scoped>
 .local-icon { font-size: 32rpx; line-height: 1; }
 .my-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding-bottom: 160rpx;
 }
@@ -420,11 +420,12 @@ function goAiChat() {
   color: #86909c;
 }
 .order-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
   gap: 8rpx;
 }
 .ot-cell {
+  flex: 1;
+  min-width: 0;
   text-align: center;
   padding: 16rpx 0;
 }
@@ -442,8 +443,8 @@ function goAiChat() {
   margin-top: 4rpx;
 }
 .cell-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
 }
 .cell-grid.guest {
@@ -455,6 +456,8 @@ function goAiChat() {
   box-sizing: border-box;
 }
 .cell {
+  width: calc((100% - 36rpx) / 4);
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;

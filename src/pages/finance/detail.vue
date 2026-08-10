@@ -115,7 +115,7 @@ async function subscribe() {
 
 <style lang="scss" scoped>
 .detail-page {
-  min-height: 100vh;
+  min-height: 100%;
   background: #FAFAF7;
   padding-bottom: 200rpx;
 }

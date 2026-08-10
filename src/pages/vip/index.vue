@@ -97,7 +97,7 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 </template>
 
 <style lang="scss" scoped>
-.vip-page { min-height: 100vh; background: #f7f8fa; padding-bottom: 32rpx; }
+.vip-page { min-height: 100%; background: #f7f8fa; padding-bottom: 32rpx; }
 .hero {
   background: linear-gradient(135deg, #722ed1 0%, #4d80f0 100%);
   color: #fff;

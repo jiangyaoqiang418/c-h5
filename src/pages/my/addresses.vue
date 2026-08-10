@@ -179,7 +179,7 @@ function onLongPress(a: AddressRecord) {
 </template>
 
 <style lang="scss" scoped>
-.addr-page { min-height: 100vh; background: #f7f8fa; padding: 16rpx; padding-bottom: 200rpx; }
+.addr-page { min-height: 100%; background: #f7f8fa; padding: 16rpx; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
 .card {
   background: #fff;
   border-radius: 16rpx;

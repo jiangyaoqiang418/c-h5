@@ -188,7 +188,7 @@ function formatDate(value?: string | number): string {
 </template>
 
 <style lang="scss" scoped>
-.points-page { min-height: 100vh; background: #f7f8fa; }
+.points-page { min-height: 100%; background: #f7f8fa; }
 .hero {
   background: linear-gradient(135deg, #ff9a02 0%, #f53f3f 100%);
   color: #fff;
