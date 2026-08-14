@@ -19,7 +19,7 @@
 | 订单详情 | `GET /order/orders/detail?id`，含地址、物流、金额、支付凭证 | 页面已调用真实详情；字段差异由 adapter 降级，时间数字字符串已归一化 | A/B：顾客/买手两种对方身份和非空详情已回归；H5 写回归后状态时间线正确更新 |
 | 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
-| 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | B：Chrome 手机视图已验证非空列表/详情；真实创建、撤销和状态恢复待独立 QA 订单回归 |
+| 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成创建 → `REFUND_REVIEW` → 撤销 → `PAID` 回归；买手侧非空分页仍待后续账号回归 |
 | IM/通知 | notify 16 操作，REST 充分 | H5 页面仍是 Mock | C/P3：等待订单读链路和 WebSocket 环境复核 |
 
 ### 结算迁移状态（2026-08-14）
