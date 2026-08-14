@@ -257,7 +257,6 @@ function goBanner(path?: string) {
 .home-page {
   min-height: 100%;
   background: #FAFAF7;
-  padding-bottom: 160rpx;
 }
 
 /* ========== 顶部 ========== */

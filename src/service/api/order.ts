@@ -76,6 +76,40 @@ export async function fetchSoldOrders(query: Api.RealOrder.OrderPageQuery = {}) 
   return { ...page, records: page.records.map(order => toOrderView(order, 'sold')) };
 }
 
+/**
+ * 订单概况没有独立统计接口，按后端 7 个真实状态请求第一页并读取 total。
+ * 计数必须跟随当前身份，不能再使用 Mock 订单数据。
+ */
+async function countOrdersByStatus(scope: 'bought' | 'sold') {
+  const statuses: Api.RealOrder.OrderStatus[] = [
+    'CREATED',
+    'PAID',
+    'SHIPPED',
+    'REFUND_REVIEW',
+    'REFUNDED',
+    'COMPLETED',
+    'CANCELED'
+  ];
+  const pages = await Promise.all(statuses.map(status => fetchOrderPage(scope, {
+    pageNo: 1,
+    pageSize: 1,
+    status
+  })));
+
+  return Object.fromEntries(pages.map((page, index) => [
+    statuses[index],
+    Number(page.total || 0)
+  ])) as Record<Api.RealOrder.OrderStatus, number>;
+}
+
+export function countBoughtOrdersByStatus() {
+  return countOrdersByStatus('bought');
+}
+
+export function countSoldOrdersByStatus() {
+  return countOrdersByStatus('sold');
+}
+
 export async function fetchOrderDetail(id: Api.RealOrder.LongId, scope: 'bought' | 'sold' = 'bought') {
   const order = await realOrderRequest<Api.RealOrder.OrderDTO>({
     url: '/orders/detail',
@@ -84,16 +118,21 @@ export async function fetchOrderDetail(id: Api.RealOrder.LongId, scope: 'bought'
   return toOrderView(order, scope);
 }
 
-/**
- * 只建立真实合并下单的 API 边界；结算页接入与支付属于后续独立迁移。
- * 商品和地址 ID 保持 Long 原值，避免在页面层转换为 number。
- */
+/** 商品、地址和订单组号均保持服务端原值，页面层不转换 Long ID。 */
 export function createBatchOrder(params: Api.RealOrder.OrderCreateBatchParams) {
   if (params.items.length === 0 || params.items.length > 20) {
     throw new Error('一次下单的商品数量必须在 1 到 20 件之间');
   }
   return realOrderRequest<Api.RealOrder.OrderGroupVO, Api.RealOrder.OrderCreateBatchParams>({
     url: '/orders/create-batch',
+    method: 'POST',
+    data: params
+  });
+}
+
+export function payRealOrderGroup(params: Api.RealOrder.OrderGroupPayParams): Promise<number> {
+  return realOrderRequest<number, Api.RealOrder.OrderGroupPayParams>({
+    url: '/orders/group/pay',
     method: 'POST',
     data: params
   });

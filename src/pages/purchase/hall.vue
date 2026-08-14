@@ -106,7 +106,6 @@ function goCreate() {
 .hall-page {
   min-height: 100%;
   background: #FAFAF7;
-  padding-bottom: 160rpx;
 }
 .hero {
   background: #FFFFFF;

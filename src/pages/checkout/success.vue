@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { orderApi } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
+import { fetchOrderDetail } from '@/service/api/order';
 
-const order = ref<Api.Order.OrderRecord>();
-const orderId = ref<number>();
+const order = ref<Api.RealOrder.OrderView>();
+const orderId = ref<Api.RealOrder.LongId>();
 
 onLoad(async query => {
-  orderId.value = Number(query?.orderId);
-  if (orderId.value) order.value = await orderApi.fetchOrderDetail(orderId.value);
+  const id = query?.orderId;
+  if (typeof id !== 'string' || !id) return;
+  orderId.value = id;
+  try {
+    order.value = await fetchOrderDetail(id);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });
+  }
 });
 </script>
 

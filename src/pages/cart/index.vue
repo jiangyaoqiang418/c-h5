@@ -33,7 +33,7 @@ async function goCheckout() {
 </script>
 
 <template>
-  <view class="cart-page h5-tab-page">
+  <view class="cart-page h5-tab-page" :class="{ 'has-items': items.length > 0 }">
     <template v-if="items.length">
       <view class="list">
         <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">
@@ -93,6 +93,8 @@ async function goCheckout() {
 .cart-page {
   min-height: 100%;
   background: #f7f8fa;
+}
+.cart-page.has-items {
   /* 仅预留结算栏本身的高度，tabBar 已由窗口层扣除。 */
   padding-bottom: calc(184rpx + env(safe-area-inset-bottom));
 }
@@ -220,7 +222,7 @@ async function goCheckout() {
   border-top: 1rpx solid #f2f3f5;
 }
 /* #ifdef H5 */
-.bottom-bar { bottom: var(--window-bottom); }
+.bottom-bar { bottom: 50px; }
 /* #endif */
 .all-check {
   display: flex;

@@ -22,9 +22,19 @@
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | H5 是五类 Mock 售后工单 | C：另立专题，不能混入本批 |
 | IM/通知 | notify 16 操作，REST 充分 | H5 页面仍是 Mock | C/P3：等待订单读链路和 WebSocket 环境复核 |
 
+### 结算迁移状态（2026-08-14）
+
+| 能力 | 当前 Swagger | H5 现状 | 验证状态 |
+|---|---|---|---|
+| 真实地址与可用余额 | `GET /user/addresses/list`、`GET /user/wallet/overview` | 结算页已调用真实接口 | Chrome 手机视图已回显非空地址与可用余额 |
+| 合并下单 | `POST /order/orders/create-batch`，`addressId/items` 必填、支持幂等键 | 已调用真实 adapter；保存幂等键、订单组号与订单 ID，重试不重复建单 | A：H5 专用真实商品已创建订单组并回读 `PAID` 订单 |
+| 订单组付款 | `POST /order/orders/group/pay`，`orderGroupNo` 必填 | 已调用真实 adapter；仅在成功创建同组订单后执行 | A：H5 专用订单已付款，成功页与详情回读通过；失败重试分支待专门压测 |
+| Mock 购物车保护 | 无需 Swagger | 混入 Mock 商品时阻止进入真实结算；错误不回退 Mock | A：逻辑与 Chrome 页面前置回显已验证 |
+
 - 2026-08-14 原始快照位于 `docs/swagger-baselines/2026-08-14/`，相较 2026-08-10 的递归差异已实际复核，覆盖路径、方法、参数、required、requestBody、response 与嵌套 schema。
 - Long ID 全程保留 `string | number` 原值。后端 `PAID` 不拆分为 H5 旧模型中的“采购中/已采购”，`COMPLETED` 不拆为“完成/保修/归档”；页面仅显示 adapter 可证明的状态。
 - 2026-08-14 跨账号写回归：专用订单 ID `2088059205303492610`（订单号 `2088059205177663488`）由 PC 买手账号发货为 `SHIPPED`，再由 H5 顾客账号调用 `POST /order/orders/confirm` 确认，详情回读为 `COMPLETED`。另以 Swagger `POST /orders/create-batch` 创建专用未付款订单 ID `2088061302560350209`（订单号 `2088061302539378688`），H5 先显示 `CREATED/待付款`，点击取消后回读 `CANCELED/已取消`；辅助建单只用于验证，未将结算页面迁移纳入本批。
+- 订单概况没有独立统计契约；H5 以 `bought/page` 或 `sold/page` 按 7 个原始状态请求 `pageSize: 1` 并使用 `total` 汇总。2026-08-14 已在 Chrome 手机视图验证该概况与真实顾客订单状态一致；不再调用 Mock `orderApi.countMyOrdersByStatus`。
 
 ## 2026-08-10 实时漂移复核与 P1 回归门禁
 

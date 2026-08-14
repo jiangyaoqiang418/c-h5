@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { formatAmount, formatPoints, orderApi } from '@shared';
+import { computed, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { formatAmount, formatPoints } from '@shared';
 import { go } from '@/utils/navigate';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import VipBadge from '@/components/common/vip-badge.vue';
 import KycStatusTag from '@/components/common/kyc-status-tag.vue';
 import { fetchPointAccount, type PointAccount } from '@/service/api/point';
+import { countBoughtOrdersByStatus, countSoldOrdersByStatus } from '@/service/api/order';
 import { useUserStore, useWalletStore } from '@/stores';
 
 const userStore = useUserStore();
@@ -31,10 +33,9 @@ async function loadAll() {
   await userStore.init();
   if (!user.value) return;
   try {
-    const uid = user.value.id;
     const [, counts, account] = await Promise.all([
       walletStore.fetchWallet(),
-      orderApi.countMyOrdersByStatus(uid),
+      userStore.isBuyerActive ? countSoldOrdersByStatus() : countBoughtOrdersByStatus(),
       fetchPointAccount()
     ]);
     orderCounts.value = counts;
@@ -43,14 +44,14 @@ async function loadAll() {
     uni.showToast({ title: error instanceof Error ? error.message : '账户数据加载失败', icon: 'none' });
   }
 }
-onMounted(loadAll);
+onShow(loadAll);
 
 const orderTabs = computed(() => [
-  { label: '待付款', count: orderCounts.value['PENDING_PAYMENT'] || 0 },
-  { label: '待发货', count: (orderCounts.value['PROCURING'] || 0) + (orderCounts.value['PROCURED'] || 0) },
-  { label: '待收货', count: (orderCounts.value['IN_TRANSIT'] || 0) + (orderCounts.value['AFTERSALE_CONFIRM'] || 0) },
-  { label: '已完成', count: (orderCounts.value['COMPLETED'] || 0) + (orderCounts.value['WARRANTY'] || 0) },
-  { label: '售后', count: orderCounts.value['IN_AFTERSALE'] || 0 }
+  { label: '待付款', count: orderCounts.value.CREATED || 0 },
+  { label: '待发货', count: orderCounts.value.PAID || 0 },
+  { label: '待收货', count: orderCounts.value.SHIPPED || 0 },
+  { label: '已完成', count: orderCounts.value.COMPLETED || 0 },
+  { label: '售后', count: (orderCounts.value.REFUND_REVIEW || 0) + (orderCounts.value.REFUNDED || 0) }
 ]);
 
 const cells = computed(() => {
@@ -224,7 +225,6 @@ function goAiChat() {
 .my-page {
   min-height: 100%;
   background: #FAFAF7;
-  padding-bottom: 160rpx;
 }
 .user-card {
   background: linear-gradient(135deg, #4d80f0 0%, #722ed1 100%);

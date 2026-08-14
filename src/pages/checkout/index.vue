@@ -1,25 +1,59 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { addressApi, orderApi, walletApi } from '@shared';
-import type { AddressRecord } from '@shared/api/address';
+import { computed, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { formatAmount } from '@/utils/format-bridge';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import { go, reLaunch } from '@/utils/navigate';
-import { useCartStore, useUserStore } from '@/stores';
+import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
+import { createBatchOrder, payRealOrderGroup } from '@/service/api/order';
+import { useCartStore, useUserStore, useWalletStore } from '@/stores';
+import { storage } from '@/utils/storage';
 
 const userStore = useUserStore();
 const cart = useCartStore();
+const walletStore = useWalletStore();
 
 const addresses = ref<AddressRecord[]>([]);
-const selectedAddrId = ref<number>();
-const wallet = ref<Api.User.WalletSummary>();
+const selectedAddrId = ref<Api.RealAddress.LongId>();
 const agreed = ref(false);
 const submitting = ref(false);
 
 const items = computed(() => cart.selectedItems);
+const hasMockItems = computed(() => items.value.some(item => item.source !== 'real'));
+const hasOnlyRealItems = computed(() => items.value.length > 0 && !hasMockItems.value);
 
-onMounted(async () => {
+interface PendingCheckout {
+  fingerprint: string;
+  idempotencyKey: string;
+  orderGroupNo?: string;
+  orderIds?: Api.RealOrder.LongId[];
+}
+
+const pendingKey = 'bw_h5_real_checkout_pending_v1';
+
+function checkoutFingerprint() {
+  return [
+    String(userStore.realUserId || ''),
+    String(selectedAddrId.value || ''),
+    ...items.value.map(item => `${item.key}:${item.qty}`).sort()
+  ].join('|');
+}
+
+function createIdempotencyKey() {
+  return `h5-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function readPending(fingerprint: string): PendingCheckout {
+  const pending = storage.get<PendingCheckout | undefined>(pendingKey);
+  if (pending?.fingerprint === fingerprint && pending.idempotencyKey) return pending;
+  const next = { fingerprint, idempotencyKey: createIdempotencyKey() };
+  storage.set(pendingKey, next);
+  return next;
+}
+
+async function loadCheckout() {
+  await userStore.init();
   if (!userStore.currentUser) {
     go('/pages/auth/login?redirect=' + encodeURIComponent('/pages/checkout/index'));
     return;
@@ -29,16 +63,17 @@ onMounted(async () => {
     setTimeout(() => uni.navigateBack(), 800);
     return;
   }
-  addresses.value = await addressApi.fetchMyAddresses(userStore.currentUser.id);
+  addresses.value = await fetchMyAddresses();
   if (addresses.value.length) {
     const def = addresses.value.find(a => a.isDefault) || addresses.value[0];
     selectedAddrId.value = def.id;
   }
-  wallet.value = await walletApi.fetchMyWallet(userStore.currentUser.id);
-});
+  await walletStore.fetchWallet();
+}
+onShow(loadCheckout);
 
 const selectedAddr = computed(() => addresses.value.find(a => a.id === selectedAddrId.value));
-const available = computed(() => Number(wallet.value?.available || 0));
+const available = computed(() => Number(walletStore.summary?.available || 0));
 const balanceEnough = computed(() => available.value >= Number(cart.grandTotal));
 
 async function submit() {
@@ -48,6 +83,10 @@ async function submit() {
   }
   if (!selectedAddr.value) {
     uni.showToast({ title: '请选择收货地址', icon: 'none' });
+    return;
+  }
+  if (!hasOnlyRealItems.value) {
+    uni.showToast({ title: '请仅选择真实商品后结算', icon: 'none' });
     return;
   }
   if (!balanceEnough.value) {
@@ -60,40 +99,31 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    const userId = userStore.currentUser!.id;
-    const addr = selectedAddr.value;
-    let firstId: number | undefined;
-    for (const item of items.value) {
-      if (
-        !item.product
-        || item.source !== 'mock'
-        || typeof item.productId !== 'number'
-        || typeof item.product.sellerId !== 'number'
-      ) continue;
-      const order = await orderApi.createOrderMock({
-        customerId: userId,
-        productId: item.productId,
-        shopperId: item.product.sellerId,
-        productTitle: item.product.title,
-        productCover: item.product.cover,
-        price: (Number(item.product.price) * item.qty).toFixed(2),
-        shippingFee: String(item.product.shippingFee),
-        tax: String(item.product.tax),
-        receiverName: addr.receiverName,
-        receiverPhone: addr.receiverPhone,
-        shippingAddress: `${addr.province}${addr.city}${addr.district}${addr.detail}`,
-        aftersaleType: item.product.aftersaleType
+    const fingerprint = checkoutFingerprint();
+    const pending = readPending(fingerprint);
+    if (!pending.orderGroupNo) {
+      const group = await createBatchOrder({
+        addressId: selectedAddr.value.id,
+        items: items.value.map(item => ({ productId: item.productId, quantity: item.qty })),
+        idempotencyKey: pending.idempotencyKey
       });
-      const pr = await orderApi.payOrderMock(order.id);
-      if (!pr.ok) {
-        uni.showToast({ title: pr.message || '支付失败', icon: 'none' });
-        return;
-      }
-      if (firstId == null) firstId = order.id;
-      cart.remove(item.key);
+      pending.orderGroupNo = group.orderGroupNo;
+      pending.orderIds = group.orderIds;
+      storage.set(pendingKey, pending);
     }
+
+    await payRealOrderGroup({ orderGroupNo: pending.orderGroupNo });
+    items.value.forEach(item => cart.remove(item.key));
+    storage.remove(pendingKey);
+    await walletStore.refetch();
     uni.showToast({ title: '支付成功', icon: 'success' });
-    if (firstId) reLaunch(`/pages/checkout/success?orderId=${firstId}`);
+    const firstId = pending.orderIds?.[0];
+    if (firstId !== undefined) reLaunch(`/pages/checkout/success?orderId=${encodeURIComponent(String(firstId))}`);
+  } catch (error) {
+    uni.showToast({
+      title: error instanceof Error ? error.message : '订单提交失败，请稍后重试',
+      icon: 'none'
+    });
   } finally {
     submitting.value = false;
   }
@@ -168,7 +198,7 @@ async function submit() {
     <view class="block">
       <text class="block-title">4. 支付方式</text>
       <view class="pay-row">
-        <text>钱包余额：U {{ formatAmount(available.toFixed(2)) }}</text>
+        <text>钱包可用余额：U {{ formatAmount(available.toFixed(2)) }}</text>
         <text v-if="!balanceEnough" class="insufficient">· 余额不足</text>
       </view>
     </view>
@@ -187,7 +217,7 @@ async function submit() {
         <text class="total-val">{{ formatUsdt(cart.grandTotal) }}</text>
         <text class="total-usdt">≈ {{ formatCny(cart.grandTotal) }}</text>
       </view>
-      <wd-button type="primary" size="large" :loading="submitting" :disabled="!agreed" @click="submit">提交订单</wd-button>
+      <wd-button type="primary" size="large" :loading="submitting" :disabled="!agreed || !hasOnlyRealItems" @click="submit">提交订单</wd-button>
     </view>
   </view>
 </template>

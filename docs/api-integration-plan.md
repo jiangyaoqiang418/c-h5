@@ -11,6 +11,20 @@
 - 本批仅迁移买入订单列表、详情、取消和确认收货：使用 `POST /orders/bought/page`、`GET /orders/detail`、`POST /orders/cancel`、`POST /orders/confirm`。状态以原始 7 状态为准，通过 adapter 映射为现有展示状态：`CREATED→PENDING_PAYMENT`、`PAID→PROCURING`、`SHIPPED→IN_TRANSIT`、`REFUND_REVIEW→IN_AFTERSALE`、`REFUNDED→REFUNDED`、`COMPLETED→COMPLETED`、`CANCELED→CANCELLED`；不伪造“已采购、保修、归档”等后端未声明状态。
 - 真实写入验证须使用管理后台准备的非自购商品、有效地址与测试账号；取消和确认收货仅对专用 QA 订单执行。2026-08-14 已以专用订单 `2088059205303492610` 完成跨账号证据：PC 买手发货后状态为 `SHIPPED`，H5 顾客订单详情调用确认收货后回读为 `COMPLETED`，订单号 `2088059205177663488`、Long ID、地址、金额和状态时间线均正确回显。同日通过 Swagger 的 `create-batch` 创建了未付款专用订单 `2088061302560350209`，H5 列表先回显 `CREATED/待付款`，再通过页面取消回读为 `CANCELED/已取消`；仅该辅助建单使用了真实接口直调，未新增 H5 结算页面迁移。结算、订单组支付、买手发货、仅退款、IM/通知均不在本批页面迁移范围。
 
+### 2026-08-14 P1 H5 主视图回归
+
+- Chrome 375×667 回归确认：UniApp H5 的 `uni-page-wrapper` 已扣除原生导航栏与 tabBar；全局页面根节点不得再次按 `100vh` 计算。已将 `h5-tab-page` 改为直接占用宿主容器高度，首页、分类、我的页的可视内容均落在导航栏与 tabBar 之间。
+- 已移除首页、分类大厅、我的页不必要的通用底部预留；仅购物车在有商品时为结算栏预留高度。购物车结算栏在 H5 固定到 50px tabBar 上方，实测列表内容、全选、金额和结算按钮不再被 tabBar 覆盖；空购物车不再保留结算栏空白。
+- “我的”订单概况已由 Mock 计数切换为真实买入/卖出订单状态分页总数，且随当前顾客/买手身份切换。实测顾客账号显示真实 `COMPLETED` 与退款状态计数，不能再用 Mock 的全 0 数据误导用户。
+- 本项仅完成 Chrome 移动 H5 证据；Android/iOS 真机的分类左右独立滚动、软键盘、安全区与固定栏回归仍待用户提供设备环境后执行。
+
+### 2026-08-14 真实结算迁移门禁与实施状态
+
+- 已按最新 Swagger 复核：`POST /order/orders/create-batch` 必填 `addressId/items`、最多 20 项并支持 `idempotencyKey`；返回 `orderGroupNo/orderIds/totalAmount`。`POST /order/orders/group/pay` 必填 `orderGroupNo`，按同组全部待付款订单付款。两者均无契约差异。
+- H5 结算页已改为真实地址、真实钱包可用余额、真实商品快照与真实订单组接口；下单上下文以本地跨端存储保存幂等键和订单组号。创建成功但付款失败时保留上下文，重试只继续同一订单组付款，禁止重复建单。
+- 当前仅允许全部为 `source: real` 的选中购物车项进入结算；选中 Mock 商品时明确阻止，真实请求失败不回退 Mock。真实成功页已读取真实订单详情并保留 Long ID 字符串。
+- Chrome 375×667 已验证真实地址、真实商品和钱包余额的页面回显与固定提交栏。2026-08-14 已使用专用真实商品在 H5 发起 `create-batch → group/pay`，成功页返回订单 ID `2088066112240050177`、订单号 `2088066112227467264`，详情回读为 `PAID/采购中`，金额、地址、Long ID 与付款时间均正确。付款失败后的幂等重试逻辑已实现，但尚未故意制造失败场景，不能将该分支标为已验证。
+
 ### 2026-08-10 Swagger 漂移、P1 回归与执行顺序
 
 - 已保存 `docs/swagger-baselines/2026-08-10/` 原始 OpenAPI 快照，并将 `pnpm swagger:check` 默认比较目标切换至该基线。检查仍递归覆盖路径、方法、参数、required、requestBody、response 和嵌套 schema；当分组从不可用变为可用时，输出“服务状态变化”，不再把整份 OpenAPI 当作普通字段变更打印。

@@ -37,16 +37,15 @@ page > .login-page {
 /* #endif */
 
 /*
- * 顶部导航和 tabBar 都是 UniApp 的窗口层，不属于任何页面内容。
- * 五个一级页本身作为滚动容器，始终只占两者之间的区域；这一规则同时适用于
- * 移动 H5 与 App，避免 App 端页面滚动到原生导航栏或 tabBar 下方。
+ * 顶部导航和 tabBar 都由 UniApp 的 `uni-page-wrapper` 先行扣除。
+ * 页面根节点必须直接占用该容器，不得再次按 100vh 计算，否则 H5 会溢出到
+ * tabBar 下方，App 也会在主视图底部留下空白。
  */
 .h5-tab-page {
-  height: calc(100vh - var(--window-top) - var(--window-bottom)) !important;
+  height: 100% !important;
   min-height: 0 !important;
   overflow-y: auto;
   box-sizing: border-box;
-  padding-bottom: 0 !important;
 }
 
 /* #ifdef H5 */
@@ -54,27 +53,10 @@ uni-page-head {
   box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.1);
 }
 
-uni-page-head ~ uni-page-wrapper > uni-page-body > * {
-  min-height: calc(100vh - var(--window-top)) !important;
+uni-page-wrapper > uni-page-body {
+  height: 100%;
+  min-height: 0 !important;
   box-sizing: border-box;
-}
-uni-page-head ~ uni-page-wrapper > uni-page-body > .chat-page,
-uni-page-head ~ uni-page-wrapper > uni-page-body > .im-page {
-  height: calc(100vh - var(--window-top)) !important;
-}
-
-/* 移动浏览器地址栏伸缩时优先使用动态视口高度，旧浏览器继续使用上方 100vh。 */
-@supports (height: 100dvh) {
-  uni-page-head ~ uni-page-wrapper > uni-page-body > * {
-    min-height: calc(100dvh - var(--window-top)) !important;
-  }
-  uni-page-head ~ uni-page-wrapper > uni-page-body > .chat-page,
-  uni-page-head ~ uni-page-wrapper > uni-page-body > .im-page {
-    height: calc(100dvh - var(--window-top)) !important;
-  }
-  uni-page-head ~ uni-page-wrapper > uni-page-body > .h5-tab-page {
-    height: calc(100dvh - var(--window-top) - var(--window-bottom)) !important;
-  }
 }
 
 /* H5 隐藏滚动条美化 */
@@ -84,11 +66,4 @@ uni-page-head ~ uni-page-wrapper > uni-page-body > .im-page {
 
 /* #endif */
 
-/* #ifdef H5 */
-@supports (height: 100dvh) {
-  .h5-tab-page {
-    height: calc(100dvh - var(--window-top) - var(--window-bottom)) !important;
-  }
-}
-/* #endif */
 </style>

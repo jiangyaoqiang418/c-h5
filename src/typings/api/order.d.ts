@@ -118,6 +118,10 @@ declare namespace Api {
       totalAmount?: string | number;
     }
 
+    interface OrderGroupPayParams {
+      orderGroupNo: string;
+    }
+
     interface OrderCancelParams {
       id: LongId;
       reason: string;
