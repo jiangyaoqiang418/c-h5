@@ -86,12 +86,12 @@ function goDetail() {
         写评价
       </wd-button>
       <wd-button
-        v-if="!props.sellerMode && ['COMPLETED', 'WARRANTY'].includes(order.status)"
+        v-if="!props.sellerMode && ['PAID', 'SHIPPED'].includes(order.rawStatus)"
         plain
         size="small"
         @click="$emit('aftersale', order)"
       >
-        申请售后
+        申请仅退款
       </wd-button>
     </view>
   </view>

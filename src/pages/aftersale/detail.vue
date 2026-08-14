@@ -1,86 +1,84 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { aftersaleApi, enums, orderApi } from '@shared';
-import { formatAmount } from '@/utils/format-bridge';
+import { cancelRealRefund, fetchRealRefundDetail } from '@/service/api/order';
+import { formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
-const caseRec = ref<Api.Order.AftersaleCase>();
-const order = ref<Api.Order.OrderRecord>();
-const id = ref<number>();
-
-onLoad(async query => {
-  id.value = Number(query?.id);
-  if (id.value) await reload();
-});
+const userStore = useUserStore();
+const refund = ref<Api.RealOrder.OrderRefundDTO>();
+const refundId = ref<Api.RealOrder.LongId>();
+const statusLabel: Record<Api.RealOrder.RefundStatus, string> = {
+  APPLYING: '待审核', AGREED: '已同意', REJECTED: '已驳回', CANCELED: '已撤销'
+};
+const status = computed(() => refund.value ? (refund.value.statusText || statusLabel[refund.value.status]) : '');
 
 async function reload() {
-  if (!id.value) return;
-  const r = await aftersaleApi.fetchAftersaleDetail(id.value);
-  caseRec.value = r;
-  if (r) order.value = await orderApi.fetchOrderDetail(r.orderId);
+  if (refundId.value === undefined) return;
+  refund.value = await fetchRealRefundDetail(refundId.value);
 }
 
-const statusMeta = computed(() => caseRec.value ? enums.AFTERSALE_STATUS_META[caseRec.value.status] : undefined);
-const caseTypeMeta = computed(() => caseRec.value ? enums.AFTERSALE_CASE_TYPE_META[caseRec.value.caseType] : undefined);
+onLoad(async query => {
+  const id = query?.id;
+  if (typeof id === 'string' && id) {
+    refundId.value = id;
+    await reload();
+  }
+});
 
-function openGroup() {
-  if (!order.value) return;
-  go(`/pages/im/order-group?orderCode=${order.value.code}`);
+function cancel() {
+  if (!refund.value) return;
+  uni.showModal({
+    title: '撤销仅退款申请？',
+    success: async result => {
+      if (!result.confirm || !refund.value) return;
+      await cancelRealRefund(refund.value.refundId);
+      uni.showToast({ title: '申请已撤销', icon: 'success' });
+      await reload();
+    }
+  });
 }
 </script>
 
 <template>
-  <view v-if="caseRec" class="as-detail">
+  <view v-if="refund" class="as-detail">
     <view class="hero">
-      <wd-tag v-if="statusMeta" plain size="medium">{{ statusMeta.label }}</wd-tag>
-      <text class="code">{{ caseRec.code }}</text>
-      <text class="type">{{ caseTypeMeta?.label }}</text>
+      <text class="status">{{ status }}</text>
+      <text class="type">仅退款</text>
+      <text class="code">退款单号 {{ refund.refundBizNo || refund.refundId }}</text>
     </view>
 
     <view class="section">
-      <text class="section-title">顾客诉求</text>
-      <text class="appeal">{{ caseRec.appeal }}</text>
-      <view v-if="caseRec.evidenceUrls?.length" class="evidence">
-        <image v-for="u in caseRec.evidenceUrls" :key="u" :src="u" mode="aspectFill" class="ev-img" />
-      </view>
+      <text class="section-title">退款信息</text>
+      <view class="row"><text>关联订单</text><text class="mono">{{ refund.orderNo || refund.orderId }}</text></view>
+      <view class="row"><text>退款金额</text><text class="amount">{{ formatUsdt(refund.amount || 0) }}</text></view>
+      <view class="row"><text>退款原因</text><text class="value">{{ refund.reason || '未填写' }}</text></view>
     </view>
 
-    <view v-if="caseRec.refundAmount" class="section">
-      <text class="section-title">退款金额</text>
-      <text class="amount">U {{ formatAmount(caseRec.refundAmount) }}</text>
+    <view v-if="refund.evidenceImages?.length" class="section">
+      <text class="section-title">凭证图片</text>
+      <view class="evidence"><image v-for="url in refund.evidenceImages" :key="url" :src="url" mode="aspectFill" class="ev-img" /></view>
     </view>
 
-    <view v-if="caseRec.verdict" class="section">
-      <text class="section-title">仲裁结果</text>
-      <text class="appeal">{{ caseRec.verdict }} {{ caseRec.verdictNote ? ' · ' + caseRec.verdictNote : '' }}</text>
+    <view v-if="refund.reviewRemark" class="section">
+      <text class="section-title">审核说明</text>
+      <text class="value">{{ refund.reviewRemark }}</text>
     </view>
 
-    <view v-if="caseRec.shopperResponse" class="section">
-      <text class="section-title">买手响应</text>
-      <text class="appeal">{{ caseRec.shopperResponse === 'agreed' ? '已同意' : '已拒绝' }}{{ caseRec.shopperResponseNote ? ' · ' + caseRec.shopperResponseNote : '' }}</text>
-    </view>
-
-    <view class="section">
-      <text class="section-title">操作</text>
-      <wd-button block @click="openGroup">打开三方群</wd-button>
-      <wd-button block plain class="mt" @click="go(`/pages/order/detail?id=${caseRec.orderId}`)">查看关联订单</wd-button>
+    <view class="section actions">
+      <wd-button block plain @click="go(`/pages/order/detail?id=${refund.orderId}`)">查看关联订单</wd-button>
+      <wd-button v-if="!userStore.isBuyerActive && refund.status === 'APPLYING'" block plain type="warning" class="mt" @click="cancel">撤销申请</wd-button>
     </view>
   </view>
-  <EmptyState v-else title="售后不存在" />
+  <EmptyState v-else title="仅退款记录不存在" />
 </template>
 
 <style lang="scss" scoped>
 .as-detail { min-height: 100%; background: #f7f8fa; }
-.hero { background: #fff; padding: 32rpx; }
-.code { display: block; font-family: ui-monospace, monospace; font-size: 22rpx; color: #86909c; margin: 12rpx 0; }
-.type { display: block; font-size: 30rpx; font-weight: 700; }
-.section { background: #fff; margin-top: 16rpx; padding: 24rpx 32rpx; }
-.section-title { display: block; font-size: 26rpx; font-weight: 600; margin-bottom: 16rpx; }
-.appeal { font-size: 24rpx; color: #4e5969; line-height: 1.6; }
-.amount { font-size: 40rpx; font-weight: 700; color: #f53f3f; font-family: ui-monospace, monospace; }
-.evidence { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
-.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }
-.mt { margin-top: 12rpx; }
+.hero, .section { background: #fff; padding: 24rpx 32rpx; }.section { margin-top: 16rpx; }
+.status { display: block; color: #ff7d00; font-size: 36rpx; font-weight: 700; }.type { display: block; margin-top: 8rpx; color: #1d2129; font-size: 28rpx; }.code { display: block; margin-top: 12rpx; color: #86909c; font-family: ui-monospace, monospace; font-size: 22rpx; }
+.section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: #86909c; font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: #f53f3f; font-family: ui-monospace, monospace; font-size: 28rpx; font-weight: 700; }
+.evidence { display: flex; flex-wrap: wrap; gap: 12rpx; }.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }.actions { padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); }.mt { margin-top: 12rpx; }
 </style>

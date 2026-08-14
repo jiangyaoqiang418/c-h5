@@ -26,6 +26,13 @@
 - Chrome 375×667 已验证真实地址、真实商品和钱包余额的页面回显与固定提交栏。2026-08-14 已使用专用真实商品在 H5 发起 `create-batch → group/pay`，成功页返回订单 ID `2088066112240050177`、订单号 `2088066112227467264`，详情回读为 `PAID/采购中`，金额、地址、Long ID 与付款时间均正确。付款失败后的幂等重试逻辑已实现，但尚未故意制造失败场景，不能将该分支标为已验证。
 - 同一专用订单已继续完成 H5 买手发货与 H5 顾客确认收货：买手填写物流公司、编码与运单号后回读 `SHIPPED/运输中`，顾客详情确认后回读 `COMPLETED/已完成`。发货时间为 `2026-08-14 08:56:24`，完成时间为 `08:56:55`；上传凭证和物流轨迹仍不在本批范围。
 
+### 2026-08-14 真实仅退款页面迁移
+
+- 已按最新 order Swagger 的完整契约实现 `POST /orders/refunds/create`、`bought/page`、`sold/page`、`GET /orders/refunds/detail?id` 与 `POST /orders/refunds/cancel` 的类型和 adapter；退款与订单 ID 均以 `string | number` 透传，页面层不转换 Long ID。
+- 原五类 Mock 售后工单已收敛为“仅退款”：顾客只可从真实 `PAID` 或 `SHIPPED` 订单进入申请页，创建请求仅发送 Swagger 定义的 `orderId/reason/evidenceImages`；买入/卖出列表随当前身份切换真实分页，详情展示服务端退款状态、金额、原因、审核说明和凭证图片。
+- 撤销入口只对顾客且状态为 `APPLYING` 显示；买手仅查看顾客的退款单。本次不伪造买手同意/驳回入口、部分退款、多退款类型、仲裁、聊天或上传能力，因为当前 C 端 Swagger 未提供对应完整契约。
+- 已完成 TypeScript、H5、App-Vue 构建以及实时 Swagger 递归检查；尚未对退款创建/撤销发起真实写入。后续回归必须使用独立的 `PAID` 或 `SHIPPED` QA 订单，验证创建后订单进入 `REFUND_REVIEW`、双方分页与详情回读，以及顾客撤销后的状态恢复。
+
 ### 2026-08-10 Swagger 漂移、P1 回归与执行顺序
 
 - 已保存 `docs/swagger-baselines/2026-08-10/` 原始 OpenAPI 快照，并将 `pnpm swagger:check` 默认比较目标切换至该基线。检查仍递归覆盖路径、方法、参数、required、requestBody、response 和嵌套 schema；当分组从不可用变为可用时，输出“服务状态变化”，不再把整份 OpenAPI 当作普通字段变更打印。

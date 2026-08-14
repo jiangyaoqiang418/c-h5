@@ -5,6 +5,7 @@ import { fetchBoughtOrders, fetchSoldOrders, cancelRealOrder, confirmRealOrder, 
 import OrderCard from '@/components/order/order-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { go } from '@/utils/navigate';
 
 const userStore = useUserStore();
 
@@ -82,7 +83,7 @@ function review(o: Api.RealOrder.OrderView) {
 }
 
 function aftersale(o: Api.RealOrder.OrderView) {
-  uni.showToast({ title: '售后将在后续接口批次迁移', icon: 'none' });
+  go(`/pages/aftersale/create?orderId=${o.id}`);
 }
 
 function openShipping(o: Api.RealOrder.OrderView) {
