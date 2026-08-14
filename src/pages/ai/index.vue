@@ -124,7 +124,9 @@ function inducePurchaseFrom(text: string) {
 .chat-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* 宿主已扣除原生导航栏；100vh 会使输入栏在 H5/App 向下溢出。 */
+  height: 100%;
+  min-height: 0;
   background: #FAFAF7;
 }
 .msg-scroll {

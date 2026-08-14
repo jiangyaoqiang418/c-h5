@@ -115,7 +115,10 @@ function getSenderName(msg: Api.Im.Message): string {
 .im-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* 页面高度以 UniApp 的导航栏裁剪后宿主为准。 */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: #f7f8fa;
 }
 .header {
@@ -134,6 +137,7 @@ function getSenderName(msg: Api.Im.Message): string {
 }
 .messages {
   flex: 1;
+  min-height: 0;
   padding: 16rpx;
 }
 .empty-msg {
