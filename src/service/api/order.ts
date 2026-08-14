@@ -146,6 +146,26 @@ export function shipRealOrder(params: Api.RealOrder.OrderShipParams): Promise<Ap
   });
 }
 
+export function createRealRefund(params: Api.RealOrder.OrderRefundApplyParams): Promise<Api.RealOrder.LongId> {
+  return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.OrderRefundApplyParams>({ url: '/orders/refunds/create', method: 'POST', data: params });
+}
+
+export function cancelRealRefund(refundId: Api.RealOrder.LongId): Promise<Api.RealOrder.LongId> {
+  return realOrderRequest<Api.RealOrder.LongId, { refundId: Api.RealOrder.LongId }>({ url: '/orders/refunds/cancel', method: 'POST', data: { refundId } });
+}
+
+export function fetchBoughtRefunds(query: Api.RealOrder.OrderRefundPageQuery = {}) {
+  return realOrderRequest<Api.RealOrder.OrderRefundPage, Api.RealOrder.OrderRefundPageQuery>({ url: '/orders/refunds/bought/page', method: 'POST', data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 20, orderNo: query.orderNo, status: query.status } });
+}
+
+export function fetchSoldRefunds(query: Api.RealOrder.OrderRefundPageQuery = {}) {
+  return realOrderRequest<Api.RealOrder.OrderRefundPage, Api.RealOrder.OrderRefundPageQuery>({ url: '/orders/refunds/sold/page', method: 'POST', data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 20, orderNo: query.orderNo, status: query.status } });
+}
+
+export function fetchRealRefundDetail(id: Api.RealOrder.LongId) {
+  return realOrderRequest<Api.RealOrder.OrderRefundDTO>({ url: '/orders/refunds/detail', params: { id } });
+}
+
 export function cancelRealOrder(params: Api.RealOrder.OrderCancelParams): Promise<Api.RealOrder.LongId> {
   return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.OrderCancelParams>({
     url: '/orders/cancel',

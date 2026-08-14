@@ -3,7 +3,7 @@ declare namespace Api {
     type LongId = string | number;
     type OrderType = 'DIRECT_PURCHASE' | 'PROXY_PURCHASE' | 'DEMAND_FULFILL';
     type OrderStatus = 'CREATED' | 'PAID' | 'SHIPPED' | 'REFUND_REVIEW' | 'REFUNDED' | 'COMPLETED' | 'CANCELED';
-    type RefundStatus = 'APPLYING' | 'AGREED' | 'REJECTED';
+    type RefundStatus = 'APPLYING' | 'AGREED' | 'REJECTED' | 'CANCELED';
 
     interface OrderPageQuery {
       pageNo?: number;
@@ -129,6 +129,48 @@ declare namespace Api {
       trackingNo: string;
       shipVouchers?: string[];
       remark?: string;
+    }
+
+    interface OrderRefundApplyParams {
+      orderId: LongId;
+      reason: string;
+      evidenceImages?: string[];
+    }
+
+    interface OrderRefundPageQuery {
+      pageNo?: number;
+      pageSize?: number;
+      orderNo?: string;
+      status?: RefundStatus;
+    }
+
+    interface OrderRefundDTO {
+      refundId: LongId;
+      orderId: LongId;
+      orderNo?: string;
+      orderStatus?: OrderStatus;
+      buyerName?: string;
+      sellerName?: string;
+      productTitle?: string;
+      productImage?: string;
+      amount?: string | number;
+      reason?: string;
+      evidenceImages?: string[];
+      status: RefundStatus;
+      statusText?: string;
+      orderStatusBefore?: OrderStatus;
+      reviewRemark?: string;
+      refundBizNo?: string;
+      appliedAt?: string | number;
+      reviewedAt?: string | number;
+      canceledAt?: string | number;
+    }
+
+    interface OrderRefundPage {
+      pageNo?: number;
+      pageSize?: number;
+      total: number;
+      records: OrderRefundDTO[];
     }
 
     interface OrderCancelParams {
