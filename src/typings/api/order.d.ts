@@ -68,6 +68,37 @@ declare namespace Api {
       records: OrderDTO[];
     }
 
+    /**
+     * 订单接口 DTO 转换后的页面展示模型。
+     *
+     * `id` 始终保留服务端的 Long 原值，不允许在页面层转成 number；
+     * `status` 仅用于复用当前 C 端状态标签，`rawStatus` 保留后端真实状态。
+     */
+    interface OrderView {
+      id: LongId;
+      code: string;
+      rawStatus: OrderStatus;
+      status: Api.Order.OrderStatus;
+      productId?: LongId;
+      productTitle: string;
+      productCover?: string;
+      counterpartLabel: '买手' | '顾客';
+      counterpartName: string;
+      price: string | number;
+      shippingFee: string | number;
+      tax: string | number;
+      totalAmount: string | number;
+      shippingAddress: string;
+      receiverName: string;
+      receiverPhone: string;
+      createdAt?: string | number;
+      paidAt?: string | number;
+      shippedAt?: string | number;
+      completedAt?: string | number;
+      canceledAt?: string | number;
+      cancelReason?: string;
+    }
+
     interface OrderCreateItemParams {
       productId: LongId;
       quantity?: number;

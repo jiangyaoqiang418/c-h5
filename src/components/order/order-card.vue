@@ -5,15 +5,15 @@ import { go } from '@/utils/navigate';
 import OrderStatusTag from './order-status-tag.vue';
 
 interface Props {
-  order: Api.Order.OrderRecord;
+  order: Api.RealOrder.OrderView;
 }
 const props = defineProps<Props>();
 defineEmits<{
-  (e: 'pay', o: Api.Order.OrderRecord): void;
-  (e: 'cancel', o: Api.Order.OrderRecord): void;
-  (e: 'confirm', o: Api.Order.OrderRecord): void;
-  (e: 'review', o: Api.Order.OrderRecord): void;
-  (e: 'aftersale', o: Api.Order.OrderRecord): void;
+  (e: 'pay', o: Api.RealOrder.OrderView): void;
+  (e: 'cancel', o: Api.RealOrder.OrderView): void;
+  (e: 'confirm', o: Api.RealOrder.OrderView): void;
+  (e: 'review', o: Api.RealOrder.OrderView): void;
+  (e: 'aftersale', o: Api.RealOrder.OrderView): void;
 }>();
 
 const cover = computed(
@@ -35,7 +35,7 @@ function goDetail() {
       <image :src="cover" mode="aspectFill" class="cover" />
       <view class="info">
         <text class="title">{{ order.productTitle }}</text>
-        <text class="seller">买手 · {{ order.shopperName }}</text>
+        <text class="seller">{{ order.counterpartLabel }} · {{ order.counterpartName }}</text>
       </view>
       <view class="amount">
         <text class="amount-cny">{{ formatUsdt(order.totalAmount) }}</text>

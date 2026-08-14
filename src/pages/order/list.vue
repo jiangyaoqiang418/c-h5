@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app';
-import { orderApi } from '@shared';
+import { fetchBoughtOrders, fetchSoldOrders, cancelRealOrder, confirmRealOrder } from '@/service/api/order';
 import OrderCard from '@/components/order/order-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
-import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
@@ -12,32 +11,26 @@ const userStore = useUserStore();
 interface TabDef {
   key: string;
   label: string;
-  statuses?: Api.Order.OrderStatus[];
+  status?: Api.RealOrder.OrderStatus;
 }
 const TABS: TabDef[] = [
   { key: 'all', label: '全部' },
-  { key: 'pending', label: '待付款', statuses: ['PENDING_PAYMENT'] },
-  { key: 'ship', label: '待发货', statuses: ['PROCURING', 'PROCURED'] },
-  { key: 'transit', label: '待收货', statuses: ['IN_TRANSIT', 'AFTERSALE_CONFIRM'] },
-  { key: 'done', label: '已完成', statuses: ['COMPLETED', 'WARRANTY'] }
+  { key: 'pending', label: '待付款', status: 'CREATED' },
+  { key: 'ship', label: '待发货', status: 'PAID' },
+  { key: 'transit', label: '待收货', status: 'SHIPPED' },
+  { key: 'done', label: '已完成', status: 'COMPLETED' }
 ];
 
 const activeKey = ref('all');
-const orders = ref<Api.Order.OrderRecord[]>([]);
+const orders = ref<Api.RealOrder.OrderView[]>([]);
 const loading = ref(false);
 
 async function load() {
-  if (!userStore.currentUser) return;
   loading.value = true;
   try {
     const tab = TABS.find(t => t.key === activeKey.value);
-    const params: { customerId?: number; shopperId?: number; statuses?: Api.Order.OrderStatus[]; size: number } = {
-      size: 30,
-      statuses: tab?.statuses
-    };
-    if (userStore.isBuyerActive) params.shopperId = userStore.currentUser.id;
-    else params.customerId = userStore.currentUser.id;
-    const r = await orderApi.fetchMyOrders(params);
+    const query = { pageNo: 1, pageSize: 30, status: tab?.status };
+    const r = userStore.isBuyerActive ? await fetchSoldOrders(query) : await fetchBoughtOrders(query);
     orders.value = r.records;
   } finally {
     loading.value = false;
@@ -50,32 +43,29 @@ onPullDownRefresh(load);
 watch(activeKey, load);
 watch(() => userStore.currentAudience, load);
 
-async function pay(o: Api.Order.OrderRecord) {
-  const r = await orderApi.payOrderMock(o.id);
-  if (r.ok) {
-    uni.showToast({ title: '支付成功', icon: 'success' });
-    load();
-  } else uni.showToast({ title: r.message || '失败', icon: 'none' });
+function pay(_o: Api.RealOrder.OrderView) {
+  uni.showToast({ title: '支付将在结算链路迁移后开放', icon: 'none' });
 }
 
-function cancel(o: Api.Order.OrderRecord) {
+function cancel(o: Api.RealOrder.OrderView) {
   uni.showModal({
     title: '取消订单？',
     success: async r => {
       if (r.confirm) {
-        await orderApi.cancelOrderMock(o.id, '顾客取消');
-        load();
+        await cancelRealOrder({ id: o.id, reason: '顾客取消' });
+        uni.showToast({ title: '订单已取消', icon: 'success' });
+        await load();
       }
     }
   });
 }
 
-function confirm(o: Api.Order.OrderRecord) {
+function confirm(o: Api.RealOrder.OrderView) {
   uni.showModal({
     title: '确认收货？',
     success: async r => {
       if (r.confirm) {
-        await orderApi.confirmReceiptMock(o.id);
+        await confirmRealOrder(o.id);
         uni.showToast({ title: '已确认收货', icon: 'success' });
         load();
       }
@@ -83,12 +73,12 @@ function confirm(o: Api.Order.OrderRecord) {
   });
 }
 
-function review(o: Api.Order.OrderRecord) {
-  go(`/pages/review/write?orderId=${o.id}`);
+function review(o: Api.RealOrder.OrderView) {
+  uni.showToast({ title: '评价功能尚未接入真实服务', icon: 'none' });
 }
 
-function aftersale(o: Api.Order.OrderRecord) {
-  go(`/pages/aftersale/create?orderId=${o.id}`);
+function aftersale(o: Api.RealOrder.OrderView) {
+  uni.showToast({ title: '售后将在后续接口批次迁移', icon: 'none' });
 }
 </script>
 

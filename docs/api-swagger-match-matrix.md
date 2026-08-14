@@ -11,6 +11,21 @@
 - `notify` 的 `/notify/v3/api-docs` 返回 HTTP 404。
 - 表中 `/user/...`、`/order/...`、`/admin/...` 用首段标识 Swagger 分组；分组内原始 path 分别从 `/auth/...`、`/orders/...` 等开始，后续同源请求前缀按请求层配置确定。
 
+## 2026-08-14 订单读链路迁移门禁
+
+| 能力 | 当前 Swagger | H5 现状 | 本批结论 |
+|---|---|---|---|
+| 买入/卖出订单列表 | `POST /order/orders/bought/page`、`sold/page`，7 个原始状态 | 页面按顾客/买手身份调用真实分页；非空记录、Long ID 和空态已在 Chrome 手机视图验证 | A/B：读链路完成；专用单已覆盖 `PAID → SHIPPED → COMPLETED` |
+| 订单详情 | `GET /order/orders/detail?id`，含地址、物流、金额、支付凭证 | 页面已调用真实详情；字段差异由 adapter 降级，时间数字字符串已归一化 | A/B：顾客/买手两种对方身份和非空详情已回归；H5 写回归后状态时间线正确更新 |
+| 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
+| 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
+| 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | H5 是五类 Mock 售后工单 | C：另立专题，不能混入本批 |
+| IM/通知 | notify 16 操作，REST 充分 | H5 页面仍是 Mock | C/P3：等待订单读链路和 WebSocket 环境复核 |
+
+- 2026-08-14 原始快照位于 `docs/swagger-baselines/2026-08-14/`，相较 2026-08-10 的递归差异已实际复核，覆盖路径、方法、参数、required、requestBody、response 与嵌套 schema。
+- Long ID 全程保留 `string | number` 原值。后端 `PAID` 不拆分为 H5 旧模型中的“采购中/已采购”，`COMPLETED` 不拆为“完成/保修/归档”；页面仅显示 adapter 可证明的状态。
+- 2026-08-14 跨账号写回归：专用订单 ID `2088059205303492610`（订单号 `2088059205177663488`）由 PC 买手账号发货为 `SHIPPED`，再由 H5 顾客账号调用 `POST /order/orders/confirm` 确认，详情回读为 `COMPLETED`。另以 Swagger `POST /orders/create-batch` 创建专用未付款订单 ID `2088061302560350209`（订单号 `2088061302539378688`），H5 先显示 `CREATED/待付款`，点击取消后回读 `CANCELED/已取消`；辅助建单只用于验证，未将结算页面迁移纳入本批。
+
 ## 2026-08-10 实时漂移复核与 P1 回归门禁
 
 | 分组 | 2026-08-09 基线 | 2026-08-10 实时快照 | 递归结论 | 本轮处理 |
@@ -186,9 +201,9 @@
 | 本地购物车增删改选 | 无需后端 | 本地能力 | 当前使用 Pinia/local storage，真实结算前只需重新校验商品 |
 | 地址列表/新增/设默认/删除 | `/user/addresses/list`、`create`、`default`、`delete` | B | 契约完整；`country/detailAddress/receiverName/receiverPhone` 必填，页面字段在 adapter 映射，Long ID 保留原值 |
 | 下单 | `POST /order/orders/create`、`POST /order/orders/create-batch` | B | 单品/最多20项合并下单均支持 `addressId/idempotencyKey`；整批失败不落单，返回订单组号、订单 ID 和总金额 |
-| 订单列表 | `POST /order/orders/bought/page` | C | DTO 已补名称、地址、物流、金额和退款摘要；前端 10 状态与后端 7 状态仍需产品/adapter 收敛 |
-| 订单详情 | `GET /order/orders/detail` | B/C | 地址快照、费用、物流、取消和退款摘要已补齐；仍缺物流轨迹、预计送达、完整五类售后与保修/归档语义 |
-| 订单状态计数 | 多次调用 `orders/bought/page` 可派生 | B | 无独立统计接口；需按状态请求或由列表数据派生，注意分页总数 |
+| 订单列表 | `POST /order/orders/bought/page` | B（已接入并读回归） | 列表真实 adapter/page 已接入；后端 7 状态映射至既有展示标签，原始状态保留；非空真实记录已在 Chrome 手机视图验证 |
+| 订单详情 | `GET /order/orders/detail` | B（已接入并读回归） | 真实详情、地址快照、费用、物流和状态时间线已接入；缺物流轨迹、预计送达、完整五类售后与保修/归档语义 |
+| 订单状态计数 | 多次调用 `orders/bought/page` 可派生 | B | 无独立统计接口；需按状态请求或由列表数据派生，注意分页总数。当前测试环境 `CREATED/PAID/SHIPPED` 均为 0 |
 | 支付 | `POST /order/orders/pay`、`POST /order/orders/group/pay` | A/B | 支持单笔和订单组一次付款；Long ID 保留原值，组号按字符串透传 |
 | 确认收货 | `POST /order/orders/confirm` | A | 核心操作存在；后端不接收前端预留的收货视频 |
 | 取消订单 | `POST /order/orders/cancel` | B | `id/reason` 均必填，DTO 返回取消原因、时间和操作人；取消/退款资金语义仍需真实状态回归 |
@@ -209,7 +224,7 @@
 | 展示与时间线 | DTO 仅买卖双方 ID 和四个时间字段 | 买卖双方名称、完整进度、取消/退款关联 | 需补名称、关联 ID、原因和状态时间 |
 | Long ID | 订单、商品、用户、场次、退款均为 `int64` | H5/JavaScript 保持精度 | 后端需确认 JSON 字符串序列化并接受字符串 ID |
 
-订单后端确认问题与前端实施门禁统一维护在本文和 `docs/api-integration-plan.md`。本专项历史阶段只完成 Swagger 核对与缺口整理；当前真实订单只读 API 已封装，页面仍使用 Mock，也未进行真实订单回归。
+订单后端确认问题与前端实施门禁统一维护在本文和 `docs/api-integration-plan.md`。2026-08-14 起订单列表、详情、取消与确认收货已完成真实 adapter/page 迁移；真实读回归已完成，写操作回归需用可安全变更状态的测试订单单独执行。
 
 ## 钱包、充值与提现
 

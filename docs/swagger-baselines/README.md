@@ -9,7 +9,7 @@ pnpm swagger:baseline
 pnpm swagger:check
 ```
 
-- `swagger:baseline` 使用当前 `SWAGGER_BASELINE`（默认 `2026-08-10`）写入一份新的基线。
+- `swagger:baseline` 使用当前 `SWAGGER_BASELINE`（默认 `2026-08-14`）写入一份新的基线。
 - `swagger:check` 将实时文档与基线递归比较；存在差异时会以非零状态退出。
 - 当某个分组从不可用（例如 HTTP 404）变为可用，或反向变化时，检查会单独标记为“服务状态变化”，不会输出无意义的整份 JSON 差异。
 - 可通过 `SWAGGER_ROOT_URL` 覆盖 Swagger 服务地址，通过 `SWAGGER_BASELINE` 指定快照目录。

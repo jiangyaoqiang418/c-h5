@@ -4,6 +4,13 @@
 
 ## 当前执行边界（2026-08-07）
 
+### 2026-08-14 订单读链路迁移门禁
+
+- 已保存 `docs/swagger-baselines/2026-08-14/`，并将 `pnpm swagger:check` 默认基线切换至该目录。实时快照为：admin `116/117/207`、user `33/33/66`、order `45/47/66`、notify `16/16/22`（路径/操作/schema）。
+- 相较 2026-08-10，user 无递归差异；order 删除旧 `/orders/refund/*` 三个路径，新增 `POST /orders/refunds/create`、`bought/page`、`sold/page`、`cancel` 和 `GET /orders/refunds/detail`，并新增支付凭证字段。现有 H5 五类 Mock 售后不能直接映射，后续只能按“仅退款”专题另行收敛。
+- 本批仅迁移买入订单列表、详情、取消和确认收货：使用 `POST /orders/bought/page`、`GET /orders/detail`、`POST /orders/cancel`、`POST /orders/confirm`。状态以原始 7 状态为准，通过 adapter 映射为现有展示状态：`CREATED→PENDING_PAYMENT`、`PAID→PROCURING`、`SHIPPED→IN_TRANSIT`、`REFUND_REVIEW→IN_AFTERSALE`、`REFUNDED→REFUNDED`、`COMPLETED→COMPLETED`、`CANCELED→CANCELLED`；不伪造“已采购、保修、归档”等后端未声明状态。
+- 真实写入验证须使用管理后台准备的非自购商品、有效地址与测试账号；取消和确认收货仅对专用 QA 订单执行。2026-08-14 已以专用订单 `2088059205303492610` 完成跨账号证据：PC 买手发货后状态为 `SHIPPED`，H5 顾客订单详情调用确认收货后回读为 `COMPLETED`，订单号 `2088059205177663488`、Long ID、地址、金额和状态时间线均正确回显。同日通过 Swagger 的 `create-batch` 创建了未付款专用订单 `2088061302560350209`，H5 列表先回显 `CREATED/待付款`，再通过页面取消回读为 `CANCELED/已取消`；仅该辅助建单使用了真实接口直调，未新增 H5 结算页面迁移。结算、订单组支付、买手发货、仅退款、IM/通知均不在本批页面迁移范围。
+
 ### 2026-08-10 Swagger 漂移、P1 回归与执行顺序
 
 - 已保存 `docs/swagger-baselines/2026-08-10/` 原始 OpenAPI 快照，并将 `pnpm swagger:check` 默认比较目标切换至该基线。检查仍递归覆盖路径、方法、参数、required、requestBody、response 和嵌套 schema；当分组从不可用变为可用时，输出“服务状态变化”，不再把整份 OpenAPI 当作普通字段变更打印。
@@ -358,3 +365,13 @@ page / store
 - 默认不运行 `pnpm dev:h5`、`pnpm typecheck` 或 `pnpm build:h5`。
 - 用户明确要求验证时，优先使用已运行应用的终端和控制台；未启动时再使用项目现有命令。
 - 不处理与当前接口模块无关的历史错误或警告。
+
+### 2026-08-14 订单读链路实施记录
+
+- 已将 `pages/order/list` 和 `pages/order/detail` 从 `@shared` 订单 Mock 切换到真实 `POST /order/orders/bought/page`、`GET /order/orders/detail`；取消和确认收货分别调用真实 `POST /order/orders/cancel`、`POST /order/orders/confirm`。
+- `src/service/api/order.ts` 是唯一字段适配边界：Long ID 保持 `string | number` 原值；7 个后端状态只映射到既有展示标签，`rawStatus` 保留给操作权限和时间线，未虚构“已采购/保修/归档”等服务端未给出的阶段。
+- 实时回归使用 Chrome 375 × 667 手机视图，以登录测试账号读取到已完成订单；列表、详情、地址、金额、Long ID 和数字字符串时间字段均已回显。取消、确认收货是写操作，本次未对已完成测试订单执行。
+- 支付、评价、售后和 IM 入口不再回退到 Mock：保持现有按钮位置并说明尚未进入真实接口批次。结算支付、退款和通知仍遵守 P3/P4 延期边界。
+- 顾客/买手身份切换继续沿用原页面语义：顾客调用 `bought/page`、买手调用 `sold/page`；adapter 按 scope 输出“买手/顾客”对方身份，避免卖出订单误标为买手。Chrome 手机视图已分别验证两个读链路，并验证后端 `REFUNDED` 展示为“已退款”。
+- 管理后台 `super` 会话于 2026-08-14 可登录并读取订单管理。当前环境统计为 8 笔历史订单，`CREATED/PAID/SHIPPED` 均为 0；因此没有可安全执行取消或确认收货的专用 QA 订单，写操作验证保持待回归，未篡改历史数据。
+- 同次 Chrome `375 × 667` 手机视图回归了分类、购物车空态和买手个人页：分类的左右主视图区到原生 tabBar 前结束、购物车空态未出现底部空白、个人页内容可在 tabBar 上方正常滚动。本轮没有新增 P1 样式缺陷。

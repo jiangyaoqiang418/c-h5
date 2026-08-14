@@ -1,36 +1,30 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { enums, orderApi } from '@shared';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
-import { formatAmount } from '@/utils/format-bridge';
+import { cancelRealOrder, confirmRealOrder, fetchOrderDetail } from '@/service/api/order';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
-import { go } from '@/utils/navigate';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
-const order = ref<Api.Order.OrderRecord>();
-const id = ref<number>();
+const userStore = useUserStore();
+const order = ref<Api.RealOrder.OrderView>();
+const id = ref<Api.RealOrder.LongId>();
 
 onLoad(async query => {
-  id.value = Number(query?.id);
-  if (id.value) order.value = await orderApi.fetchOrderDetail(id.value);
+  id.value = query?.id ? String(query.id) : undefined;
+  if (id.value) order.value = await fetchOrderDetail(id.value, userStore.isBuyerActive ? 'sold' : 'bought');
 });
 
-const aftersaleMeta = computed(() => (order.value ? enums.AFTERSALE_TYPE_META[order.value.aftersaleType] : undefined));
-
 async function reload() {
-  if (id.value) order.value = await orderApi.fetchOrderDetail(id.value);
+  if (id.value) order.value = await fetchOrderDetail(id.value, userStore.isBuyerActive ? 'sold' : 'bought');
 }
 
 async function pay() {
   if (!order.value) return;
-  const r = await orderApi.payOrderMock(order.value.id);
-  if (r.ok) {
-    uni.showToast({ title: '支付成功', icon: 'success' });
-    reload();
-  }
+  uni.showToast({ title: '支付将在结算链路迁移后开放', icon: 'none' });
 }
 
 function cancel() {
@@ -39,8 +33,9 @@ function cancel() {
     title: '取消订单？',
     success: async r => {
       if (r.confirm) {
-        await orderApi.cancelOrderMock(order.value!.id, '顾客取消');
-        reload();
+        await cancelRealOrder({ id: order.value!.id, reason: '顾客取消' });
+        uni.showToast({ title: '订单已取消', icon: 'success' });
+        await reload();
       }
     }
   });
@@ -52,23 +47,24 @@ function confirm() {
     title: '确认收货？',
     success: async r => {
       if (r.confirm) {
-        await orderApi.confirmReceiptMock(order.value!.id);
-        reload();
+        await confirmRealOrder(order.value!.id);
+        uni.showToast({ title: '已确认收货', icon: 'success' });
+        await reload();
       }
     }
   });
 }
 
 function goIm() {
-  if (order.value) go(`/pages/im/order-group?orderCode=${order.value.code}`);
+  if (order.value) uni.showToast({ title: '消息功能尚未接入真实服务', icon: 'none' });
 }
 
 function goAftersale() {
-  if (order.value) go(`/pages/aftersale/create?orderId=${order.value.id}`);
+  if (order.value) uni.showToast({ title: '售后将在后续接口批次迁移', icon: 'none' });
 }
 
 function goReview() {
-  if (order.value) go(`/pages/review/write?orderId=${order.value.id}`);
+  if (order.value) uni.showToast({ title: '评价功能尚未接入真实服务', icon: 'none' });
 }
 </script>
 
@@ -77,7 +73,7 @@ function goReview() {
     <view class="hero">
       <OrderStatusTag :status="order.status" />
       <text class="code">{{ order.code }}</text>
-      <text class="time">{{ new Date(order.createdAt).toLocaleString() }}</text>
+      <text v-if="order.createdAt" class="time">{{ new Date(order.createdAt).toLocaleString() }}</text>
     </view>
 
     <view class="section">
@@ -97,8 +93,7 @@ function goReview() {
         <image :src="order.productCover || `https://picsum.photos/seed/${order.productId}/120/120`" mode="aspectFill" class="cover" />
         <view class="goods-info">
           <text class="g-title">{{ order.productTitle }}</text>
-          <text class="g-seller">买手 · {{ order.shopperName }}</text>
-          <wd-tag v-if="aftersaleMeta" size="small" plain>{{ aftersaleMeta.label }}</wd-tag>
+          <text class="g-seller">{{ order.counterpartLabel }} · {{ order.counterpartName }}</text>
         </view>
         <view class="g-price-block">
           <text class="g-price-cny">{{ formatUsdt(order.price) }}</text>
@@ -149,9 +144,9 @@ function goReview() {
     <view class="actions-bar">
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" type="primary" @click="pay">立即付款</wd-button>
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" plain @click="cancel">取消订单</wd-button>
-      <wd-button v-if="order.status === 'IN_TRANSIT'" type="primary" @click="confirm">确认收货</wd-button>
-      <wd-button v-if="['COMPLETED', 'WARRANTY'].includes(order.status)" plain @click="goReview">写评价</wd-button>
-      <wd-button v-if="['COMPLETED', 'WARRANTY'].includes(order.status)" plain @click="goAftersale">申请售后</wd-button>
+      <wd-button v-if="order.rawStatus === 'SHIPPED'" type="primary" @click="confirm">确认收货</wd-button>
+      <wd-button v-if="order.rawStatus === 'COMPLETED'" plain @click="goReview">写评价</wd-button>
+      <wd-button v-if="order.rawStatus === 'COMPLETED'" plain @click="goAftersale">申请售后</wd-button>
     </view>
   </view>
   <EmptyState v-else title="订单不存在" />

@@ -2,31 +2,29 @@
 import { computed } from 'vue';
 
 interface Props {
-  order: Api.Order.OrderRecord;
+  order: Api.RealOrder.OrderView;
 }
 const props = defineProps<Props>();
 
 interface Step {
   label: string;
   status: 'wait' | 'process' | 'finish' | 'error';
-  time?: string;
+  time?: string | number;
 }
 
 const steps = computed<Step[]>(() => {
   const o = props.order;
-  if (o.status === 'CANCELLED') {
+  if (o.rawStatus === 'CANCELED') {
     return [
       { label: '创建订单', status: 'finish', time: o.createdAt },
-      { label: '已取消', status: 'error', time: o.archivedAt }
+      { label: '已取消', status: 'error', time: o.canceledAt }
     ];
   }
-  const stages: { key: string; label: string; matched: boolean; time?: string }[] = [
+  const stages: { key: string; label: string; matched: boolean; time?: string | number }[] = [
     { key: 'created', label: '创建订单', matched: true, time: o.createdAt },
-    { key: 'paid', label: '已付款', matched: o.status !== 'PENDING_PAYMENT', time: o.paidAt },
-    { key: 'procured', label: '已采购', matched: ['PROCURED', 'IN_TRANSIT', 'AFTERSALE_CONFIRM', 'COMPLETED', 'WARRANTY', 'IN_AFTERSALE', 'ARCHIVED'].includes(o.status), time: o.procuredAt },
-    { key: 'shipped', label: '已发货', matched: ['IN_TRANSIT', 'AFTERSALE_CONFIRM', 'COMPLETED', 'WARRANTY', 'IN_AFTERSALE', 'ARCHIVED'].includes(o.status), time: o.shippedAt },
-    { key: 'delivered', label: '已签收', matched: ['AFTERSALE_CONFIRM', 'COMPLETED', 'WARRANTY', 'IN_AFTERSALE', 'ARCHIVED'].includes(o.status), time: o.deliveredAt },
-    { key: 'completed', label: '已完成', matched: ['COMPLETED', 'WARRANTY', 'IN_AFTERSALE', 'ARCHIVED'].includes(o.status) }
+    { key: 'paid', label: '已付款', matched: o.rawStatus !== 'CREATED', time: o.paidAt },
+    { key: 'shipped', label: '已发货', matched: ['SHIPPED', 'REFUND_REVIEW', 'REFUNDED', 'COMPLETED'].includes(o.rawStatus), time: o.shippedAt },
+    { key: 'completed', label: '已完成', matched: o.rawStatus === 'COMPLETED', time: o.completedAt }
   ];
   let foundCurrent = false;
   return stages.map(s => {

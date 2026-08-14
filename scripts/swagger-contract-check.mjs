@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const rootUrl = (process.env.SWAGGER_ROOT_URL || 'http://221.128.249.198:8902').replace(/\/$/, '');
-const baselineName = process.env.SWAGGER_BASELINE || '2026-08-10';
+const baselineName = process.env.SWAGGER_BASELINE || '2026-08-14';
 const writeBaseline = process.argv.includes('--write-baseline');
 const baselineDir = join(process.cwd(), 'docs', 'swagger-baselines', baselineName);
 const groups = ['admin', 'user', 'order', 'notify'];

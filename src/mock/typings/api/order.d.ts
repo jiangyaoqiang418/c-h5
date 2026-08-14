@@ -20,6 +20,7 @@ declare namespace Api.Order {
     | 'COMPLETED'
     | 'WARRANTY'
     | 'IN_AFTERSALE'
+    | 'REFUNDED'
     | 'ARCHIVED'
     | 'CANCELLED';
 
