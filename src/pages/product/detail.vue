@@ -119,7 +119,7 @@ const canAdd = computed(() => (
   && product.value.shelfStatus === 'on-shelf'
   && product.value.stock > 0
 ));
-const canBuy = computed(() => canAdd.value && !isRealProduct.value);
+const canBuy = computed(() => canAdd.value);
 const sellerAvatar = computed(() => (
   !isRealProduct.value && product.value?.legacyId ? avatarUrl(product.value.legacyId) : ''
 ));
@@ -185,7 +185,15 @@ function addToCart() {
 }
 
 async function buyNow() {
-  if (!product.value?.legacyId) return showTradeUnavailable();
+  if (!product.value) return showTradeUnavailable();
+  if (isRealProduct.value) {
+    addToCart();
+    if (await requireLogin(`/pages/product/detail?id=${encodeURIComponent(String(product.value.id))}&source=real`)) {
+      go('/pages/checkout/index');
+    }
+    return;
+  }
+  if (!product.value.legacyId) return showTradeUnavailable();
   cart.add(product.value.legacyId, qty.value);
   if (await requireLogin(`/pages/product/detail?id=${product.value.legacyId}`)) go('/pages/checkout/index');
 }
@@ -272,7 +280,7 @@ function goBack() {
         <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="qty = Math.min(product.stock, qty + 1)">+</text>
       </view>
       <wd-button plain :disabled="!canAdd" @click="canAdd ? addToCart() : showTradeUnavailable()">加购</wd-button>
-      <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">{{ isRealProduct ? '订单接入中' : '立即购买' }}</wd-button>
+      <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
     </view>
   </view>
 </template>
