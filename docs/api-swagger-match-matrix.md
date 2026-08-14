@@ -29,6 +29,7 @@
 | 真实地址与可用余额 | `GET /user/addresses/list`、`GET /user/wallet/overview` | 结算页已调用真实接口 | Chrome 手机视图已回显非空地址与可用余额 |
 | 合并下单 | `POST /order/orders/create-batch`，`addressId/items` 必填、支持幂等键 | 已调用真实 adapter；保存幂等键、订单组号与订单 ID，重试不重复建单 | A：H5 专用真实商品已创建订单组并回读 `PAID` 订单 |
 | 订单组付款 | `POST /order/orders/group/pay`，`orderGroupNo` 必填 | 已调用真实 adapter；仅在成功创建同组订单后执行 | A：H5 专用订单已付款，成功页与详情回读通过；失败重试分支待专门压测 |
+| 买手发货 | `POST /order/orders/ship`，`id/logisticsCompany/trackingNo` 必填 | 卖出订单的 `PAID` 状态显示物流表单，填写后调用真实 adapter | A：2026-08-14 H5 买手发货后回读 `SHIPPED`，再由 H5 顾客确认至 `COMPLETED` |
 | Mock 购物车保护 | 无需 Swagger | 混入 Mock 商品时阻止进入真实结算；错误不回退 Mock | A：逻辑与 Chrome 页面前置回显已验证 |
 
 - 2026-08-14 原始快照位于 `docs/swagger-baselines/2026-08-14/`，相较 2026-08-10 的递归差异已实际复核，覆盖路径、方法、参数、required、requestBody、response 与嵌套 schema。

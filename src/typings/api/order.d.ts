@@ -122,6 +122,15 @@ declare namespace Api {
       orderGroupNo: string;
     }
 
+    interface OrderShipParams {
+      id: LongId;
+      logisticsCompany: string;
+      logisticsCompanyCode?: string;
+      trackingNo: string;
+      shipVouchers?: string[];
+      remark?: string;
+    }
+
     interface OrderCancelParams {
       id: LongId;
       reason: string;

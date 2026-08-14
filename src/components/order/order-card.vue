@@ -6,6 +6,7 @@ import OrderStatusTag from './order-status-tag.vue';
 
 interface Props {
   order: Api.RealOrder.OrderView;
+  sellerMode?: boolean;
 }
 const props = defineProps<Props>();
 defineEmits<{
@@ -14,6 +15,7 @@ defineEmits<{
   (e: 'confirm', o: Api.RealOrder.OrderView): void;
   (e: 'review', o: Api.RealOrder.OrderView): void;
   (e: 'aftersale', o: Api.RealOrder.OrderView): void;
+  (e: 'ship', o: Api.RealOrder.OrderView): void;
 }>();
 
 const cover = computed(
@@ -44,7 +46,15 @@ function goDetail() {
     </view>
     <view class="actions" @click.stop>
       <wd-button
-        v-if="order.status === 'PENDING_PAYMENT'"
+        v-if="props.sellerMode && order.rawStatus === 'PAID'"
+        type="primary"
+        size="small"
+        @click="$emit('ship', order)"
+      >
+        填写发货
+      </wd-button>
+      <wd-button
+        v-if="!props.sellerMode && order.status === 'PENDING_PAYMENT'"
         type="primary"
         size="small"
         @click="$emit('pay', order)"
@@ -52,7 +62,7 @@ function goDetail() {
         立即付款
       </wd-button>
       <wd-button
-        v-if="order.status === 'PENDING_PAYMENT'"
+        v-if="!props.sellerMode && order.status === 'PENDING_PAYMENT'"
         plain
         size="small"
         @click="$emit('cancel', order)"
@@ -60,7 +70,7 @@ function goDetail() {
         取消
       </wd-button>
       <wd-button
-        v-if="order.status === 'IN_TRANSIT'"
+        v-if="!props.sellerMode && order.status === 'IN_TRANSIT'"
         type="primary"
         size="small"
         @click="$emit('confirm', order)"
@@ -68,7 +78,7 @@ function goDetail() {
         确认收货
       </wd-button>
       <wd-button
-        v-if="['COMPLETED', 'WARRANTY'].includes(order.status)"
+        v-if="!props.sellerMode && ['COMPLETED', 'WARRANTY'].includes(order.status)"
         plain
         size="small"
         @click="$emit('review', order)"
@@ -76,7 +86,7 @@ function goDetail() {
         写评价
       </wd-button>
       <wd-button
-        v-if="['COMPLETED', 'WARRANTY'].includes(order.status)"
+        v-if="!props.sellerMode && ['COMPLETED', 'WARRANTY'].includes(order.status)"
         plain
         size="small"
         @click="$emit('aftersale', order)"

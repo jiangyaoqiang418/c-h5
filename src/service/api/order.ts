@@ -138,6 +138,14 @@ export function payRealOrderGroup(params: Api.RealOrder.OrderGroupPayParams): Pr
   });
 }
 
+export function shipRealOrder(params: Api.RealOrder.OrderShipParams): Promise<Api.RealOrder.LongId> {
+  return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.OrderShipParams>({
+    url: '/orders/ship',
+    method: 'POST',
+    data: params
+  });
+}
+
 export function cancelRealOrder(params: Api.RealOrder.OrderCancelParams): Promise<Api.RealOrder.LongId> {
   return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.OrderCancelParams>({
     url: '/orders/cancel',
