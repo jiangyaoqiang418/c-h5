@@ -77,6 +77,8 @@ declare namespace Api {
     interface OrderView {
       id: LongId;
       code: string;
+      /** 同一订单组的待付款订单会由 group/pay 一次性支付。 */
+      orderGroupNo?: string;
       rawStatus: OrderStatus;
       status: Api.Order.OrderStatus;
       productId?: LongId;

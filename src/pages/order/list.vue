@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app';
-import { fetchBoughtOrders, fetchSoldOrders, cancelRealOrder, confirmRealOrder, shipRealOrder } from '@/service/api/order';
+import { fetchBoughtOrders, fetchSoldOrders, cancelRealOrder, confirmRealOrder, payRealOrderGroup, shipRealOrder } from '@/service/api/order';
 import OrderCard from '@/components/order/order-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
@@ -48,8 +48,21 @@ onPullDownRefresh(load);
 watch(activeKey, load);
 watch(() => userStore.currentAudience, load);
 
-function pay(_o: Api.RealOrder.OrderView) {
-  uni.showToast({ title: '支付将在结算链路迁移后开放', icon: 'none' });
+function pay(o: Api.RealOrder.OrderView) {
+  if (!o.orderGroupNo) {
+    uni.showToast({ title: '订单组信息缺失，暂无法继续付款', icon: 'none' });
+    return;
+  }
+  uni.showModal({
+    title: '确认付款？',
+    content: '将支付该订单组内全部待付款订单。',
+    success: async result => {
+      if (!result.confirm) return;
+      await payRealOrderGroup({ orderGroupNo: o.orderGroupNo! });
+      uni.showToast({ title: '支付成功', icon: 'success' });
+      await load();
+    }
+  });
 }
 
 function cancel(o: Api.RealOrder.OrderView) {

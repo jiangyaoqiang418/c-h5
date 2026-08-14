@@ -29,6 +29,7 @@ export function toOrderView(
   return {
     id: order.orderId,
     code: order.orderNo || order.orderGroupNo || String(order.orderId),
+    orderGroupNo: order.orderGroupNo,
     rawStatus: order.status,
     status: DISPLAY_STATUS[order.status],
     productId: order.productId,

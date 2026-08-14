@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
-import { cancelRealOrder, confirmRealOrder, fetchOrderDetail } from '@/service/api/order';
+import { cancelRealOrder, confirmRealOrder, fetchOrderDetail, payRealOrderGroup } from '@/service/api/order';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
@@ -25,7 +25,20 @@ async function reload() {
 
 async function pay() {
   if (!order.value) return;
-  uni.showToast({ title: '支付将在结算链路迁移后开放', icon: 'none' });
+  if (!order.value.orderGroupNo) {
+    uni.showToast({ title: '订单组信息缺失，暂无法继续付款', icon: 'none' });
+    return;
+  }
+  uni.showModal({
+    title: '确认付款？',
+    content: '将支付该订单组内全部待付款订单。',
+    success: async result => {
+      if (!result.confirm || !order.value?.orderGroupNo) return;
+      await payRealOrderGroup({ orderGroupNo: order.value.orderGroupNo });
+      uni.showToast({ title: '支付成功', icon: 'success' });
+      await reload();
+    }
+  });
 }
 
 function cancel() {
