@@ -8,6 +8,7 @@ import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { go } from '@/utils/navigate';
 
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
@@ -60,7 +61,7 @@ function goIm() {
 }
 
 function goAftersale() {
-  if (order.value) uni.showToast({ title: '售后将在后续接口批次迁移', icon: 'none' });
+  if (order.value) go(`/pages/aftersale/create?orderId=${order.value.id}`);
 }
 
 function goReview() {
@@ -144,9 +145,9 @@ function goReview() {
     <view class="actions-bar">
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" type="primary" @click="pay">立即付款</wd-button>
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" plain @click="cancel">取消订单</wd-button>
-      <wd-button v-if="order.rawStatus === 'SHIPPED'" type="primary" @click="confirm">确认收货</wd-button>
-      <wd-button v-if="order.rawStatus === 'COMPLETED'" plain @click="goReview">写评价</wd-button>
-      <wd-button v-if="order.rawStatus === 'COMPLETED'" plain @click="goAftersale">申请售后</wd-button>
+      <wd-button v-if="order.status === 'IN_TRANSIT'" type="primary" @click="confirm">确认收货</wd-button>
+      <wd-button v-if="order.status === 'COMPLETED'" plain @click="goReview">写评价</wd-button>
+      <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" plain @click="goAftersale">申请仅退款</wd-button>
     </view>
   </view>
   <EmptyState v-else title="订单不存在" />
