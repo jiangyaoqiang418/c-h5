@@ -31,7 +31,7 @@
 - 已按最新 order Swagger 的完整契约实现 `POST /orders/refunds/create`、`bought/page`、`sold/page`、`GET /orders/refunds/detail?id` 与 `POST /orders/refunds/cancel` 的类型和 adapter；退款与订单 ID 均以 `string | number` 透传，页面层不转换 Long ID。
 - 原五类 Mock 售后工单已收敛为“仅退款”：顾客只可从真实 `PAID` 或 `SHIPPED` 订单进入申请页，创建请求仅发送 Swagger 定义的 `orderId/reason/evidenceImages`；买入/卖出列表随当前身份切换真实分页，详情展示服务端退款状态、金额、原因、审核说明和凭证图片。
 - 撤销入口只对顾客且状态为 `APPLYING` 显示；买手仅查看顾客的退款单。本次不伪造买手同意/驳回入口、部分退款、多退款类型、仲裁、聊天或上传能力，因为当前 C 端 Swagger 未提供对应完整契约。
-- 已完成 TypeScript、H5、App-Vue 构建以及实时 Swagger 递归检查；尚未对退款创建/撤销发起真实写入。后续回归必须使用独立的 `PAID` 或 `SHIPPED` QA 订单，验证创建后订单进入 `REFUND_REVIEW`、双方分页与详情回读，以及顾客撤销后的状态恢复。
+- 已完成 TypeScript、H5、App-Vue 构建以及实时 Swagger 递归检查。Chrome `375×667` 已验证真实买入退款列表与详情：后端 `AGREED`、`REJECTED`、`CANCELED` 记录均正确回显金额、原因、退款业务号和关联订单。当前账号无可安全撤销的 `APPLYING` QA 单，故未为测试而新建订单或发起创建/撤销写入；后续仍须用独立的 `PAID` 或 `SHIPPED` QA 订单验证创建后订单进入 `REFUND_REVIEW`、双方分页与详情回读，以及顾客撤销后的状态恢复。
 
 ### 2026-08-10 Swagger 漂移、P1 回归与执行顺序
 
