@@ -24,8 +24,8 @@ async function goCheckout() {
     uni.showToast({ title: '请先勾选商品', icon: 'none' });
     return;
   }
-  if (cart.selectedItems.some(item => item.source === 'real')) {
-    uni.showToast({ title: '真实商品订单正在接入，请先取消勾选', icon: 'none' });
+  if (cart.selectedItems.some(item => item.source !== 'real')) {
+    uni.showToast({ title: '请仅选择真实商品后结算', icon: 'none' });
     return;
   }
   if (await requireLogin('/pages/cart/index')) go('/pages/checkout/index');
