@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { go } from '@/utils/navigate';
+import { fetchConversations, fetchImUnreadCount, fetchNotificationUnreadCount, fetchNotifications } from '@/service/api/notify';
 
 interface Category {
   key: string;
@@ -16,25 +17,26 @@ interface Category {
 
 const categories = ref<Category[]>([]);
 
-function loadMock() {
-  categories.value = [
+async function load() {
+  try {
+    const [notificationCount, imCount, notificationPage, conversationPage] = await Promise.all([
+      fetchNotificationUnreadCount(),
+      fetchImUnreadCount(),
+      fetchNotifications({ pageNo: 1, pageSize: 1 }),
+      fetchConversations({ pageNo: 1, pageSize: 1 })
+    ]);
+    const notification = notificationPage.records[0];
+    const conversation = conversationPage.records[0];
+    categories.value = [
     {
       key: 'system',
       icon: '⚙',
       title: '系统通知',
       path: '',
-      unread: 2,
-      latestText: 'KYC 审核通过，欢迎解锁全部功能',
-      latestTime: '3 小时前'
-    },
-    {
-      key: 'announcement',
-      icon: '▰',
-      title: '平台公告',
-      path: '/pages/announcement/index',
-      unread: 1,
-      latestText: '5 月大促开启：VIP 加成翻倍 · 新人 100U 到账',
-      latestTime: '昨天'
+      unread: notificationCount,
+      latestText: notification ? `${notification.title || '系统通知'}：${notification.content || ''}` : '暂无系统通知',
+      latestTime: notification?.createdAt ? new Date(Number(notification.createdAt)).toLocaleDateString() : '',
+      disabled: true
     },
     {
       key: 'txn',
@@ -51,14 +53,18 @@ function loadMock() {
       icon: '◌',
       title: '订单群聊',
       path: '/pages/im/order-list',
-      unread: 3,
-      latestText: '[订单 P-24051201] 买手：已下单，预计 3 日到货',
-      latestTime: '15 分钟前'
+      unread: imCount,
+      latestText: conversation?.lastMessagePreview || '暂无订单群消息',
+      latestTime: conversation?.lastMessageAt ? new Date(Number(conversation.lastMessageAt)).toLocaleDateString() : ''
     }
   ];
+  } catch (error) {
+    categories.value = [];
+    uni.showToast({ title: error instanceof Error ? error.message : '消息加载失败', icon: 'none' });
+  }
 }
 
-onShow(loadMock);
+onShow(load);
 
 const totalUnread = computed(() =>
   categories.value.reduce((s, c) => s + c.unread, 0)

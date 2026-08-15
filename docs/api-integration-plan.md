@@ -6,6 +6,39 @@
 
 ### 2026-08-14 订单读链路迁移门禁
 
+### 2026-08-15 商品收藏闭环
+
+- 已实时复核 `POST /order/products/favorite`、`DELETE /order/products/favorite?id=` 与 `POST /order/products/favorites/page`：相对 `2026-08-14` 基线无契约变化。页面接入真实收藏、取消与收藏分页；详情接口未返回当前用户收藏状态，详情仅提供幂等“收藏”动作，取消入口保留在收藏列表。Chrome 实测真实商品“乔布斯”完成收藏、收藏列表回读、取消与空态回读。
+
+### 2026-08-15 买手商品上下架写回归
+
+- Chrome 以已通过 KYC 的买手测试账号，对现有 QA 商品“QA闭环测试商品-20260810”执行 `PUT /order/products/shelf` 的下架和上架。每次写入后均刷新真实列表回读状态，得到 `在售 → 已下架 → 在售`；商品已恢复原在售状态。2026-08-15 新建 QA 商品 `2088541349217918978` 已完成图片上传、创建、后台审核通过与公开列表回读：状态由 `REVIEWING/审核中` 变为 `ON_SALE/在售`，标题、价格、库存、分类、售后、描述和公开卡片均正确。
+- 同一 QA 商品已完成顾客侧只读链路：公开详情、真实购物车与结算页均回读商品 `U 99.00`、运费/税费 `U 0.00`、数量 1、应付总额 `U 99.00` 及默认地址。
+
+### 2026-08-15 QA 商品真实订单主链回归
+
+- 使用独立顾客测试账号对审核通过的 QA 商品创建并支付订单组；支付成功页回读子订单 `2088549990973136896`、金额 `U 99.00`，订单进入 `PAID/采购中`。买手账号在卖出订单列表填写测试物流 `顺丰速运 / SF / SFQA202608150001` 后回读 `SHIPPED/运输中`；顾客账号确认收货并刷新真实订单列表后回读 `COMPLETED/已完成`。地址、商品、金额、买卖双方和 Long ID 均与结算页一致。
+- 本次覆盖 H5 的真实 `create-batch → group/pay → sold/page + ship → bought/page + confirm` 主链；未把测试物流单号表述为真实承运商轨迹，上传凭证、物流轨迹和评价仍不在本项验证范围。
+
+### 2026-08-15 P1 商品详情字段复核
+
+- `GET /order/storefront/product/detail` 的 `ProductDTO` 已覆盖商品、卖家 ID、分类 ID、价格、库存、运费/税费、售后类型、海外标识、图文与统计；页面已用真实分类树将 `categoryId` 解析为分类路径。该 DTO 未声明 `sellerName`、`categoryPath` 或售后天数字段，因此详情页保留“认证买手”及既有售后类型文案，不伪造卖家昵称或期限；待后端扩展详情契约后再补充。
+
+### 2026-08-15 P2 资金与账户非空回归
+
+- 顾客测试账号的真实资金流水已回读本次 QA 子订单 `2088549990973136896` 的付款冻结 `-U 99.00`、订单结算解冻 `+U 99.00` 与消费支出 `-U 99.00`，余额按每笔流水正确变化。充值列表及详情回读一笔 `USDT-TRON/已到账` 记录，金额 `U 100,000,000.00`、充值单 `2086475961462251521`、创建和到账时间一致；链上哈希明确为测试环境 `DEV-TEST-*`，不宣称真实链上到账。
+- 当前测试账号的提现列表为空。为避免额外产生资金操作，未创建新的提现单；提现非空状态仍等待已有安全测试数据或单独的资金操作授权。
+
+### 2026-08-15 P3 后台能力核查
+
+- 买手申请页面对现有顾客测试账号回读为“已通过”；管理后台“买手管理”菜单未呈现申请审核列表，仍停留在用户列表，无法用安全数据覆盖“驳回后重提”。
+- 管理后台“评价管理”存在 32 条评价和治理数据，但当前 C 端 Swagger 没有评价列表/提交契约，H5 不能把现有 Mock 评价改称真实能力。后台“物流管理”菜单触发 `Cannot access 'BaseLayout' before initialization` 运行时错误，物流轨迹和凭证仍需后台修复后再验证。
+
+### 2026-08-15 P4 notify 服务接入起步
+
+- `https://testhou.merchantsale.store/api/notify/back/hello` 已实测 HTTP 200；新增 `/api/notify` 代理、App/生产环境地址、`realNotifyRequest`、严格 DTO 和通知/会话/消息 adapter。消息中心未读数与订单群列表已改用真实 notify 读取，不再读取 IM Mock。
+- Chrome 已实际回读消息中心 11 条系统未读、35 条 IM 未读，以及 QA 商品的真实订单群列表。点击会话后，订单群详情按真实 `bizId` 读取到创建、付款、发货、完成和货款结算的系统消息；新详情页只读展示真实消息，旧 Mock 群详情不再由真实列表跳转。文字发送 adapter 已预留但本次未发送消息；图片和语音仍缺 C 端上传契约，不能伪造上传能力。
+
 - 已保存 `docs/swagger-baselines/2026-08-14/`，并将 `pnpm swagger:check` 默认基线切换至该目录。实时快照为：admin `116/117/207`、user `33/33/66`、order `45/47/66`、notify `16/16/22`（路径/操作/schema）。
 - 相较 2026-08-10，user 无递归差异；order 删除旧 `/orders/refund/*` 三个路径，新增 `POST /orders/refunds/create`、`bought/page`、`sold/page`、`cancel` 和 `GET /orders/refunds/detail`，并新增支付凭证字段。现有 H5 五类 Mock 售后不能直接映射，后续只能按“仅退款”专题另行收敛。
 - 本批仅迁移买入订单列表、详情、取消和确认收货：使用 `POST /orders/bought/page`、`GET /orders/detail`、`POST /orders/cancel`、`POST /orders/confirm`。状态以原始 7 状态为准，通过 adapter 映射为现有展示状态：`CREATED→PENDING_PAYMENT`、`PAID→PROCURING`、`SHIPPED→IN_TRANSIT`、`REFUND_REVIEW→IN_AFTERSALE`、`REFUNDED→REFUNDED`、`COMPLETED→COMPLETED`、`CANCELED→CANCELLED`；不伪造“已采购、保修、归档”等后端未声明状态。

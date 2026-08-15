@@ -149,6 +149,7 @@ export function createUpload(baseURL: string) {
 export const realAdminRequest = createRequest(realServiceConfig.admin);
 export const realUserRequest = createRequest(realServiceConfig.user);
 export const realOrderRequest = createRequest(realServiceConfig.order);
+export const realNotifyRequest = createRequest(realServiceConfig.notify);
 export const realOrderUpload = createUpload(realServiceConfig.order);
 
 export { clearAccessToken, getAccessToken, setAccessToken } from './token';

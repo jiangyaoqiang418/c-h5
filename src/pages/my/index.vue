@@ -65,6 +65,7 @@ const cells = computed(() => {
     return [
       { label: '买手仪表盘', icon: '▦', go: () => go('/pages/buyer/dashboard') },
       { label: '商品管理', icon: '□', go: () => go('/pages/buyer/products') },
+      { label: '我的收藏', icon: '☆', go: () => go('/pages/my/favorites') },
       { label: '买手押金', icon: '▣', go: () => go('/pages/buyer/deposit') },
       { label: '我的钱包', icon: '◈', go: () => go('/pages/wallet/index') },
       { label: '小金库', icon: '◒', go: () => go('/pages/finance/list') },
@@ -75,6 +76,7 @@ const cells = computed(() => {
   }
   return [
     { label: '我的钱包', icon: '◈', go: () => go('/pages/wallet/index') },
+    { label: '我的收藏', icon: '☆', go: () => go('/pages/my/favorites') },
     { label: '小金库', icon: '◒', go: () => go('/pages/finance/list') },
     { label: '我的求购', icon: '⌕', go: () => go('/pages/purchase/my-list') },
     { label: '买手申请', icon: '▤', go: () => go('/pages/buyer/apply') },

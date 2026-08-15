@@ -38,6 +38,7 @@
     { "path": "pages/aftersale/create", "style": { "navigationBarTitleText": "申请售后" } },
     { "path": "pages/aftersale/detail", "style": { "navigationBarTitleText": "售后详情" } },
     { "path": "pages/im/order-group", "style": { "navigationBarTitleText": "三方群" } },
+    { "path": "pages/im/real-order-group", "style": { "navigationBarTitleText": "三方群" } },
     { "path": "pages/im/order-list", "style": { "navigationBarTitleText": "订单群聊" } },
     { "path": "pages/message/index", "style": { "navigationBarTitleText": "消息中心" } },
     { "path": "pages/review/write", "style": { "navigationBarTitleText": "写评价" } },
@@ -46,6 +47,7 @@
     { "path": "pages/kyc/index", "style": { "navigationBarTitleText": "KYC 认证" } },
     { "path": "pages/vip/index", "style": { "navigationBarTitleText": "VIP 特权" } },
     { "path": "pages/my/addresses", "style": { "navigationBarTitleText": "地址管理" } },
+    { "path": "pages/my/favorites", "style": { "navigationBarTitleText": "我的收藏", "enablePullDownRefresh": true } },
     { "path": "pages/my/points", "style": { "navigationBarTitleText": "我的积分" } },
 
     { "path": "pages/buyer/apply", "style": { "navigationBarTitleText": "买手申请" } },

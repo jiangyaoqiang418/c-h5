@@ -13,6 +13,20 @@
 
 ## 2026-08-14 订单读链路迁移门禁
 
+### 2026-08-15 商品收藏闭环
+
+| 能力 | Swagger 契约 | API/页面状态 | 真实验证证据 |
+|---|---|---|---|
+| 收藏、取消收藏、我的收藏分页 | `POST /order/products/favorite`、`DELETE /order/products/favorite?id=`、`POST /order/products/favorites/page` | `product.ts`、商品详情、“我的”入口和收藏列表均已接入；Long ID 原样透传 | A：Chrome 真实账号完成收藏→列表回读→取消→空态回读 |
+
+### 2026-08-15 买手商品上下架写回归
+
+| 能力 | Swagger 契约 | API/页面状态 | 真实验证证据 |
+|---|---|---|---|
+| 商品上下架 | `PUT /order/products/shelf` | 买手商品页已接入，保留现有二次确认与状态刷新 | A：QA 商品真实执行在售→已下架→在售，已恢复原状态 |
+| 商品审核后顾客侧可见与结算读取 | `GET /order/storefront/product/detail`、`POST /order/storefront/products/page`、真实地址/钱包读取 | 公开详情、真实购物车和结算页均使用真实商品快照 | A：审核通过的 QA 商品已在公开列表、详情、购物车、结算及真实订单主链回读 |
+| QA 商品订单主链 | `POST /order/orders/create-batch`、`POST /order/orders/group/pay`、`POST /order/orders/sold/page`、`POST /order/orders/ship`、`POST /order/orders/bought/page`、`POST /order/orders/confirm` | H5 结算、买手物流表单与顾客确认收货均调用真实 adapter；订单 ID 原样保留 | A：2026-08-15 独立顾客账号下单支付 `U 99.00`，买手发货后顾客确认，子订单 `2088549990973136896` 回读 `PAID → SHIPPED → COMPLETED` |
+
 | 能力 | 当前 Swagger | H5 现状 | 本批结论 |
 |---|---|---|---|
 | 买入/卖出订单列表 | `POST /order/orders/bought/page`、`sold/page`，7 个原始状态 | 页面按顾客/买手身份调用真实分页；非空记录、Long ID 和空态已在 Chrome 手机视图验证 | A/B：读链路完成；专用单已覆盖 `PAID → SHIPPED → COMPLETED` |
@@ -21,6 +35,15 @@
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成顾客创建 → `REFUND_REVIEW` → 撤销 → `PAID`，以及买手侧非空列表/详情回归 |
 | IM/通知 | notify 16 操作，REST 充分 | H5 页面仍是 Mock | C/P3：等待订单读链路和 WebSocket 环境复核 |
+
+### 2026-08-15 P1-P4 续推进记录
+
+| 梯队 | 当前证据与处理 | 结论 |
+|---|---|---|
+| P1 商品字段 | 详情 DTO 未声明 `sellerName`、`categoryPath`、售后天数；分类路径已由真实分类树解析 | 卖家昵称和期限不能由前端补造，等待契约扩展 |
+| P2 资金账户 | QA 订单已回读付款冻结、结算解冻和消费支出三笔真实流水；充值详情为测试环境已到账 | 非空读链路完成；提现无已有记录，未新增资金操作 |
+| P3 买手/售后 | 顾客申请为已通过；后台“买手管理”未呈现申请审核列表 | 驳回后重提缺安全测试数据和可操作后台页面 |
+| P4 IM/通知 | notify Swagger 当前无差异；已补 notify 服务配置、H5 代理、请求层、严格类型、通知/会话/消息 adapter，消息中心、订单群列表与详情均已去除 Mock 读取 | A/B：Chrome 回读系统未读、IM 未读和 QA 订单完整系统消息时间线；WebSocket、文字发送、图片/语音上传仍待专项验证 |
 
 ### 结算迁移状态（2026-08-14）
 
@@ -170,8 +193,8 @@
 | 充值/提现记录与详情 | `/user/recharge/page`、`/user/recharge/detail`、`/user/withdraw/page`、`/user/withdraw/detail` | 记录和详情字段完整 | API、分页页面、路由和钱包入口已接入；真实空态已验证，非空记录未验证 |
 | 积分申诉记录 | `POST /user/points/appeals/page` | 可展示审核状态与意见 | API 和积分页签已接入；真实非空记录未验证 |
 | 买手申请提交 | `POST /user/buyer/apply` | A；`reason` 10-500 字 | API 和页面已接入，真实写入未验证 |
-| 收藏、浏览打点 | `/order/products/favorite`、`favorites/page`、`products/view`、`storefront/browse` | 独立能力完整 | 首页真实详情已接浏览打点；收藏仍未接入 |
-| 商品上下架、类目申请、秒杀报名 | `/order/products/shelf`、`categories/apply/*`、`flash-sale/*` | 卖家操作契约基本完整 | 商品上下架已接入；类目申请和秒杀报名仍无入口 |
+| 收藏、浏览打点 | `/order/products/favorite`、`favorites/page`、`products/view`、`storefront/browse` | 独立能力完整 | 首页真实详情已接浏览打点；收藏已完成真实闭环 |
+| 商品上下架、类目申请、秒杀报名 | `/order/products/shelf`、`categories/apply/*`、`flash-sale/*` | 卖家操作契约基本完整 | 商品上下架已接入并完成真实写回归；类目申请和秒杀报名仍无入口 |
 | 卖家改价、发货 | `PUT /order/orders/price`、`POST /order/orders/ship` | 改价可接；发货仅传订单 ID | 未接入；发货缺承运商和运单号 |
 | 退款申请、审核、详情 | `/order/orders/refund/*` | 只能满足简单退款 | 不能替代现有完整售后工单 |
 
@@ -267,7 +290,7 @@
 | 前端需求 | Swagger 匹配 | 等级 | 关键差异 |
 |---|---|---|---|
 | 买手申请提交/状态 | `POST /user/buyer/apply`、`GET /user/buyer/application` | A | API、页面与入口已接入；真实提交和驳回后重提尚待验证 |
-| 我的商品/创建商品 | `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf`、`POST /order/files/upload` | B | API 和页面已接入；图片先上传得到 bucket/filePath，创建/上下架真实写入待验证 |
+| 我的商品/创建商品 | `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf`、`POST /order/files/upload` | B | API 和页面已接入；图片上传、创建、后台审核、上下架真实写入已验证。QA 商品 `2088541349217918978` 已从 `REVIEWING` 回读为 `ON_SALE`，且公开列表可见 |
 | 可接求购/抢单 | `POST /order/demands/hall/page`、`POST /order/demands/grab` | C | 操作存在，但大厅 DTO 缺客户名、分类路径、推送层级/时间、审核和取消信息 |
 | 买手订单 | `POST /order/orders/sold/page` | C | 基本列表存在，缺当前页面需要的采购/物流截图、承运商、地址和细分状态 |
 | 买手押金与经营统计 | `GET /user/wallet/overview`、`GET /user/buyer/application` | C | 无专门押金余额、冻结担保、完成率、好评率、投诉率和发货时效接口 |

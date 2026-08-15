@@ -114,3 +114,27 @@ export function recordProductBrowse(id: string | number): Promise<boolean> {
     data: { id }
   });
 }
+
+export function favoriteProduct(id: string | number): Promise<boolean> {
+  return realOrderRequest<boolean, { id: string | number }>({
+    url: '/products/favorite',
+    method: 'POST',
+    data: { id }
+  });
+}
+
+export function unfavoriteProduct(id: string | number): Promise<boolean> {
+  return realOrderRequest<boolean, { id: string | number }>({
+    url: '/products/favorite',
+    method: 'DELETE',
+    params: { id }
+  });
+}
+
+export function fetchFavoriteProducts(query: Api.RealProduct.FavoritePageQuery = {}) {
+  return realOrderRequest<Api.RealProduct.ProductPage, Api.RealProduct.FavoritePageQuery>({
+    url: '/products/favorites/page',
+    method: 'POST',
+    data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 20 }
+  });
+}

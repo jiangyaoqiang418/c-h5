@@ -10,7 +10,8 @@ function createH5Proxy(env: Record<string, string>): Record<string, string | Pro
   const services = [
     ['VITE_REAL_USER_BASE_URL', 'VITE_REAL_USER_TARGET_URL', 'https://testhou.merchantsale.store/api/user'],
     ['VITE_REAL_ORDER_BASE_URL', 'VITE_REAL_ORDER_TARGET_URL', 'https://testhou.merchantsale.store/api/order'],
-    ['VITE_REAL_ADMIN_BASE_URL', 'VITE_REAL_ADMIN_TARGET_URL', 'https://testhou.merchantsale.store/api/admin']
+    ['VITE_REAL_ADMIN_BASE_URL', 'VITE_REAL_ADMIN_TARGET_URL', 'https://testhou.merchantsale.store/api/admin'],
+    ['VITE_REAL_NOTIFY_BASE_URL', 'VITE_REAL_NOTIFY_TARGET_URL', 'https://testhou.merchantsale.store/api/notify']
   ] as const;
 
   return Object.fromEntries(

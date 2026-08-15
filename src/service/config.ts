@@ -2,6 +2,7 @@ interface RealServiceConfig {
   user: string;
   order: string;
   admin: string;
+  notify: string;
   successCode: string;
   logoutCodes: string[];
   modalLogoutCodes: string[];
@@ -26,6 +27,7 @@ export const realServiceConfig: RealServiceConfig = {
   user: resolveServiceURL(env.VITE_REAL_USER_BASE_URL, env.VITE_REAL_USER_TARGET_URL),
   order: resolveServiceURL(env.VITE_REAL_ORDER_BASE_URL, env.VITE_REAL_ORDER_TARGET_URL),
   admin: resolveServiceURL(env.VITE_REAL_ADMIN_BASE_URL, env.VITE_REAL_ADMIN_TARGET_URL),
+  notify: resolveServiceURL(env.VITE_REAL_NOTIFY_BASE_URL, env.VITE_REAL_NOTIFY_TARGET_URL),
   successCode: env.VITE_REAL_SERVICE_SUCCESS_CODE || '1',
   logoutCodes: splitCodes(env.VITE_REAL_SERVICE_LOGOUT_CODES, ['-200']),
   modalLogoutCodes: splitCodes(env.VITE_REAL_SERVICE_MODAL_LOGOUT_CODES, ['-201'])

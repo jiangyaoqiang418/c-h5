@@ -60,6 +60,11 @@ declare namespace Api {
       categoryId?: string | number;
     }
 
+    interface FavoritePageQuery {
+      pageNo?: number;
+      pageSize?: number;
+    }
+
     type PublicProductSort = 'DEFAULT' | 'SALES' | 'NEW' | 'PRICE_ASC' | 'PRICE_DESC';
 
     interface PublicProductPageQuery {

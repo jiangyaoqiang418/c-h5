@@ -5,7 +5,7 @@ import { productApi, reviewApi } from '@shared';
 import { avatarUrl } from '@shared/utils/image';
 import { formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
-import { fetchStorefrontProductDetail, recordProductBrowse } from '@/service/api/product';
+import { favoriteProduct, fetchStorefrontProductDetail, recordProductBrowse } from '@/service/api/product';
 import { go, requireLogin } from '@/utils/navigate';
 import { useCartStore } from '@/stores';
 import VipBadge from '@/components/common/vip-badge.vue';
@@ -206,6 +206,20 @@ function startPurchase() {
   if (product.value) go(`/pages/purchase/create?productHint=${encodeURIComponent(product.value.title)}`);
 }
 
+async function favorite() {
+  if (!product.value || !isRealProduct.value) {
+    uni.showToast({ title: '该商品暂不支持收藏', icon: 'none' });
+    return;
+  }
+  if (!await requireLogin(`/pages/product/detail?id=${encodeURIComponent(String(product.value.id))}&source=real`)) return;
+  try {
+    await favoriteProduct(product.value.id);
+    uni.showToast({ title: '已收藏', icon: 'success' });
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '收藏失败', icon: 'none' });
+  }
+}
+
 function goBack() {
   uni.navigateBack();
 }
@@ -276,6 +290,7 @@ function goBack() {
     <view class="bottom-bar">
       <view class="tool" @click="startPurchase"><text class="tool-icon">✨</text><text>求购</text></view>
       <view class="tool" @click="go('/pages/cart/index')"><text class="tool-icon">🛒</text><text>购物车</text></view>
+      <view class="tool" @click="favorite"><text class="tool-icon">☆</text><text>收藏</text></view>
       <view class="quantity">
         <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="qty = Math.min(product.stock, qty + 1)">+</text>
       </view>
