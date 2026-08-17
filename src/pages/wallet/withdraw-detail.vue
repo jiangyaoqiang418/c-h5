@@ -40,10 +40,16 @@ onLoad(query => load(String(query?.id || '')));
       <view v-if="detail.actualAmount !== undefined" class="row"><text class="label">实际到账</text><text>U {{ formatAmount(detail.actualAmount) }}</text></view>
       <view class="block"><text class="label">到账地址</text><text class="block-value">{{ detail.toAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.toAddress)">复制地址</wd-button></view>
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
+      <view v-if="detail.payoutId" class="row"><text class="label">链上打款单</text><text>{{ detail.payoutId }}</text></view>
+      <view v-if="detail.payoutStatus" class="row"><text class="label">链上打款状态</text><text>{{ detail.payoutStatus }}</text></view>
+      <view v-if="detail.networkFee !== undefined" class="row"><text class="label">网络手续费</text><text>{{ detail.networkFee }} {{ detail.networkFeeSymbol || 'USDT' }}</text></view>
+      <view v-if="detail.blockHeight !== undefined" class="row"><text class="label">区块高度</text><text>{{ detail.blockHeight }}</text></view>
       <view v-if="detail.reviewComment" class="block"><text class="label">审核意见</text><text class="reason">{{ detail.reviewComment }}</text></view>
       <view v-if="detail.failReason" class="block"><text class="label">失败原因</text><text class="reason">{{ detail.failReason }}</text></view>
       <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
       <view v-if="detail.paidAt" class="row"><text class="label">支付时间</text><text>{{ formatTime(detail.paidAt) }}</text></view>
+      <view v-if="detail.submittedAt" class="row"><text class="label">已提交链上</text><text>{{ formatTime(detail.submittedAt) }}</text></view>
+      <view v-if="detail.dispatchedAt" class="row"><text class="label">已派发打款</text><text>{{ formatTime(detail.dispatchedAt) }}</text></view>
       <view class="row"><text class="label">完成时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
     </view>
   </view>

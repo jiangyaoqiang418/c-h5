@@ -5,17 +5,16 @@ import { go } from '@/utils/navigate';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 
 interface Props {
-  product: Api.FinanceProduct.ProductRecord;
-  vipBonusRate?: number;
+  product: Api.RealFinance.ProductVO;
 }
-const props = withDefaults(defineProps<Props>(), { vipBonusRate: 0 });
+const props = defineProps<Props>();
 
 const effectiveRate = computed(() =>
-  ((Number(props.product.baseRate) || 0) + props.vipBonusRate).toFixed(2)
+  (Number(props.product.annualRate) * 100).toFixed(2)
 );
 
 const productIcon = computed(() => {
-  const days = props.product.lockupDays;
+  const days = props.product.lockDays;
   if (days <= 7) return '💧';
   if (days <= 30) return '💰';
   if (days <= 90) return '🔒';
@@ -37,14 +36,14 @@ function goDetail() {
         <view class="ef-info">
           <text class="ef-name">{{ product.name }}</text>
           <text class="ef-meta">
-            锁定 {{ product.lockupDays }} 天 · 起投 U {{ formatAmount(product.minAmount) }}
+            锁定 {{ product.lockDays }} 天 · 起投 U {{ formatAmount(product.minAmount) }}
           </text>
         </view>
       </view>
       <view class="ef-right">
         <view class="ef-apy-row">
           <text class="ef-apy-label">APY</text>
-          <InfoTooltip text="APY = 年化收益率。含基准利率 + VIP 加成，日结到不可提现桶" :size="18" />
+          <InfoTooltip text="APY = 年化收益率，实际收益以锁仓订单快照与后端结算为准" :size="18" />
         </view>
         <text class="ef-apy">{{ effectiveRate }}%</text>
       </view>

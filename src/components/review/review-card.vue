@@ -1,76 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { enums } from '@shared';
 import ReviewStars from '@/components/common/review-stars.vue';
-
-interface Props {
-  review: Api.Review.ReviewRecord;
-}
+interface Props { review: Api.RealReview.ReviewDTO; received?: boolean; }
 const props = defineProps<Props>();
-
-const isHidden = computed(() => props.review.moderationStatus === 'hidden');
-const directionMeta = computed(() => enums.DIRECTION_META[props.review.direction]);
+defineEmits<{ (event: 'delete', review: Api.RealReview.ReviewDTO): void; (event: 'reply', review: Api.RealReview.ReviewDTO): void; (event: 'appeal', review: Api.RealReview.ReviewDTO): void }>();
+const isHidden = computed(() => props.review.status === 'HIDDEN');
+const statusText = computed(() => props.review.statusText || ({ PENDING: '待审核', PUBLISHED: '已发布', REJECTED: '已驳回', HIDDEN: '已隐藏' }[props.review.status] || ''));
 </script>
 
 <template>
   <view class="rv-card" :class="{ hidden: isHidden }">
-    <view class="head">
-      <ReviewStars :score="review.score" :show-score="true" size="sm" />
-      <wd-tag size="small" plain>{{ directionMeta.label }}</wd-tag>
-    </view>
+    <view class="head"><ReviewStars :score="review.productScore" :show-score="true" size="sm" /><wd-tag size="small" plain>{{ received ? '我收到的' : '我发出的' }} · {{ statusText }}</wd-tag></view>
     <view v-if="isHidden" class="hidden-overlay">⚠️ 该评价已被平台隐藏</view>
-    <template v-else>
-      <text class="content">{{ review.content }}</text>
-      <view v-if="review.tags?.length" class="tags">
-        <wd-tag v-for="t in review.tags" :key="t" size="small" plain>{{ t }}</wd-tag>
-      </view>
-      <view class="meta">
-        <text>— {{ review.fromUserName }}</text>
-        <text class="time">{{ new Date(review.createdAt).toLocaleDateString() }}</text>
-      </view>
-    </template>
+    <template v-else><text class="content">{{ review.content || '用户未填写文字评价' }}</text><view v-if="review.images?.length" class="images"><image v-for="url in review.images" :key="url" :src="url" mode="aspectFill" /></view><text v-if="review.replyContent" class="reply">买手回复：{{ review.replyContent }}</text><view class="meta"><text>— {{ review.userName || (review.anonymous ? '匿名用户' : '用户') }}</text><text class="time">{{ new Date(Number(review.createdAt)).toLocaleDateString() }}</text></view><view class="actions"><wd-button v-if="!received" size="small" plain type="error" @click="$emit('delete', review)">删除</wd-button><template v-else><wd-button v-if="!review.replyContent" size="small" plain @click="$emit('reply', review)">回复</wd-button><wd-button v-if="!review.appealId || review.appealStatus !== 'PENDING'" size="small" plain type="warning" @click="$emit('appeal', review)">申诉</wd-button></template></view></template>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.rv-card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 16rpx;
-}
-.rv-card.hidden {
-  background: #f7f8fa;
-}
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12rpx;
-}
-.content {
-  display: block;
-  font-size: 26rpx;
-  color: #1d2129;
-  line-height: 1.6;
-}
-.tags {
-  display: flex;
-  gap: 8rpx;
-  flex-wrap: wrap;
-  margin-top: 12rpx;
-}
-.meta {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 12rpx;
-  font-size: 22rpx;
-  color: #86909c;
-}
-.hidden-overlay {
-  text-align: center;
-  color: #ff7d00;
-  font-size: 26rpx;
-  padding: 24rpx 0;
-}
+.rv-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; }.rv-card.hidden { background: #f7f8fa; }.head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12rpx; }.content,.reply { display:block; font-size:26rpx; color:#1d2129; line-height:1.6; }.reply { margin-top:12rpx; color:#4e5969; background:#f7f8fa; padding:12rpx; border-radius:8rpx; }.images { display:flex; gap:8rpx; flex-wrap:wrap; margin-top:12rpx; }.images image { width:140rpx; height:140rpx; border-radius:8rpx; }.meta { display:flex; justify-content:space-between; margin-top:12rpx; font-size:22rpx; color:#86909c; }.actions { display:flex; justify-content:flex-end; gap:12rpx; margin-top:16rpx; }.hidden-overlay { text-align:center; color:#ff7d00; font-size:26rpx; padding:24rpx 0; }
 </style>

@@ -64,5 +64,6 @@ declare namespace Api {
     interface ConversationPageQuery { pageNo?: number; pageSize?: number; }
     interface MessagePageQuery { pageNo?: number; pageSize?: number; conversationId: Id; }
     interface SendMessageParams { conversationId: Id; msgType: ImMessageType; content?: string; mediaUrl?: string; duration?: number; clientMsgId?: string; }
+    interface ImLinkStatusVO { endpoint: string; gatewayPath: string; onlineConnections: number; heartbeatIntervalMs: number; idleTimeoutMs: number; }
   }
 }

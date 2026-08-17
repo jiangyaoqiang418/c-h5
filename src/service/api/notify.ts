@@ -30,3 +30,4 @@ export function sendMessage(params: Api.RealNotify.SendMessageParams) {
 }
 
 export function fetchImUnreadCount() { return realNotifyRequest<number>({ url: '/im/unread/count' }); }
+export function fetchImLinkStatus() { return realNotifyRequest<Api.RealNotify.ImLinkStatusVO>({ url: '/back/im/status', requireToken: false }); }

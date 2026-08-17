@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onUnload } from '@dcloudio/uni-app';
 import { go } from '@/utils/navigate';
-import { fetchConversations, fetchImUnreadCount, fetchNotificationUnreadCount, fetchNotifications } from '@/service/api/notify';
+import { fetchConversations, fetchImLinkStatus, fetchImUnreadCount, fetchNotificationUnreadCount, fetchNotifications } from '@/service/api/notify';
+import { imSocket } from '@/service/im-socket';
 
 interface Category {
   key: string;
@@ -19,11 +20,12 @@ const categories = ref<Category[]>([]);
 
 async function load() {
   try {
-    const [notificationCount, imCount, notificationPage, conversationPage] = await Promise.all([
+    const [notificationCount, imCount, notificationPage, conversationPage, imStatus] = await Promise.all([
       fetchNotificationUnreadCount(),
       fetchImUnreadCount(),
       fetchNotifications({ pageNo: 1, pageSize: 1 }),
-      fetchConversations({ pageNo: 1, pageSize: 1 })
+      fetchConversations({ pageNo: 1, pageSize: 1 }),
+      fetchImLinkStatus()
     ]);
     const notification = notificationPage.records[0];
     const conversation = conversationPage.records[0];
@@ -32,11 +34,11 @@ async function load() {
       key: 'system',
       icon: '⚙',
       title: '系统通知',
-      path: '',
+      path: '/pages/message/notifications',
       unread: notificationCount,
       latestText: notification ? `${notification.title || '系统通知'}：${notification.content || ''}` : '暂无系统通知',
       latestTime: notification?.createdAt ? new Date(Number(notification.createdAt)).toLocaleDateString() : '',
-      disabled: true
+      disabled: false
     },
     {
       key: 'txn',
@@ -46,7 +48,7 @@ async function load() {
       unread: 0,
       latestText: '暂无新消息',
       latestTime: '',
-      disabled: true
+      disabled: false
     },
     {
       key: 'im',
@@ -54,7 +56,7 @@ async function load() {
       title: '订单群聊',
       path: '/pages/im/order-list',
       unread: imCount,
-      latestText: conversation?.lastMessagePreview || '暂无订单群消息',
+      latestText: conversation?.lastMessagePreview || (imStatus.gatewayPath ? '订单群消息服务已就绪' : '暂无订单群消息'),
       latestTime: conversation?.lastMessageAt ? new Date(Number(conversation.lastMessageAt)).toLocaleDateString() : ''
     }
   ];
@@ -65,6 +67,8 @@ async function load() {
 }
 
 onShow(load);
+onShow(() => { imSocket.start().catch(() => undefined); });
+onUnload(() => imSocket.stop());
 
 const totalUnread = computed(() =>
   categories.value.reduce((s, c) => s + c.unread, 0)
@@ -77,6 +81,8 @@ function open(c: Category) {
   }
   if (c.path) {
     go(c.path);
+  } else if (c.key === 'txn') {
+    go('/pages/wallet/history');
   } else {
     uni.showToast({ title: '功能开发中', icon: 'none' });
   }

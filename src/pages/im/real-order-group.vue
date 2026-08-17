@@ -1,14 +1,52 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { computed, nextTick, ref } from 'vue';
+import { onLoad, onUnload } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { fetchConversationByOrder, fetchMessages } from '@/service/api/notify';
+import { imSocket } from '@/service/im-socket';
 
 const userStore = useUserStore();
 const conversation = ref<Api.RealNotify.Conversation>();
 const messages = ref<Api.RealNotify.Message[]>([]);
 const scrollIntoView = ref('');
+let unsubscribe: (() => void) | undefined;
+
+interface OrderCardContent {
+  productTitle?: string;
+  orderNo?: string;
+  statusText?: string;
+  amount?: string | number;
+}
+
+function parseOrderCard(content?: string): OrderCardContent | undefined {
+  try {
+    const parsed = JSON.parse(content || '{}') as OrderCardContent;
+    return Object.keys(parsed).length ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const latestOrderCard = computed(() => {
+  const message = messages.value.find(item => item.msgType === 'ORDER_CARD');
+  return message ? parseOrderCard(message.content) : undefined;
+});
+const headerTitle = computed(() => latestOrderCard.value?.productTitle || conversation.value?.productTitle || conversation.value?.title || '订单群聊');
+const headerMeta = computed(() => {
+  const orderNo = latestOrderCard.value?.orderNo || conversation.value?.orderNo || conversation.value?.bizId;
+  const status = latestOrderCard.value?.statusText || conversation.value?.orderStatusText || '—';
+  return `订单 ${orderNo || '—'} · ${status}`;
+});
+
+function appendRealtimeMessage(event: unknown) {
+  const wrapper = event as { data?: unknown; message?: unknown };
+  const candidate = (wrapper?.data || wrapper?.message || event) as Partial<Api.RealNotify.Message>;
+  if (!candidate || typeof candidate !== 'object' || String(candidate.conversationId) !== String(conversation.value?.id) || candidate.id == null) return;
+  if (messages.value.some(item => String(item.id) === String(candidate.id))) return;
+  messages.value.push(candidate as Api.RealNotify.Message);
+  nextTick(() => { scrollIntoView.value = `message-${candidate.id}`; });
+}
 
 onLoad(async query => {
   const orderId = String(query?.orderId || '');
@@ -17,6 +55,8 @@ onLoad(async query => {
     conversation.value = await fetchConversationByOrder(orderId);
     const page = await fetchMessages({ conversationId: conversation.value.id, pageNo: 1, pageSize: 50 });
     messages.value = [...page.records].reverse();
+    unsubscribe = imSocket.subscribe(appendRealtimeMessage);
+    imSocket.start().catch(() => undefined);
     await nextTick();
     const last = messages.value.at(-1);
     if (last) scrollIntoView.value = `message-${last.id}`;
@@ -25,19 +65,39 @@ onLoad(async query => {
   }
 });
 
+onUnload(() => {
+  unsubscribe?.();
+  unsubscribe = undefined;
+  imSocket.stop();
+});
+
 function side(message: Api.RealNotify.Message) {
   if (message.msgType === 'SYSTEM' || message.msgType === 'ORDER_CARD') return 'center';
   return String(message.senderId) === String(userStore.currentUser?.id) ? 'right' : 'left';
+}
+
+function messageText(message: Api.RealNotify.Message) {
+  if (message.recalled) return '消息已撤回';
+  if (message.msgType !== 'ORDER_CARD') return message.content || '系统消息';
+
+  try {
+    const card = parseOrderCard(message.content) || {};
+    const title = card.productTitle || card.orderNo || '订单消息';
+    const detail = card.statusText || (card.amount == null ? '' : `金额 ${card.amount} U`);
+    return detail ? `${title} · ${detail}` : title;
+  } catch {
+    return message.content || '订单消息';
+  }
 }
 </script>
 
 <template>
   <view v-if="conversation" class="page">
-    <view class="header"><text class="title">{{ conversation.productTitle || conversation.title || '订单群聊' }}</text><text class="meta">订单 {{ conversation.orderNo || conversation.bizId }} · {{ conversation.orderStatusText || '—' }}</text></view>
+    <view class="header"><text class="title">{{ headerTitle }}</text><text class="meta">{{ headerMeta }}</text></view>
     <scroll-view scroll-y class="messages" :scroll-into-view="scrollIntoView">
       <view v-for="message in messages" :id="`message-${message.id}`" :key="message.id" class="row" :class="side(message)">
         <text v-if="side(message) === 'left'" class="sender">{{ message.senderName || '系统' }}</text>
-        <view class="bubble" :class="side(message)"><text>{{ message.recalled ? '消息已撤回' : (message.content || (message.msgType === 'ORDER_CARD' ? '订单消息' : '系统消息')) }}</text></view>
+        <view class="bubble" :class="side(message)"><text>{{ messageText(message) }}</text></view>
       </view>
       <view v-if="!messages.length" class="empty">暂无历史消息</view>
     </scroll-view>

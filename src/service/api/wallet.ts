@@ -168,6 +168,10 @@ export function createRecharge(params: RechargeParams): Promise<string | number>
   return realUserRequest<string | number, RechargeParams>({ url: '/recharge/create', method: 'POST', data: params });
 }
 
+export function fetchRechargeAddress(chain: string) {
+  return realUserRequest<Api.RealWallet.RechargeAddressVO>({ url: '/recharge/address', params: { chain } });
+}
+
 export function fetchRechargePage(query: { pageNo?: number; pageSize?: number; status?: string } = {}) {
   return realUserRequest<Api.RealWallet.RechargePage, typeof query>({
     url: '/recharge/page',

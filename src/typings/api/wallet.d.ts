@@ -49,6 +49,16 @@ declare namespace Api {
       createdAt?: string | number;
     }
 
+    interface RechargeAddressVO {
+      chain: string;
+      address: string;
+      tokenContract?: string;
+      decimals?: number;
+      memo?: string;
+      minAmount?: string | number;
+      minConfirmations?: number;
+    }
+
     interface RechargePage {
       pageNo?: number;
       pageSize?: number;
@@ -68,6 +78,13 @@ declare namespace Api {
       statusText?: string;
       reviewComment?: string;
       failReason?: string;
+      payoutId?: string | number;
+      payoutStatus?: string;
+      dispatchedAt?: string | number;
+      submittedAt?: string | number;
+      blockHeight?: string | number;
+      networkFee?: string | number;
+      networkFeeSymbol?: string;
       paidAt?: string | number;
       confirmedAt?: string | number;
       createdAt?: string | number;

@@ -6,6 +6,7 @@ import { avatarUrl } from '@shared/utils/image';
 import { formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { favoriteProduct, fetchStorefrontProductDetail, recordProductBrowse } from '@/service/api/product';
+import { fetchReviewSummary, fetchSellerRating, fetchStorefrontReviews } from '@/service/api/review';
 import { go, requireLogin } from '@/utils/navigate';
 import { useCartStore } from '@/stores';
 import VipBadge from '@/components/common/vip-badge.vue';
@@ -38,6 +39,9 @@ const cart = useCartStore();
 const product = ref<ProductView>();
 const reviews = ref<Api.Review.ReviewRecord[]>([]);
 const sellerScore = ref<Api.Review.UserScoreSummary>();
+const realReviews = ref<Api.RealReview.ReviewDTO[]>([]);
+const realReviewSummary = ref<Api.RealReview.ReviewSummaryDTO>();
+const realSellerRating = ref<Api.RealReview.SellerRatingDTO>();
 const qty = ref(1);
 const isRealProduct = ref(false);
 
@@ -141,6 +145,14 @@ onLoad(async query => {
         : undefined;
       product.value = fromReal(record, categoryPath || `分类 ${record.categoryId}`);
       recordProductBrowse(rawId).catch(() => undefined);
+      const [reviewPage, summary, sellerRating] = await Promise.allSettled([
+        fetchStorefrontReviews({ productId: rawId, pageSize: 3 }),
+        fetchReviewSummary(rawId),
+        fetchSellerRating(record.sellerId)
+      ]);
+      if (reviewPage.status === 'fulfilled') realReviews.value = reviewPage.value.records;
+      if (summary.status === 'fulfilled') realReviewSummary.value = summary.value;
+      if (sellerRating.status === 'fulfilled') realSellerRating.value = sellerRating.value;
       return;
     }
 
@@ -241,9 +253,9 @@ function goBack() {
       <text class="title">{{ product.title }}</text>
       <text v-if="product.summary" class="summary">{{ product.summary }}</text>
 
-      <view v-if="sellerScore" class="rating-summary">
-        <ReviewStars :score="Number(sellerScore.avgScore)" size="sm" show-score />
-        <text>· {{ sellerScore.receivedTotal }} 评价</text>
+      <view v-if="sellerScore || realSellerRating" class="rating-summary">
+        <ReviewStars :score="Number(realSellerRating?.averageScore ?? realSellerRating?.avgScore ?? sellerScore?.avgScore ?? 0)" size="sm" show-score />
+        <text>· {{ realSellerRating?.total ?? realSellerRating?.totalCount ?? sellerScore?.receivedTotal ?? 0 }} 评价</text>
       </view>
 
       <view class="price-block">
@@ -251,7 +263,7 @@ function goBack() {
         <text class="price-sub">≈ {{ priceSet(product.price).cny }}</text>
         <view class="fee-row">
           <text>运费 {{ formatUsdt(product.shippingFee) }}</text>
-          <text>税费 {{ formatUsdt(product.tax) }}<InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></text>
+          <view class="fee-with-tip"><text>税费 {{ formatUsdt(product.tax) }}</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></view>
           <text>库存 {{ product.stock }}</text>
         </view>
       </view>
@@ -273,12 +285,17 @@ function goBack() {
         </view>
       </view>
 
-      <view v-if="reviews.length" class="section">
+      <view v-if="reviews.length || realReviews.length" class="section">
         <text class="section-title">用户评价</text>
         <view v-for="review in reviews.slice(0, 3)" :key="review.id" class="review-row">
           <view class="review-head"><text>{{ review.fromUserName }}</text><ReviewStars :score="review.score" size="sm" /></view>
           <text class="review-text">{{ review.content }}</text>
         </view>
+        <view v-for="review in realReviews" :key="review.reviewId" class="review-row">
+          <view class="review-head"><text>{{ review.userName || '匿名用户' }}</text><ReviewStars :score="review.productScore" size="sm" /></view>
+          <text class="review-text">{{ review.content || '用户未填写文字评价' }}</text>
+        </view>
+        <text v-if="realReviewSummary" class="review-total">共 {{ realReviewSummary.total ?? realReviewSummary.totalCount ?? 0 }} 条评价</text>
       </view>
 
       <view class="section">
@@ -317,6 +334,7 @@ function goBack() {
 .price-main { display: block; color: #0f111a; font-size: 60rpx; font-weight: 700; font-family: ui-monospace, monospace; }
 .price-sub { display: block; margin-top: 8rpx; color: #6b7385; font-size: 24rpx; }
 .fee-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(184,147,90,0.2); color: #6b7385; font-size: 22rpx; }
+.fee-with-tip { display: flex; align-items: center; gap: 4rpx; }
 .overseas-warn { margin-top: 20rpx; padding: 20rpx; border-left: 6rpx solid #e74c3c; border-radius: 8rpx; background: rgba(231,76,60,0.08); color: #e74c3c; font-size: 24rpx; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
 .tag { padding: 8rpx 16rpx; border: 1rpx solid #edece6; border-radius: 8rpx; background: #fafaf7; color: #1d2129; font-size: 22rpx; }

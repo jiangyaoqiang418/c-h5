@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { computed, onUnmounted, reactive, ref } from 'vue';
-import { createRecharge, fetchRechargeDetail } from '@/service/api/wallet';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { createRecharge, fetchRechargeAddress, fetchRechargeDetail } from '@/service/api/wallet';
 import { go } from '@/utils/navigate';
 
 const form = reactive<{ chain: 'TRON' | 'ETH' | 'BSC'; amount: number }>({ chain: 'TRON', amount: 100 });
 const submitting = ref(false);
 const detail = ref<Api.RealWallet.RechargeVO>();
+const rechargeAddress = ref<Api.RealWallet.RechargeAddressVO>();
+const addressLoading = ref(false);
 let pollingTimer: ReturnType<typeof setInterval> | undefined;
 
 const canSubmit = computed(() => Number(form.amount) > 0);
+
+async function loadRechargeAddress() {
+  addressLoading.value = true;
+  rechargeAddress.value = undefined;
+  try {
+    rechargeAddress.value = await fetchRechargeAddress(form.chain);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '充值地址加载失败', icon: 'none' });
+  } finally {
+    addressLoading.value = false;
+  }
+}
 
 function copy(value?: string) {
   if (!value) return;
@@ -51,13 +65,16 @@ async function submit() {
 onUnmounted(() => {
   if (pollingTimer) clearInterval(pollingTimer);
 });
+
+onMounted(loadRechargeAddress);
+watch(() => form.chain, loadRechargeAddress);
 </script>
 
 <template>
   <view class="deposit-page">
     <view class="form-card">
-      <text class="title">创建链上充值单</text>
-      <text class="tip">选择链和申报金额后，按返回的平台地址及备注完成转账。</text>
+      <text class="title">链上充值</text>
+      <text class="tip">选择链后，使用专属地址直接转账即可到账；创建申报单仅用于留存本次金额。</text>
       <wd-cell title="链选择">
         <wd-radio-group v-model="form.chain" inline>
           <wd-radio value="TRON">TRC20</wd-radio>
@@ -65,8 +82,16 @@ onUnmounted(() => {
           <wd-radio value="BSC">BSC</wd-radio>
         </wd-radio-group>
       </wd-cell>
+      <view v-if="rechargeAddress" class="block-row">
+        <text class="label">专属充值地址</text>
+        <text class="block-value">{{ rechargeAddress.address }}</text>
+        <wd-button plain size="small" @click="copy(rechargeAddress.address)">复制地址</wd-button>
+        <text v-if="rechargeAddress.memo" class="tip">Memo / Tag：{{ rechargeAddress.memo }}</text>
+        <text v-if="rechargeAddress.minAmount" class="tip">建议最低充值：{{ rechargeAddress.minAmount }} USDT</text>
+      </view>
+      <text v-else-if="addressLoading" class="tip">正在加载专属充值地址…</text>
       <wd-input v-model="form.amount" label="充值金额" type="digit" placeholder="USDT" />
-      <wd-button type="primary" block :disabled="!canSubmit" :loading="submitting" class="submit-btn" @click="submit">创建充值单</wd-button>
+      <wd-button type="primary" block :disabled="!canSubmit" :loading="submitting" class="submit-btn" @click="submit">创建充值申报单（可选）</wd-button>
     </view>
 
     <view v-if="detail" class="detail-card">
