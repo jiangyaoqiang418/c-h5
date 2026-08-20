@@ -11,9 +11,7 @@
     "build:h5": "uni build",
     "dev:app-plus": "uni -p app-plus --mode app",
     "build:app-plus": "uni build -p app-plus --mode app",
-    "typecheck": "vue-tsc --noEmit",
-    "swagger:check": "node scripts/swagger-contract-check.mjs",
-    "swagger:baseline": "node scripts/swagger-contract-check.mjs --write-baseline"
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4060620250520001",

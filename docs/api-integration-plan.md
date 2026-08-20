@@ -39,7 +39,7 @@
 - `https://testhou.merchantsale.store/api/notify/back/hello` 已实测 HTTP 200；新增 `/api/notify` 代理、App/生产环境地址、`realNotifyRequest`、严格 DTO 和通知/会话/消息 adapter。消息中心未读数与订单群列表已改用真实 notify 读取，不再读取 IM Mock。
 - Chrome 已实际回读消息中心 11 条系统未读、35 条 IM 未读，以及 QA 商品的真实订单群列表。点击会话后，订单群详情按真实 `bizId` 读取到创建、付款、发货、完成和货款结算的系统消息；新详情页只读展示真实消息，旧 Mock 群详情不再由真实列表跳转。文字发送 adapter 已预留但本次未发送消息；图片和语音仍缺 C 端上传契约，不能伪造上传能力。
 
-- 已保存 `docs/swagger-baselines/2026-08-14/`，并将 `pnpm swagger:check` 默认基线切换至该目录。实时快照为：admin `116/117/207`、user `33/33/66`、order `45/47/66`、notify `16/16/22`（路径/操作/schema）。
+- 2026-08-14 实时复核结果为：admin `116/117/207`、user `33/33/66`、order `45/47/66`、notify `16/16/22`（路径/操作/schema）；后续迁移前继续重新读取 live Swagger。
 - 相较 2026-08-10，user 无递归差异；order 删除旧 `/orders/refund/*` 三个路径，新增 `POST /orders/refunds/create`、`bought/page`、`sold/page`、`cancel` 和 `GET /orders/refunds/detail`，并新增支付凭证字段。现有 H5 五类 Mock 售后不能直接映射，后续只能按“仅退款”专题另行收敛。
 - 本批仅迁移买入订单列表、详情、取消和确认收货：使用 `POST /orders/bought/page`、`GET /orders/detail`、`POST /orders/cancel`、`POST /orders/confirm`。状态以原始 7 状态为准，通过 adapter 映射为现有展示状态：`CREATED→PENDING_PAYMENT`、`PAID→PROCURING`、`SHIPPED→IN_TRANSIT`、`REFUND_REVIEW→IN_AFTERSALE`、`REFUNDED→REFUNDED`、`COMPLETED→COMPLETED`、`CANCELED→CANCELLED`；不伪造“已采购、保修、归档”等后端未声明状态。
 - 真实写入验证须使用管理后台准备的非自购商品、有效地址与测试账号；取消和确认收货仅对专用 QA 订单执行。2026-08-14 已以专用订单 `2088059205303492610` 完成跨账号证据：PC 买手发货后状态为 `SHIPPED`，H5 顾客订单详情调用确认收货后回读为 `COMPLETED`，订单号 `2088059205177663488`、Long ID、地址、金额和状态时间线均正确回显。同日通过 Swagger 的 `create-batch` 创建了未付款专用订单 `2088061302560350209`，H5 列表先回显 `CREATED/待付款`，再通过页面取消回读为 `CANCELED/已取消`；仅该辅助建单使用了真实接口直调，未新增 H5 结算页面迁移。结算、订单组支付、买手发货、仅退款、IM/通知均不在本批页面迁移范围。
@@ -75,7 +75,7 @@
 
 ### 2026-08-10 Swagger 漂移、P1 回归与执行顺序
 
-- 已保存 `docs/swagger-baselines/2026-08-10/` 原始 OpenAPI 快照，并将 `pnpm swagger:check` 默认比较目标切换至该基线。检查仍递归覆盖路径、方法、参数、required、requestBody、response 和嵌套 schema；当分组从不可用变为可用时，输出“服务状态变化”，不再把整份 OpenAPI 当作普通字段变更打印。
+- 2026-08-10 已递归复核路径、方法、参数、required、requestBody、response 和嵌套 schema；当分组从不可用变为可用时，按“服务状态变化”单独记录。
 - 相较 2026-08-09：admin `107/108/187`、order `43/45/63` 无递归差异；user 由 `32/32/63` 变为 `33/33/66`，新增 `POST /develop/recharge/confirm` 与 `DevelopRechargeConfirmQO`、开发态模拟确认响应 schema。该接口会产生开发测试写入，不得暴露为 C 端充值页面能力；当前充值创建和链配置仍未完成真实验证，未经单独授权不得调用。
 - notify 由 HTTP 404 变为 HTTP 200，当前为 `9 路径/9 操作/18 schema`，覆盖会话、消息发送/分页、通知分页、已读和未读数。它们属于既定 P3 的 IM/推送范围，本轮只记录契约可用，未新增 API、页面调用或交互入口。
 - P1 下一步先进行 H5 与真机可视化回归，覆盖分类左右独立滚动、购物车结算栏、个人页、商品/订单详情、登录页、软键盘、安全区和底部 tab。只有收到页面截图/真机结果后才修复对应问题；静态样式扫描和构建不能替代这一验收。
@@ -83,7 +83,7 @@
 
 ### 2026-08-09 基线与 P1 静态整改
 
-- 已新增 `scripts/swagger-contract-check.mjs`、`pnpm swagger:baseline` 与 `pnpm swagger:check`。原始 OpenAPI 基线保存于 `docs/swagger-baselines/2026-08-09/`；实时检查覆盖 `admin/user/order/notify`，递归比较路径、方法、参数、请求体、响应和嵌套 schema。
+- 2026-08-09 已覆盖 `admin/user/order/notify`，递归复核路径、方法、参数、请求体、响应和嵌套 schema。
 - 2026-08-09 建线和复查结果为：admin `107 路径/108 操作/187 schema`、user `32/32/63`、order `43/45/63`，notify 为 HTTP 404；同次复查与新建基线无递归差异。
 - 已对 P1 完成首轮静态整改：默认页面不再在源码中使用 `min-height: 100vh`，App-Vue 页面根节点以原生导航/tabBar 裁剪后的宿主高度为准；残余 CSS Grid 与 `backdrop-filter` 已移除。登录、AI、IM 的全屏布局保留为专项页面，仍需 H5/Android/iOS 可视化验收。
 - 已对固定操作区完成第二批收口：购物车仅预留结算栏实际高度；结算页移除重复 footer 空白；商品、求购、订单详情和地址/买手商品浮动入口页面统一按操作区高度加安全区预留，避免滚动到底部出现通用大面积空白。

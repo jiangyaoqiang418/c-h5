@@ -59,7 +59,8 @@
 
 ### 文档与状态口径
 
-- 接口计划和核对记录统一放 `docs/`，说明使用中文，技术标识保持原样。
+- `docs/` 仅允许保留 `api-integration-plan.md` 和 `api-swagger-match-matrix.md`。未经用户明确允许，不得在 `docs/` 中新增、生成、复制、恢复其他文件或子目录。
+- 接口计划和核对记录统一维护在上述两个文件中，说明使用中文，技术标识保持原样。
 - 跨设备或新会话继续 P2 工作时，必须先读取 `README.md`、`docs/api-integration-plan.md` 和 `docs/api-swagger-match-matrix.md`，再结合 live Swagger 和当前代码确认状态；项目文档不能替代实时契约复核。
 - 共用 Swagger 入口以 `docs/api-integration-plan.md` 记录为准，地址变化只维护文档，不凭记忆修改代码。
 - “Swagger 接口存在”“API 已封装”“页面已调用”“真实接口已验证”必须分开描述。

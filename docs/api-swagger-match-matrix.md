@@ -55,7 +55,7 @@
 | 买手发货 | `POST /order/orders/ship`，`id/logisticsCompany/trackingNo` 必填 | 卖出订单的 `PAID` 状态显示物流表单，填写后调用真实 adapter | A：2026-08-14 H5 买手发货后回读 `SHIPPED`，再由 H5 顾客确认至 `COMPLETED` |
 | Mock 购物车保护 | 无需 Swagger | 混入 Mock 商品时阻止进入真实结算；错误不回退 Mock | A：逻辑与 Chrome 页面前置回显已验证 |
 
-- 2026-08-14 原始快照位于 `docs/swagger-baselines/2026-08-14/`，相较 2026-08-10 的递归差异已实际复核，覆盖路径、方法、参数、required、requestBody、response 与嵌套 schema。
+- 2026-08-14 相较 2026-08-10 的递归差异已实际复核，覆盖路径、方法、参数、required、requestBody、response 与嵌套 schema。
 - Long ID 全程保留 `string | number` 原值。后端 `PAID` 不拆分为 H5 旧模型中的“采购中/已采购”，`COMPLETED` 不拆为“完成/保修/归档”；页面仅显示 adapter 可证明的状态。
 - 2026-08-14 跨账号写回归：专用订单 ID `2088059205303492610`（订单号 `2088059205177663488`）由 PC 买手账号发货为 `SHIPPED`，再由 H5 顾客账号调用 `POST /order/orders/confirm` 确认，详情回读为 `COMPLETED`。另以 Swagger `POST /orders/create-batch` 创建专用未付款订单 ID `2088061302560350209`（订单号 `2088061302539378688`），H5 先显示 `CREATED/待付款`，点击取消后回读 `CANCELED/已取消`；辅助建单只用于验证，未将结算页面迁移纳入本批。
 - 订单概况没有独立统计契约；H5 以 `bought/page` 或 `sold/page` 按 7 个原始状态请求 `pageSize: 1` 并使用 `total` 汇总。2026-08-14 已在 Chrome 手机视图验证该概况与真实顾客订单状态一致；不再调用 Mock `orderApi.countMyOrdersByStatus`。
@@ -69,13 +69,13 @@
 | `order` | 43 / 45 / 63 | 43 / 45 / 63 | 无差异 | 订单状态/测试数据门禁继续有效 |
 | `notify` | HTTP 404 | 9 / 9 / 18 | 服务从不可用恢复为可读；新增会话、消息、通知契约 | P3 延期，不新增调用 |
 
-- 新基线已保存至 `docs/swagger-baselines/2026-08-10/`，默认 `pnpm swagger:check` 比较该快照。`SWAGGER_BASELINE=2026-08-09 pnpm swagger:check` 可复现本次漂移，检查范围包括路径、方法、参数、必填项、请求体、响应和嵌套 schema。
+- 本次漂移检查范围包括路径、方法、参数、必填项、请求体、响应和嵌套 schema。
 - `POST /user/develop/recharge/confirm` 的请求体为 `rechargeId`（必填 Long）和可选 `amount`，响应明确带开发测试标识。该接口只可在另行授权后作为内部测试数据工具调用，不能映射为 C 端用户可见的充值确认按钮或自动到账逻辑。
 - P1 页面高度与固定栏的代码整改仍只处于静态完成状态。分类页必须验证左右 `scroll-view` 独立滚动；购物车、结算、订单/商品详情须验证末尾没有多余空白且固定操作区不遮挡内容；H5、Android、iOS 的结果分别记录，未提供真机证据不得标记完成。
 
 ## 2026-08-09 可重复基线与实施状态
 
-- 原始 Swagger 快照已提交至 `docs/swagger-baselines/2026-08-09/`，通过 `pnpm swagger:check` 可递归比较当前文档与该基线；检查会覆盖路径、方法、参数、required、requestBody、response 和 schema 嵌套字段。
+- 2026-08-09 已递归比较当前文档，覆盖路径、方法、参数、required、requestBody、response 和 schema 嵌套字段。
 - 当前基线计数：admin `107/108/187`、user `32/32/63`、order `43/45/63`；notify HTTP 404。2026-08-09 的即时复查与该基线无递归差异。
 - 当前真实 API 文件共覆盖 46 个 user/order 网络操作，逐项路径和 HTTP 方法均存在于最新 Swagger。此结论不等同于页面闭环或真实写入验证。
 - 已新增 `POST /order/orders/create-batch`、`POST /order/orders/cancel`、`POST /order/orders/confirm` 的真实类型和 adapter；它们当前只处于“API 已封装”状态，尚未替换 Mock 结算或订单页面。

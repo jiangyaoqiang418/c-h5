@@ -13,8 +13,6 @@ pnpm build:h5
 pnpm dev:app-plus
 pnpm build:app-plus
 pnpm typecheck
-pnpm swagger:check
-pnpm swagger:baseline
 ```
 
 - H5 开发默认由 UniApp/Vite 启动。
@@ -72,7 +70,7 @@ src/
 
 ## 当前 Swagger 满足度
 
-2026-07-28 已完成历史 Mock 能力扫描。2026-08-14 已将实时 Swagger 原始快照保存到 `docs/swagger-baselines/2026-08-14/`，并新增 `pnpm swagger:check` 递归比较命令；当前结果为：`admin` 116 路径/117 操作/207 schema，`user` 33/33/66，`order` 45/47/66，`notify` 16/16/22。相较 2026-08-10，user 无差异；order 的仅退款契约已收敛为创建、买入/卖出分页、详情和撤销，notify 新增消息增量、已读、撤回与删除能力。订单读链路可进入 P2 迁移；支付、KYC、IM/推送仍按阶段边界单独确认。真实模块迁移前必须完成最新递归差异审查：
+2026-07-28 已完成历史 Mock 能力扫描。2026-08-14 实时 Swagger 复核结果为：`admin` 116 路径/117 操作/207 schema，`user` 33/33/66，`order` 45/47/66，`notify` 16/16/22。相较 2026-08-10，user 无差异；order 的仅退款契约已收敛为创建、买入/卖出分页、详情和撤销，notify 新增消息增量、已读、撤回与删除能力。订单读链路可进入 P2 迁移；支付、KYC、IM/推送仍按阶段边界单独确认。真实模块迁移前必须重新读取 live Swagger 并完成递归差异审查：
 
 - P2 首批已完成 H5 真实读取验证：登录、当前用户、积分账户、积分流水、分类树、钱包总览均经本地 `/api/*` 代理返回 HTTP 200 / 成功码 `1`；“我的”页总资产和 VIP 当前状态已统一读取真实账户数据。2026-08-14 的专用跨账号订单已在 PC 买手端发货、H5 顾客端确认收货，H5 详情从 `SHIPPED/运输中` 真实变为 `COMPLETED/已完成`；另有专用 `CREATED` 单在 H5 页面取消后真实回读为 `CANCELED/已取消`。提现创建和积分申诉仅完成 adapter/页面接入或读取前置验证，尚未发起真实写入。
 - 钱包首页最近交易与资金流水页已调用真实 `POST /user/wallet/ledger/page`；当前测试账号流水为 `0`，Chrome 空态回归通过。
