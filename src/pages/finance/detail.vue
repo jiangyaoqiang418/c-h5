@@ -9,11 +9,41 @@ import { useWalletStore } from '@/stores';
 
 const walletStore = useWalletStore();
 const product = ref<Api.RealFinance.ProductVO>(); const amount = ref(''); const submitting = ref(false);
-onLoad(async query => { const id = String(query?.id || ''); if (!id) return; product.value = await fetchFinanceProductDetail(id); amount.value = String(product.value.minAmount); await walletStore.refetch(); });
+async function load(id: string) {
+  try {
+    product.value = await fetchFinanceProductDetail(id);
+    amount.value = String(product.value.minAmount);
+    await walletStore.refetch();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '理财产品加载失败', icon: 'none' });
+  }
+}
+onLoad(query => { const id = String(query?.id || ''); if (id) load(id); });
 const available = computed(() => Number(walletStore.account?.available || 0));
 const expectedInterest = computed(() => product.value ? Number(amount.value || 0) * Number(product.value.annualRate || 0) * product.value.lockDays / 365 : 0);
 const canSubmit = computed(() => !!product.value && Number(amount.value) >= Number(product.value.minAmount) && (!product.value.maxAmount || Number(amount.value) <= Number(product.value.maxAmount)) && Number(amount.value) <= available.value && product.value.status === 'ON_SALE');
-async function subscribe() { if (!product.value) return; submitting.value = true; try { await subscribeFinance({ productId: product.value.id, amount: amount.value }); uni.showToast({ title: '申购成功', icon: 'success' }); setTimeout(() => go('/pages/finance/my-lockups'), 600); } finally { submitting.value = false; } }
+function subscribe() {
+  if (!product.value || !canSubmit.value || submitting.value) return;
+  uni.showModal({
+    title: '确认申购',
+    content: `确认使用 U ${amount.value} 申购“${product.value.name}”吗？资金将锁定 ${product.value.lockDays} 天，实际收益以后端结算结果为准。`,
+    confirmText: '确认申购',
+    success: async result => {
+      if (!result.confirm || !product.value || submitting.value) return;
+      submitting.value = true;
+      try {
+        await subscribeFinance({ productId: product.value.id, amount: amount.value });
+        await walletStore.refetch();
+        uni.showToast({ title: '申购成功', icon: 'success' });
+        setTimeout(() => go('/pages/finance/my-lockups'), 600);
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '申购失败', icon: 'none' });
+      } finally {
+        submitting.value = false;
+      }
+    }
+  });
+}
 </script>
 
 <template>

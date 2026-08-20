@@ -58,6 +58,8 @@ declare namespace Api {
       clientMsgId?: string;
       recalled?: boolean;
       createdAt?: string | number;
+      pending?: boolean;
+      failed?: boolean;
     }
 
     interface NotificationPageQuery { pageNo?: number; pageSize?: number; unreadOnly?: boolean; }

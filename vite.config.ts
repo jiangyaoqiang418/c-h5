@@ -24,6 +24,7 @@ function createH5Proxy(env: Record<string, string>): Record<string, string | Pro
           {
             target: env[targetKey] || fallbackTarget,
             changeOrigin: true,
+            ws: baseKey === 'VITE_REAL_NOTIFY_BASE_URL',
             rewrite: (path: string) => path.replace(baseURL, '')
           }
         ];

@@ -8,6 +8,9 @@ export function fetchNotifications(query: Api.RealNotify.NotificationPageQuery =
 
 export function fetchNotificationUnreadCount() { return realNotifyRequest<number>({ url: '/notifications/unread/count' }); }
 export function markNotificationRead(id: Api.RealNotify.Id) { return realNotifyRequest<boolean, { id: Api.RealNotify.Id }>({ url: '/notifications/read', method: 'PUT', data: { id } }); }
+export function markAllNotificationsRead() { return realNotifyRequest<boolean>({ url: '/notifications/read-all', method: 'PUT' }); }
+export function deleteNotification(id: Api.RealNotify.Id) { return realNotifyRequest<boolean>({ url: '/notifications/delete', method: 'DELETE', params: { id } }); }
+export function clearNotifications() { return realNotifyRequest<boolean>({ url: '/notifications/clear', method: 'DELETE' }); }
 
 export function fetchConversations(query: Api.RealNotify.ConversationPageQuery = {}) {
   return realNotifyRequest<Api.RealNotify.Page<Api.RealNotify.Conversation>, Api.RealNotify.ConversationPageQuery>({

@@ -92,7 +92,7 @@ function confirm(o: Api.RealOrder.OrderView) {
 }
 
 function review(o: Api.RealOrder.OrderView) {
-  uni.showToast({ title: '评价功能尚未接入真实服务', icon: 'none' });
+  go(`/pages/review/write?orderId=${encodeURIComponent(String(o.id))}`);
 }
 
 function aftersale(o: Api.RealOrder.OrderView) {

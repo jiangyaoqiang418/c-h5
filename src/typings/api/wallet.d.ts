@@ -59,6 +59,15 @@ declare namespace Api {
       minConfirmations?: number;
     }
 
+    interface RechargeChainVO {
+      chain: string;
+      label?: string;
+      decimals?: number;
+      depositAddress?: string;
+      minAmount?: string | number;
+      enabled?: boolean;
+    }
+
     interface RechargePage {
       pageNo?: number;
       pageSize?: number;

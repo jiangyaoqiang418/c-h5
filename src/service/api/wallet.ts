@@ -20,7 +20,7 @@ export interface WithdrawParams {
 }
 
 export interface RechargeParams {
-  chain: 'TRON' | 'ETH' | 'BSC';
+  chain: string;
   amount: number;
 }
 
@@ -170,6 +170,10 @@ export function createRecharge(params: RechargeParams): Promise<string | number>
 
 export function fetchRechargeAddress(chain: string) {
   return realUserRequest<Api.RealWallet.RechargeAddressVO>({ url: '/recharge/address', params: { chain } });
+}
+
+export function fetchRechargeChains() {
+  return realUserRequest<Api.RealWallet.RechargeChainVO[]>({ url: '/recharge/chains' });
 }
 
 export function fetchRechargePage(query: { pageNo?: number; pageSize?: number; status?: string } = {}) {

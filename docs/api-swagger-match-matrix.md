@@ -34,7 +34,7 @@
 | 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成顾客创建 → `REFUND_REVIEW` → 撤销 → `PAID`，以及买手侧非空列表/详情回归 |
-| IM/通知 | notify 16 操作，REST 充分 | H5 页面仍是 Mock | C/P3：等待订单读链路和 WebSocket 环境复核 |
+| IM/通知 | notify 17 操作，REST 契约可用，WebSocket 路径为 `/notify/im` | 通知页已注册并接入单条/全部已读、删除、清空；会话、历史消息和文字发送页面已调用真实 REST；发送使用 `clientMsgId`、成功回读和失败重试，WebSocket 客户端及 H5 `ws` 代理已接入 | B/C：Chrome 已验证非空通知读取、单条已读回读、历史消息、QA 订单群文字发送及刷新回读；通知删除/清空未执行，测试网关在线连接数仍为 0，待恢复 `101/READY` 后验证实时到达 |
 
 ### 2026-08-15 P1-P4 续推进记录
 
@@ -43,7 +43,7 @@
 | P1 商品字段 | 详情 DTO 未声明 `sellerName`、`categoryPath`、售后天数；分类路径已由真实分类树解析 | 卖家昵称和期限不能由前端补造，等待契约扩展 |
 | P2 资金账户 | QA 订单已回读付款冻结、结算解冻和消费支出三笔真实流水；充值详情为测试环境已到账 | 非空读链路完成；提现无已有记录，未新增资金操作 |
 | P3 买手/售后 | 顾客申请为已通过；后台“买手管理”未呈现申请审核列表 | 驳回后重提缺安全测试数据和可操作后台页面 |
-| P4 IM/通知 | notify Swagger 当前无差异；已补 notify 服务配置、H5 代理、请求层、严格类型、通知/会话/消息 adapter，消息中心、订单群列表与详情均已去除 Mock 读取 | A/B：Chrome 回读系统未读、IM 未读和 QA 订单完整系统消息时间线；WebSocket、文字发送、图片/语音上传仍待专项验证 |
+| P4 IM/通知 | notify Swagger 当前为 17 操作；已补 notify 服务配置、H5 HTTP/WS 代理、请求层、严格类型、通知/会话/消息 adapter，消息中心、订单群列表与详情均已去除 Mock 读取；系统通知已支持单条/全部已读、删除和清空；文字发送使用 `clientMsgId` 乐观上屏、成功回读和失败重试，并已修复 H5 本地消息锚点的非法 CSS 选择器；WebSocket 使用 token query、`READY` 门禁、JSON 心跳和退避重连 | A/B：Chrome 回读系统未读、IM 未读、订单群历史消息、单条通知已读和 QA 文字发送刷新回读；通知删除/清空、图片/语音上传未执行，测试网关 `onlineConnections=0`，实时到达受 Upgrade 阻塞 |
 
 ### 结算迁移状态（2026-08-14）
 
@@ -267,10 +267,10 @@
 | 钱包总览 | `GET /user/wallet/overview` | B | total/todayIn/todayOut/distribution 可适配；前端固定桶字段和钱包地址需由 distribution 映射或后端补充 |
 | 总资产 | `GET /user/wallet/overview` 的 `total` | A | 金额为 number，前端应在 API 层转为字符串展示，避免页面浮点运算 |
 | 钱包流水 | `POST /user/wallet/ledger/page` | C | API、首页最近交易和全部流水触底分页已接入，Long ID 保留原值，真实空态已验证；接口仍缺链上 hash、地址、refType/refId、费用拆分和现有筛选项 |
-| 发起充值 | `POST /user/recharge/create` + `GET /user/recharge/detail` | C | 页面已改为创建真实充值单、展示 depositAddress/memo 并刷新状态；真实创建和到账流转待验证 |
+| 发起充值 | `GET /user/recharge/chains` + `POST /user/recharge/create` + `GET /user/recharge/detail` | C | 页面只展示后端开放链，并按 `chain/label/minAmount` 约束申报；创建后展示 depositAddress/memo 并刷新状态，创建前二次确认、提交拦截和失败提示已补齐；链列表/专属地址真实读取已验证，创建和到账流转待验证 |
 | 充值/提现记录 | `POST /user/recharge/page`、`GET /user/recharge/detail`、`POST /user/withdraw/page`、`GET /user/withdraw/detail` | B | API、触底分页页面和入口已接入；Long ID 保留原值，真实空态已验证，非空记录待验证 |
 | 平台链钱包列表 | 无 C 端接口 | D | `admin` 钱包配置不在当前 C 端 Swagger 范围 |
-| 发起提现 | `POST /user/withdraw/create` | B | chain/toAddress/amount 匹配；前端支付密码不在接口中，KYC/风控前置规则需后端确认 |
+| 发起提现 | `POST /user/withdraw/create` | B | chain/toAddress/amount 匹配；创建前二次确认、提交拦截和成功后余额回读已接入，前端支付密码不在接口中，KYC/风控前置规则需后端确认 |
 
 - 2026-08-05 登录账号补充写入回归：`TRON/ETH/BSC` 均未创建出充值单，充值列表保持空记录。请求字段与 live `RechargeCreateQO` 一致，但具体业务错误码未保留；当前状态为“页面已调用、真实写入失败、原因待后端确认”，不是“真实验证通过”。
 
@@ -309,7 +309,7 @@
 
 | 模块 | H5 现有需求 | 当前结论 |
 |---|---|---|
-| KYC | 状态、实名/证件/人脸/手机提交、审核结果 | C：已有 `/user/kyc/submit` 与 `/user/kyc/detail`，但当前页面所需相机/文件上传仍未形成 C 端闭环，且属于 P3 |
+| KYC | 状态、实名/证件/人脸/手机提交、审核结果 | C：`/user/kyc/detail` 与 `/user/kyc/submit` 已完成类型/API 封装，页面已迁移真实状态读取并移除 Mock 上传/提交；Chrome 已回读 `PASSED`、脱敏证件号、审核意见和时间，缺明确的 C 端 KYC 文件上传契约，提交仍不能开放 |
 | 理财 | 产品列表/详情、认购、我的锁仓、提前解锁 | D：无理财接口 |
 | 评价 | 商品评价、我的评价、评分摘要、提交评价 | D：无评价接口 |
 | 完整售后 | 5 类工单、证据、列表、详情、历史、取消 | D/C：只有订单退款申请/审核/详情，不能满足现有售后模型 |
@@ -338,9 +338,9 @@
 
 | 模块 | 最新 Swagger | API 已封装 | 页面已调用 | 真实回归 |
 |---|---|---:|---:|---:|
-| 评价闭环 | `reviews/*`、`storefront/reviews/*` | 是 | 是 | 已完成待评价读取、五星提交及“我发出的”回读 |
-| 理财锁仓 | `finance/products/*`、`finance/orders/*` | 是 | 是 | 已完成产品/详情/空态读取及 100 U 申购写回读；提前赎回待即时资金操作授权 |
-| 充值专属地址 | `GET /recharge/address` | 是 | 是 | 已完成 TRC20 地址与最低充值额读取；充值申报未验证 |
+| 评价闭环 | `reviews/*`、`storefront/reviews/*` | 是 | 是 | 已完成待评价读取、五星提交及“我发出的”回读；订单入口已切真实评价页，删除/回复/申诉具备确认、失败提示和回读，真实治理写入待安全测试数据验证 |
+| 理财锁仓 | `finance/products/*`、`finance/orders/*` | 是 | 是 | 已完成产品/详情/空态读取及 100 U 申购写回读；申购和提前赎回已具备二次确认、提交拦截、失败提示和成功后余额/订单回读，提前赎回真实写入待即时资金操作授权 |
+| 充值专属地址 | `GET /recharge/chains`、`GET /recharge/address` | 是 | 是 | 已完成当前开放链、波场标签、最低充值额与专属地址读取；充值申报未验证 |
 
 评价提交只发送 Swagger 定义的 `orderId/productScore/sellerScore/content/images/anonymous`；标签不再伪造为后端字段。理财订单展示与提前赎回直接使用订单快照、`canRedeem` 和 `redeemableInterest`，金额与 Long ID 不做 JS 精度转换。
 

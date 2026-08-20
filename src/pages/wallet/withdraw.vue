@@ -31,6 +31,7 @@ onMounted(async () => {
 });
 
 function confirmWithdraw() {
+  if (!canSubmit.value || submitting.value) return;
   uni.showModal({
     title: '确认转出',
     content: `确认提交 ${form.amount} U 的提现申请？实际手续费及到账金额以后端处理结果为准。`,
@@ -42,7 +43,7 @@ function confirmWithdraw() {
 }
 
 async function doWithdraw() {
-  if (!userStore.currentUser) return;
+  if (!userStore.currentUser || !canSubmit.value || submitting.value) return;
   submitting.value = true;
   try {
     const id = await createWithdraw({

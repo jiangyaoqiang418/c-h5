@@ -70,7 +70,7 @@ function confirm() {
 }
 
 function goIm() {
-  if (order.value) uni.showToast({ title: '消息功能尚未接入真实服务', icon: 'none' });
+  if (order.value) go(`/pages/im/real-order-group?orderId=${encodeURIComponent(String(order.value.id))}`);
 }
 
 function goAftersale() {
@@ -78,7 +78,7 @@ function goAftersale() {
 }
 
 function goReview() {
-  if (order.value) uni.showToast({ title: '评价功能尚未接入真实服务', icon: 'none' });
+  if (order.value) go(`/pages/review/write?orderId=${encodeURIComponent(String(order.value.id))}`);
 }
 </script>
 

@@ -4,6 +4,7 @@ import { onLoad } from '@dcloudio/uni-app';
 import { createReview, fetchReviewableOrders, uploadReviewImage } from '@/service/api/review';
 import { go } from '@/utils/navigate';
 import ReviewStars from '@/components/common/review-stars.vue';
+import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
@@ -50,6 +51,7 @@ async function submit() {
     <view class="step"><text class="step-title">配图（可选）</text><view class="img-grid"><view v-for="(url, index) in form.photoUrls" :key="url" class="img-cell"><image :src="url" mode="aspectFill" class="img" /><view class="del" @click="removePhoto(index)">✕</view></view><view v-if="form.photoUrls.length < 9" class="add" @click="addPhoto">+ 添加</view></view></view>
     <wd-button type="primary" block class="submit" :loading="submitting" @click="submit">提交评价</wd-button>
   </view>
+  <EmptyState v-else title="当前订单暂不可评价" description="评价仅支持已完成且仍在评价时限内的订单" />
 </template>
 
 <style lang="scss" scoped>

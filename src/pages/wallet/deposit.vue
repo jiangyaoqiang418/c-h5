@@ -1,18 +1,42 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { createRecharge, fetchRechargeAddress, fetchRechargeDetail } from '@/service/api/wallet';
+import { createRecharge, fetchRechargeAddress, fetchRechargeChains, fetchRechargeDetail } from '@/service/api/wallet';
 import { go } from '@/utils/navigate';
 
-const form = reactive<{ chain: 'TRON' | 'ETH' | 'BSC'; amount: number }>({ chain: 'TRON', amount: 100 });
+const form = reactive<{ chain: string; amount: number }>({ chain: '', amount: 100 });
 const submitting = ref(false);
 const detail = ref<Api.RealWallet.RechargeVO>();
 const rechargeAddress = ref<Api.RealWallet.RechargeAddressVO>();
 const addressLoading = ref(false);
+const chains = ref<Api.RealWallet.RechargeChainVO[]>([]);
+const chainsLoading = ref(false);
 let pollingTimer: ReturnType<typeof setInterval> | undefined;
 
-const canSubmit = computed(() => Number(form.amount) > 0);
+const selectedChain = computed(() => chains.value.find(item => item.chain === form.chain));
+const canSubmit = computed(() => {
+  const amount = Number(form.amount);
+  const minAmount = selectedChain.value?.minAmount;
+  return !!selectedChain.value && amount > 0 && (minAmount === undefined || amount >= Number(minAmount));
+});
+
+async function loadRechargeChains() {
+  chainsLoading.value = true;
+  rechargeAddress.value = undefined;
+  try {
+    chains.value = (await fetchRechargeChains()).filter(item => item.enabled !== false);
+    form.chain = chains.value[0]?.chain || '';
+    if (!form.chain) uni.showToast({ title: '当前暂无开放的充值链', icon: 'none' });
+  } catch (error) {
+    chains.value = [];
+    form.chain = '';
+    uni.showToast({ title: error instanceof Error ? error.message : '充值链列表加载失败', icon: 'none' });
+  } finally {
+    chainsLoading.value = false;
+  }
+}
 
 async function loadRechargeAddress() {
+  if (!form.chain) return;
   addressLoading.value = true;
   rechargeAddress.value = undefined;
   try {
@@ -47,8 +71,23 @@ function startPolling() {
   pollingTimer = setInterval(() => refreshDetail(false), 5000);
 }
 
-async function submit() {
-  if (!canSubmit.value) return uni.showToast({ title: '请输入有效充值金额', icon: 'none' });
+function submit() {
+  if (!canSubmit.value || submitting.value) {
+    const minAmount = selectedChain.value?.minAmount;
+    return uni.showToast({ title: minAmount === undefined ? '请输入有效充值金额' : `充值金额不得低于 ${minAmount} U`, icon: 'none' });
+  }
+  uni.showModal({
+    title: '确认创建申报单',
+    content: `确认创建 ${form.amount} U 的 ${selectedChain.value?.label || form.chain} 充值申报单吗？仅在已完成链上转账后创建。`,
+    confirmText: '确认创建',
+    success: async result => {
+      if (!result.confirm || submitting.value) return;
+      await createDeclaration();
+    }
+  });
+}
+
+async function createDeclaration() {
   submitting.value = true;
   try {
     const id = await createRecharge({ chain: form.chain, amount: Number(form.amount) });
@@ -66,7 +105,7 @@ onUnmounted(() => {
   if (pollingTimer) clearInterval(pollingTimer);
 });
 
-onMounted(loadRechargeAddress);
+onMounted(loadRechargeChains);
 watch(() => form.chain, loadRechargeAddress);
 </script>
 
@@ -76,11 +115,11 @@ watch(() => form.chain, loadRechargeAddress);
       <text class="title">链上充值</text>
       <text class="tip">选择链后，使用专属地址直接转账即可到账；创建申报单仅用于留存本次金额。</text>
       <wd-cell title="链选择">
-        <wd-radio-group v-model="form.chain" inline>
-          <wd-radio value="TRON">TRC20</wd-radio>
-          <wd-radio value="ETH">ERC20</wd-radio>
-          <wd-radio value="BSC">BSC</wd-radio>
+        <text v-if="chainsLoading" class="tip">正在加载开放充值链…</text>
+        <wd-radio-group v-else-if="chains.length" v-model="form.chain" inline>
+          <wd-radio v-for="item in chains" :key="item.chain" :value="item.chain">{{ item.label || item.chain }}</wd-radio>
         </wd-radio-group>
+        <text v-else class="tip">暂无可用充值链</text>
       </wd-cell>
       <view v-if="rechargeAddress" class="block-row">
         <text class="label">专属充值地址</text>

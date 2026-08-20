@@ -41,6 +41,7 @@
     { "path": "pages/im/real-order-group", "style": { "navigationBarTitleText": "三方群" } },
     { "path": "pages/im/order-list", "style": { "navigationBarTitleText": "订单群聊" } },
     { "path": "pages/message/index", "style": { "navigationBarTitleText": "消息中心" } },
+    { "path": "pages/message/notifications", "style": { "navigationBarTitleText": "系统通知" } },
     { "path": "pages/review/write", "style": { "navigationBarTitleText": "写评价" } },
     { "path": "pages/review/list", "style": { "navigationBarTitleText": "我的评价" } },
 
