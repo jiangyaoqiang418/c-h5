@@ -10,6 +10,7 @@ const rechargeAddress = ref<Api.RealWallet.RechargeAddressVO>();
 const addressLoading = ref(false);
 const chains = ref<Api.RealWallet.RechargeChainVO[]>([]);
 const chainsLoading = ref(false);
+const chainsLoadFailed = ref(false);
 let pollingTimer: ReturnType<typeof setInterval> | undefined;
 
 const selectedChain = computed(() => chains.value.find(item => item.chain === form.chain));
@@ -21,13 +22,14 @@ const canSubmit = computed(() => {
 
 async function loadRechargeChains() {
   chainsLoading.value = true;
+  chainsLoadFailed.value = false;
   rechargeAddress.value = undefined;
   try {
     chains.value = (await fetchRechargeChains()).filter(item => item.enabled !== false);
     form.chain = chains.value[0]?.chain || '';
     if (!form.chain) uni.showToast({ title: '当前暂无开放的充值链', icon: 'none' });
   } catch (error) {
-    chains.value = [];
+    chainsLoadFailed.value = true;
     form.chain = '';
     uni.showToast({ title: error instanceof Error ? error.message : '充值链列表加载失败', icon: 'none' });
   } finally {
@@ -119,6 +121,7 @@ watch(() => form.chain, loadRechargeAddress);
         <wd-radio-group v-else-if="chains.length" v-model="form.chain" inline>
           <wd-radio v-for="item in chains" :key="item.chain" :value="item.chain">{{ item.label || item.chain }}</wd-radio>
         </wd-radio-group>
+        <text v-else-if="chainsLoadFailed" class="tip">充值链列表加载失败，请稍后重试</text>
         <text v-else class="tip">暂无可用充值链</text>
       </wd-cell>
       <view v-if="rechargeAddress" class="block-row">

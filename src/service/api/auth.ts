@@ -33,17 +33,13 @@ function normalizeKycStatus(status?: string): Api.User.KycStatus {
   return 'none';
 }
 
-function toLegacyDisplayId(id: string): number {
-  const value = Number(id);
-  return Number.isSafeInteger(value) && value > 0 ? value : 0;
-}
-
 function toUserRecord(profile: CurrentUserResponse, account: PointAccount): Api.User.UserRecord {
   const isBuyer = profile.roles?.some(role => role.toUpperCase() === 'BUYER') || false;
   const roleInfo = isBuyer ? account.buyer : account.customer;
 
   return {
-    id: toLegacyDisplayId(profile.userId),
+    // `id` 仅保留给尚未迁移的 Mock 页面兼容使用；真实业务 ID 只能使用 remoteId。
+    id: 0,
     remoteId: profile.userId,
     email: profile.email || '',
     nickname: profile.nickname || '',

@@ -4,6 +4,7 @@ import { onShow, onUnload } from '@dcloudio/uni-app';
 import { go } from '@/utils/navigate';
 import { fetchConversations, fetchImLinkStatus, fetchImUnreadCount, fetchNotificationUnreadCount, fetchNotifications } from '@/service/api/notify';
 import { imSocket } from '@/service/im-socket';
+import EmptyState from '@/components/common/empty-state.vue';
 
 interface Category {
   key: string;
@@ -17,17 +18,26 @@ interface Category {
 }
 
 const categories = ref<Category[]>([]);
+const loadFailed = ref(false);
+
+function isTransactionNotification(notification: Api.RealNotify.Notification) {
+  return /RECHARGE|WITHDRAW|WALLET|FUND|FINANCE|ORDER/.test(notification.bizType || notification.templateCode || '');
+}
 
 async function load() {
+  loadFailed.value = false;
   try {
     const [notificationCount, imCount, notificationPage, conversationPage, imStatus] = await Promise.all([
       fetchNotificationUnreadCount(),
       fetchImUnreadCount(),
-      fetchNotifications({ pageNo: 1, pageSize: 1 }),
+      fetchNotifications({ pageNo: 1, pageSize: 50 }),
       fetchConversations({ pageNo: 1, pageSize: 1 }),
       fetchImLinkStatus()
     ]);
-    const notification = notificationPage.records[0];
+    const transactions = notificationPage.records.filter(isTransactionNotification);
+    const transactionUnread = transactions.filter(item => !item.readFlag).length;
+    const notification = notificationPage.records.find(item => !isTransactionNotification(item));
+    const transaction = transactions[0];
     const conversation = conversationPage.records[0];
     categories.value = [
     {
@@ -35,7 +45,7 @@ async function load() {
       icon: '⚙',
       title: '系统通知',
       path: '/pages/message/notifications',
-      unread: notificationCount,
+      unread: Math.max(0, notificationCount - transactionUnread),
       latestText: notification ? `${notification.title || '系统通知'}：${notification.content || ''}` : '暂无系统通知',
       latestTime: notification?.createdAt ? new Date(Number(notification.createdAt)).toLocaleDateString() : '',
       disabled: false
@@ -44,10 +54,10 @@ async function load() {
       key: 'txn',
       icon: '▤',
       title: '交易通知',
-      path: '',
-      unread: 0,
-      latestText: '暂无新消息',
-      latestTime: '',
+      path: '/pages/wallet/history',
+      unread: transactionUnread,
+      latestText: transaction ? `${transaction.title || '交易通知'}：${transaction.content || ''}` : '暂无交易通知',
+      latestTime: transaction?.createdAt ? new Date(Number(transaction.createdAt)).toLocaleDateString() : '',
       disabled: false
     },
     {
@@ -56,12 +66,12 @@ async function load() {
       title: '订单群聊',
       path: '/pages/im/order-list',
       unread: imCount,
-      latestText: conversation?.lastMessagePreview || (imStatus.gatewayPath ? '订单群消息服务已就绪' : '暂无订单群消息'),
+      latestText: conversation?.lastMessagePreview || (Number(imStatus.onlineConnections) > 0 ? '订单群消息服务已连接' : '实时消息暂不可用，可手动刷新'),
       latestTime: conversation?.lastMessageAt ? new Date(Number(conversation.lastMessageAt)).toLocaleDateString() : ''
     }
   ];
   } catch (error) {
-    categories.value = [];
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '消息加载失败', icon: 'none' });
   }
 }
@@ -81,8 +91,6 @@ function open(c: Category) {
   }
   if (c.path) {
     go(c.path);
-  } else if (c.key === 'txn') {
-    go('/pages/wallet/history');
   } else {
     uni.showToast({ title: '功能开发中', icon: 'none' });
   }
@@ -95,7 +103,8 @@ function open(c: Category) {
       <view>共 <text class="hl">{{ totalUnread }}</text> 条未读消息</view>
     </view>
 
-    <view class="cat-list">
+    <EmptyState v-if="loadFailed && !categories.length" title="消息加载失败" description="请稍后重试" />
+    <view v-else class="cat-list">
       <view
         v-for="c in categories"
         :key="c.key"

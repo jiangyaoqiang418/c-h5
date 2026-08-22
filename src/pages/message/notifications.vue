@@ -7,15 +7,17 @@ import EmptyState from '@/components/common/empty-state.vue';
 
 const list = ref<Api.RealNotify.Notification[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
 const operating = ref(false);
 const unreadCount = computed(() => list.value.filter(item => !item.readFlag).length);
 
 async function load() {
   loading.value = true;
+  loadFailed.value = false;
   try {
     list.value = (await fetchNotifications({ pageNo: 1, pageSize: 50 })).records;
   } catch (error) {
-    list.value = [];
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '通知加载失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -111,6 +113,7 @@ function clear() {
         <view class="right"><text class="delete" @click.stop="remove(item)">删除</text><text class="arrow">›</text></view>
       </view>
     </view>
+    <EmptyState v-else-if="loadFailed" title="通知加载失败" description="请稍后重试" />
     <EmptyState v-else-if="!loading" title="暂无系统通知" />
   </view>
 </template>

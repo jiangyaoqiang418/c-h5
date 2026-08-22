@@ -1,141 +1,155 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { buyerApi, walletApi } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
+import { fetchBuyerDepositLedger, payBuyerDeposit, refundBuyerDeposit } from '@/service/api/buyer';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
-const wallet = ref<Api.Buyer.Wallet>();
-const profile = ref<Api.Buyer.BuyerProfile>();
-const txns = ref<Api.Wallet.Txn[]>([]);
+const ledgers = ref<Api.RealUser.BuyerDepositLedgerDTO[]>([]);
+const loadFailed = ref(false);
 
-const rechargePopup = ref(false);
-const transferOutPopup = ref(false);
-const amountInput = ref('100');
+const payPopup = ref(false);
+const refundPopup = ref(false);
+const amountInput = ref('');
+let payIdempotencyKey = '';
+let refundIdempotencyKey = '';
 
 async function load() {
+  loadFailed.value = false;
+  await userStore.init();
   if (!userStore.currentUser) return;
-  const r = await buyerApi.fetchBuyerDepositSummary(userStore.currentUser.id);
-  wallet.value = r.wallet;
-  profile.value = r.profile;
-  const t = await walletApi.fetchMyTxns({
-    userId: userStore.currentUser.id,
-    types: ['DEPOSIT_PLEDGE', 'DEPOSIT_RELEASE', 'DEPOSIT_FORFEIT'],
-    size: 20
-  });
-  txns.value = t.records;
+  try {
+    const page = await fetchBuyerDepositLedger({ pageNo: 1, pageSize: 50 });
+    ledgers.value = [...page.records].sort((left, right) => Number(right.createdAt) - Number(left.createdAt));
+  } catch (error) {
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '保证金流水加载失败', icon: 'none' });
+  }
 }
 onShow(load);
 
-const total = computed(() => {
-  if (!wallet.value) return 0;
-  return Number(wallet.value.depositAvailable) + Number(wallet.value.depositGuaranteed);
-});
+const currentBalance = computed(() => ledgers.value[0]?.balanceAfter ?? 0);
 
-const lockedPct = computed(() => {
-  const t = total.value;
-  if (t === 0) return 0;
-  return Math.round((Number(wallet.value!.depositGuaranteed) / t) * 100);
-});
-
-async function doRecharge() {
-  const v = Number(amountInput.value);
-  if (!v || v <= 0) return uni.showToast({ title: '金额无效', icon: 'none' });
-  uni.showLoading({ title: '处理中…' });
-  await new Promise(r => setTimeout(r, 800));
-  uni.hideLoading();
-  uni.showToast({ title: '充值成功（模拟）', icon: 'success' });
-  rechargePopup.value = false;
-  load();
+function createIdempotencyKey(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
 }
 
-async function doTransferOut() {
+function openPay() {
+  amountInput.value = '';
+  payIdempotencyKey = createIdempotencyKey();
+  payPopup.value = true;
+}
+
+function openRefund() {
+  amountInput.value = '';
+  refundIdempotencyKey = createIdempotencyKey();
+  refundPopup.value = true;
+}
+
+async function submitPay() {
   const v = Number(amountInput.value);
   if (!v || v <= 0) return uni.showToast({ title: '金额无效', icon: 'none' });
-  if (wallet.value && v > Number(wallet.value.depositAvailable)) {
-    return uni.showToast({ title: '余额不足', icon: 'none' });
-  }
   uni.showLoading({ title: '处理中…' });
-  await new Promise(r => setTimeout(r, 800));
-  uni.hideLoading();
-  uni.showToast({ title: '转出成功（模拟）', icon: 'success' });
-  transferOutPopup.value = false;
-  load();
+  try {
+    await payBuyerDeposit({ amount: v, idempotencyKey: payIdempotencyKey || createIdempotencyKey() });
+    uni.showToast({ title: '保证金缴纳成功', icon: 'success' });
+    payPopup.value = false;
+    payIdempotencyKey = '';
+    await load();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '保证金缴纳失败', icon: 'none' });
+  } finally {
+    uni.hideLoading();
+  }
+}
+
+async function submitRefund() {
+  const v = Number(amountInput.value);
+  if (!v || v <= 0) return uni.showToast({ title: '金额无效', icon: 'none' });
+  uni.showLoading({ title: '处理中…' });
+  try {
+    await refundBuyerDeposit({ amount: v, idempotencyKey: refundIdempotencyKey || createIdempotencyKey() });
+    uni.showToast({ title: '保证金退还成功', icon: 'success' });
+    refundPopup.value = false;
+    refundIdempotencyKey = '';
+    await load();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '保证金退还失败', icon: 'none' });
+  } finally {
+    uni.hideLoading();
+  }
+}
+
+function bizTypeText(type: Api.RealUser.BuyerDepositBizType): string {
+  return ({ PAY: '缴纳保证金', REFUND: '退还保证金', DEDUCT: '保证金扣罚', FREEZE: '保证金冻结', UNFREEZE: '保证金解冻' })[type];
 }
 </script>
 
 <template>
   <view class="dep-page">
     <view class="hero">
-      <text class="hero-label">押金总额 (USDT)</text>
-      <text class="hero-amount">U {{ formatAmount(total) }}</text>
+      <text class="hero-label">当前保证金余额 (USDT)</text>
+      <text class="hero-amount">U {{ formatAmount(currentBalance) }}</text>
 
       <view class="meter">
-        <view class="meter-bar">
-          <view class="bar-fill" :style="{ width: lockedPct + '%' }" />
-        </view>
         <view class="meter-info">
-          <text>已担保 {{ lockedPct }}%</text>
-          <text>可用 {{ 100 - lockedPct }}%</text>
+          <text>以最新真实保证金流水余额为准</text>
+          <text>共 {{ ledgers.length }} 条记录</text>
         </view>
       </view>
 
       <view class="hero-cells">
         <view class="cell">
-          <text class="cell-lbl">可用</text>
-          <text class="cell-val">{{ wallet ? formatAmount(wallet.depositAvailable) : '0' }}</text>
+          <text class="cell-lbl">最新余额</text>
+          <text class="cell-val">{{ formatAmount(currentBalance) }}</text>
         </view>
         <view class="cell">
-          <text class="cell-lbl">已担保</text>
-          <text class="cell-val">{{ wallet ? formatAmount(wallet.depositGuaranteed) : '0' }}</text>
+          <text class="cell-lbl">最新类型</text>
+          <text class="cell-val">{{ ledgers[0] ? bizTypeText(ledgers[0].bizType) : '暂无' }}</text>
         </view>
       </view>
 
       <view class="hero-actions">
-        <wd-button type="primary" @click="(rechargePopup = true) && (amountInput = '100')">充值</wd-button>
-        <wd-button plain @click="(transferOutPopup = true) && (amountInput = '100')">转出</wd-button>
-      </view>
-    </view>
-
-    <view v-if="profile" class="section">
-      <text class="section-title">买手画像</text>
-      <view class="kv-grid">
-        <view class="kv"><text class="k">订单总数</text><text class="v">{{ profile.stats.orderTotal }}</text></view>
-        <view class="kv"><text class="k">完成率</text><text class="v">{{ profile.stats.completionRate.toFixed(1) }}%</text></view>
-        <view class="kv"><text class="k">好评率</text><text class="v">{{ profile.stats.goodReviewRate.toFixed(1) }}%</text></view>
-        <view class="kv"><text class="k">投诉率</text><text class="v">{{ profile.stats.complaintRate.toFixed(1) }}%</text></view>
+        <wd-button type="primary" @click="openPay">缴纳保证金</wd-button>
+        <wd-button plain @click="openRefund">退还保证金</wd-button>
       </view>
     </view>
 
     <view class="section">
       <text class="section-title">押金流水</text>
-      <view v-if="txns.length">
-        <view v-for="t in txns" :key="t.id" class="txn-row">
+      <view v-if="ledgers.length">
+        <view v-for="t in ledgers" :key="String(t.id)" class="txn-row">
           <view class="txn-main">
-            <text class="txn-title">{{ t.type }}</text>
+            <text class="txn-title">{{ bizTypeText(t.bizType) }}</text>
+            <text v-if="t.remark" class="txn-remark">{{ t.remark }}</text>
             <text class="txn-time">{{ new Date(t.createdAt).toLocaleString() }}</text>
           </view>
-          <text class="txn-amount" :class="{ pos: Number(t.amount) > 0, neg: Number(t.amount) < 0 }">{{ Number(t.amount) > 0 ? '+' : '' }}{{ formatAmount(t.amount) }}</text>
+          <view class="txn-side">
+            <text class="txn-amount">U {{ formatAmount(t.amount) }}</text>
+            <text class="txn-balance">余额 {{ formatAmount(t.balanceAfter) }}</text>
+          </view>
         </view>
       </view>
+      <text v-else-if="loadFailed" class="empty-text">保证金流水加载失败，请稍后重试</text>
       <text v-else class="empty-text">暂无押金流水</text>
     </view>
 
-    <wd-popup v-model="rechargePopup" position="bottom" :safe-area-inset-bottom="true">
+    <wd-popup v-model="payPopup" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
-        <text class="popup-title">押金充值</text>
+        <text class="popup-title">缴纳保证金</text>
         <wd-input v-model="amountInput" label="金额 (USDT)" type="digit" />
-        <wd-button type="primary" block class="popup-btn" @click="doRecharge">确认充值</wd-button>
+        <text class="popup-hint">将从钱包可用余额划入保证金，重复提交只会生效一次。</text>
+        <wd-button type="primary" block class="popup-btn" @click="submitPay">确认缴纳</wd-button>
       </view>
     </wd-popup>
 
-    <wd-popup v-model="transferOutPopup" position="bottom" :safe-area-inset-bottom="true">
+    <wd-popup v-model="refundPopup" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
-        <text class="popup-title">押金转出</text>
-        <text class="popup-hint">仅可用押金可转出，担保金额需先解冻</text>
+        <text class="popup-title">退还保证金</text>
+        <text class="popup-hint">仅可退未被在途订单冻结的部分，实际可退金额以后端校验为准。</text>
         <wd-input v-model="amountInput" label="金额 (USDT)" type="digit" />
-        <wd-button type="primary" block class="popup-btn" @click="doTransferOut">确认转出</wd-button>
+        <wd-button type="primary" block class="popup-btn" @click="submitRefund">确认退还</wd-button>
       </view>
     </wd-popup>
   </view>
@@ -146,8 +160,6 @@ async function doTransferOut() {
 .hero { background: linear-gradient(135deg, #722ed1 0%, #4d80f0 100%); color: #fff; padding: 48rpx 32rpx; }
 .hero-label { display: block; font-size: 22rpx; opacity: 0.8; }
 .hero-amount { display: block; font-size: 64rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0 24rpx; }
-.meter-bar { height: 16rpx; background: rgba(255,255,255,0.2); border-radius: 8rpx; overflow: hidden; }
-.bar-fill { height: 100%; background: #ff9a02; transition: width 0.4s; }
 .meter-info { display: flex; justify-content: space-between; font-size: 22rpx; margin-top: 8rpx; opacity: 0.85; }
 .hero-cells { display: flex; gap: 16rpx; margin-top: 24rpx; }
 .cell { flex: 1; background: rgba(255,255,255,0.12); border-radius: 12rpx; padding: 16rpx; }
@@ -157,17 +169,14 @@ async function doTransferOut() {
 .hero-actions > * { flex: 1; }
 .section { background: #fff; margin-top: 16rpx; padding: 24rpx; }
 .section-title { display: block; font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; }
-.kv-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
-.kv { width: calc((100% - 16rpx) / 2); box-sizing: border-box; background: #f7f8fa; border-radius: 12rpx; padding: 16rpx; }
-.k { display: block; font-size: 22rpx; color: #86909c; }
-.v { display: block; font-size: 30rpx; font-weight: 700; color: #1d2129; margin-top: 4rpx; }
 .txn-row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .txn-main { display: flex; flex-direction: column; }
 .txn-title { font-size: 24rpx; }
+.txn-remark { font-size: 22rpx; color: #4e5969; margin-top: 4rpx; }
 .txn-time { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
+.txn-side { display: flex; flex-direction: column; align-items: flex-end; }
 .txn-amount { font-size: 28rpx; font-weight: 700; font-family: ui-monospace, monospace; }
-.txn-amount.pos { color: #00b42a; }
-.txn-amount.neg { color: #f53f3f; }
+.txn-balance { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
 .empty-text { display: block; text-align: center; color: #86909c; padding: 32rpx 0; font-size: 24rpx; }
 .popup { padding: 24rpx; }
 .popup-title { display: block; font-size: 30rpx; font-weight: 600; margin-bottom: 16rpx; }

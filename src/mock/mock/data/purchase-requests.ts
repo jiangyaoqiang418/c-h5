@@ -396,7 +396,7 @@ function buildRequest(seed: RequestSeed, seq: number): PurchaseRequest {
     if (vip2Ids.length)
       PUSH_LOGS.push({
         id: nextPushLogId(),
-        requestId: req.id,
+        requestId: req.id as number,
         requestCode: req.code,
         pushLevel: 'VIP2',
         buyerIds: vip2Ids,
@@ -406,7 +406,7 @@ function buildRequest(seed: RequestSeed, seq: number): PurchaseRequest {
     if (vip1Ids.length)
       PUSH_LOGS.push({
         id: nextPushLogId(),
-        requestId: req.id,
+        requestId: req.id as number,
         requestCode: req.code,
         pushLevel: 'VIP1',
         buyerIds: vip1Ids,
@@ -416,7 +416,7 @@ function buildRequest(seed: RequestSeed, seq: number): PurchaseRequest {
     if (vip0Ids.length)
       PUSH_LOGS.push({
         id: nextPushLogId(),
-        requestId: req.id,
+        requestId: req.id as number,
         requestCode: req.code,
         pushLevel: 'VIP0',
         buyerIds: vip0Ids,
@@ -500,7 +500,7 @@ export function pushToNextLevel(
   req.nextPushAt = nextLevel === 'VIP0' ? undefined : new Date(Date.now() + 10 * 60000).toISOString();
   req.pushedToBuyerIds = Array.from(new Set([...req.pushedToBuyerIds, ...buyerIds]));
   appendPushLog({
-    requestId: req.id,
+    requestId: req.id as number,
     requestCode: req.code,
     pushLevel: nextLevel,
     buyerIds,

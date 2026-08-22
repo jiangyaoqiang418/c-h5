@@ -57,13 +57,13 @@ async function toPurchaseRequest(
   customerId?: string
 ): Promise<Api.PurchaseRequest.PurchaseRequest> {
   return {
-    id: dto.id as unknown as number,
+    id: dto.id,
     code: `PUR-${dto.id}`,
-    customerId: (customerId || '') as unknown as number,
+    customerId: customerId || '',
     customerName: '',
     productTitle: dto.title,
     productDescription: dto.description || '',
-    categoryId: dto.categoryId as unknown as number,
+    categoryId: dto.categoryId,
     categoryPath: await getCategoryPath(dto.categoryId),
     budgetAmount: String(dto.budget ?? 0),
     expectedDays: dto.expectDeliveryDays || 0,
@@ -73,9 +73,9 @@ async function toPurchaseRequest(
     appeal: dto.demandNote || dto.description || '',
     status: toStatus(dto.status),
     pushedToBuyerIds: [],
-    claimedBy: dto.takenBy as unknown as number | undefined,
+    claimedBy: dto.takenBy,
     claimedAt: toIso(dto.takenAt),
-    relatedOrderId: dto.orderId as unknown as number | undefined,
+    relatedOrderId: dto.orderId,
     relatedOrderCode: dto.orderId ? String(dto.orderId) : undefined,
     createdAt: toIso(dto.createdAt)
   };

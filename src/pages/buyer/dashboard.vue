@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { buyerApi } from '@shared';
 import { avatarUrl } from '@shared/utils/image';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
+import { fetchBuyerDepositLedger } from '@/service/api/buyer';
+import { fetchSoldOrders } from '@/service/api/order';
+import { fetchMyProducts } from '@/service/api/product';
+import { fetchHall } from '@/service/api/purchase';
 import BuyerKpiCard from '@/components/buyer/buyer-kpi-card.vue';
 import BuyerOrderCard from '@/components/buyer/buyer-order-card.vue';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
@@ -12,66 +15,51 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
-const orders = ref<Api.Order.OrderRecord[]>([]);
+const orders = ref<Api.RealOrder.OrderView[]>([]);
 const requests = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
-const deposit = ref<{ wallet?: any; profile?: any }>({});
+const orderTotal = ref(0);
+const productTotal = ref(0);
+const requestTotal = ref(0);
+const depositBalance = ref<string | number>(0);
 
 const user = computed(() => userStore.currentUser);
-const userAvatar = computed(() => (user.value ? avatarUrl(user.value.id) : ''));
+const userAvatar = computed(() => user.value?.avatar || (user.value ? avatarUrl(0) : ''));
 
 async function load() {
+  await userStore.init();
   if (!userStore.currentUser) return;
-  const buyerId = userStore.currentUser.id;
-  const [ordRes, reqRes, depRes] = await Promise.all([
-    buyerApi.fetchBuyerOrders(buyerId, ['PROCURING', 'PROCURED', 'IN_TRANSIT']),
-    buyerApi.fetchClaimableRequests(buyerId),
-    buyerApi.fetchBuyerDepositSummary(buyerId)
+  const results = await Promise.allSettled([
+    fetchSoldOrders({ pageNo: 1, pageSize: 5 }),
+    fetchHall({ current: 1, size: 5 }),
+    fetchMyProducts({ pageNo: 1, pageSize: 1 }),
+    fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 })
   ]);
-  orders.value = ordRes.records.slice(0, 5);
-  requests.value = reqRes.records.slice(0, 5);
-  deposit.value = depRes;
+  const [soldOrders, demandHall, products, deposits] = results;
+  if (soldOrders.status === 'fulfilled') {
+    orders.value = soldOrders.value.records;
+    orderTotal.value = soldOrders.value.total;
+  }
+  if (demandHall.status === 'fulfilled') {
+    requests.value = demandHall.value.records;
+    requestTotal.value = demandHall.value.total;
+  }
+  if (products.status === 'fulfilled') productTotal.value = products.value.total;
+  if (deposits.status === 'fulfilled') depositBalance.value = deposits.value.records[0]?.balanceAfter ?? 0;
+  if (results.some(result => result.status === 'rejected')) {
+    uni.showToast({ title: '部分买手数据加载失败', icon: 'none' });
+  }
 }
 onShow(load);
 
-const stats = computed(() => {
-  const p = deposit.value.profile;
-  return {
-    orderTotal: p?.stats?.orderTotal ?? 0,
-    goodReviewRate: p?.stats?.goodReviewRate ?? '0',
-    complaintRate: p?.stats?.complaintRate ?? '0',
-    avgShipHours: p?.stats?.avgShipHours ?? 0
-  };
-});
-
 const kpis = computed(() => {
-  const w = deposit.value.wallet;
-  const total = w ? Number(w.depositAvailable || 0) + Number(w.depositGuaranteed || 0) : 0;
   return [
-    { label: '在售商品', value: deposit.value.profile?.productCount || 0, unit: '件', emoji: '🛍️', color: '#5B5CE7', delta: 8.4 },
-    { label: '进行中订单', value: orders.value.length, unit: '单', emoji: '📦', color: '#B8935A', delta: 12.6 },
-    { label: '可接求购', value: requests.value.length, unit: '单', emoji: '🎯', color: '#00A88A', delta: -2.1 },
-    { label: '押金', value: formatAmount(total), unit: 'U', emoji: '🔒', color: '#7C5CFC', delta: 4.5 },
-    { label: '本月收入', value: formatAmount(w?.monthlyIncome || 0), unit: 'U', emoji: '💰', color: '#E74C3C', delta: 22.4 }
+    { label: '在售商品', value: productTotal.value, unit: '件', emoji: '🛍️', color: '#5B5CE7' },
+    { label: '卖出订单', value: orderTotal.value, unit: '单', emoji: '📦', color: '#B8935A' },
+    { label: '可接求购', value: requestTotal.value, unit: '单', emoji: '🎯', color: '#00A88A' },
+    { label: '保证金余额', value: formatAmount(depositBalance.value), unit: 'U', emoji: '🔒', color: '#7C5CFC' }
   ];
 });
 
-const depositPct = computed(() => {
-  const w = deposit.value.wallet;
-  if (!w) return 0;
-  const total = Number(w.depositAvailable || 0) + Number(w.depositGuaranteed || 0);
-  return total > 0 ? (Number(w.depositGuaranteed || 0) / total) * 100 : 0;
-});
-const depositTotal = computed(() => {
-  const w = deposit.value.wallet;
-  if (!w) return '0.00';
-  return formatAmount(Number(w.depositAvailable || 0) + Number(w.depositGuaranteed || 0));
-});
-
-async function refreshOrders() {
-  if (!userStore.currentUser) return;
-  const r = await buyerApi.fetchBuyerOrders(userStore.currentUser.id, ['PROCURING', 'PROCURED', 'IN_TRANSIT']);
-  orders.value = r.records.slice(0, 5);
-}
 </script>
 
 <template>
@@ -86,25 +74,25 @@ async function refreshOrders() {
           <view class="hero-name-row">
             <text class="hero-name">{{ user?.nickname || '买手' }}</text>
           </view>
-          <view class="hero-sub">✓ 累计完成 <text class="strong">{{ stats.orderTotal }}</text> 单</view>
+          <view class="hero-sub">✓ 已读取真实买手数据</view>
         </view>
       </view>
       <view class="hero-stats">
         <view class="stat">
-          <text class="stat-label">月销</text>
-          <text class="stat-val">{{ stats.orderTotal }}</text>
+          <text class="stat-label">卖出订单</text>
+          <text class="stat-val">{{ orderTotal }}</text>
         </view>
         <view class="stat">
-          <text class="stat-label">好评率</text>
-          <text class="stat-val">{{ stats.goodReviewRate }}%</text>
+          <text class="stat-label">在售商品</text>
+          <text class="stat-val">{{ productTotal }}</text>
         </view>
         <view class="stat">
-          <text class="stat-label">客诉率</text>
-          <text class="stat-val">{{ stats.complaintRate }}%</text>
+          <text class="stat-label">可接求购</text>
+          <text class="stat-val">{{ requestTotal }}</text>
         </view>
         <view class="stat">
-          <text class="stat-label">发货时长</text>
-          <text class="stat-val">{{ stats.avgShipHours }}h</text>
+          <text class="stat-label">保证金</text>
+          <text class="stat-val">{{ formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>
@@ -121,14 +109,14 @@ async function refreshOrders() {
       <view class="section-bar">
         <view class="title-group">
           <view class="sec-tag primary"><text>ORDERS</text></view>
-          <text class="section-title">进行中订单</text>
+          <text class="section-title">最近卖出订单</text>
         </view>
         <text class="more" @click="go('/pages/order/list')">全部 →</text>
       </view>
       <view v-if="orders.length">
-        <BuyerOrderCard v-for="o in orders" :key="o.id" :order="o" @refresh="refreshOrders" />
+        <BuyerOrderCard v-for="o in orders" :key="String(o.id)" :order="o" :show-actions="false" />
       </view>
-      <EmptyState v-else title="暂无进行中订单" description="去求购大厅接单赚取收益" />
+      <EmptyState v-else title="暂无卖出订单" description="去求购大厅接单赚取收益" />
     </view>
 
     <!-- 可接求购 -->
@@ -155,17 +143,12 @@ async function refreshOrders() {
         </view>
         <text class="more">押金管理 →</text>
       </view>
-      <view class="deposit-progress">
-        <view class="progress-bar">
-          <view class="progress-fill" :style="{ width: depositPct + '%' }"></view>
-        </view>
-        <text class="progress-label">已担保 {{ depositPct.toFixed(1) }}%</text>
-      </view>
+      <view class="deposit-progress"><text class="progress-label">以最新真实保证金流水余额为准</text></view>
       <view class="deposit-total">
-        <text class="dep-label">总押金</text>
+        <text class="dep-label">当前保证金余额</text>
         <view class="dep-amount">
           <text class="unit">U</text>
-          <text class="num">{{ depositTotal }}</text>
+          <text class="num">{{ formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>

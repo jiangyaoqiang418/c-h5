@@ -11,6 +11,7 @@ import { claimRequest, fetchHall } from '@/service/api/purchase';
 const userStore = useUserStore();
 const list = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
 
 const canClaim = computed(
   () => userStore.currentUser?.isBuyer && userStore.currentUser?.kycStatus === 'approved' && userStore.isBuyerActive
@@ -18,12 +19,13 @@ const canClaim = computed(
 
 async function load() {
   loading.value = true;
+  loadFailed.value = false;
   try {
     await userStore.init();
     const r = await fetchHall({ size: 30 });
     list.value = r.records;
   } catch (error) {
-    list.value = [];
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '求购大厅加载失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -91,6 +93,11 @@ function goCreate() {
           @claim="onClaim"
         />
       </view>
+      <EmptyState
+        v-else-if="loadFailed"
+        title="求购大厅加载失败"
+        description="请稍后重试"
+      />
       <EmptyState
         v-else-if="!loading"
         title="暂无求购任务"

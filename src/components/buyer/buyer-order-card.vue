@@ -6,17 +6,23 @@ import { go } from '@/utils/navigate';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 
 interface Props {
-  order: Api.Order.OrderRecord;
+  order: Api.Order.OrderRecord | Api.RealOrder.OrderView;
+  showActions?: boolean;
 }
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { showActions: true });
 defineEmits<{
-  (e: 'upload-proof', o: Api.Order.OrderRecord): void;
-  (e: 'upload-shipping', o: Api.Order.OrderRecord): void;
+  (e: 'upload-proof', o: Api.Order.OrderRecord | Api.RealOrder.OrderView): void;
+  (e: 'upload-shipping', o: Api.Order.OrderRecord | Api.RealOrder.OrderView): void;
 }>();
 
 const cover = computed(
-  () => props.order.productCover || productImageUrl(props.order.productId, 240)
+  () => props.order.productCover || (!('rawStatus' in props.order)
+    ? productImageUrl(props.order.productId, 240)
+    : '')
 );
+const counterpartName = computed(() => 'counterpartName' in props.order
+  ? props.order.counterpartName
+  : props.order.customerName);
 
 function goDetail() {
   go(`/pages/order/detail?id=${props.order.id}`);
@@ -34,7 +40,7 @@ function goDetail() {
       <view class="info">
         <text class="title">{{ order.productTitle }}</text>
         <view class="meta-chips">
-          <text class="chip">👤 {{ order.customerName }}</text>
+          <text class="chip">👤 {{ counterpartName }}</text>
         </view>
         <text class="addr">📍 {{ order.shippingAddress }}</text>
       </view>
@@ -45,7 +51,7 @@ function goDetail() {
         <text class="amount-cny">{{ formatUsdt(order.totalAmount) }}</text>
         <text class="amount-usdt">≈ {{ formatCny(order.totalAmount) }}</text>
       </view>
-      <view class="actions">
+      <view v-if="showActions" class="actions">
         <wd-button
           v-if="order.status === 'PROCURING'"
           type="primary"

@@ -20,14 +20,14 @@ declare namespace Api.PurchaseRequest {
 
   /** 求购任务 */
   interface PurchaseRequest {
-    id: number;
+    id: string | number;
     code: string; // 'PUR-2026-XXXXX'
-    customerId: number;
+    customerId: string | number;
     customerName: string;
 
     productTitle: string;
     productDescription: string;
-    categoryId: number;
+    categoryId: string | number;
     categoryPath: string;
 
     budgetAmount: string;
@@ -50,13 +50,13 @@ declare namespace Api.PurchaseRequest {
     currentPushLevel?: PushBatchLevel;
     pushedAt?: string;
     nextPushAt?: string;
-    pushedToBuyerIds: number[];
+    pushedToBuyerIds: Array<string | number>;
 
     // 接单
-    claimedBy?: number;
+    claimedBy?: string | number;
     claimedByName?: string;
     claimedAt?: string;
-    relatedOrderId?: number;
+    relatedOrderId?: string | number;
     relatedOrderCode?: string;
 
     // 取消

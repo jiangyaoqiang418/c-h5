@@ -7,14 +7,16 @@ import { go } from '@/utils/navigate';
 
 const groups = ref<Api.RealNotify.Conversation[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
 
 async function load() {
   loading.value = true;
+  loadFailed.value = false;
   try {
     const page = await fetchConversations({ pageNo: 1, pageSize: 30 });
     groups.value = page.records.filter(item => item.bizType === 'ORDER');
   } catch (error) {
-    groups.value = [];
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '订单群加载失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -42,6 +44,7 @@ function open(group: Api.RealNotify.Conversation) {
         <view class="right"><wd-badge v-if="(g.unreadCount || 0) > 0" :value="g.unreadCount" /></view>
       </view>
     </view>
+    <EmptyState v-else-if="loadFailed" title="订单群加载失败" description="请稍后重试" />
     <EmptyState v-else-if="!loading" title="暂无订单群聊" description="下单后会自动创建 买手-顾客-平台 三方群" />
   </view>
 </template>

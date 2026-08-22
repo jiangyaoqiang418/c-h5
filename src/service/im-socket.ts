@@ -71,7 +71,7 @@ class ImSocket {
     this.manuallyStopped = true;
     this.ready = false;
     this.clearTimers();
-    this.task?.close({ code: 1000, reason: 'page-unload' });
+    this.closeTask(this.task, 1000, 'page-unload');
     this.task = undefined;
     this.updateState('idle');
   }
@@ -89,7 +89,7 @@ class ImSocket {
     task.onOpen(() => {
       if (this.task !== task) return;
       this.readyTimer = setTimeout(() => {
-        if (!this.ready) task.close({ code: 4001, reason: 'ready-timeout' });
+        if (!this.ready) this.closeTask(task, 4001, 'ready-timeout');
       }, 10_000);
     });
     task.onMessage((event: UniApp.OnSocketMessageCallbackResult) => {
@@ -146,6 +146,14 @@ class ImSocket {
     this.heartbeat = undefined;
     this.readyTimer = undefined;
     this.reconnectTimer = undefined;
+  }
+
+  /** H5 网关异常时可能返回非 SocketTask 句柄，清理阶段不能再次抛出错误。 */
+  private closeTask(task: UniApp.SocketTask | undefined, code: number, reason: string) {
+    const close = (task as { close?: unknown } | undefined)?.close;
+    if (typeof close === 'function') {
+      close.call(task, { code, reason });
+    }
   }
 
   private updateState(state: ImSocketState) {

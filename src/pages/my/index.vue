@@ -8,6 +8,7 @@ import VipBadge from '@/components/common/vip-badge.vue';
 import KycStatusTag from '@/components/common/kyc-status-tag.vue';
 import { fetchPointAccount, type PointAccount } from '@/service/api/point';
 import { countBoughtOrdersByStatus, countSoldOrdersByStatus } from '@/service/api/order';
+import { fetchImUnreadCount, fetchNotificationUnreadCount } from '@/service/api/notify';
 import { useUserStore, useWalletStore } from '@/stores';
 
 const userStore = useUserStore();
@@ -15,7 +16,7 @@ const walletStore = useWalletStore();
 
 const orderCounts = ref<Record<string, number>>({});
 const pointAccount = ref<PointAccount>();
-const unreadCount = ref(6);
+const unreadCount = ref(0);
 
 const user = computed(() => userStore.currentUser);
 const totalAssets = computed(() => walletStore.totalAssets);
@@ -40,6 +41,15 @@ async function loadAll() {
     ]);
     orderCounts.value = counts;
     pointAccount.value = account;
+    try {
+      const [notificationCount, imCount] = await Promise.all([
+        fetchNotificationUnreadCount(),
+        fetchImUnreadCount()
+      ]);
+      unreadCount.value = notificationCount + imCount;
+    } catch {
+      unreadCount.value = 0;
+    }
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '账户数据加载失败', icon: 'none' });
   }

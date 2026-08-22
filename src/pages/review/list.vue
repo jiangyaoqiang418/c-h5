@@ -13,6 +13,7 @@ const list = ref<Api.RealReview.ReviewDTO[]>([]);
 const reviewable = ref<Api.RealReview.ReviewableOrderVO[]>([]);
 const loading = ref(false);
 const operating = ref(false);
+const loadFailed = ref(false);
 
 async function load() {
   if (!userStore.currentUser) {
@@ -21,6 +22,7 @@ async function load() {
     return;
   }
   loading.value = true;
+  loadFailed.value = false;
   try {
     if (activeKey.value === 'reviewable') {
       reviewable.value = (await fetchReviewableOrders({ pageSize: 50 })).records;
@@ -32,8 +34,7 @@ async function load() {
       : (await fetchReceivedReviews({ pageSize: 50 })).records;
     reviewable.value = [];
   } catch (error) {
-    list.value = [];
-    reviewable.value = [];
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '评价加载失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -100,7 +101,8 @@ async function appeal(review: Api.RealReview.ReviewDTO) {
     <view class="list">
       <view v-if="loading" class="loading">加载中…</view>
       <template v-else>
-        <view v-if="activeKey === 'reviewable' && reviewable.length">
+        <EmptyState v-if="loadFailed" title="评价加载失败" description="请稍后重试" />
+        <view v-else-if="activeKey === 'reviewable' && reviewable.length">
           <view v-for="order in reviewable" :key="order.orderId" class="reviewable-card" @click="go(`/pages/review/write?orderId=${order.orderId}`)">
             <image v-if="order.productImage" :src="order.productImage" class="cover" mode="aspectFill" />
             <view class="reviewable-main"><text class="title">{{ order.productTitle || '订单商品' }}</text><text class="order-no">订单 {{ order.orderNo || order.orderId }}</text></view>
