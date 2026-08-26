@@ -6,21 +6,34 @@ type Listener = (message: unknown) => void;
 export type ImSocketState = 'idle' | 'connecting' | 'ready' | 'unavailable';
 type StateListener = (state: ImSocketState) => void;
 
-function websocketUrl(gatewayPath: string, token: string): string {
+interface SocketConnectionOptions {
+  url: string;
+  protocols?: string[];
+}
+
+function websocketOptions(status: Api.RealNotify.ImLinkStatusVO, token: string): SocketConnectionOptions {
   const base = realServiceConfig.notify || '/api/notify';
   let url = '';
+  const useApiPrefix = base.startsWith('/api/') || /^https?:\/\//.test(base) && new URL(base).pathname.startsWith('/api/');
+  const path = useApiPrefix && status.apiPrefixPath ? status.apiPrefixPath : status.gatewayPath;
   if (/^https?:\/\//.test(base)) {
     const parsed = new URL(base);
-    const prefix = parsed.pathname.endsWith('/notify') ? parsed.pathname.slice(0, -'/notify'.length) : '';
-    url = `${parsed.protocol === 'https:' ? 'wss:' : 'ws:'}//${parsed.host}${prefix}${gatewayPath}`;
+    url = `${parsed.protocol === 'https:' ? 'wss:' : 'ws:'}//${parsed.host}${path}`;
   }
   // #ifdef H5
   if (!url) {
-    const prefix = base.endsWith('/notify') ? base.slice(0, -'/notify'.length) : '';
-    url = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${prefix}${gatewayPath}`;
+    url = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}${path}`;
   }
   // #endif
-  return url ? `${url}?token=${encodeURIComponent(token)}` : '';
+  const tokenSources = status.tokenSources || ['QUERY_TOKEN'];
+  if (tokenSources.includes('QUERY_TOKEN')) {
+    return { url: url ? `${url}?token=${encodeURIComponent(token)}` : '' };
+  }
+  if (tokenSources.includes('SUB_PROTOCOL')) {
+    const protocol = status.subProtocol || 'im';
+    return { url, protocols: [protocol, `${protocol}.token.${token}`] };
+  }
+  return { url };
 }
 
 function socketMessageText(data: unknown): string {
@@ -61,10 +74,11 @@ class ImSocket {
         this.updateState('idle');
         return;
       }
+      const connection = websocketOptions(status, token);
       await this.connect(
-        websocketUrl(status.gatewayPath, token),
+        connection.url,
         Math.min(25_000, Number(status.heartbeatIntervalMs) || 25_000),
-        status.subProtocol
+        connection.protocols
       );
     } catch (error) {
       this.updateState('unavailable');
@@ -86,7 +100,7 @@ class ImSocket {
     this.updateState('idle');
   }
 
-  private async connect(url: string, heartbeatMs: number, subProtocol?: string) {
+  private async connect(url: string, heartbeatMs: number, protocols?: string[]) {
     if (!url || this.manuallyStopped) {
       this.updateState('unavailable');
       return;
@@ -99,7 +113,7 @@ class ImSocket {
     const task = uni.connectSocket({
       url,
       header: token ? { 'X-Access-Token': token } : {},
-      protocols: subProtocol ? [subProtocol] : undefined,
+      protocols,
       success: () => undefined,
       fail: () => undefined
     }) as unknown as UniApp.SocketTask;
@@ -122,7 +136,7 @@ class ImSocket {
         this.ready = true;
         this.updateState('ready');
         this.retries = 0;
-        this.heartbeat = setInterval(() => task.send({ data: JSON.stringify({ type: 'PING' }) }), Math.max(5_000, heartbeatMs));
+        this.heartbeat = setInterval(() => task.send({ data: JSON.stringify({ type: 'PING' }) }), Math.max(1, heartbeatMs));
         return;
       }
       if (type === 'PONG') return;
@@ -136,16 +150,16 @@ class ImSocket {
     task.onClose(() => {
       if (this.task !== task) return;
       this.task = undefined;
-      this.reconnect(url, heartbeatMs, subProtocol);
+      this.reconnect(url, heartbeatMs, protocols);
     });
     task.onError(() => {
       if (this.task !== task) return;
       this.task = undefined;
-      this.reconnect(url, heartbeatMs, subProtocol);
+      this.reconnect(url, heartbeatMs, protocols);
     });
   }
 
-  private reconnect(url: string, heartbeatMs: number, subProtocol?: string) {
+  private reconnect(url: string, heartbeatMs: number, protocols?: string[]) {
     this.ready = false;
     if (this.heartbeat) clearInterval(this.heartbeat);
     if (this.readyTimer) clearTimeout(this.readyTimer);
@@ -156,7 +170,7 @@ class ImSocket {
     const delay = Math.min(30_000, 1_000 * 2 ** Math.min(this.retries++, 5));
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = undefined;
-      this.connect(url, heartbeatMs, subProtocol).catch(() => this.reconnect(url, heartbeatMs, subProtocol));
+      this.connect(url, heartbeatMs, protocols).catch(() => this.reconnect(url, heartbeatMs, protocols));
     }, delay);
   }
 

@@ -70,6 +70,17 @@ declare namespace Api {
     interface ImRecallParams { id: Id; }
     interface MediaUploadResult { id: Id; scene?: 'IM_IMAGE' | 'IM_VOICE' | string; url: string; duration?: number; privateAccess?: boolean; expireAt?: string | number; }
     interface SendMessageParams { conversationId: Id; msgType: ImMessageType; content?: string; mediaFileId?: Id; clientMsgId?: string; }
-    interface ImLinkStatusVO { endpoint: string; gatewayPath: string; subProtocol?: string; onlineConnections: number; heartbeatIntervalMs: number; idleTimeoutMs: number; }
+    type ImTokenSource = 'QUERY_TOKEN' | 'HEADER_X_ACCESS_TOKEN' | 'HEADER_AUTHORIZATION' | 'SUB_PROTOCOL' | string;
+    interface ImLinkStatusVO {
+      endpoint: string;
+      gatewayPath: string;
+      apiPrefixPath?: string;
+      tokenSources?: ImTokenSource[];
+      subProtocol?: string;
+      rejectReasonHeader?: string;
+      onlineConnections: number | string;
+      heartbeatIntervalMs: number | string;
+      idleTimeoutMs: number | string;
+    }
   }
 }
