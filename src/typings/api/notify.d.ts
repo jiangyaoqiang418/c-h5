@@ -67,6 +67,12 @@ declare namespace Api {
     interface ConversationPageQuery { pageNo?: number; pageSize?: number; }
     interface MessagePageQuery { pageNo?: number; pageSize?: number; conversationId: Id; }
     interface ImReadParams { conversationId: Id; lastReadMessageId: Id; }
+    interface ImReadEvent {
+      conversationId: Id;
+      lastReadMessageId: Id;
+      readerUserId?: Id;
+      userId?: Id;
+    }
     interface ImRecallParams { id: Id; }
     interface MediaUploadResult { id: Id; scene?: 'IM_IMAGE' | 'IM_VOICE' | string; url: string; duration?: number; privateAccess?: boolean; expireAt?: string | number; }
     interface SendMessageParams { conversationId: Id; msgType: ImMessageType; content?: string; mediaFileId?: Id; clientMsgId?: string; }

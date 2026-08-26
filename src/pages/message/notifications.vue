@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onUnload } from '@dcloudio/uni-app';
 import { clearNotifications, deleteNotification, fetchNotifications, markAllNotificationsRead, markNotificationRead } from '@/service/api/notify';
 import { go } from '@/utils/navigate';
+import { imSocket } from '@/service/im-socket';
 import EmptyState from '@/components/common/empty-state.vue';
 
 const list = ref<Api.RealNotify.Notification[]>([]);
@@ -10,6 +11,8 @@ const loading = ref(false);
 const loadFailed = ref(false);
 const operating = ref(false);
 const unreadCount = computed(() => list.value.filter(item => !item.readFlag).length);
+let unsubscribeRealtime: (() => void) | undefined;
+let realtimeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function load() {
   loading.value = true;
@@ -23,7 +26,33 @@ async function load() {
     loading.value = false;
   }
 }
-onShow(load);
+function refreshFromRealtime() {
+  if (realtimeRefreshTimer) return;
+  realtimeRefreshTimer = setTimeout(() => {
+    realtimeRefreshTimer = undefined;
+    load();
+  }, 80);
+}
+
+onShow(() => {
+  if (!unsubscribeRealtime) {
+    unsubscribeRealtime = imSocket.subscribe(event => {
+      if (String((event as { type?: unknown })?.type || '').toUpperCase() === 'NOTIFICATION') {
+        refreshFromRealtime();
+      }
+    });
+  }
+  imSocket.start().catch(() => undefined);
+  load();
+});
+onUnload(() => {
+  if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer = undefined;
+  unsubscribeRealtime?.();
+  unsubscribeRealtime = undefined;
+  imSocket.stop();
+});
+
 function target(notification: Api.RealNotify.Notification): string | undefined {
   const id = notification.bizId;
   const template = notification.templateCode || '';

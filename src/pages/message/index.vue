@@ -19,6 +19,8 @@ interface Category {
 
 const categories = ref<Category[]>([]);
 const loadFailed = ref(false);
+let unsubscribeRealtime: (() => void) | undefined;
+let realtimeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 function isTransactionNotification(notification: Api.RealNotify.Notification) {
   return /RECHARGE|WITHDRAW|WALLET|FUND|FINANCE|ORDER/.test(notification.bizType || notification.templateCode || '');
@@ -76,9 +78,36 @@ async function load() {
   }
 }
 
-onShow(load);
-onShow(() => { imSocket.start().catch(() => undefined); });
-onUnload(() => imSocket.stop());
+function refreshFromRealtime() {
+  if (realtimeRefreshTimer) return;
+  realtimeRefreshTimer = setTimeout(() => {
+    realtimeRefreshTimer = undefined;
+    load();
+  }, 80);
+}
+
+function ensureRealtimeSubscription() {
+  if (unsubscribeRealtime) return;
+  unsubscribeRealtime = imSocket.subscribe(event => {
+    const type = String((event as { type?: unknown })?.type || '').toUpperCase();
+    if (type === 'NOTIFICATION' || type === 'IM_MESSAGE' || type === 'IM_READ' || type === 'IM_RECALL') {
+      refreshFromRealtime();
+    }
+  });
+}
+
+onShow(() => {
+  ensureRealtimeSubscription();
+  imSocket.start().catch(() => undefined);
+  load();
+});
+onUnload(() => {
+  if (realtimeRefreshTimer) clearTimeout(realtimeRefreshTimer);
+  realtimeRefreshTimer = undefined;
+  unsubscribeRealtime?.();
+  unsubscribeRealtime = undefined;
+  imSocket.stop();
+});
 
 const totalUnread = computed(() =>
   categories.value.reduce((s, c) => s + c.unread, 0)

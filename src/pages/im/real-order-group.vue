@@ -17,6 +17,7 @@ const realtimeState = ref<ImSocketState>('idle');
 const currentOrderStatus = ref('');
 const voiceRecording = ref(false);
 const playingVoiceId = ref<string>();
+const readerWatermarks = ref<Record<string, Api.RealNotify.Id>>({});
 let currentOrderId = '';
 let unsubscribe: (() => void) | undefined;
 let unsubscribeState: (() => void) | undefined;
@@ -76,9 +77,26 @@ function messageAnchor(id: Api.RealNotify.Id) {
   return `message-${String(id).replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 }
 
+function eventPayload(event: unknown) {
+  const frame = event as { data?: unknown; payload?: unknown; message?: unknown };
+  return frame?.data ?? frame?.payload ?? frame?.message ?? event;
+}
+
+function compareBusinessId(left: Api.RealNotify.Id, right: Api.RealNotify.Id): number {
+  const leftText = String(left);
+  const rightText = String(right);
+  if (/^\d+$/.test(leftText) && /^\d+$/.test(rightText)) {
+    const normalizedLeft = leftText.replace(/^0+(?=\d)/, '');
+    const normalizedRight = rightText.replace(/^0+(?=\d)/, '');
+    return normalizedLeft.length === normalizedRight.length
+      ? normalizedLeft.localeCompare(normalizedRight)
+      : normalizedLeft.length - normalizedRight.length;
+  }
+  return leftText.localeCompare(rightText);
+}
+
 function appendRealtimeMessage(event: unknown) {
-  const wrapper = event as { data?: unknown; message?: unknown };
-  const candidate = (wrapper?.data || wrapper?.message || event) as Partial<Api.RealNotify.Message>;
+  const candidate = eventPayload(event) as Partial<Api.RealNotify.Message>;
   const activeConversation = conversation.value;
   if (!candidate || typeof candidate !== 'object' || !activeConversation || String(candidate.conversationId) !== String(activeConversation.id) || candidate.id == null) return;
   const existingIndex = messages.value.findIndex(item => String(item.id) === String(candidate.id));
@@ -91,6 +109,53 @@ function appendRealtimeMessage(event: unknown) {
   markImMessagesRead({ conversationId: activeConversation.id, lastReadMessageId: candidate.id }).catch(() => undefined);
   if (candidate.msgType === 'ORDER_CARD' || candidate.msgType === 'SYSTEM') refreshOrderStatus();
   nextTick(() => { scrollIntoView.value = messageAnchor(candidate.id!); });
+}
+
+function applyRealtimeRecall(event: unknown) {
+  const payload = eventPayload(event) as {
+    id?: Api.RealNotify.Id;
+    messageId?: Api.RealNotify.Id;
+    conversationId?: Api.RealNotify.Id;
+    message?: Partial<Api.RealNotify.Message>;
+  };
+  const recalled = payload.message;
+  const conversationId = recalled?.conversationId ?? payload.conversationId;
+  const messageId = recalled?.id ?? payload.messageId ?? payload.id;
+  if (!conversation.value || messageId == null || String(conversationId) !== String(conversation.value.id)) return;
+  const index = messages.value.findIndex(item => String(item.id) === String(messageId));
+  if (index < 0) {
+    refreshMessages().catch(() => undefined);
+    return;
+  }
+  messages.value[index] = {
+    ...messages.value[index],
+    ...recalled,
+    recalled: true,
+    content: undefined,
+    mediaUrl: undefined
+  } as Api.RealNotify.Message;
+}
+
+function applyRealtimeRead(event: unknown) {
+  const payload = eventPayload(event) as Partial<Api.RealNotify.ImReadEvent>;
+  const readerId = payload.readerUserId ?? payload.userId;
+  if (!conversation.value || readerId == null || payload.lastReadMessageId == null || String(payload.conversationId) !== String(conversation.value.id)) return;
+  readerWatermarks.value[String(readerId)] = payload.lastReadMessageId;
+}
+
+function handleRealtimeEvent(event: unknown) {
+  const type = String((event as { type?: unknown })?.type || '').toUpperCase();
+  if (type === 'IM_RECALL') {
+    applyRealtimeRecall(event);
+    return;
+  }
+  if (type === 'IM_MESSAGE') {
+    appendRealtimeMessage(event);
+    return;
+  }
+  if (type === 'IM_READ') {
+    applyRealtimeRead(event);
+  }
 }
 
 async function refreshMessages() {
@@ -275,7 +340,7 @@ onLoad(async query => {
     ]);
     conversation.value = group;
     await refreshMessages();
-    unsubscribe = imSocket.subscribe(appendRealtimeMessage);
+    unsubscribe = imSocket.subscribe(handleRealtimeEvent);
     unsubscribeState = imSocket.subscribeState(state => { realtimeState.value = state; });
     imSocket.start().catch(() => undefined);
     await nextTick();
@@ -320,6 +385,14 @@ function messageText(message: Api.RealNotify.Message) {
 function isMine(message: Api.RealNotify.Message) {
   return String(message.senderId) === String(userStore.currentUser?.id);
 }
+
+function readText(message: Api.RealNotify.Message) {
+  if (!isMine(message) || message.pending || message.failed || message.recalled || String(message.id).startsWith('local:')) return '';
+  const count = Object.values(readerWatermarks.value)
+    .filter(lastReadMessageId => compareBusinessId(lastReadMessageId, message.id) >= 0)
+    .length;
+  return count ? `已读 ${count}` : '未读';
+}
 </script>
 
 <template>
@@ -336,6 +409,7 @@ function isMine(message: Api.RealNotify.Message) {
         <text v-if="isMine(message) && !message.recalled && !message.pending && !message.failed && side(message) !== 'center'" class="recall" @click="recallMessage(message)">撤回</text>
         <text v-if="message.pending" class="delivery">发送中</text>
         <text v-else-if="message.failed" class="delivery retry" @click="retryMessage(message)">发送失败，点击重试</text>
+        <text v-else-if="readText(message)" class="delivery">{{ readText(message) }}</text>
       </view>
       <view v-if="!messages.length" class="empty">暂无历史消息</view>
     </scroll-view>
