@@ -17,7 +17,8 @@ const TABS: { key: string; label: string; statuses?: Api.PurchaseRequest.Request
   { key: 'pending', label: '待审核', statuses: ['pending_audit'] },
   { key: 'pushing', label: '推送中', statuses: ['pushing'] },
   { key: 'claimed', label: '已接单', statuses: ['claimed'] },
-  { key: 'cancelled', label: '已取消', statuses: ['cancelled', 'rejected'] }
+  { key: 'rejected', label: '已驳回', statuses: ['rejected'] },
+  { key: 'cancelled', label: '已取消', statuses: ['cancelled'] }
 ];
 
 async function load() {

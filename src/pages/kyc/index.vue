@@ -11,6 +11,7 @@ interface UploadedFile { id: Api.RealKyc.Id; url: string; }
 const userStore = useUserStore();
 const loading = ref(true);
 const loadFailed = ref(false);
+const detailLoadFailed = ref(false);
 const submitting = ref(false);
 const uploading = ref<UploadField>();
 const detail = ref<Api.RealKyc.DetailVO | null>(null);
@@ -29,7 +30,7 @@ const status = computed<Api.User.KycStatus>(() => {
   if (detail.value?.status === 'PASSED') return 'approved';
   if (detail.value?.status === 'PENDING') return 'pending';
   if (detail.value?.status === 'REJECTED') return 'rejected';
-  return 'none';
+  return userStore.currentUser?.kycStatus || 'none';
 });
 const canSubmit = computed(() => form.realName.trim().length > 0 && form.idNo.trim().length > 0 && !!form.idCardFront && (form.idType === 'PASSPORT' || !!form.idCardBack));
 const statusTitle = computed(() => status.value === 'approved' ? '您已完成 KYC 实名认证' : status.value === 'pending' ? '实名认证审核中' : status.value === 'rejected' ? '实名认证未通过' : '实名认证');
@@ -41,18 +42,32 @@ function formatTime(value?: Api.RealKyc.Id): string {
 }
 
 async function resolvePrivateFile(fileId?: Api.RealKyc.Id, fallback?: string): Promise<string | undefined> {
-  if (fileId !== undefined && fileId !== null) return (await fetchKycFileAccess(fileId)).url;
+  if (fileId !== undefined && fileId !== null) {
+    try {
+      return (await fetchKycFileAccess(fileId)).url;
+    } catch {
+      return fallback;
+    }
+  }
   return fallback;
 }
 
 async function load() {
   loading.value = true;
   loadFailed.value = false;
+  detailLoadFailed.value = false;
   try {
     if (!(await requireLogin('/pages/kyc/index'))) return;
     await userStore.init();
     if (!userStore.currentUser) return;
-    detail.value = await fetchKycDetail();
+    try {
+      detail.value = await fetchKycDetail();
+    } catch (error) {
+      const currentStatus = userStore.currentUser.kycStatus;
+      if (currentStatus !== 'approved' && currentStatus !== 'pending') throw error;
+      detail.value = null;
+      detailLoadFailed.value = true;
+    }
     if (detail.value) {
       const [front, back, holding] = await Promise.all([
         resolvePrivateFile(detail.value.idCardFrontFileId, detail.value.idCardFront),
@@ -125,7 +140,7 @@ onMounted(load);
     <view v-if="loading" class="loading">加载中...</view>
     <view v-else-if="loadFailed" class="error-card"><text class="title">认证状态加载失败</text><text class="description">请检查网络后重新加载。</text><wd-button type="primary" block @click="load">重新加载</wd-button></view>
     <template v-else>
-      <view class="status-card"><KycStatusTag :status="status" /><text class="title">{{ statusTitle }}</text><text v-if="detail?.reviewRemark" class="review-remark">审核意见：{{ detail.reviewRemark }}</text></view>
+      <view class="status-card"><KycStatusTag :status="status" /><text class="title">{{ statusTitle }}</text><text v-if="detail?.reviewRemark" class="review-remark">审核意见：{{ detail.reviewRemark }}</text><text v-else-if="detailLoadFailed" class="review-remark">历史认证资料暂不可查看，请联系平台处理。</text></view>
       <view v-if="detail" class="record-card">
         <view class="record-row"><text class="label">姓名</text><text>{{ detail.realName || '-' }}</text></view><view class="record-row"><text class="label">证件类型</text><text>{{ detail.idType === 'PASSPORT' ? '护照' : '身份证' }}</text></view><view class="record-row"><text class="label">证件号码</text><text>{{ detail.idNo || '-' }}</text></view><view class="record-row"><text class="label">提交时间</text><text>{{ formatTime(detail.submittedAt) }}</text></view><view v-if="detail.expireAt" class="record-row"><text class="label">有效期至</text><text>{{ formatTime(detail.expireAt) }}</text></view>
         <view v-if="detail.idCardFront || detail.idCardBack || detail.holdingPhoto" class="image-row"><image v-if="detail.idCardFront" :src="detail.idCardFront" mode="aspectFill" /><image v-if="detail.idCardBack" :src="detail.idCardBack" mode="aspectFill" /><image v-if="detail.holdingPhoto" :src="detail.holdingPhoto" mode="aspectFill" /></view>

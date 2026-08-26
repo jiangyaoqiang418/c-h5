@@ -1,4 +1,4 @@
-import { realOrderRequest } from '../request';
+import { realOrderRequest, realOrderUpload } from '../request';
 
 const DISPLAY_STATUS: Record<Api.RealOrder.OrderStatus, Api.Order.OrderStatus> = {
   CREATED: 'PENDING_PAYMENT',
@@ -147,8 +147,33 @@ export function shipRealOrder(params: Api.RealOrder.OrderShipParams): Promise<Ap
   });
 }
 
+export function uploadOrderVoucher(filePath: string, orderId: Api.RealOrder.LongId) {
+  return realOrderUpload<Api.RealProduct.FileUploadResult>({
+    url: '/files/upload',
+    filePath,
+    name: 'file',
+    params: { scene: 'ORDER_VOUCHER', bizType: 'ORDER', bizId: orderId }
+  });
+}
+
 export function fetchOrderLogistics(orderId: Api.RealOrder.LongId) {
   return realOrderRequest<Api.RealOrder.LogisticsDTO>({ url: '/orders/logistics', params: { orderId } });
+}
+
+export function createOrderLogisticsTrack(params: Api.RealOrder.LogisticsTrackCreateParams): Promise<Api.RealOrder.LongId> {
+  return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.LogisticsTrackCreateParams>({
+    url: '/orders/logistics/track/create',
+    method: 'POST',
+    data: params
+  });
+}
+
+export function markOrderLogisticsException(params: Api.RealOrder.LogisticsExceptionMarkParams): Promise<Api.RealOrder.LongId> {
+  return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.LogisticsExceptionMarkParams>({
+    url: '/orders/logistics/exception/mark',
+    method: 'PUT',
+    data: params
+  });
 }
 
 export function createRealRefund(params: Api.RealOrder.OrderRefundApplyParams): Promise<Api.RealOrder.LongId> {

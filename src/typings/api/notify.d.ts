@@ -18,6 +18,7 @@ declare namespace Api {
       content?: string;
       bizType?: string;
       bizId?: Id;
+      deptId?: Id;
       readFlag?: boolean;
       createdAt?: string | number;
     }
@@ -65,8 +66,10 @@ declare namespace Api {
     interface NotificationPageQuery { pageNo?: number; pageSize?: number; unreadOnly?: boolean; }
     interface ConversationPageQuery { pageNo?: number; pageSize?: number; }
     interface MessagePageQuery { pageNo?: number; pageSize?: number; conversationId: Id; }
+    interface ImReadParams { conversationId: Id; lastReadMessageId: Id; }
+    interface ImRecallParams { id: Id; }
     interface MediaUploadResult { id: Id; scene?: 'IM_IMAGE' | 'IM_VOICE' | string; url: string; duration?: number; privateAccess?: boolean; expireAt?: string | number; }
-    interface SendMessageParams { conversationId: Id; msgType: ImMessageType; content?: string; mediaFileId?: Id; mediaUrl?: string; duration?: number; clientMsgId?: string; }
-    interface ImLinkStatusVO { endpoint: string; gatewayPath: string; onlineConnections: number; heartbeatIntervalMs: number; idleTimeoutMs: number; }
+    interface SendMessageParams { conversationId: Id; msgType: ImMessageType; content?: string; mediaFileId?: Id; clientMsgId?: string; }
+    interface ImLinkStatusVO { endpoint: string; gatewayPath: string; subProtocol?: string; onlineConnections: number; heartbeatIntervalMs: number; idleTimeoutMs: number; }
   }
 }

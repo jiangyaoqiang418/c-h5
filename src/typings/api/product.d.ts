@@ -26,8 +26,10 @@ declare namespace Api {
     interface ProductDTO {
       id: string | number;
       sellerId: string | number;
+      sellerName?: string;
       title: string;
       categoryId: string | number;
+      categoryName?: string;
       price: number;
       shippingFee?: number;
       taxFee?: number;

@@ -32,13 +32,21 @@ export function sendMessage(params: Api.RealNotify.SendMessageParams) {
   return realNotifyRequest<Api.RealNotify.Message, Api.RealNotify.SendMessageParams>({ url: '/im/messages/send', method: 'POST', data: params });
 }
 
+export function markImMessagesRead(params: Api.RealNotify.ImReadParams) {
+  return realNotifyRequest<boolean, Api.RealNotify.ImReadParams>({ url: '/im/messages/read', method: 'PUT', data: params });
+}
+
+export function recallImMessage(params: Api.RealNotify.ImRecallParams) {
+  return realNotifyRequest<boolean, Api.RealNotify.ImRecallParams>({ url: '/im/messages/recall', method: 'PUT', data: params });
+}
+
 export function fetchImUnreadCount() { return realNotifyRequest<number>({ url: '/im/unread/count' }); }
 export function fetchImLinkStatus() { return realNotifyRequest<Api.RealNotify.ImLinkStatusVO>({ url: '/back/im/status', requireToken: false }); }
 
-export function uploadImImage(filePath: string) {
-  return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_IMAGE' } });
+export function uploadImImage(filePath: string, conversationId?: Api.RealNotify.Id) {
+  return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_IMAGE', conversationId } });
 }
 
-export function uploadImVoice(filePath: string, duration: number) {
-  return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_VOICE', duration } });
+export function uploadImVoice(filePath: string, duration: number, conversationId?: Api.RealNotify.Id) {
+  return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_VOICE', duration, conversationId } });
 }

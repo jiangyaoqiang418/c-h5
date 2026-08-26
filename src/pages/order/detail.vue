@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
-import { cancelRealOrder, confirmRealOrder, fetchOrderDetail, fetchOrderLogistics, payRealOrderGroup } from '@/service/api/order';
+import { cancelRealOrder, confirmRealOrder, createOrderLogisticsTrack, fetchOrderDetail, fetchOrderLogistics, markOrderLogisticsException, payRealOrderGroup } from '@/service/api/order';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
@@ -14,6 +14,11 @@ const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
 const id = ref<Api.RealOrder.LongId>();
 const logistics = ref<Api.RealOrder.LogisticsDTO>();
+const trackPopupVisible = ref(false);
+const exceptionPopupVisible = ref(false);
+const logisticsSubmitting = ref(false);
+const trackForm = ref<{ status: Api.RealOrder.LogisticsStatus; description: string; location: string; exceptionNode: boolean }>({ status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false });
+const exceptionForm = ref({ exception: '', location: '' });
 
 onLoad(async query => {
   id.value = query?.id ? String(query.id) : undefined;
@@ -93,6 +98,59 @@ function goAftersale() {
 function goReview() {
   if (order.value) go(`/pages/review/write?orderId=${encodeURIComponent(String(order.value.id))}`);
 }
+
+function openTrackPopup() {
+  trackForm.value = { status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false };
+  trackPopupVisible.value = true;
+}
+
+function openExceptionPopup() {
+  exceptionForm.value = { exception: '', location: '' };
+  exceptionPopupVisible.value = true;
+}
+
+async function submitTrack() {
+  if (!id.value || !trackForm.value.description.trim()) {
+    uni.showToast({ title: '请填写轨迹说明', icon: 'none' });
+    return;
+  }
+  logisticsSubmitting.value = true;
+  try {
+    await createOrderLogisticsTrack({
+      orderId: id.value,
+      occurredAt: Date.now(),
+      status: trackForm.value.status,
+      description: trackForm.value.description.trim(),
+      location: trackForm.value.location.trim() || undefined,
+      exceptionNode: trackForm.value.exceptionNode
+    });
+    trackPopupVisible.value = false;
+    uni.showToast({ title: '物流轨迹已更新', icon: 'success' });
+    await reload();
+  } finally {
+    logisticsSubmitting.value = false;
+  }
+}
+
+async function submitException() {
+  if (!id.value || !exceptionForm.value.exception.trim()) {
+    uni.showToast({ title: '请填写异常说明', icon: 'none' });
+    return;
+  }
+  logisticsSubmitting.value = true;
+  try {
+    await markOrderLogisticsException({
+      orderId: id.value,
+      exception: exceptionForm.value.exception.trim(),
+      location: exceptionForm.value.location.trim() || undefined
+    });
+    exceptionPopupVisible.value = false;
+    uni.showToast({ title: '物流异常已标记', icon: 'success' });
+    await reload();
+  } finally {
+    logisticsSubmitting.value = false;
+  }
+}
 </script>
 
 <template>
@@ -145,7 +203,7 @@ function goReview() {
         </view>
       </view>
       <view class="amt-row">
-        <text class="amt-lbl">税费 <InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="22" /></text>
+        <view class="amt-lbl">税费 <InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="22" /></view>
         <view class="amt-val">
           <text class="amt-cny">{{ formatUsdt(order.tax) }}</text>
         </view>
@@ -171,12 +229,40 @@ function goReview() {
     <view v-if="logistics" class="section">
       <text class="section-title">物流信息</text>
       <view class="amt-row"><text class="amt-lbl">状态</text><text>{{ logistics.logisticsStatusText || logistics.logisticsStatus || '待发货' }}</text></view>
-      <view v-if="logistics.carrierName || logistics.carrier" class="amt-row"><text class="amt-lbl">承运商</text><text>{{ logistics.carrierName || logistics.carrier }}</text></view>
-      <view v-if="logistics.trackingNo" class="amt-row"><text class="amt-lbl">运单号</text><text>{{ logistics.trackingNo }}</text></view>
-      <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
-      <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="track.location || track.occurredAt" class="track-meta">{{ track.location || '' }} {{ track.occurredAt ? new Date(Number(track.occurredAt)).toLocaleString() : '' }}</text></view></view>
-      <text v-else class="track-meta">暂无物流轨迹</text>
-    </view>
+       <view v-if="logistics.carrierName || logistics.carrier" class="amt-row"><text class="amt-lbl">承运商</text><text>{{ logistics.carrierName || logistics.carrier }}</text></view>
+       <view v-if="logistics.trackingNo" class="amt-row"><text class="amt-lbl">运单号</text><text>{{ logistics.trackingNo }}</text></view>
+       <view v-if="logistics.purchaseNo" class="amt-row"><text class="amt-lbl">采购单号</text><text>{{ logistics.purchaseNo }}</text></view>
+       <view v-if="logistics.eta" class="amt-row"><text class="amt-lbl">预计送达</text><text>{{ new Date(Number(logistics.eta)).toLocaleString() }}</text></view>
+       <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
+       <view v-if="logistics.purchaseVouchers.length" class="voucher-section"><text class="voucher-title">采购凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.purchaseVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
+       <view v-if="logistics.shipVouchers.length" class="voucher-section"><text class="voucher-title">发货凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.shipVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
+       <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="track.location || track.occurredAt" class="track-meta">{{ track.location || '' }} {{ track.occurredAt ? new Date(Number(track.occurredAt)).toLocaleString() : '' }}</text></view></view>
+       <text v-else class="track-meta">暂无物流轨迹</text>
+       <view v-if="userStore.isBuyerActive && order.status === 'IN_TRANSIT'" class="logistics-actions">
+         <wd-button size="small" plain @click="openTrackPopup">更新物流轨迹</wd-button>
+         <wd-button size="small" type="error" plain @click="openExceptionPopup">标记物流异常</wd-button>
+       </view>
+     </view>
+
+    <wd-popup v-model="trackPopupVisible" position="bottom" :safe-area-inset-bottom="true">
+      <view class="logistics-popup">
+        <text class="popup-title">更新物流轨迹</text>
+        <wd-cell title="物流状态"><wd-radio-group v-model="trackForm.status" inline><wd-radio value="IN_TRANSIT">运输中</wd-radio><wd-radio value="DELIVERING">派送中</wd-radio><wd-radio value="SIGNED">已签收</wd-radio><wd-radio value="EXCEPTION">异常</wd-radio></wd-radio-group></wd-cell>
+        <wd-input v-model="trackForm.description" label="轨迹说明" placeholder="例如：包裹已到达转运中心" />
+        <wd-input v-model="trackForm.location" label="当前位置" placeholder="可选" />
+        <wd-cell title="异常节点"><wd-switch v-model="trackForm.exceptionNode" /></wd-cell>
+        <wd-button type="primary" block :loading="logisticsSubmitting" @click="submitTrack">提交轨迹</wd-button>
+      </view>
+    </wd-popup>
+
+    <wd-popup v-model="exceptionPopupVisible" position="bottom" :safe-area-inset-bottom="true">
+      <view class="logistics-popup">
+        <text class="popup-title">标记物流异常</text>
+        <wd-input v-model="exceptionForm.exception" label="异常说明" placeholder="请说明异常情况" />
+        <wd-input v-model="exceptionForm.location" label="当前位置" placeholder="可选" />
+        <wd-button type="error" block :loading="logisticsSubmitting" @click="submitException">确认标记</wd-button>
+      </view>
+    </wd-popup>
 
     <view class="actions-bar">
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" type="primary" @click="pay">立即付款</wd-button>
@@ -296,6 +382,8 @@ function goReview() {
   font-size: 28rpx;
 }
 .logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#f53f3f; background:#fff2f0; font-size:24rpx; line-height:1.5; }.tracks { margin-top:12rpx; }.track { padding:14rpx 0; border-top:1rpx solid #f2f3f5; font-size:24rpx; color:#1d2129; }.track-meta { display:block; margin-top:6rpx; color:#86909c; font-size:21rpx; }
+.voucher-section { margin-top:20rpx; }.voucher-title { display:block; margin-bottom:12rpx; color:#4e5969; font-size:24rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-image { width:160rpx; height:160rpx; border-radius:8rpx; }
+.logistics-actions { display:flex; justify-content:flex-end; gap:12rpx; margin-top:20rpx; }.logistics-popup { padding:32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background:#fff; }.popup-title { display:block; margin-bottom:20rpx; color:#1d2129; font-size:32rpx; font-weight:700; }
 .actions-bar {
   position: fixed;
   bottom: 0;

@@ -86,13 +86,13 @@ function fromMock(record: Api.Product.ProductRecord): ProductView {
   };
 }
 
-function fromReal(record: Api.RealProduct.ProductDTO, categoryPath: string): ProductView {
+function fromReal(record: Api.RealProduct.ProductDTO, categoryPath?: string): ProductView {
   return {
     id: record.id,
     title: record.title,
     sellerId: record.sellerId,
-    sellerName: '认证买手',
-    categoryPath,
+    sellerName: record.sellerName || '认证买手',
+    categoryPath: categoryPath || record.categoryName || `分类 ${record.categoryId}`,
     price: record.price,
     shippingFee: record.shippingFee || 0,
     tax: record.taxFee || 0,
@@ -143,7 +143,7 @@ onLoad(async query => {
       const categoryPath = categoriesResult.status === 'fulfilled'
         ? categoryPathOf(categoriesResult.value, record.categoryId)
         : undefined;
-      product.value = fromReal(record, categoryPath || `分类 ${record.categoryId}`);
+      product.value = fromReal(record, categoryPath);
       recordProductBrowse(rawId).catch(() => undefined);
       const [reviewPage, summary, sellerRating] = await Promise.allSettled([
         fetchStorefrontReviews({ productId: rawId, pageSize: 3 }),

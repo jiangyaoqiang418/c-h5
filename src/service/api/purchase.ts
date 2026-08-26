@@ -1,4 +1,4 @@
-import { realOrderRequest } from '../request';
+import { realOrderRequest, realOrderUpload } from '../request';
 import { fetchCategoryTree, type CategoryNode } from './category';
 
 let categoryPathPromise: Promise<Map<string, string>> | undefined;
@@ -171,6 +171,15 @@ export async function createPurchase(params: {
     }
   });
   return (await fetchPurchaseDetail(id, customerId)).request;
+}
+
+export function uploadPurchaseImage(filePath: string) {
+  return realOrderUpload<Api.RealProduct.FileUploadResult>({
+    url: '/files/upload',
+    filePath,
+    name: 'file',
+    params: { scene: 'DEMAND' }
+  });
 }
 
 export async function cancelPurchase(id: string | number, reason?: string) {

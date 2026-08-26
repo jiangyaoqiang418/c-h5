@@ -45,6 +45,12 @@ declare namespace Api {
       logisticsCompany?: string;
       logisticsCompanyCode?: string;
       trackingNo?: string;
+      logisticsStatus?: LogisticsStatus;
+      logisticsStatusText?: string;
+      eta?: LongId;
+      logisticsException?: string;
+      purchaseNo?: string;
+      purchaseVouchers?: string[];
       shipVouchers?: string[];
       shippedRemark?: string;
       cancelReason?: string;
@@ -57,6 +63,7 @@ declare namespace Api {
       flashItemId?: LongId;
       demandId?: LongId;
       remark?: string;
+      paymentBizNo?: string;
       paidAt?: string | number;
       shippedAt?: string | number;
       completedAt?: string | number;
@@ -140,6 +147,8 @@ declare namespace Api {
 
     interface LogisticsTrackDTO { trackId: LongId; orderId: LongId; trackingNo?: string; occurredAt?: LongId; status: LogisticsStatus; statusText?: string; description: string; location?: string; exceptionNode?: boolean; source?: string; sourceText?: string; createdAt?: LongId; }
     interface LogisticsDTO { orderId: LongId; orderNo?: string; logisticsStatus?: LogisticsStatus; logisticsStatusText?: string; carrier?: CarrierType; carrierName?: string; trackingNo?: string; eta?: LongId; logisticsException?: string; purchaseNo?: string; purchaseVouchers: string[]; shipVouchers: string[]; shippedRemark?: string; shippingFee?: string | number; taxFee?: string | number; shippedAt?: LongId; completedAt?: LongId; tracks: LogisticsTrackDTO[]; }
+    interface LogisticsTrackCreateParams { orderId: LongId; occurredAt: LongId; status: LogisticsStatus; description: string; location?: string; exceptionNode?: boolean; }
+    interface LogisticsExceptionMarkParams { orderId: LongId; exception: string; location?: string; }
 
     interface OrderRefundApplyParams {
       orderId: LongId;

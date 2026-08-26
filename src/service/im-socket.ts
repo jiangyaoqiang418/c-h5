@@ -23,6 +23,12 @@ function websocketUrl(gatewayPath: string, token: string): string {
   return url ? `${url}?token=${encodeURIComponent(token)}` : '';
 }
 
+function socketMessageText(data: unknown): string {
+  if (typeof data === 'string') return data;
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  return '';
+}
+
 /** Notify 服务约定：只有收到 READY 后才表示 WebSocket 已可用。 */
 class ImSocket {
   private task?: UniApp.SocketTask;
@@ -55,7 +61,11 @@ class ImSocket {
         this.updateState('idle');
         return;
       }
-      await this.connect(websocketUrl(status.gatewayPath, token), Math.min(25_000, Number(status.heartbeatIntervalMs) || 25_000));
+      await this.connect(
+        websocketUrl(status.gatewayPath, token),
+        Math.min(25_000, Number(status.heartbeatIntervalMs) || 25_000),
+        status.subProtocol
+      );
     } catch (error) {
       this.updateState('unavailable');
       throw error;
@@ -76,7 +86,7 @@ class ImSocket {
     this.updateState('idle');
   }
 
-  private async connect(url: string, heartbeatMs: number) {
+  private async connect(url: string, heartbeatMs: number, subProtocol?: string) {
     if (!url || this.manuallyStopped) {
       this.updateState('unavailable');
       return;
@@ -84,7 +94,15 @@ class ImSocket {
     this.clearTimers();
     this.ready = false;
     const token = getAccessToken();
-    const task = await uni.connectSocket({ url, header: token ? { 'X-Access-Token': token } : {} }) as UniApp.SocketTask;
+    // H5 未传回调时会被 UniApp 包装成 Promise，Promise 成功值不是 SocketTask。
+    // 显式回调可保留跨端 SocketTask，用于在握手后注册事件。
+    const task = uni.connectSocket({
+      url,
+      header: token ? { 'X-Access-Token': token } : {},
+      protocols: subProtocol ? [subProtocol] : undefined,
+      success: () => undefined,
+      fail: () => undefined
+    }) as unknown as UniApp.SocketTask;
     this.task = task;
     task.onOpen(() => {
       if (this.task !== task) return;
@@ -94,7 +112,7 @@ class ImSocket {
     });
     task.onMessage((event: UniApp.OnSocketMessageCallbackResult) => {
       if (this.task !== task) return;
-      const raw = typeof event.data === 'string' ? event.data : '';
+      const raw = socketMessageText(event.data);
       let message: unknown = raw;
       try { message = JSON.parse(raw); } catch { /* READY/PONG can be plain text */ }
       const type = typeof message === 'object' && message ? String((message as { type?: unknown }).type || '') : raw;
@@ -118,16 +136,16 @@ class ImSocket {
     task.onClose(() => {
       if (this.task !== task) return;
       this.task = undefined;
-      this.reconnect(url, heartbeatMs);
+      this.reconnect(url, heartbeatMs, subProtocol);
     });
     task.onError(() => {
       if (this.task !== task) return;
       this.task = undefined;
-      this.reconnect(url, heartbeatMs);
+      this.reconnect(url, heartbeatMs, subProtocol);
     });
   }
 
-  private reconnect(url: string, heartbeatMs: number) {
+  private reconnect(url: string, heartbeatMs: number, subProtocol?: string) {
     this.ready = false;
     if (this.heartbeat) clearInterval(this.heartbeat);
     if (this.readyTimer) clearTimeout(this.readyTimer);
@@ -136,7 +154,10 @@ class ImSocket {
     this.updateState('unavailable');
     if (this.manuallyStopped || this.reconnectTimer) return;
     const delay = Math.min(30_000, 1_000 * 2 ** Math.min(this.retries++, 5));
-    this.reconnectTimer = setTimeout(() => { this.reconnectTimer = undefined; this.connect(url, heartbeatMs).catch(() => this.reconnect(url, heartbeatMs)); }, delay);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
+      this.connect(url, heartbeatMs, subProtocol).catch(() => this.reconnect(url, heartbeatMs, subProtocol));
+    }, delay);
   }
 
   private clearTimers() {

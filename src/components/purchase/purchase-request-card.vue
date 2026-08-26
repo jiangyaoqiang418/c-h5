@@ -56,6 +56,9 @@ function goDetail() {
     <view v-if="mode === 'mine' && request.claimedByName" class="claimed">
       ✓ 已被买手 <text class="strong">{{ request.claimedByName }}</text> 接单
     </view>
+    <view v-if="mode === 'mine' && request.status === 'rejected' && request.auditNote" class="rejected-note">
+      驳回原因：{{ request.auditNote }}
+    </view>
 
     <view class="actions" @click.stop>
       <wd-button
@@ -209,6 +212,15 @@ function goDetail() {
 .claimed .strong {
   color: #0F111A;
   font-weight: 600;
+}
+.rejected-note {
+  margin-top: 16rpx;
+  padding: 12rpx 20rpx;
+  border-radius: 12rpx;
+  background: #fff2f0;
+  color: #d4380d;
+  font-size: 22rpx;
+  line-height: 1.5;
 }
 .actions {
   display: flex;

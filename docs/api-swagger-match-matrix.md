@@ -6,7 +6,7 @@
 
 - 前端当前为 47 个页面、32 个组件、4 个 Store；历史 65 项 Mock API 能力仅作为早期盘点口径，已迁移模块以 `src/service/api/` 为真实入口。
 - 共用入口：`http://221.128.249.198:8902/doc.html`。
-- 2026-08-26 实时读取：`admin` 159 路径/160 操作/275 schema，`user` 41/41/80，`order` 57/59/85，`notify` 17/17/24（路径/操作/schema）。
+- 2026-08-26 实时读取：`admin` 178 路径/179 操作/303 schema，`user` 46/46/90，`order` 65/67/99，`notify` 22/22/35（路径/操作/schema）。新增推荐、秒杀、浏览统计与仅限联调的 QA 造数/清理接口；当前 C 端无既定入口，不将 QA 工具暴露给页面。
 - 同次使用 C 端共享契约检查覆盖登录、地址、合并下单、订单组支付、买手发货、确认收货、仅退款、评价、理财和通知/IM；买手保证金分页、缴纳和退还已按同一快照完成字段核对，结果通过。
 - 下方标注日期的章节仅保留历史实施证据；当前契约与缺口以本节和“当前后端缺失模块”为准。
 - 表中 `/user/...`、`/order/...`、`/admin/...` 用首段标识 Swagger 分组；分组内原始 path 分别从 `/auth/...`、`/orders/...` 等开始，后续同源请求前缀按请求层配置确定。
@@ -25,16 +25,16 @@
 |---|---|---|---|
 | 商品上下架 | `PUT /order/products/shelf` | 买手商品页已接入，保留现有二次确认与状态刷新 | A：QA 商品真实执行在售→已下架→在售，已恢复原状态 |
 | 商品审核后顾客侧可见与结算读取 | `GET /order/storefront/product/detail`、`POST /order/storefront/products/page`、真实地址/钱包读取 | 公开详情、真实购物车和结算页均使用真实商品快照 | A：审核通过的 QA 商品已在公开列表、详情、购物车、结算及真实订单主链回读 |
-| QA 商品订单主链 | `POST /order/orders/create-batch`、`POST /order/orders/group/pay`、`POST /order/orders/sold/page`、`POST /order/orders/ship`、`POST /order/orders/bought/page`、`POST /order/orders/confirm` | H5 结算、买手物流表单与顾客确认收货均调用真实 adapter；订单 ID 原样保留 | A：2026-08-15 独立顾客账号下单支付 `U 99.00`，买手发货后顾客确认，子订单 `2088549990973136896` 回读 `PAID → SHIPPED → COMPLETED` |
+| QA 商品订单主链 | `POST /order/orders/create-batch`、`POST /order/orders/group/pay`、`POST /order/orders/sold/page`、`POST /order/orders/ship`、`POST /order/orders/bought/page`、`POST /order/orders/confirm` | H5 结算、买手物流表单与顾客确认收货均调用真实 adapter；订单 ID 原样保留 | A：2026-08-15 独立顾客账号下单支付 `U 99.00`，买手发货后顾客确认，子订单 `2088549990973136896` 回读 `PAID → SHIPPED → COMPLETED`；2026-08-26 单品 `3.00 U + 1.00 U 运费 + 2.00 U 税费` 完成创建、支付、测试物流发货和顾客签收，回读 `PAID → SHIPPED → COMPLETED` |
 
 | 能力 | 当前 Swagger | H5 现状 | 本批结论 |
 |---|---|---|---|
 | 买入/卖出订单列表 | `POST /order/orders/bought/page`、`sold/page`，7 个原始状态 | 页面按顾客/买手身份调用真实分页；非空记录、Long ID 和空态已在 Chrome 手机视图验证 | A/B：读链路完成；专用单已覆盖 `PAID → SHIPPED → COMPLETED` |
-| 订单详情 | `GET /order/orders/detail?id`、`GET /order/orders/logistics?orderId`，含地址、物流、金额、支付凭证与轨迹 | 页面已接入真实详情、物流摘要、轨迹和异常展示；发货 DTO 改为 `carrier/trackingNo` | A/B：原订单详情读回归通过；新物流字段/轨迹真实非空回归待登录态 |
+| 订单详情 | `GET /order/orders/detail?id`、`GET /order/orders/logistics?orderId`、`POST /order/orders/logistics/track/create`、`PUT /order/orders/logistics/exception/mark` | 页面已接入真实详情、物流摘要、轨迹/异常展示及卖家轨迹/异常写入入口；发货 DTO 改为 `carrier/trackingNo` | A/B：原订单详情读回归通过；轨迹/异常写入待安全测试数据 |
 | 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成顾客创建 → `REFUND_REVIEW` → 撤销 → `PAID`，以及买手侧非空列表/详情回归 |
-| IM/通知 | notify 17 操作，REST 契约可用，WebSocket 路径为 `/notify/im` | 通知页已注册并接入单条/全部已读、删除、清空；会话、历史消息和文字发送页面已调用真实 REST；上传 API 已按 `IM_IMAGE/IM_VOICE` 封装，发送模型支持 `mediaFileId`；WebSocket 客户端及 H5 `ws` 代理已接入 | B/C：Chrome 已验证非空通知读取、单条已读回读、历史消息、QA 订单群文字发送及刷新回读；通知删除/清空和媒体入口未执行，测试网关在线连接数仍为 0，待恢复 `101/READY` 后验证实时到达 |
+| IM/通知 | notify 22 操作，REST 契约可用，WebSocket 路径为 `/notify/im` | 通知页已注册并接入单条/全部已读、删除、清空；会话页已接入历史消息、已读、撤回、文字/图片/语音发送，上传只回传 `mediaFileId`，展示读取服务端 `mediaUrl`；WebSocket 客户端及 H5 `ws` 代理已接入，并补传当前契约 `subProtocol`、二进制消息解码及 SocketTask 回调 | A：服务端直连、本地 Vite 代理和 H5 订单群均已 ready；两个独立 H5 登录会话完成无刷新到达、页面重载后重连与历史补偿。IM 媒体、撤回真实写回归待安全测试数据 |
 
 ### 2026-08-15 P1-P4 续推进记录
 
@@ -224,7 +224,7 @@
 |---|---|---|---|---|
 | 分类树 | id、name、level、parentId、path、icon、productCount、children | `GET /order/categories/tree` | B | 返回 id/parentId/level/name/sort/enabled/source/childCount/children；缺 code、icon、完整 path、productCount、时间字段 |
 | 首页推荐聚合 | hot、newest、flash、topCategories、topSellers | `/order/storefront/recommend`、`best-sellers/page`、`new-arrivals/page`、`flash-sale`、`banners/list` | C | 推荐、热销、新品、秒杀和 Banner 已接入；仍缺 topCategories/topSellers 分布，真实非空数据待验证 |
-| 公开商品详情 | 商品、卖家、分类、价格、库存、图文、售后、销量/浏览/收藏 | `GET /order/storefront/product/detail` | C | 真实详情与浏览打点已接入；仍缺 sellerName、categoryPath、aftersaleDays，真实商品暂不进入旧 Mock 购物车 |
+| 公开商品详情 | 商品、卖家、分类、价格、库存、图文、售后、销量/浏览/收藏 | `GET /order/storefront/product/detail` | B | 真实详情与浏览打点已接入，直接展示 `sellerName/categoryName`；分类树可用时补全分类路径。仍缺 `aftersaleDays`，真实商品暂不进入旧 Mock 购物车 |
 | 商品分页/搜索 | keyword、categoryId、售后类型、海外、价格区间、销量/最新/价格排序 | `POST /order/storefront/products/page` | B | adapter、综合列表与分类页已迁移；五种排序和分类参数成功码 `1`，真实数据为 0，待非空分页和筛选结果验证 |
 | 商品评价分页/评分摘要 | 评价方向、用户、分数、内容、标签、图片、汇总 | 无 | D | 当前 Swagger 没有评价接口 |
 
@@ -292,14 +292,14 @@
 | 买手申请提交/状态 | `POST /user/buyer/apply`、`GET /user/buyer/application` | A | API、页面与入口已接入；真实提交和驳回后重提尚待验证 |
 | 我的商品/创建商品 | `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf`、`DELETE /order/products/delete`、`POST /order/files/upload?scene=PRODUCT` | B | API 和页面已接入；上传已改 `scene=PRODUCT`，删除入口仅对非在售商品展示；删除真实写回归待安全测试数据 |
 | 可接求购/抢单 | `POST /order/demands/hall/page`、`POST /order/demands/grab` | C | 操作存在，但大厅 DTO 缺客户名、分类路径、推送层级/时间、审核和取消信息 |
-| 买手订单 | `POST /order/orders/sold/page`、`POST /order/orders/ship`、`GET /order/orders/logistics` | B/C | 发货已改 carrier DTO，详情展示物流轨迹/异常；采购和发货凭证上传入口仍未在当前页面提供 |
+| 买手订单 | `POST /order/orders/sold/page`、`POST /order/orders/ship`、`POST /order/files/upload?scene=ORDER_VOUCHER`、`GET /order/orders/logistics`、轨迹/异常写入接口 | B/C | 发货已改 carrier DTO，发货弹窗支持采购单号、采购/发货凭证上传；详情展示并可更新物流轨迹/异常。凭证与轨迹写回归待安全测试数据 |
 | 买手押金与经营统计 | `GET /user/wallet/overview`、`GET /user/buyer/application` | C | 无专门押金余额、冻结担保、完成率、好评率、投诉率和发货时效接口 |
 
 ## 求购
 
 | 前端需求 | Swagger 匹配 | 等级 | 关键差异 |
 |---|---|---|---|
-| 发起求购 | `POST /order/demands/create` | B | 已补必填 `addressId`，创建结果按 `PENDING_REVIEW` 映射待审核；图片上传入口仍不存在 |
+| 发起求购 | `POST /order/demands/create`、`POST /order/files/upload?scene=DEMAND` | B | 已补必填 `addressId`，创建结果按 `PENDING_REVIEW` 映射待审核；参考图片可上传并按 `bucket/filePath` 提交，真实上传/创建待安全测试数据回归 |
 | 我的求购/大厅 | `POST /order/demands/my/page`、`POST /order/demands/hall/page` | B/C | 已适配 `PENDING_REVIEW/REJECTED`；大厅仅接收后端 `OPEN`，仍缺推送批次、客户/买手名称 |
 | 求购详情 | `GET /order/demands/detail` | B/C | 主体、审核意见、取消原因和关联订单已映射；没有 pushLogs 和 pushed buyer 列表 |
 | 取消/抢单 | `POST /order/demands/cancel`、`POST /order/demands/grab` | B | 取消 adapter 支持可选 reason；`PENDING_REVIEW` 取消与抢单真实写回归待测试账号 |
@@ -313,17 +313,17 @@
 | 理财 | 产品列表/详情、认购、我的锁仓、提前解锁 | B：产品、申购与锁仓已接真实接口并完成申购回读；提前赎回具备契约和页面保护，仍缺受控真实写回归 |
 | 评价 | 商品评价、我的评价、评分摘要、提交评价 | B：读取、提交、删除、回复和申诉契约均已接入；真实提交已回归，治理写操作仍缺安全测试数据 |
 | 完整售后 | 5 类工单、证据、列表、详情、历史、取消 | C：仅退款已闭环；其他售后类型、履约凭证和物流轨迹缺产品确认或 C 端契约 |
-| IM | 订单群、消息列表、发送消息 | B：REST 读取、文字发送、已读/撤回契约已接入；2026-08-22 测试账号 WebSocket 握手未触发 `open`，且网关状态 `onlineConnections: 0`，图片/语音上传与实时到达仍缺闭环 |
+| IM | 订单群、消息列表、发送消息 | B：REST 读取、已读/撤回、文字/图片/语音入口和 WebSocket 实时到达均已接入；媒体上传、发送、撤回的真实写回归待安全测试数据 |
 | 消息中心 | 系统通知、交易通知、未读数、分类摘要 | B：通知 REST、未读数和已读契约已接入；删除/清空待受控写回归，实时推送受网关 Upgrade 阻塞 |
 | CMS | 公告、帮助文章、协议正文与当前版本 | D：无接口，Banner 不能替代公告 |
 | AI 导购 | 自然语言搜索与商品建议 | D：无接口 |
 
 ## 后端优先补充清单
 
-1. Notify `/api/notify/im` 完成 WebSocket Upgrade，提供稳定 `101 + READY`、心跳、断线补偿和无刷新到达能力。
-2. 提供 KYC 与 IM 图片/语音的 C 端上传、提交和资源访问契约。
+1. 为 IM 图片/语音、撤回和已读提供可回滚的安全测试数据，完成真实写回归。
+2. 为 KYC 上传/提交提供可回滚的安全测试数据，完成真实写回归。
 3. 为充值/提现与理财提前赎回提供可控测试条件、稳定业务错误码和资金状态回读；真实链上出款仍须由后端处理。
-4. 补齐订单履约凭证、物流轨迹、费用字段和经产品确认的其他售后类型。
+4. 补齐订单履约凭证、费用字段和经产品确认的其他售后类型；物流轨迹/异常写回归需安全测试数据。
 5. 提供商品删除、求购手动推送/轨迹/日志和买手经营关键字段。
 6. 提供 CMS 公告、帮助、协议及 AI 导购的 C 端契约；补充 C 端公开积分规则和 VIP 全等级配置。
 

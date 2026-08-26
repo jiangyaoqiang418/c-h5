@@ -5,7 +5,7 @@ import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 import { fetchCategoryTree } from '@/service/api/category';
 import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
-import { createPurchase } from '@/service/api/purchase';
+import { createPurchase, uploadPurchaseImage } from '@/service/api/purchase';
 
 const userStore = useUserStore();
 const submitting = ref(false);
@@ -13,6 +13,8 @@ const submitting = ref(false);
 const categoryNames = ref<string[]>([]);
 const categoryIds = ref<string[]>([]);
 const addresses = ref<AddressRecord[]>([]);
+const images = ref<Api.RealProduct.FileUploadResult[]>([]);
+const uploading = ref(false);
 
 const form = reactive({
   productTitle: '',
@@ -63,6 +65,30 @@ function selectAddress() {
   });
 }
 
+async function chooseImages() {
+  const count = 6 - images.value.length;
+  if (count <= 0 || uploading.value) return;
+  try {
+    const picked = await uni.chooseImage({ count, sizeType: ['compressed'], sourceType: ['album', 'camera'] });
+    const filePaths = Array.isArray(picked.tempFilePaths) ? picked.tempFilePaths : [picked.tempFilePaths];
+    uploading.value = true;
+    for (let index = 0; index < filePaths.length; index += 1) {
+      uni.showLoading({ title: `上传中 ${index + 1}/${filePaths.length}` });
+      images.value.push(await uploadPurchaseImage(filePaths[index]));
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String((error as { errMsg?: string })?.errMsg || '图片上传失败');
+    if (!message.includes('cancel')) uni.showToast({ title: message, icon: 'none' });
+  } finally {
+    uploading.value = false;
+    uni.hideLoading();
+  }
+}
+
+function removeImage(index: number) {
+  images.value.splice(index, 1);
+}
+
 async function submit() {
   if (!form.productTitle.trim()) return uni.showToast({ title: '请输入商品名', icon: 'none' });
   if (!form.categoryId) return uni.showToast({ title: '请选择分类', icon: 'none' });
@@ -86,7 +112,8 @@ async function submit() {
           overseasCustoms: form.overseasCustoms,
           aftersaleType: form.aftersaleType,
           appeal: form.appeal.trim(),
-          addressId: form.addressId
+          addressId: form.addressId,
+          evidenceUrls: images.value.map(image => ({ bucket: image.bucket, filePath: image.filePath }))
         }, userStore.realUserId);
         uni.showToast({ title: '发起成功', icon: 'success' });
         setTimeout(() => go(`/pages/purchase/detail?id=${res.id}`, true), 600);
@@ -121,6 +148,16 @@ async function submit() {
       </wd-cell>
       <wd-textarea v-model="form.productDescription" label="商品描述" placeholder="可选" :max-length="200" />
       <wd-textarea v-model="form.appeal" label="求购说明" placeholder="≥ 10 字，详细要求" :max-length="500" show-word-limit />
+      <view class="image-field">
+        <text class="image-label">参考图片（可选，最多 6 张）</text>
+        <view class="image-grid">
+          <view v-for="(image, index) in images" :key="String(image.id)" class="image-cell">
+            <image :src="image.url" mode="aspectFill" class="image" />
+            <view class="remove" @click="removeImage(index)">×</view>
+          </view>
+          <view v-if="images.length < 6" class="add" @click="chooseImages">{{ uploading ? '上传中' : '+' }}</view>
+        </view>
+      </view>
     </view>
     <wd-button type="primary" block class="submit-btn" :loading="submitting" @click="submit">提交求购</wd-button>
   </view>
@@ -139,4 +176,12 @@ async function submit() {
 .submit-btn {
   margin: 24rpx 0;
 }
+.image-field { padding: 24rpx 32rpx; }
+.image-label { display: block; margin-bottom: 16rpx; color: #4e5969; font-size: 26rpx; }
+.image-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.image-cell, .add { width: 180rpx; height: 180rpx; }
+.image-cell { position: relative; }
+.image { width: 100%; height: 100%; border-radius: 8rpx; }
+.remove { position: absolute; top: 4rpx; right: 4rpx; display: flex; align-items: center; justify-content: center; width: 36rpx; height: 36rpx; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 26rpx; }
+.add { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 2rpx dashed #c9cdd4; border-radius: 8rpx; background: #f7f8fa; color: #86909c; font-size: 52rpx; }
 </style>

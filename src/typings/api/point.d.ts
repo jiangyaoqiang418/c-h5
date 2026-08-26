@@ -12,6 +12,10 @@ declare namespace Api {
       cumulativeCap?: string | number;
       enabled?: boolean;
       appealable?: boolean;
+      defaultScore?: string | number;
+      defaultDailyCap?: string | number;
+      defaultCumulativeCap?: string | number;
+      defaultEnabled?: boolean;
       sort?: number;
     }
     interface RealLedgerQuery {

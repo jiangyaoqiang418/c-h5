@@ -13,6 +13,7 @@ declare namespace Api.RealKyc {
     idCardBackFileId?: Id;
     holdingPhoto?: string;
     holdingPhotoFileId?: Id;
+    photoUrlExpireAt?: Id;
     nationality?: string;
     expireAt?: Id;
     status: Status;

@@ -30,6 +30,7 @@ declare namespace Api {
       takenBy?: string | number;
       takenAt?: string | number;
       orderId?: string | number;
+      addressId?: string | number;
       images?: string[];
       createdAt: string | number;
     }

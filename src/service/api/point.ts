@@ -88,6 +88,10 @@ export interface PointRuleView {
   capCumulative: string | number;
   enabled: boolean;
   appealable: boolean;
+  defaultPointsPerUnit?: string | number;
+  defaultCapDaily?: string | number;
+  defaultCapCumulative?: string | number;
+  defaultEnabled?: boolean;
 }
 
 export async function fetchPointRules(): Promise<PointRuleView[]> {
@@ -101,12 +105,16 @@ export async function fetchPointRules(): Promise<PointRuleView[]> {
     capDaily: item.dailyCap ?? 0,
     capCumulative: item.cumulativeCap ?? 0,
     enabled: item.enabled !== false,
-    appealable: !!item.appealable
+    appealable: !!item.appealable,
+    defaultPointsPerUnit: item.defaultScore,
+    defaultCapDaily: item.defaultDailyCap,
+    defaultCapCumulative: item.defaultCumulativeCap,
+    defaultEnabled: item.defaultEnabled
   }));
 }
 
 export interface VipBenefitView { code: string; name: string; unit?: string; value?: string; }
-export interface VipLevelView { level: string; label: string; threshold: string | number; benefits: VipBenefitView[]; }
+export interface VipLevelView { level: string; rank?: number; current?: boolean; label: string; threshold: string | number; benefits: VipBenefitView[]; }
 export interface VipRoleCatalogView { role: string; roleText?: string; currentLevel?: string; levels: VipLevelView[]; }
 export interface VipCatalogView { points?: string | number; logged?: boolean; roles: VipRoleCatalogView[]; }
 
@@ -134,7 +142,7 @@ export async function fetchVipConfigs(): Promise<Api.Vip.LevelConfig[]> {
       return {
         audience,
         level: level.level as Api.Vip.Level,
-        label: level.level,
+        label: level.current ? `${level.level}（当前）` : level.level,
         threshold: Number(level.threshold || 0),
         ...(audience === 'customer' ? { customerBenefits: benefits as unknown as Api.Vip.CustomerBenefits } : { buyerBenefits: benefits as unknown as Api.Vip.BuyerBenefits })
       };
