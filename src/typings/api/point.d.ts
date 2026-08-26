@@ -1,5 +1,19 @@
 declare namespace Api {
   namespace Point {
+    interface RuleItem {
+      behaviorCode: string;
+      name?: string;
+      identity?: string;
+      identityText?: string;
+      unit?: string;
+      description?: string;
+      score?: string | number;
+      dailyCap?: string | number;
+      cumulativeCap?: string | number;
+      enabled?: boolean;
+      appealable?: boolean;
+      sort?: number;
+    }
     interface RealLedgerQuery {
       pageNo?: number;
       pageSize?: number;

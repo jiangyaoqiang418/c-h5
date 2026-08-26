@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { onReachBottom, onShow } from '@dcloudio/uni-app';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
-import { fetchMyProducts, setProductShelf } from '@/service/api/product';
+import { deleteProduct, fetchMyProducts, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -90,6 +90,15 @@ function toggleShelf(product: Api.RealProduct.ProductDTO) {
   });
 }
 
+function removeProduct(product: Api.RealProduct.ProductDTO) {
+  if (product.status === 'ON_SALE') return;
+  uni.showModal({ title: '删除商品？', content: '删除后商品和收藏关系将不可恢复，请确认没有未完结订单。', confirmText: '确认删除', success: async result => {
+    if (!result.confirm) return;
+    try { await deleteProduct(product.id); uni.showToast({ title: '已删除', icon: 'success' }); await load(); }
+    catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '商品删除失败', icon: 'none' }); }
+  } });
+}
+
 onShow(load);
 watch(activeKey, () => load());
 onReachBottom(() => {
@@ -130,6 +139,7 @@ onReachBottom(() => {
               >
                 {{ product.status === 'ON_SALE' ? '下架' : '上架' }}
               </wd-button>
+              <wd-button v-if="product.status !== 'ON_SALE'" plain size="small" @click.stop="removeProduct(product)">删除</wd-button>
             </view>
             <text v-if="product.reviewComment" class="review-comment">审核意见：{{ product.reviewComment }}</text>
           </view>

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { fetchRechargeDetail } from '@/service/api/wallet';
+import { cancelRecharge, fetchRechargeDetail } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
 
 const detail = ref<Api.RealWallet.RechargeVO>();
+const canceling = ref(false);
 
 function copy(value?: string) {
   if (value) uni.setClipboardData({ data: value, success: () => uni.showToast({ title: '已复制', icon: 'none' }) });
@@ -25,6 +26,17 @@ async function load(id: string) {
 }
 
 onLoad(query => load(String(query?.id || '')));
+
+function cancel() {
+  if (!detail.value || detail.value.status !== 'PENDING' || canceling.value) return;
+  uni.showModal({ title: '取消充值申报？', content: '取消后本次申报记录将作废，已发生的链上转账仍可能自动到账。', success: async result => {
+    if (!result.confirm || !detail.value || canceling.value) return;
+    canceling.value = true;
+    try { await cancelRecharge(detail.value.id); await load(String(detail.value.id)); uni.showToast({ title: '已取消申报', icon: 'success' }); }
+    catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '取消申报失败', icon: 'none' }); }
+    finally { canceling.value = false; }
+  } });
+}
 </script>
 
 <template>
@@ -41,6 +53,7 @@ onLoad(query => load(String(query?.id || '')));
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
       <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
       <view class="row"><text class="label">到账时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
+      <wd-button v-if="detail.status === 'PENDING'" block plain type="error" :loading="canceling" class="cancel-btn" @click="cancel">取消本次申报</wd-button>
     </view>
   </view>
 </template>
@@ -55,4 +68,5 @@ onLoad(query => load(String(query?.id || '')));
 .label { color: #86909c; }
 .block { padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; }
 .block-value { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 8rpx; background: #f7f8fa; font-size: 21rpx; font-family: ui-monospace, monospace; word-break: break-all; }
+.cancel-btn { margin-top: 20rpx; }
 </style>

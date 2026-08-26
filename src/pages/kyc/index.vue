@@ -1,14 +1,29 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { fetchKycDetail } from '@/service/api/kyc';
+import { computed, onMounted, reactive, ref } from 'vue';
+import { fetchKycDetail, fetchKycFileAccess, submitKyc, uploadKycFile } from '@/service/api/kyc';
 import KycStatusTag from '@/components/common/kyc-status-tag.vue';
 import { useUserStore } from '@/stores';
 import { requireLogin } from '@/utils/navigate';
 
+type UploadField = 'idCardFront' | 'idCardBack' | 'holdingPhoto';
+interface UploadedFile { id: Api.RealKyc.Id; url: string; }
+
 const userStore = useUserStore();
 const loading = ref(true);
 const loadFailed = ref(false);
+const submitting = ref(false);
+const uploading = ref<UploadField>();
 const detail = ref<Api.RealKyc.DetailVO | null>(null);
+const step = ref(0);
+const form = reactive({
+  realName: '',
+  idType: 'ID_CARD' as 'ID_CARD' | 'PASSPORT',
+  idNo: '',
+  nationality: '中国',
+  idCardFront: undefined as UploadedFile | undefined,
+  idCardBack: undefined as UploadedFile | undefined,
+  holdingPhoto: undefined as UploadedFile | undefined
+});
 
 const status = computed<Api.User.KycStatus>(() => {
   if (detail.value?.status === 'PASSED') return 'approved';
@@ -16,27 +31,18 @@ const status = computed<Api.User.KycStatus>(() => {
   if (detail.value?.status === 'REJECTED') return 'rejected';
   return 'none';
 });
-
-const statusTitle = computed(() => {
-  if (status.value === 'approved') return '您已完成 KYC 实名认证';
-  if (status.value === 'pending') return '实名认证审核中';
-  if (status.value === 'rejected') return '实名认证未通过';
-  return '实名认证暂未提交';
-});
-
-const statusDescription = computed(() => {
-  if (status.value === 'approved') return '认证有效期和证件信息以当前认证记录为准。';
-  if (status.value === 'pending') return '资料已提交，请等待平台审核。';
-  if (status.value === 'rejected') return '请根据审核意见准备新的认证资料。';
-  return '当前环境尚未提供可确认的 KYC 文件上传契约，暂不能在线提交认证资料。';
-});
+const canSubmit = computed(() => form.realName.trim().length > 0 && form.idNo.trim().length > 0 && !!form.idCardFront && (form.idType === 'PASSPORT' || !!form.idCardBack));
+const statusTitle = computed(() => status.value === 'approved' ? '您已完成 KYC 实名认证' : status.value === 'pending' ? '实名认证审核中' : status.value === 'rejected' ? '实名认证未通过' : '实名认证');
 
 function formatTime(value?: Api.RealKyc.Id): string {
   if (value === undefined || value === null || value === '') return '-';
-  const date = typeof value === 'number'
-    ? new Date(value)
-    : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
+  const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
+}
+
+async function resolvePrivateFile(fileId?: Api.RealKyc.Id, fallback?: string): Promise<string | undefined> {
+  if (fileId !== undefined && fileId !== null) return (await fetchKycFileAccess(fileId)).url;
+  return fallback;
 }
 
 async function load() {
@@ -47,6 +53,14 @@ async function load() {
     await userStore.init();
     if (!userStore.currentUser) return;
     detail.value = await fetchKycDetail();
+    if (detail.value) {
+      const [front, back, holding] = await Promise.all([
+        resolvePrivateFile(detail.value.idCardFrontFileId, detail.value.idCardFront),
+        resolvePrivateFile(detail.value.idCardBackFileId, detail.value.idCardBack),
+        resolvePrivateFile(detail.value.holdingPhotoFileId, detail.value.holdingPhoto)
+      ]);
+      detail.value = { ...detail.value, idCardFront: front, idCardBack: back, holdingPhoto: holding };
+    }
   } catch (error) {
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : 'KYC 状态加载失败', icon: 'none' });
@@ -55,58 +69,78 @@ async function load() {
   }
 }
 
+async function chooseAndUpload(field: UploadField) {
+  if (uploading.value) return;
+  try {
+    const picked = await uni.chooseImage({ count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'] });
+    const path = Array.isArray(picked.tempFilePaths) ? picked.tempFilePaths[0] : picked.tempFilePaths;
+    if (!path) return;
+    uploading.value = field;
+    uni.showLoading({ title: '上传中…' });
+    const file = await uploadKycFile(path);
+    form[field] = { id: file.id, url: file.url };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String((error as { errMsg?: string })?.errMsg || '证件影像上传失败');
+    if (!message.includes('cancel')) uni.showToast({ title: message, icon: 'none' });
+  } finally {
+    uploading.value = undefined;
+    uni.hideLoading();
+  }
+}
+
+function submit() {
+  if (!canSubmit.value || submitting.value || !form.idCardFront) return;
+  uni.showModal({
+    title: '确认提交认证',
+    content: '提交后将进入平台审核，请确认姓名、证件号和影像资料准确。',
+    success: async result => {
+      if (!result.confirm || submitting.value || !form.idCardFront) return;
+      submitting.value = true;
+      try {
+        await submitKyc({
+          realName: form.realName.trim(),
+          idType: form.idType,
+          idNo: form.idNo.trim(),
+          nationality: form.nationality.trim() || undefined,
+          idCardFrontFileId: form.idCardFront.id,
+          idCardBackFileId: form.idCardBack?.id,
+          holdingPhotoFileId: form.holdingPhoto?.id
+        });
+        uni.showToast({ title: '认证资料已提交', icon: 'success' });
+        await load();
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '认证提交失败', icon: 'none' });
+      } finally {
+        submitting.value = false;
+      }
+    }
+  });
+}
+
 onMounted(load);
 </script>
 
 <template>
   <view class="kyc-page">
     <view v-if="loading" class="loading">加载中...</view>
-
-    <view v-else-if="loadFailed" class="error-card">
-      <text class="title">认证状态加载失败</text>
-      <text class="description">请检查网络后重新加载。</text>
-      <wd-button type="primary" block @click="load">重新加载</wd-button>
-    </view>
-
+    <view v-else-if="loadFailed" class="error-card"><text class="title">认证状态加载失败</text><text class="description">请检查网络后重新加载。</text><wd-button type="primary" block @click="load">重新加载</wd-button></view>
     <template v-else>
-      <view class="status-card">
-        <view class="status-head">
-          <view>
-            <KycStatusTag :status="status" />
-            <text class="title">{{ statusTitle }}</text>
-          </view>
-        </view>
-        <text class="description">{{ statusDescription }}</text>
-        <text v-if="detail?.reviewRemark" class="review-remark">审核意见：{{ detail.reviewRemark }}</text>
-      </view>
-
+      <view class="status-card"><KycStatusTag :status="status" /><text class="title">{{ statusTitle }}</text><text v-if="detail?.reviewRemark" class="review-remark">审核意见：{{ detail.reviewRemark }}</text></view>
       <view v-if="detail" class="record-card">
-        <view class="record-row"><text class="label">姓名</text><text>{{ detail.realName || '-' }}</text></view>
-        <view class="record-row"><text class="label">证件类型</text><text>{{ detail.idType === 'PASSPORT' ? '护照' : '身份证' }}</text></view>
-        <view class="record-row"><text class="label">证件号码</text><text>{{ detail.idNo || '-' }}</text></view>
-        <view v-if="detail.nationality" class="record-row"><text class="label">国籍</text><text>{{ detail.nationality }}</text></view>
-        <view class="record-row"><text class="label">提交时间</text><text>{{ formatTime(detail.submittedAt) }}</text></view>
-        <view v-if="detail.reviewedAt" class="record-row"><text class="label">审核时间</text><text>{{ formatTime(detail.reviewedAt) }}</text></view>
-        <view v-if="detail.expireAt" class="record-row"><text class="label">有效期至</text><text>{{ formatTime(detail.expireAt) }}</text></view>
+        <view class="record-row"><text class="label">姓名</text><text>{{ detail.realName || '-' }}</text></view><view class="record-row"><text class="label">证件类型</text><text>{{ detail.idType === 'PASSPORT' ? '护照' : '身份证' }}</text></view><view class="record-row"><text class="label">证件号码</text><text>{{ detail.idNo || '-' }}</text></view><view class="record-row"><text class="label">提交时间</text><text>{{ formatTime(detail.submittedAt) }}</text></view><view v-if="detail.expireAt" class="record-row"><text class="label">有效期至</text><text>{{ formatTime(detail.expireAt) }}</text></view>
+        <view v-if="detail.idCardFront || detail.idCardBack || detail.holdingPhoto" class="image-row"><image v-if="detail.idCardFront" :src="detail.idCardFront" mode="aspectFill" /><image v-if="detail.idCardBack" :src="detail.idCardBack" mode="aspectFill" /><image v-if="detail.holdingPhoto" :src="detail.holdingPhoto" mode="aspectFill" /></view>
       </view>
-
-      <view v-if="status !== 'approved' && status !== 'pending'" class="blocked-card">
-        <text class="title">暂无法在线提交</text>
-        <text class="description">待服务端提供明确的 C 端 KYC 文件上传契约后，将在此页面开放证件资料提交。</text>
+      <view v-if="status !== 'approved' && status !== 'pending'" class="form-card">
+        <wd-steps :active="step"><wd-step title="身份信息" /><wd-step title="证件影像" /><wd-step title="确认提交" /></wd-steps>
+        <view v-if="step === 0"><wd-input v-model="form.realName" label="真实姓名" placeholder="请输入" /><wd-cell title="证件类型"><wd-radio-group v-model="form.idType" inline><wd-radio value="ID_CARD">身份证</wd-radio><wd-radio value="PASSPORT">护照</wd-radio></wd-radio-group></wd-cell><wd-input v-model="form.idNo" label="证件号码" placeholder="请输入" /><wd-input v-model="form.nationality" label="国籍" placeholder="请输入" /></view>
+        <view v-else-if="step === 1" class="upload-list"><view class="upload-card" @click="chooseAndUpload('idCardFront')"><text>证件正面</text><image v-if="form.idCardFront" :src="form.idCardFront.url" mode="aspectFill" /><text v-else>{{ uploading === 'idCardFront' ? '上传中…' : '点击选择图片' }}</text></view><view v-if="form.idType === 'ID_CARD'" class="upload-card" @click="chooseAndUpload('idCardBack')"><text>证件反面</text><image v-if="form.idCardBack" :src="form.idCardBack.url" mode="aspectFill" /><text v-else>{{ uploading === 'idCardBack' ? '上传中…' : '点击选择图片' }}</text></view><view class="upload-card" @click="chooseAndUpload('holdingPhoto')"><text>手持证件照（可选）</text><image v-if="form.holdingPhoto" :src="form.holdingPhoto.url" mode="aspectFill" /><text v-else>{{ uploading === 'holdingPhoto' ? '上传中…' : '点击选择图片' }}</text></view></view>
+        <view v-else class="summary"><text>姓名：{{ form.realName }}</text><text>证件号：{{ form.idNo }}</text><text>已上传：{{ (form.idCardFront ? 1 : 0) + (form.idCardBack ? 1 : 0) + (form.holdingPhoto ? 1 : 0) }} 张</text></view>
+        <view class="nav-bar"><wd-button v-if="step > 0" plain @click="step--">上一步</wd-button><wd-button v-if="step < 2" type="primary" :disabled="step === 0 ? !form.realName.trim() || !form.idNo.trim() : !form.idCardFront || (form.idType === 'ID_CARD' && !form.idCardBack)" @click="step++">下一步</wd-button><wd-button v-else type="primary" :disabled="!canSubmit" :loading="submitting" @click="submit">提交认证</wd-button></view>
       </view>
     </template>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.kyc-page { min-height: 100%; box-sizing: border-box; padding: 16rpx; background: #f7f8fa; }
-.loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
-.status-card, .record-card, .blocked-card, .error-card { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
-.status-head { display: flex; align-items: center; justify-content: space-between; }
-.title { display: block; margin-top: 12rpx; color: #1d2129; font-size: 28rpx; font-weight: 600; }
-.description { display: block; margin-top: 12rpx; color: #86909c; font-size: 24rpx; line-height: 1.6; }
-.review-remark { display: block; margin-top: 20rpx; padding: 16rpx; border-radius: 8rpx; color: #f53f3f; background: #fff2f0; font-size: 24rpx; line-height: 1.6; }
-.record-row { display: flex; justify-content: space-between; gap: 24rpx; padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; color: #1d2129; font-size: 24rpx; word-break: break-all; }
-.record-row:last-child { border-bottom: 0; }
-.label { flex-shrink: 0; color: #86909c; }
+.kyc-page { min-height: 100%; box-sizing: border-box; padding: 16rpx 16rpx 180rpx; background: #f7f8fa; }.loading { padding: 120rpx 0; text-align: center; color: #86909c; }.status-card,.record-card,.form-card,.error-card { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }.title { display:block; margin-top:12rpx; font-size:28rpx; font-weight:600; color:#1d2129; }.review-remark { display:block; margin-top:16rpx; color:#f53f3f; font-size:24rpx; }.record-row { display:flex; justify-content:space-between; gap:24rpx; padding:18rpx 0; border-bottom:1rpx solid #f2f3f5; font-size:24rpx; }.label { color:#86909c; }.image-row { display:flex; gap:12rpx; margin-top:20rpx; }.image-row image { width:31%; height:160rpx; border-radius:8rpx; }.upload-list { display:flex; flex-direction:column; gap:16rpx; margin-top:24rpx; }.upload-card { min-height:150rpx; padding:16rpx; border:2rpx dashed #c9cdd4; border-radius:8rpx; display:flex; flex-direction:column; gap:12rpx; color:#86909c; font-size:24rpx; }.upload-card image { width:100%; height:220rpx; border-radius:8rpx; }.summary { display:flex; flex-direction:column; gap:16rpx; padding-top:24rpx; font-size:24rpx; }.nav-bar { display:flex; gap:12rpx; margin-top:24rpx; }.nav-bar > * { flex:1; }
 </style>

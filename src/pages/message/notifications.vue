@@ -25,13 +25,24 @@ async function load() {
 }
 onShow(load);
 function target(notification: Api.RealNotify.Notification): string | undefined {
-  const type = notification.bizType || notification.templateCode || '';
-  if (type === 'PRODUCT_REVIEW' || /REVIEW/.test(type)) return '/pages/review/list';
-  if (/FINANCE|LOCKUP|REDEEM/.test(type)) return '/pages/finance/my-lockups';
-  if (/RECHARGE|WITHDRAW|WALLET|FUND/.test(type)) return '/pages/wallet/history';
-  if (/KYC/.test(type)) return '/pages/kyc/index';
-  if (/BUYER/.test(type)) return '/pages/buyer/apply';
-  if (/ORDER|REFUND/.test(type)) return '/pages/order/list';
+  const id = notification.bizId;
+  const template = notification.templateCode || '';
+  if (!notification.bizType || id === undefined || id === null || !template) return;
+  const knownTemplates: Record<string, string[]> = {
+    ORDER: ['order_created', 'order_price_changed', 'order_paid', 'order_shipped', 'order_completed', 'order_settled', 'order_canceled', 'order_refund_applied', 'order_refund_agreed', 'order_refund_rejected', 'order_refund_canceled'],
+    PRODUCT_REVIEW: ['review_published'], RECHARGE: ['recharge_confirmed'], WITHDRAW: ['withdraw_submitted', 'withdraw_approved', 'withdraw_success', 'withdraw_rejected'],
+    FINANCE: ['finance_subscribed', 'finance_settled', 'finance_redeemed'], KYC: ['kyc_approved', 'kyc_rejected'],
+    BUYER_APPLICATION: ['buyer_application_approved', 'buyer_application_rejected'], PURCHASE_DEMAND: ['demand_pushed'], ACCOUNT: ['welcome'], SYSTEM: ['system_notice']
+  };
+  if (!knownTemplates[notification.bizType]?.includes(template)) return;
+  if (notification.bizType === 'ORDER') return `/pages/order/detail?id=${encodeURIComponent(String(id))}`;
+  if (notification.bizType === 'PRODUCT_REVIEW') return '/pages/review/list';
+  if (notification.bizType === 'RECHARGE') return `/pages/wallet/recharge-detail?id=${encodeURIComponent(String(id))}`;
+  if (notification.bizType === 'WITHDRAW') return `/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(id))}`;
+  if (notification.bizType === 'FINANCE') return '/pages/finance/my-lockups';
+  if (notification.bizType === 'KYC') return '/pages/kyc/index';
+  if (notification.bizType === 'BUYER_APPLICATION') return '/pages/buyer/apply';
+  if (notification.bizType === 'PURCHASE_DEMAND') return `/pages/purchase/detail?id=${encodeURIComponent(String(id))}`;
   return undefined;
 }
 async function open(notification: Api.RealNotify.Notification) {

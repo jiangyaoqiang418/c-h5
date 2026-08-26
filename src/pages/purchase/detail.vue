@@ -109,6 +109,11 @@ function cancel() {
       <text class="appeal">{{ request.appeal }}</text>
     </view>
 
+    <view v-if="request.auditNote" class="section review-section">
+      <text class="section-title">审核意见</text>
+      <text class="appeal">{{ request.auditNote }}</text>
+    </view>
+
     <view v-if="request.status === 'pushing' && (request.currentPushLevel || request.pushedToBuyerIds.length)" class="section">
       <text class="section-title">推送轨迹</text>
       <view class="push-row">

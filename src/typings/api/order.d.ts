@@ -3,6 +3,8 @@ declare namespace Api {
     type LongId = string | number;
     type OrderType = 'DIRECT_PURCHASE' | 'PROXY_PURCHASE' | 'DEMAND_FULFILL';
     type OrderStatus = 'CREATED' | 'PAID' | 'SHIPPED' | 'REFUND_REVIEW' | 'REFUNDED' | 'COMPLETED' | 'CANCELED';
+    type CarrierType = 'SF' | 'JD' | 'EMS' | 'YTO' | 'ZTO' | 'STO' | 'YUNDA' | 'JITU' | 'DHL' | 'UPS' | 'FEDEX' | 'USPS' | 'YAMATO' | 'SAGAWA' | 'JAPAN_POST' | 'OTHER';
+    type LogisticsStatus = 'PENDING_SHIPMENT' | 'SHIPPED' | 'IN_TRANSIT' | 'DELIVERING' | 'SIGNED' | 'EXCEPTION' | 'RETURNED';
     type RefundStatus = 'APPLYING' | 'AGREED' | 'REJECTED' | 'CANCELED';
 
     interface OrderPageQuery {
@@ -126,12 +128,18 @@ declare namespace Api {
 
     interface OrderShipParams {
       id: LongId;
-      logisticsCompany: string;
-      logisticsCompanyCode?: string;
+      carrier: CarrierType;
+      carrierName?: string;
       trackingNo: string;
+      eta?: LongId;
+      purchaseNo?: string;
+      purchaseVouchers?: string[];
       shipVouchers?: string[];
       remark?: string;
     }
+
+    interface LogisticsTrackDTO { trackId: LongId; orderId: LongId; trackingNo?: string; occurredAt?: LongId; status: LogisticsStatus; statusText?: string; description: string; location?: string; exceptionNode?: boolean; source?: string; sourceText?: string; createdAt?: LongId; }
+    interface LogisticsDTO { orderId: LongId; orderNo?: string; logisticsStatus?: LogisticsStatus; logisticsStatusText?: string; carrier?: CarrierType; carrierName?: string; trackingNo?: string; eta?: LongId; logisticsException?: string; purchaseNo?: string; purchaseVouchers: string[]; shipVouchers: string[]; shippedRemark?: string; shippingFee?: string | number; taxFee?: string | number; shippedAt?: LongId; completedAt?: LongId; tracks: LogisticsTrackDTO[]; }
 
     interface OrderRefundApplyParams {
       orderId: LongId;

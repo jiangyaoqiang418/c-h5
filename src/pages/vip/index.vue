@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { vipApi } from '@shared';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import VipBadge from '@/components/common/vip-badge.vue';
-import { fetchPointAccount, type PointAccount } from '@/service/api/point';
+import { fetchPointAccount, fetchVipConfigs, type PointAccount } from '@/service/api/point';
 import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
@@ -30,7 +29,7 @@ const pointsToNext = computed(() => {
 onMounted(async () => {
   await userStore.init();
   try {
-    configs.value = await vipApi.fetchVipConfigs();
+    configs.value = await fetchVipConfigs();
     if (userStore.currentUser) pointAccount.value = await fetchPointAccount();
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : 'VIP 数据加载失败', icon: 'none' });

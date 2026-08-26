@@ -188,6 +188,10 @@ export function fetchRechargeDetail(id: string | number) {
   return realUserRequest<Api.RealWallet.RechargeVO>({ url: '/recharge/detail', params: { id } });
 }
 
+export function cancelRecharge(id: string | number) {
+  return realUserRequest<string | number, { id: string | number }>({ url: '/recharge/cancel', method: 'PUT', data: { id } });
+}
+
 export function fetchWithdrawPage(query: { pageNo?: number; pageSize?: number; status?: string } = {}) {
   return realUserRequest<Api.RealWallet.WithdrawPage, typeof query>({
     url: '/withdraw/page',

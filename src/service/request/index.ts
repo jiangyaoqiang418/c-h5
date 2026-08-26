@@ -151,6 +151,8 @@ export const realUserRequest = createRequest(realServiceConfig.user);
 export const realOrderRequest = createRequest(realServiceConfig.order);
 export const realNotifyRequest = createRequest(realServiceConfig.notify);
 export const realOrderUpload = createUpload(realServiceConfig.order);
+export const realUserUpload = createUpload(realServiceConfig.user);
+export const realNotifyUpload = createUpload(realServiceConfig.notify);
 
 export { clearAccessToken, getAccessToken, setAccessToken } from './token';
 export { RequestError } from './type';

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { onReachBottom } from '@dcloudio/uni-app';
-import { pointApi as mockPointApi } from '@shared';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import {
   fetchPointAppeals,
   fetchPointLedger,
+  fetchPointRules,
   submitPointAppeal,
   type PointAppealView,
   type PointLedgerView
@@ -16,7 +16,7 @@ const userStore = useUserStore();
 const activeKey = ref<'log' | 'appeal' | 'rule'>('log');
 const logs = ref<PointLedgerView[]>([]);
 const appeals = ref<PointAppealView[]>([]);
-const rules = ref<Api.Point.Rule[]>([]);
+const rules = ref<import('@/service/api/point').PointRuleView[]>([]);
 const loading = ref(false);
 const logPageNo = ref(1);
 const logTotal = ref(0);
@@ -34,8 +34,8 @@ const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.b
 async function load(reset = true) {
   if (loading.value && !reset) return;
   await userStore.init();
-  if (!userStore.currentUser) return;
   const tab = activeKey.value;
+  if (!userStore.currentUser && tab !== 'rule') return;
   const token = ++loadToken;
   loading.value = true;
   try {
@@ -58,7 +58,7 @@ async function load(reset = true) {
       appealPageNo.value = r.current || targetPage;
       appealTotal.value = r.total;
     } else if (!rules.value.length) {
-      rules.value = await mockPointApi.fetchPointRules();
+      rules.value = await fetchPointRules();
     }
   } catch (error) {
     if (token !== loadToken) return;
@@ -168,7 +168,7 @@ function formatDate(value?: string | number): string {
         <text class="rule-desc">{{ r.description }}</text>
         <view class="rule-meta">
           <text>每{{ r.unitLabel }} +{{ r.pointsPerUnit }} 分</text>
-          <text v-if="r.capDaily > 0">日上限 {{ r.capDaily }}</text>
+          <text v-if="Number(r.capDaily) > 0">日上限 {{ r.capDaily }}</text>
           <wd-tag v-if="!r.enabled" type="warning" size="small">暂停</wd-tag>
         </view>
       </view>

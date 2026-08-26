@@ -78,6 +78,70 @@ export function submitPointAppeal(params: Api.Point.RealAppealSubmitParams): Pro
   });
 }
 
+export interface PointRuleView {
+  code: string;
+  label: string;
+  description: string;
+  unitLabel: string;
+  pointsPerUnit: string | number;
+  capDaily: string | number;
+  capCumulative: string | number;
+  enabled: boolean;
+  appealable: boolean;
+}
+
+export async function fetchPointRules(): Promise<PointRuleView[]> {
+  const records = await realUserRequest<Api.Point.RuleItem[]>({ url: '/points/rules', requireToken: false });
+  return records.map(item => ({
+    code: item.behaviorCode,
+    label: item.name || item.behaviorCode,
+    description: item.description || '',
+    unitLabel: item.unit || '次',
+    pointsPerUnit: item.score ?? 0,
+    capDaily: item.dailyCap ?? 0,
+    capCumulative: item.cumulativeCap ?? 0,
+    enabled: item.enabled !== false,
+    appealable: !!item.appealable
+  }));
+}
+
+export interface VipBenefitView { code: string; name: string; unit?: string; value?: string; }
+export interface VipLevelView { level: string; label: string; threshold: string | number; benefits: VipBenefitView[]; }
+export interface VipRoleCatalogView { role: string; roleText?: string; currentLevel?: string; levels: VipLevelView[]; }
+export interface VipCatalogView { points?: string | number; logged?: boolean; roles: VipRoleCatalogView[]; }
+
+export function fetchVipCatalog(): Promise<VipCatalogView> {
+  return realUserRequest<VipCatalogView>({ url: '/points/vip-configs', requireToken: false });
+}
+
+const benefitKeys: Record<string, string> = {
+  C_RATE_BONUS: 'interestRateBonus',
+  C_PURCHASE_CONCURRENCY: 'purchaseConcurrent',
+  C_PURCHASE_PRIORITY: 'purchasePriority',
+  C_AFTERSALE_RESPONSE: 'aftersaleResponse',
+  C_WITHDRAW_FEE_DISCOUNT: 'withdrawFeeDiscount',
+  B_PUSH_INTERVAL: 'pushIntervalMinutes',
+  B_TRADE_FEE_DISCOUNT: 'transactionFeeDiscount',
+  B_PRODUCT_LIMIT: 'productSlotsMax'
+};
+
+export async function fetchVipConfigs(): Promise<Api.Vip.LevelConfig[]> {
+  const catalog = await fetchVipCatalog();
+  return catalog.roles.flatMap(role => {
+    const audience: Api.Vip.Audience = role.role.toUpperCase() === 'BUYER' ? 'buyer' : 'customer';
+    return role.levels.map(level => {
+      const benefits = Object.fromEntries(level.benefits.map(benefit => [benefitKeys[benefit.code] || benefit.code, Number(benefit.value || 0)]));
+      return {
+        audience,
+        level: level.level as Api.Vip.Level,
+        label: level.level,
+        threshold: Number(level.threshold || 0),
+        ...(audience === 'customer' ? { customerBenefits: benefits as unknown as Api.Vip.CustomerBenefits } : { buyerBenefits: benefits as unknown as Api.Vip.BuyerBenefits })
+      };
+    });
+  });
+}
+
 export interface PointAppealView {
   id: string;
   ledgerId: string;

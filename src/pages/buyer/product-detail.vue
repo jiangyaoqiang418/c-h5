@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { fetchBuyerProductDetail, setProductShelf } from '@/service/api/product';
+import { deleteProduct, fetchBuyerProductDetail, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
 
 const id = ref('');
@@ -62,6 +62,15 @@ function toggleShelf() {
   });
 }
 
+function removeProduct() {
+  if (!product.value || product.value.status === 'ON_SALE') return;
+  uni.showModal({ title: '删除商品？', content: '删除后商品和收藏关系将不可恢复，请确认没有未完结订单。', confirmText: '确认删除', success: async result => {
+    if (!result.confirm || !product.value) return;
+    try { await deleteProduct(product.value.id); uni.showToast({ title: '已删除', icon: 'success' }); uni.navigateBack(); }
+    catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '商品删除失败', icon: 'none' }); }
+  } });
+}
+
 onLoad(query => {
   id.value = String(query?.id || '');
   load();
@@ -111,6 +120,7 @@ onLoad(query => {
 
       <view v-if="product.status === 'ON_SALE' || product.status === 'OFF_SHELF'" class="bottom-bar">
         <wd-button type="primary" block @click="toggleShelf">{{ product.status === 'ON_SALE' ? '下架商品' : '重新上架' }}</wd-button>
+        <wd-button v-if="product.status === 'OFF_SHELF'" plain block @click="removeProduct">删除商品</wd-button>
       </view>
     </template>
   </view>

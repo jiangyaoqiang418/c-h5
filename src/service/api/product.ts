@@ -55,12 +55,16 @@ export function setProductShelf(id: string | number, onShelf: boolean): Promise<
   });
 }
 
+export function deleteProduct(id: string | number): Promise<string | number> {
+  return realOrderRequest<string | number>({ url: '/products/delete', method: 'DELETE', params: { id } });
+}
+
 export function uploadProductImage(filePath: string) {
   return realOrderUpload<Api.RealProduct.FileUploadResult>({
     url: '/files/upload',
     filePath,
     name: 'file',
-    params: { dir: 'product' }
+    params: { scene: 'PRODUCT' }
   });
 }
 

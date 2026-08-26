@@ -6,7 +6,7 @@
 
 - 前端当前为 47 个页面、32 个组件、4 个 Store；历史 65 项 Mock API 能力仅作为早期盘点口径，已迁移模块以 `src/service/api/` 为真实入口。
 - 共用入口：`http://221.128.249.198:8902/doc.html`。
-- 2026-08-22 实时读取：`admin` 159 路径/160 操作/275 schema，`user` 41/41/80，`order` 57/59/85，`notify` 17/17/24（路径/操作/schema）。
+- 2026-08-26 实时读取：`admin` 159 路径/160 操作/275 schema，`user` 41/41/80，`order` 57/59/85，`notify` 17/17/24（路径/操作/schema）。
 - 同次使用 C 端共享契约检查覆盖登录、地址、合并下单、订单组支付、买手发货、确认收货、仅退款、评价、理财和通知/IM；买手保证金分页、缴纳和退还已按同一快照完成字段核对，结果通过。
 - 下方标注日期的章节仅保留历史实施证据；当前契约与缺口以本节和“当前后端缺失模块”为准。
 - 表中 `/user/...`、`/order/...`、`/admin/...` 用首段标识 Swagger 分组；分组内原始 path 分别从 `/auth/...`、`/orders/...` 等开始，后续同源请求前缀按请求层配置确定。
@@ -30,11 +30,11 @@
 | 能力 | 当前 Swagger | H5 现状 | 本批结论 |
 |---|---|---|---|
 | 买入/卖出订单列表 | `POST /order/orders/bought/page`、`sold/page`，7 个原始状态 | 页面按顾客/买手身份调用真实分页；非空记录、Long ID 和空态已在 Chrome 手机视图验证 | A/B：读链路完成；专用单已覆盖 `PAID → SHIPPED → COMPLETED` |
-| 订单详情 | `GET /order/orders/detail?id`，含地址、物流、金额、支付凭证 | 页面已调用真实详情；字段差异由 adapter 降级，时间数字字符串已归一化 | A/B：顾客/买手两种对方身份和非空详情已回归；H5 写回归后状态时间线正确更新 |
+| 订单详情 | `GET /order/orders/detail?id`、`GET /order/orders/logistics?orderId`，含地址、物流、金额、支付凭证与轨迹 | 页面已接入真实详情、物流摘要、轨迹和异常展示；发货 DTO 改为 `carrier/trackingNo` | A/B：原订单详情读回归通过；新物流字段/轨迹真实非空回归待登录态 |
 | 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成顾客创建 → `REFUND_REVIEW` → 撤销 → `PAID`，以及买手侧非空列表/详情回归 |
-| IM/通知 | notify 17 操作，REST 契约可用，WebSocket 路径为 `/notify/im` | 通知页已注册并接入单条/全部已读、删除、清空；会话、历史消息和文字发送页面已调用真实 REST；发送使用 `clientMsgId`、成功回读和失败重试，WebSocket 客户端及 H5 `ws` 代理已接入 | B/C：Chrome 已验证非空通知读取、单条已读回读、历史消息、QA 订单群文字发送及刷新回读；通知删除/清空未执行，测试网关在线连接数仍为 0，待恢复 `101/READY` 后验证实时到达 |
+| IM/通知 | notify 17 操作，REST 契约可用，WebSocket 路径为 `/notify/im` | 通知页已注册并接入单条/全部已读、删除、清空；会话、历史消息和文字发送页面已调用真实 REST；上传 API 已按 `IM_IMAGE/IM_VOICE` 封装，发送模型支持 `mediaFileId`；WebSocket 客户端及 H5 `ws` 代理已接入 | B/C：Chrome 已验证非空通知读取、单条已读回读、历史消息、QA 订单群文字发送及刷新回读；通知删除/清空和媒体入口未执行，测试网关在线连接数仍为 0，待恢复 `101/READY` 后验证实时到达 |
 
 ### 2026-08-15 P1-P4 续推进记录
 
@@ -52,7 +52,7 @@
 | 真实地址与可用余额 | `GET /user/addresses/list`、`GET /user/wallet/overview` | 结算页已调用真实接口 | Chrome 手机视图已回显非空地址与可用余额 |
 | 合并下单 | `POST /order/orders/create-batch`，`addressId/items` 必填、支持幂等键 | 已调用真实 adapter；保存幂等键、订单组号与订单 ID，重试不重复建单 | A：H5 专用真实商品已创建订单组并回读 `PAID` 订单 |
 | 订单组付款 | `POST /order/orders/group/pay`，`orderGroupNo` 必填 | 结算页和待付款订单页均调用真实 adapter；订单页保留订单组号并提示同组支付范围 | A：H5 专用订单已在结算页、待付款订单列表分别付款并回读；失败重试分支待专门压测 |
-| 买手发货 | `POST /order/orders/ship`，`id/logisticsCompany/trackingNo` 必填 | 卖出订单的 `PAID` 状态显示物流表单，填写后调用真实 adapter | A：2026-08-14 H5 买手发货后回读 `SHIPPED`，再由 H5 顾客确认至 `COMPLETED` |
+| 买手发货 | `POST /order/orders/ship`，`id/carrier/trackingNo` 必填，`OTHER` 时补 `carrierName` | 卖出订单的 `PAID` 状态使用承运商枚举、运单号和备注调用真实 adapter；订单详情调用 `/orders/logistics` 展示摘要、轨迹和异常，物流失败不阻断订单主体 | 原发货回归基线通过；新 DTO 与物流非空回归待登录态 |
 | Mock 购物车保护 | 无需 Swagger | 混入 Mock 商品时阻止进入真实结算；错误不回退 Mock | A：逻辑与 Chrome 页面前置回显已验证 |
 
 - 2026-08-14 相较 2026-08-10 的递归差异已实际复核，覆盖路径、方法、参数、required、requestBody、response 与嵌套 schema。
@@ -132,7 +132,7 @@
 |---|---|---|---|
 | 积分流水 | `POST /user/points/ledger/page`，body 为 `pageNo/pageSize/userId/behaviorCode`；返回 `PageResult<PointLedgerDTO>` | 后端按当前登录用户强制过滤，页面不传 `userId`；Long ID 保留字符串，时间戳在 adapter 转为页面展示时间 | API/页面已迁移；Chrome 真实账号读取为空记录，空态正常且无请求错误 |
 | 扣分申诉 | `POST /user/points/appeals/submit`，`ledgerId/reason` 必填，`reason` 最长 500；返回申诉 Long ID | 当前弹窗和提交顺序保持不变，仅替换真实 API；没有可申诉流水时不执行写入验证 | API/页面已迁移；测试账号无可申诉记录，真实写入未验证 |
-| 积分规则 | 当前只有 `GET /admin/point-rules/list` | 未确认 C 端访问权限，继续保留 Mock，不因同页迁移而调用 admin 接口 | 本次不迁移 |
+| 积分规则 | `GET /user/points/rules` | 积分页规则页签已调用真实 C 端接口，并映射分值、单位、每日/累计上限、启用和申诉属性 | 真实非空规则待登录态回归 |
 
 - 2026-08-04 实时计数仍为 `admin` 84/85/138、`user` 19/19/45、`order` 40/42/50，未发现相对 2026-08-03 的路径、操作或 schema 数量变化。
 
@@ -142,7 +142,7 @@
 |---|---|---|---|
 | “我的”页总资产 | `GET /user/wallet/overview` | 已改为复用真实钱包 Store；Chrome 回显 `U 0.00` 与真实账户总额一致 | 订单状态计数继续使用 Mock |
 | “我的”页 VIP 升级进度 | `GET /user/points/account` | 已读取顾客/买手当前角色的 `points/level/nextThreshold` | 无真实下一阈值时不显示“距升级” |
-| VIP 特权页当前状态 | `GET /user/points/account` | 已迁移；Chrome 回显 `VIP0`、`0` 积分、距下一级 `1000` | 全等级权益配置继续使用 Mock，未调用 admin VIP 配置 |
+| VIP 特权页当前状态 | `GET /user/points/account` + `GET /user/points/vip-configs` | 当前积分沿用账户接口，全等级角色/等级/权益表已在 API adapter 映射到现有页面 | 真实非空配置和未登录公开读取待 Chrome 回归 |
 
 - 本机 H5 回归账号只保存在 Git 忽略文件 `.h5-test-account.local`，凭据不进入仓库和远端历史。
 - 本轮只执行真实读取和页面回显验证，未执行提现创建或积分申诉写入。
@@ -152,9 +152,9 @@
 | 前端能力 | 最新 Swagger 契约 | API/页面状态 | 真实验证证据 | 保留缺口 |
 |---|---|---|---|---|
 | 钱包最近交易/资金流水 | `POST /user/wallet/ledger/page`，body 为 `pageNo/pageSize/bizGroup/bizType` | `src/service/api/wallet.ts`、钱包首页、资金流水页已调用 | Chrome 返回 `code: 1、total: 0`，两个空态正常且无错误 | 缺链上 hash、地址、引用和费用拆分；非空记录待验证 |
-| 发起求购 | `POST /order/demands/create` | 真实 adapter 与发起页已调用 | 创建测试求购 `2084594988764192770` 成功，并由详情接口回读 | 图片上传尚未进入当前 H5 表单流程 |
-| 我的求购/详情 | `POST /order/demands/my/page`、`GET /order/demands/detail?id=` | 我的列表、详情和 Long ID 路由已迁移 | 真实 `OPEN/CANCELED` 记录与新建记录均正确回显；分类路径来自真实分类树 | 缺推送批次/日志、客户/买手名称和取消原因 |
-| 撤销求购 | `POST /order/demands/cancel`，body 为 Long `id` | 列表与详情撤销入口已调用 | 新建测试求购由 `OPEN` 变为 `CANCELED`，列表和详情同步为“已取消” | 后端不接收前端原有撤销原因 |
+| 发起求购 | `POST /order/demands/create`，`addressId` 必填 | 真实 adapter 与发起页已调用，创建前读取并选择本人收货地址；状态映射支持 `PENDING_REVIEW/REJECTED` | 新字段创建和审核状态非空回归待登录态；求购图片入口当前不存在 |
+| 我的求购/详情 | `POST /order/demands/my/page`、`GET /order/demands/detail?id=` | 我的列表、详情和 Long ID 路由已迁移；详情展示审核意见 | 真实 `OPEN/CANCELED` 记录与新建记录均正确回显；新 `PENDING_REVIEW/REJECTED` 非空状态待回归 | 缺推送批次/日志、客户/买手名称 |
+| 撤销求购 | `POST /order/demands/cancel`，body 为 `id`，`reason` 可选 | 列表与详情撤销入口已调用，adapter 支持传递取消原因 | 原有 `OPEN` 取消回归通过；`PENDING_REVIEW` 取消和原因回读待验证 | — |
 | 求购大厅/抢单 | `POST /order/demands/hall/page`、`POST /order/demands/grab` | 大厅读取与抢单入口已迁移 | 普通顾客收到“请先申请成为买手”，页面空态且无未捕获错误 | 抢单需已通过 KYC 的买手账号验证 |
 
 - 求购状态映射为 `OPEN -> pushing`、`TAKEN -> claimed`、`CANCELED/VOID -> cancelled`；所有新接入 Long ID 在运行时保留原始字符串，不在页面层使用 `Number()`/`parseInt()`。
@@ -236,7 +236,7 @@
 | 地址列表/新增/设默认/删除 | `/user/addresses/list`、`create`、`default`、`delete` | B | 契约完整；`country/detailAddress/receiverName/receiverPhone` 必填，页面字段在 adapter 映射，Long ID 保留原值 |
 | 下单 | `POST /order/orders/create`、`POST /order/orders/create-batch` | B | 单品/最多20项合并下单均支持 `addressId/idempotencyKey`；整批失败不落单，返回订单组号、订单 ID 和总金额 |
 | 订单列表 | `POST /order/orders/bought/page` | B（已接入并读回归） | 列表真实 adapter/page 已接入；后端 7 状态映射至既有展示标签，原始状态保留；非空真实记录已在 Chrome 手机视图验证 |
-| 订单详情 | `GET /order/orders/detail` | B（已接入并读回归） | 真实详情、地址快照、费用、物流和状态时间线已接入；缺物流轨迹、预计送达、完整五类售后与保修/归档语义 |
+| 订单详情 | `GET /order/orders/detail` + `GET /order/orders/logistics` | B（已接入） | 真实详情、地址快照、费用、物流状态/轨迹/异常已接入；物流读取失败不阻断订单主体，非空新字段待登录态回归 |
 | 订单状态计数 | 多次调用 `orders/bought/page` 可派生 | B | 无独立统计接口；需按状态请求或由列表数据派生，注意分页总数。当前测试环境 `CREATED/PAID/SHIPPED` 均为 0 |
 | 支付 | `POST /order/orders/pay`、`POST /order/orders/group/pay` | A/B | 支持单笔和订单组一次付款；Long ID 保留原值，组号按字符串透传 |
 | 确认收货 | `POST /order/orders/confirm` | A | 核心操作存在；后端不接收前端预留的收货视频 |
@@ -267,7 +267,7 @@
 | 钱包总览 | `GET /user/wallet/overview` | B | total/todayIn/todayOut/distribution 可适配；前端固定桶字段和钱包地址需由 distribution 映射或后端补充 |
 | 总资产 | `GET /user/wallet/overview` 的 `total` | A | 金额为 number，前端应在 API 层转为字符串展示，避免页面浮点运算 |
 | 钱包流水 | `POST /user/wallet/ledger/page` | C | API、首页最近交易和全部流水触底分页已接入，Long ID 保留原值，真实空态已验证；接口仍缺链上 hash、地址、refType/refId、费用拆分和现有筛选项 |
-| 发起充值 | `GET /user/recharge/chains` + `POST /user/recharge/create` + `GET /user/recharge/detail` | C | 页面只展示后端开放链，并按 `chain/label/minAmount` 约束申报；创建后展示 depositAddress/memo 并刷新状态，创建前二次确认、提交拦截和失败提示已补齐；链列表/专属地址真实读取已验证，创建和到账流转待验证 |
+| 发起充值 | `GET /user/recharge/chains` + `POST /user/recharge/create` + `GET /user/recharge/detail` + `PUT /user/recharge/cancel` | C | 页面只展示后端开放链，并按 `chain/label/minAmount` 约束申报；待到账详情可取消申报并回读状态，创建/取消/到账流转待受控验证 |
 | 充值/提现记录 | `POST /user/recharge/page`、`GET /user/recharge/detail`、`POST /user/withdraw/page`、`GET /user/withdraw/detail` | B | API、触底分页页面和入口已接入；Long ID 保留原值，真实空态已验证，非空记录待验证 |
 | 平台链钱包列表 | 无 C 端接口 | D | `admin` 钱包配置不在当前 C 端 Swagger 范围 |
 | 发起提现 | `POST /user/withdraw/create` | B | chain/toAddress/amount 匹配；创建前二次确认、提交拦截和成功后余额回读已接入，前端支付密码不在接口中，KYC/风控前置规则需后端确认 |
@@ -282,34 +282,34 @@
 | 积分流水 | `POST /user/points/ledger/page` | B | 核心字段齐全；时间为时间戳，查询缺日期范围和 onlyAppealable |
 | 扣分申诉 | `POST /user/points/appeals/submit` | A | `ledgerId/reason` 可直接匹配 |
 | 积分申诉记录 | `POST /user/points/appeals/page` | A | API 和页面已接入；展示状态、审核意见和时间，真实非空数据待验证 |
-| 积分规则展示 | `GET /admin/point-rules/list` | C | 字段较完整，但属于 admin 分组，Swagger 未声明 C 端访问契约 |
-| 全等级 VIP 配置展示 | `GET /admin/vip-configs/get` | C | 可返回双角色维度和等级；同样缺少 C 端公开接口确认 |
+| 积分规则展示 | `GET /user/points/rules` | A/B | API adapter 和积分规则页签已接入，按真实行为/分值/上限/启用状态展示；非空回归待登录态 |
+| 全等级 VIP 配置展示 | `GET /user/points/vip-configs` | A/B | API adapter 和现有双角色权益表已接入，当前积分仍由账户接口提供；非空及未登录公开读取待回归 |
 
 ## 买手中心
 
 | 前端需求 | Swagger 匹配 | 等级 | 关键差异 |
 |---|---|---|---|
 | 买手申请提交/状态 | `POST /user/buyer/apply`、`GET /user/buyer/application` | A | API、页面与入口已接入；真实提交和驳回后重提尚待验证 |
-| 我的商品/创建商品 | `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf`、`POST /order/files/upload` | B | API 和页面已接入；图片上传、创建、后台审核、上下架真实写入已验证。QA 商品 `2088541349217918978` 已从 `REVIEWING` 回读为 `ON_SALE`，且公开列表可见 |
+| 我的商品/创建商品 | `POST /order/products/my/page`、`POST /order/products/create`、`GET /order/products/detail`、`PUT /order/products/shelf`、`DELETE /order/products/delete`、`POST /order/files/upload?scene=PRODUCT` | B | API 和页面已接入；上传已改 `scene=PRODUCT`，删除入口仅对非在售商品展示；删除真实写回归待安全测试数据 |
 | 可接求购/抢单 | `POST /order/demands/hall/page`、`POST /order/demands/grab` | C | 操作存在，但大厅 DTO 缺客户名、分类路径、推送层级/时间、审核和取消信息 |
-| 买手订单 | `POST /order/orders/sold/page` | C | 基本列表存在，缺当前页面需要的采购/物流截图、承运商、地址和细分状态 |
+| 买手订单 | `POST /order/orders/sold/page`、`POST /order/orders/ship`、`GET /order/orders/logistics` | B/C | 发货已改 carrier DTO，详情展示物流轨迹/异常；采购和发货凭证上传入口仍未在当前页面提供 |
 | 买手押金与经营统计 | `GET /user/wallet/overview`、`GET /user/buyer/application` | C | 无专门押金余额、冻结担保、完成率、好评率、投诉率和发货时效接口 |
 
 ## 求购
 
 | 前端需求 | Swagger 匹配 | 等级 | 关键差异 |
 |---|---|---|---|
-| 发起求购 | `POST /order/demands/create` | B | 标题、分类、描述、预算、期望天数、海外、售后、图片可匹配；字段需转换 |
-| 我的求购/大厅 | `POST /order/demands/my/page`、`POST /order/demands/hall/page` | C | 分页存在；缺前端推送批次、客户/买手名称、审核信息、关联订单号和取消原因 |
-| 求购详情 | `GET /order/demands/detail` | C | 主体数据存在；没有 pushLogs 和 pushed buyer 列表 |
-| 取消/抢单 | `POST /order/demands/cancel`、`POST /order/demands/grab` | B | 核心操作存在；取消原因无法提交 |
+| 发起求购 | `POST /order/demands/create` | B | 已补必填 `addressId`，创建结果按 `PENDING_REVIEW` 映射待审核；图片上传入口仍不存在 |
+| 我的求购/大厅 | `POST /order/demands/my/page`、`POST /order/demands/hall/page` | B/C | 已适配 `PENDING_REVIEW/REJECTED`；大厅仅接收后端 `OPEN`，仍缺推送批次、客户/买手名称 |
+| 求购详情 | `GET /order/demands/detail` | B/C | 主体、审核意见、取消原因和关联订单已映射；没有 pushLogs 和 pushed buyer 列表 |
+| 取消/抢单 | `POST /order/demands/cancel`、`POST /order/demands/grab` | B | 取消 adapter 支持可选 reason；`PENDING_REVIEW` 取消与抢单真实写回归待测试账号 |
 | 手动推下一批 | 无 | D | 后端无对应操作 |
 
 ## 当前后端缺失模块
 
 | 模块 | H5 现有需求 | 当前结论 |
 |---|---|---|
-| KYC | 状态、实名/证件/人脸/手机提交、审核结果 | C：`/user/kyc/detail` 与 `/user/kyc/submit` 已完成类型/API 封装，页面已迁移真实状态读取并移除 Mock 上传/提交；Chrome 已回读 `PASSED`、脱敏证件号、审核意见和时间，缺明确的 C 端 KYC 文件上传契约，提交仍不能开放 |
+| KYC | 状态、实名/证件/人脸/手机提交、审核结果 | B：`/user/kyc/files/upload`、`/kyc/files/access`、`/kyc/submit` 已完成类型/API 和现有分步页面适配，提交改传 `fileId`，私有影像按需刷新签名地址；真实上传/提交待登录态回归 |
 | 理财 | 产品列表/详情、认购、我的锁仓、提前解锁 | B：产品、申购与锁仓已接真实接口并完成申购回读；提前赎回具备契约和页面保护，仍缺受控真实写回归 |
 | 评价 | 商品评价、我的评价、评分摘要、提交评价 | B：读取、提交、删除、回复和申诉契约均已接入；真实提交已回归，治理写操作仍缺安全测试数据 |
 | 完整售后 | 5 类工单、证据、列表、详情、历史、取消 | C：仅退款已闭环；其他售后类型、履约凭证和物流轨迹缺产品确认或 C 端契约 |

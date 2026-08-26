@@ -28,7 +28,7 @@ const loading = ref(false);
 const shippingOrder = ref<Api.RealOrder.OrderView>();
 const shippingPopupVisible = ref(false);
 const shippingSubmitting = ref(false);
-const shippingForm = ref({ logisticsCompany: '顺丰速运', logisticsCompanyCode: 'SF', trackingNo: '', remark: '' });
+const shippingForm = ref<{ carrier: Api.RealOrder.CarrierType; carrierName: string; trackingNo: string; remark: string }>({ carrier: 'SF', carrierName: '', trackingNo: '', remark: '' });
 
 async function load() {
   loading.value = true;
@@ -101,21 +101,21 @@ function aftersale(o: Api.RealOrder.OrderView) {
 
 function openShipping(o: Api.RealOrder.OrderView) {
   shippingOrder.value = o;
-  shippingForm.value = { logisticsCompany: '顺丰速运', logisticsCompanyCode: 'SF', trackingNo: '', remark: '' };
+  shippingForm.value = { carrier: 'SF', carrierName: '', trackingNo: '', remark: '' };
   shippingPopupVisible.value = true;
 }
 
 async function submitShipping() {
-  if (!shippingOrder.value || !shippingForm.value.logisticsCompany.trim() || !shippingForm.value.trackingNo.trim()) {
-    uni.showToast({ title: '请填写物流公司和运单号', icon: 'none' });
+  if (!shippingOrder.value || !shippingForm.value.trackingNo.trim() || (shippingForm.value.carrier === 'OTHER' && !shippingForm.value.carrierName.trim())) {
+    uni.showToast({ title: shippingForm.value.carrier === 'OTHER' ? '请填写承运商名称和运单号' : '请填写运单号', icon: 'none' });
     return;
   }
   shippingSubmitting.value = true;
   try {
     await shipRealOrder({
       id: shippingOrder.value.id,
-      logisticsCompany: shippingForm.value.logisticsCompany.trim(),
-      logisticsCompanyCode: shippingForm.value.logisticsCompanyCode.trim() || undefined,
+      carrier: shippingForm.value.carrier,
+      carrierName: shippingForm.value.carrier === 'OTHER' ? shippingForm.value.carrierName.trim() : undefined,
       trackingNo: shippingForm.value.trackingNo.trim(),
       remark: shippingForm.value.remark.trim() || undefined
     });
@@ -157,8 +157,8 @@ async function submitShipping() {
       <view class="shipping-popup">
         <text class="shipping-title">填写发货信息</text>
         <text v-if="shippingOrder" class="shipping-order">订单 {{ shippingOrder.code }}</text>
-        <wd-input v-model="shippingForm.logisticsCompany" label="物流公司" placeholder="如：顺丰速运" />
-        <wd-input v-model="shippingForm.logisticsCompanyCode" label="物流编码" placeholder="如：SF（可选）" />
+        <wd-cell title="承运商"><wd-radio-group v-model="shippingForm.carrier" inline><wd-radio value="SF">顺丰</wd-radio><wd-radio value="JD">京东</wd-radio><wd-radio value="EMS">EMS</wd-radio><wd-radio value="YTO">圆通</wd-radio><wd-radio value="ZTO">中通</wd-radio><wd-radio value="OTHER">其他</wd-radio></wd-radio-group></wd-cell>
+        <wd-input v-if="shippingForm.carrier === 'OTHER'" v-model="shippingForm.carrierName" label="承运商名称" placeholder="请输入" />
         <wd-input v-model="shippingForm.trackingNo" label="运单号" placeholder="请输入真实运单号" />
         <wd-input v-model="shippingForm.remark" label="发货备注" placeholder="可选" />
         <wd-button type="primary" block :loading="shippingSubmitting" @click="submitShipping">确认发货</wd-button>

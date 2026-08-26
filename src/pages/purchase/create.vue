@@ -4,6 +4,7 @@ import { onLoad } from '@dcloudio/uni-app';
 import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 import { fetchCategoryTree } from '@/service/api/category';
+import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
 import { createPurchase } from '@/service/api/purchase';
 
 const userStore = useUserStore();
@@ -11,6 +12,7 @@ const submitting = ref(false);
 
 const categoryNames = ref<string[]>([]);
 const categoryIds = ref<string[]>([]);
+const addresses = ref<AddressRecord[]>([]);
 
 const form = reactive({
   productTitle: '',
@@ -21,7 +23,8 @@ const form = reactive({
   expectedDays: 14,
   overseasCustoms: false,
   aftersaleType: '7day-no-reason' as Api.Product.AftersaleType,
-  appeal: ''
+  appeal: '',
+  addressId: ''
 });
 
 onLoad(query => {
@@ -31,10 +34,12 @@ onLoad(query => {
 
 onMounted(async () => {
   try {
-    const tree = await fetchCategoryTree({ onlyEnabled: true });
+    const [tree, addressList] = await Promise.all([fetchCategoryTree({ onlyEnabled: true }), fetchMyAddresses()]);
     const leaves = tree.map(item => ({ id: item.id, name: item.name }));
     categoryNames.value = leaves.map(l => l.name);
     categoryIds.value = leaves.map(l => l.id);
+    addresses.value = addressList;
+    form.addressId = String(addressList.find(address => address.isDefault)?.id || addressList[0]?.id || '');
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
   }
@@ -50,9 +55,18 @@ function selectCategory() {
   });
 }
 
+function selectAddress() {
+  if (!addresses.value.length) return uni.showToast({ title: '请先添加收货地址', icon: 'none' });
+  uni.showActionSheet({
+    itemList: addresses.value.map(address => `${address.receiverName} ${address.receiverPhone} · ${address.detail}`),
+    success: result => { form.addressId = String(addresses.value[result.tapIndex].id); }
+  });
+}
+
 async function submit() {
   if (!form.productTitle.trim()) return uni.showToast({ title: '请输入商品名', icon: 'none' });
   if (!form.categoryId) return uni.showToast({ title: '请选择分类', icon: 'none' });
+  if (!form.addressId) return uni.showToast({ title: '请选择收货地址', icon: 'none' });
   if (form.appeal.trim().length < 10) return uni.showToast({ title: '说明至少 10 字', icon: 'none' });
   await userStore.init();
   if (!userStore.realUserId) return;
@@ -71,7 +85,8 @@ async function submit() {
           expectedDays: form.expectedDays,
           overseasCustoms: form.overseasCustoms,
           aftersaleType: form.aftersaleType,
-          appeal: form.appeal.trim()
+          appeal: form.appeal.trim(),
+          addressId: form.addressId
         }, userStore.realUserId);
         uni.showToast({ title: '发起成功', icon: 'success' });
         setTimeout(() => go(`/pages/purchase/detail?id=${res.id}`, true), 600);
@@ -90,6 +105,7 @@ async function submit() {
     <view class="form-card">
       <wd-input v-model="form.productTitle" label="商品标题" placeholder="如 iPhone 16 Pro Max 256GB" />
       <wd-cell title="商品分类" :value="form.categoryName || '请选择'" is-link @click="selectCategory" />
+      <wd-cell title="收货地址" :value="addresses.find(address => String(address.id) === form.addressId)?.detail || '请选择'" is-link @click="selectAddress" />
       <wd-input v-model="form.budgetAmount" label="预算 (USDT)" type="digit" />
       <wd-input v-model="form.expectedDays" label="期望天数" type="number" />
       <wd-cell title="海外过关">

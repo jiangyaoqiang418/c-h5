@@ -19,6 +19,7 @@ function fromAfterSaleType(value: Api.Product.AftersaleType): Api.RealPurchase.A
 
 function toStatus(value?: string): Api.PurchaseRequest.RequestStatus {
   const status = value?.toUpperCase();
+  if (status === 'PENDING_REVIEW') return 'pending_audit';
   if (status === 'OPEN') return 'pushing';
   if (status === 'TAKEN' || status === 'CLAIMED') return 'claimed';
   if (status === 'CANCELED' || status === 'CANCELLED' || status === 'VOID') return 'cancelled';
@@ -72,11 +73,14 @@ async function toPurchaseRequest(
     evidenceUrls: dto.images || [],
     appeal: dto.demandNote || dto.description || '',
     status: toStatus(dto.status),
+    auditNote: dto.reviewComment,
+    auditedAt: toIso(dto.reviewedAt),
     pushedToBuyerIds: [],
     claimedBy: dto.takenBy,
     claimedAt: toIso(dto.takenAt),
     relatedOrderId: dto.orderId,
     relatedOrderCode: dto.orderId ? String(dto.orderId) : undefined,
+    cancelledReason: dto.cancelReason,
     createdAt: toIso(dto.createdAt)
   };
 }
@@ -147,6 +151,7 @@ export async function createPurchase(params: {
   overseasCustoms: boolean;
   aftersaleType: Api.Product.AftersaleType;
   appeal: string;
+  addressId: string | number;
   evidenceUrls?: Api.RealPurchase.ProductImageParam[];
 }, customerId?: string) {
   const id = await realOrderRequest<string | number, Api.RealPurchase.PurchaseDemandCreateParams>({
@@ -161,17 +166,18 @@ export async function createPurchase(params: {
       overseasClearance: params.overseasCustoms,
       afterSaleType: fromAfterSaleType(params.aftersaleType),
       demandNote: params.appeal,
+      addressId: params.addressId,
       images: params.evidenceUrls
     }
   });
   return (await fetchPurchaseDetail(id, customerId)).request;
 }
 
-export async function cancelPurchase(id: string | number) {
-  await realOrderRequest<string | number, { id: string | number }>({
+export async function cancelPurchase(id: string | number, reason?: string) {
+  await realOrderRequest<string | number, { id: string | number; reason?: string }>({
     url: '/demands/cancel',
     method: 'POST',
-    data: { id }
+    data: { id, reason }
   });
   return { ok: true, message: '' };
 }

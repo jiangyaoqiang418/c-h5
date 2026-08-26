@@ -25,7 +25,7 @@ async function addPhoto() {
   try {
     for (const filePath of picked.tempFilePaths) {
       const uploaded = await uploadReviewImage(filePath);
-      const url = uploaded.fullUrl || uploaded.url || uploaded.path;
+      const url = uploaded.url;
       if (!url) throw new Error('上传响应缺少图片地址');
       form.photoUrls.push(url);
     }

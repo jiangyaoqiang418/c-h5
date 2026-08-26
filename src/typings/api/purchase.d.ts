@@ -23,6 +23,9 @@ declare namespace Api {
       demandNote?: string;
       status: string;
       statusText?: string;
+      reviewComment?: string;
+      reviewedAt?: string | number;
+      cancelReason?: string;
       expireAt?: string | number;
       takenBy?: string | number;
       takenAt?: string | number;
@@ -54,6 +57,7 @@ declare namespace Api {
       overseasClearance: boolean;
       afterSaleType: AfterSaleType;
       demandNote: string;
+      addressId: string | number;
       images?: ProductImageParam[];
     }
   }

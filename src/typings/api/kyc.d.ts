@@ -8,8 +8,11 @@ declare namespace Api.RealKyc {
     idType?: 'ID_CARD' | 'PASSPORT' | string;
     idNo?: string;
     idCardFront?: string;
+    idCardFrontFileId?: Id;
     idCardBack?: string;
+    idCardBackFileId?: Id;
     holdingPhoto?: string;
+    holdingPhotoFileId?: Id;
     nationality?: string;
     expireAt?: Id;
     status: Status;
@@ -22,9 +25,29 @@ declare namespace Api.RealKyc {
     realName: string;
     idType: 'ID_CARD' | 'PASSPORT';
     idNo: string;
-    idCardFront: string;
-    idCardBack?: string;
-    holdingPhoto?: string;
+    idCardFrontFileId: Id;
+    idCardBackFileId?: Id;
+    holdingPhotoFileId?: Id;
     nationality?: string;
+  }
+
+  interface FileUploadResult {
+    id: Id;
+    scene?: string;
+    url: string;
+    privateAccess?: boolean;
+    expireAt?: Id;
+    originalName?: string;
+    contentType?: string;
+    size?: Id;
+  }
+
+  interface FileAccessResult {
+    fileId: Id;
+    scene?: string;
+    url: string;
+    privateAccess?: boolean;
+    expireAt?: Id;
+    expireSeconds?: number;
   }
 }

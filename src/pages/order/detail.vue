@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
-import { cancelRealOrder, confirmRealOrder, fetchOrderDetail, payRealOrderGroup } from '@/service/api/order';
+import { cancelRealOrder, confirmRealOrder, fetchOrderDetail, fetchOrderLogistics, payRealOrderGroup } from '@/service/api/order';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
@@ -13,14 +13,27 @@ import { go } from '@/utils/navigate';
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
 const id = ref<Api.RealOrder.LongId>();
+const logistics = ref<Api.RealOrder.LogisticsDTO>();
 
 onLoad(async query => {
   id.value = query?.id ? String(query.id) : undefined;
-  if (id.value) order.value = await fetchOrderDetail(id.value, userStore.isBuyerActive ? 'sold' : 'bought');
+  if (id.value) {
+    const scope = userStore.isBuyerActive ? 'sold' : 'bought';
+    const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(id.value, scope), fetchOrderLogistics(id.value)]);
+    if (detailResult.status === 'fulfilled') order.value = detailResult.value;
+    else uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
+    if (logisticsResult.status === 'fulfilled') logistics.value = logisticsResult.value;
+  }
 });
 
 async function reload() {
-  if (id.value) order.value = await fetchOrderDetail(id.value, userStore.isBuyerActive ? 'sold' : 'bought');
+  if (id.value) {
+    const scope = userStore.isBuyerActive ? 'sold' : 'bought';
+    const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(id.value, scope), fetchOrderLogistics(id.value)]);
+    if (detailResult.status === 'fulfilled') order.value = detailResult.value;
+    else uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
+    if (logisticsResult.status === 'fulfilled') logistics.value = logisticsResult.value;
+  }
 }
 
 async function pay() {
@@ -155,6 +168,16 @@ function goReview() {
       </view>
     </view>
 
+    <view v-if="logistics" class="section">
+      <text class="section-title">物流信息</text>
+      <view class="amt-row"><text class="amt-lbl">状态</text><text>{{ logistics.logisticsStatusText || logistics.logisticsStatus || '待发货' }}</text></view>
+      <view v-if="logistics.carrierName || logistics.carrier" class="amt-row"><text class="amt-lbl">承运商</text><text>{{ logistics.carrierName || logistics.carrier }}</text></view>
+      <view v-if="logistics.trackingNo" class="amt-row"><text class="amt-lbl">运单号</text><text>{{ logistics.trackingNo }}</text></view>
+      <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
+      <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="track.location || track.occurredAt" class="track-meta">{{ track.location || '' }} {{ track.occurredAt ? new Date(Number(track.occurredAt)).toLocaleString() : '' }}</text></view></view>
+      <text v-else class="track-meta">暂无物流轨迹</text>
+    </view>
+
     <view class="actions-bar">
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" type="primary" @click="pay">立即付款</wd-button>
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" plain @click="cancel">取消订单</wd-button>
@@ -272,6 +295,7 @@ function goReview() {
   color: #c9cdd4;
   font-size: 28rpx;
 }
+.logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#f53f3f; background:#fff2f0; font-size:24rpx; line-height:1.5; }.tracks { margin-top:12rpx; }.track { padding:14rpx 0; border-top:1rpx solid #f2f3f5; font-size:24rpx; color:#1d2129; }.track-meta { display:block; margin-top:6rpx; color:#86909c; font-size:21rpx; }
 .actions-bar {
   position: fixed;
   bottom: 0;

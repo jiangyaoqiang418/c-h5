@@ -147,6 +147,10 @@ export function shipRealOrder(params: Api.RealOrder.OrderShipParams): Promise<Ap
   });
 }
 
+export function fetchOrderLogistics(orderId: Api.RealOrder.LongId) {
+  return realOrderRequest<Api.RealOrder.LogisticsDTO>({ url: '/orders/logistics', params: { orderId } });
+}
+
 export function createRealRefund(params: Api.RealOrder.OrderRefundApplyParams): Promise<Api.RealOrder.LongId> {
   return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.OrderRefundApplyParams>({ url: '/orders/refunds/create', method: 'POST', data: params });
 }

@@ -1,4 +1,4 @@
-import { realNotifyRequest } from '../request';
+import { realNotifyRequest, realNotifyUpload } from '../request';
 
 export function fetchNotifications(query: Api.RealNotify.NotificationPageQuery = {}) {
   return realNotifyRequest<Api.RealNotify.Page<Api.RealNotify.Notification>, Api.RealNotify.NotificationPageQuery>({
@@ -34,3 +34,11 @@ export function sendMessage(params: Api.RealNotify.SendMessageParams) {
 
 export function fetchImUnreadCount() { return realNotifyRequest<number>({ url: '/im/unread/count' }); }
 export function fetchImLinkStatus() { return realNotifyRequest<Api.RealNotify.ImLinkStatusVO>({ url: '/back/im/status', requireToken: false }); }
+
+export function uploadImImage(filePath: string) {
+  return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_IMAGE' } });
+}
+
+export function uploadImVoice(filePath: string, duration: number) {
+  return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_VOICE', duration } });
+}

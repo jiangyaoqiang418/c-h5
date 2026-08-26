@@ -11,10 +11,16 @@ declare namespace Api {
 
     interface FileUploadResult extends ProductImageParam {
       id: string | number;
+      scene?: string;
       url: string;
+      privateAccess?: boolean;
+      expireAt?: string | number;
       originalName?: string;
       contentType?: string;
       size?: string | number;
+      duration?: number;
+      bizType?: string;
+      bizId?: string | number;
     }
 
     interface ProductDTO {
