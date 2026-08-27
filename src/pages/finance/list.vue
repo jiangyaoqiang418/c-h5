@@ -17,7 +17,7 @@ function goDeposit() { uni.pageScrollTo({ selector: '.list-section', duration: 3
 </script>
 
 <template>
-  <view class="finance-page"><EarnHero :balance="String(overview.holdingPrincipal)" :best-apy="bestApy" :on-deposit="goDeposit" :on-withdraw="() => go('/pages/finance/my-lockups')" /><EarnChartCard :earnings="String(overview.totalInterest)" /><view class="summary">待结算收益 U {{ overview.pendingInterest }} · 预计到期收益 U {{ overview.expectedInterest }}</view><view class="list-section"><view v-if="products.length" class="list"><FinanceProductCard v-for="product in products" :key="product.id" :product="product" /></view><EmptyState v-else-if="!loading" title="暂无小金库产品" /></view></view>
+  <view class="finance-page yb-page"><EarnHero :balance="String(overview.holdingPrincipal)" :best-apy="bestApy" :on-deposit="goDeposit" :on-withdraw="() => go('/pages/finance/my-lockups')" /><EarnChartCard :earnings="String(overview.totalInterest)" /><view class="summary">待结算收益 U {{ overview.pendingInterest }} · 预计到期收益 U {{ overview.expectedInterest }}</view><view class="list-section"><view v-if="products.length" class="list"><FinanceProductCard v-for="product in products" :key="product.id" :product="product" /></view><EmptyState v-else-if="!loading" title="暂无小金库产品" /></view></view>
 </template>
 
-<style lang="scss" scoped>.finance-page { min-height:100%; background:#FAFAF7; padding-bottom:60rpx; }.summary { margin:0 24rpx 20rpx; background:#fff; border-radius:12rpx; padding:20rpx; color:#4e5969; font-size:23rpx; }.list-section { padding:0 24rpx; }</style>
+<style lang="scss" scoped>.finance-page { min-height:100%; padding-bottom:60rpx; }.summary { margin:0 24rpx 20rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); padding:20rpx; color:#4e5969; font-size:23rpx; }.list-section { padding:0 24rpx; }</style>

@@ -107,7 +107,7 @@ onReachBottom(() => {
 </script>
 
 <template>
-  <view class="products-page">
+  <view class="products-page yb-page">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
     </wd-tabs>
@@ -154,8 +154,8 @@ onReachBottom(() => {
 </template>
 
 <style lang="scss" scoped>
-.products-page { min-height: 100%; background: #f7f8fa; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
-.list { padding: 16rpx; }
+.products-page { min-height: 100%; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
+.list { padding: 20rpx 24rpx; }
 .loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 .product-card {
   display: flex;
@@ -163,9 +163,9 @@ onReachBottom(() => {
   margin-bottom: 12rpx;
   padding: 20rpx;
   background: #fff;
-  border-radius: 16rpx;
+  border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
-.cover { width: 160rpx; height: 160rpx; border-radius: 12rpx; background: #f7f8fa; flex-shrink: 0; }
+.cover { width: 160rpx; height: 160rpx; border-radius: 12rpx; background: #f5f5f2; flex-shrink: 0; }
 .cover.placeholder { display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 20rpx; }
 .info { flex: 1; min-width: 0; }
 .title { display: block; font-size: 26rpx; font-weight: 600; line-height: 1.4; color: #1d2129; }

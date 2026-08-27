@@ -179,10 +179,10 @@ function onLongPress(a: AddressRecord) {
 </template>
 
 <style lang="scss" scoped>
-.addr-page { min-height: 100%; background: #f7f8fa; padding: 16rpx; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
+.addr-page { min-height: 100%; background: var(--yb-bg); padding: 20rpx 24rpx; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
 .card {
   background: #fff;
-  border-radius: 16rpx;
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
   padding: 24rpx;
   margin-bottom: 16rpx;
 }
@@ -190,21 +190,21 @@ function onLongPress(a: AddressRecord) {
 .name { font-size: 28rpx; font-weight: 600; }
 .phone { font-size: 24rpx; color: #4e5969; }
 .addr { display: block; font-size: 24rpx; color: #4e5969; margin-top: 12rpx; line-height: 1.5; }
-.set-default { display: inline-block; margin-top: 16rpx; padding: 8rpx 16rpx; background: #f7f8fa; border-radius: 8rpx; color: #4d80f0; font-size: 22rpx; }
+.set-default { display: inline-block; margin-top: 16rpx; padding: 8rpx 16rpx; background: #fff1f2; border-radius: 8rpx; color: var(--yb-brand); font-size: 22rpx; }
 .fab {
   position: fixed; right: 28rpx; bottom: calc(28rpx + env(safe-area-inset-bottom));
   background: var(--yb-brand); color: #fff;
   padding: 20rpx 32rpx; border-radius: 48rpx;
   font-size: 26rpx;
-  box-shadow: 0 8rpx 24rpx rgba(77,128,240,0.4);
+  box-shadow: 0 8rpx 24rpx rgba(250,36,60,0.28);
 }
 .popup { padding: 24rpx; max-height: 80vh; overflow-y: auto; }
 .popup-title { display: block; font-size: 30rpx; font-weight: 700; padding: 16rpx 24rpx; }
 
 /* 智能识别 */
 .smart-fill {
-  background: linear-gradient(135deg, #E8F1FF 0%, #F0E8FF 100%);
-  border: 1rpx solid #D6E4FF;
+  background: linear-gradient(135deg, #fff2f2 0%, #f8f1ea 100%);
+  border: 1rpx solid #f0d8d5;
   border-radius: 20rpx;
   padding: 24rpx;
   margin: 0 24rpx 24rpx;
@@ -216,7 +216,7 @@ function onLongPress(a: AddressRecord) {
   display: block;
   font-size: 26rpx;
   font-weight: 700;
-  color: #4D80F0;
+  color: var(--yb-brand);
 }
 .smart-hint {
   display: block;
@@ -228,7 +228,7 @@ function onLongPress(a: AddressRecord) {
   width: 100%;
   min-height: 160rpx;
   background: #FFFFFF;
-  border: 1rpx solid #D6E4FF;
+  border: 1rpx solid var(--yb-border);
   border-radius: 12rpx;
   padding: 20rpx;
   font-size: 24rpx;
@@ -253,11 +253,11 @@ function onLongPress(a: AddressRecord) {
 }
 .smart-btn.ghost {
   background: #FFFFFF;
-  color: #4D80F0;
-  border: 1rpx solid #4D80F0;
+  color: var(--yb-brand);
+  border: 1rpx solid var(--yb-brand);
 }
 .smart-btn.primary {
-  background: #4D80F0;
+  background: var(--yb-brand);
   color: #FFFFFF;
 }
 

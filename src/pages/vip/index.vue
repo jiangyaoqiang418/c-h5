@@ -60,7 +60,7 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 </script>
 
 <template>
-  <view class="vip-page">
+  <view class="vip-page yb-page">
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.vip})` }">
       <text class="hero-title">VIP 特权中心</text>
       <view class="my-card">
@@ -97,7 +97,7 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 </template>
 
 <style lang="scss" scoped>
-.vip-page { min-height: 100%; background: #f7f8fa; padding-bottom: 32rpx; }
+.vip-page { min-height: 100%; padding-bottom: 32rpx; }
 .hero {
   background-color: #30110f;
   background-size: cover;
@@ -118,16 +118,16 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 .my-info { display: flex; flex-direction: column; }
 .my-points { font-size: 32rpx; font-weight: 600; }
 .my-next { font-size: 22rpx; opacity: 0.8; margin-top: 4rpx; }
-.segment-wrap { padding: 16rpx; background: #fff; }
-.table-wrap { background: #fff; margin-top: 16rpx; padding: 16rpx 0; }
+.segment-wrap { margin:20rpx 24rpx 0; padding:16rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.table-wrap { overflow:hidden; background:#fff; margin:20rpx 24rpx 0; padding:16rpx 0; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .th, .tr { display: flex; padding: 16rpx 24rpx; }
 .tr:nth-child(even) { background: #fafbfc; }
-.th { background: #f7f8fa; }
+.th { background: #f5f5f2; }
 .th-cell, .td { flex: 1; text-align: center; font-size: 24rpx; }
 .th-cell { font-weight: 600; color: #4e5969; }
 .td { color: #1d2129; }
 .label-col { flex: 1.5; text-align: left; color: #86909c; }
-.rules { background: #fff; margin-top: 16rpx; padding: 24rpx; }
+.rules { background:#fff; margin:20rpx 24rpx 0; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .rules-title { display: block; font-size: 26rpx; font-weight: 600; margin-bottom: 16rpx; }
 .rules-text { display: block; font-size: 24rpx; color: #4e5969; line-height: 1.8; }
 </style>
