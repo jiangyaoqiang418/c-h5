@@ -69,7 +69,7 @@ watch(activeRoot, id => load(id, true));
 <template>
   <view class="category-page h5-tab-page">
     <view class="category-layout">
-      <scroll-view scroll-y class="category-sidebar">
+      <scroll-view v-if="roots.length" scroll-y class="category-sidebar">
         <view
           v-for="root in roots"
           :key="root.id"
