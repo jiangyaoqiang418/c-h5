@@ -53,7 +53,7 @@ function openTxn(t: WalletTxnView) {
 </script>
 
 <template>
-  <view class="history-page">
+  <view class="history-page yb-page">
     <view v-if="list.length" class="list">
       <TxnRow v-for="t in list" :key="t.id" :txn="t" @detail="openTxn" />
     </view>
@@ -64,12 +64,9 @@ function openTxn(t: WalletTxnView) {
 </template>
 
 <style lang="scss" scoped>
-.history-page {
-  min-height: 100%;
-  background: #f7f8fa;
-}
+.history-page { min-height: 100%; padding:20rpx 24rpx 32rpx; }
 .list {
-  background: #fff;
+  overflow:hidden; background: #fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .loading {
   padding: 32rpx;

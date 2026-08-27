@@ -128,7 +128,7 @@ async function submit() {
 </script>
 
 <template>
-  <view class="create-page">
+  <view class="create-page yb-page">
     <view class="form-card">
       <wd-input v-model="form.productTitle" label="商品标题" placeholder="如 iPhone 16 Pro Max 256GB" />
       <wd-cell title="商品分类" :value="form.categoryName || '请选择'" is-link @click="selectCategory" />
@@ -153,9 +153,9 @@ async function submit() {
         <view class="image-grid">
           <view v-for="(image, index) in images" :key="String(image.id)" class="image-cell">
             <image :src="image.url" mode="aspectFill" class="image" />
-            <view class="remove" @click="removeImage(index)">×</view>
+            <view class="remove" @click="removeImage(index)"><wd-icon name="close" size="22rpx" color="#fff" /></view>
           </view>
-          <view v-if="images.length < 6" class="add" @click="chooseImages">{{ uploading ? '上传中' : '+' }}</view>
+          <view v-if="images.length < 6" class="add" @click="chooseImages"><text v-if="uploading">上传中</text><wd-icon v-else name="add" size="42rpx" /></view>
         </view>
       </view>
     </view>
@@ -166,12 +166,11 @@ async function submit() {
 <style lang="scss" scoped>
 .create-page {
   min-height: 100%;
-  background: #f7f8fa;
-  padding: 16rpx;
+  padding: 20rpx 24rpx 32rpx;
 }
 .form-card {
   background: #fff;
-  border-radius: 16rpx;
+  overflow:hidden; border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .submit-btn {
   margin: 24rpx 0;
@@ -181,7 +180,7 @@ async function submit() {
 .image-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .image-cell, .add { width: 180rpx; height: 180rpx; }
 .image-cell { position: relative; }
-.image { width: 100%; height: 100%; border-radius: 8rpx; }
+.image { width: 100%; height: 100%; border-radius: 12rpx; }
 .remove { position: absolute; top: 4rpx; right: 4rpx; display: flex; align-items: center; justify-content: center; width: 36rpx; height: 36rpx; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 26rpx; }
-.add { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 2rpx dashed #c9cdd4; border-radius: 8rpx; background: #f7f8fa; color: #86909c; font-size: 52rpx; }
+.add { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 2rpx dashed #b9bdc7; border-radius: 12rpx; background: #f5f5f2; color: var(--yb-brand); font-size: 24rpx; }
 </style>

@@ -28,7 +28,7 @@ onLoad(query => load(String(query?.id || '')));
 </script>
 
 <template>
-  <view v-if="detail" class="detail-page">
+  <view v-if="detail" class="detail-page yb-page">
     <view class="summary">
       <text class="status">{{ detail.statusText || detail.status }}</text>
       <text class="amount">U {{ formatAmount(detail.amount) }}</text>
@@ -56,15 +56,15 @@ onLoad(query => load(String(query?.id || '')));
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding: 16rpx; box-sizing: border-box; background: #f7f8fa; }
-.summary, .section { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
+.detail-page { min-height: 100%; padding: 20rpx 24rpx 32rpx; box-sizing: border-box; }
+.summary, .section { margin-bottom: 20rpx; padding: 24rpx; border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); background: #fff; box-shadow:var(--yb-shadow-card); }
 .summary { text-align: center; }
 .status, .chain { display: block; color: #86909c; font-size: 23rpx; }
 .amount { display: block; margin: 14rpx 0; color: #f53f3f; font-size: 52rpx; font-weight: 700; font-family: ui-monospace, monospace; }
-.row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; font-size: 23rpx; }
+.row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 23rpx; }
 .label { color: #86909c; }
-.block { padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; }
-.block-value, .reason { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 8rpx; background: #f7f8fa; font-size: 21rpx; line-height: 1.6; word-break: break-all; }
+.block { padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
+.block-value, .reason { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 12rpx; background: #f5f5f2; font-size: 21rpx; line-height: 1.6; word-break: break-all; }
 .block-value { font-family: ui-monospace, monospace; }
 .reason { color: #f53f3f; }
 </style>
