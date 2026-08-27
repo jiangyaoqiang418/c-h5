@@ -35,7 +35,7 @@
 | 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成顾客创建 → `REFUND_REVIEW` → 撤销 → `PAID`，以及买手侧非空列表/详情回归 |
-| IM/通知 | notify 22 操作，REST 契约可用，WebSocket 返回 `gatewayPath/apiPrefixPath/tokenSources/subProtocol/heartbeatIntervalMs` | 通知页已注册并接入单条/全部已读、删除、清空；会话页已接入历史消息、已读、撤回、文字/图片/语音发送，上传只回传 `mediaFileId`，展示读取服务端 `mediaUrl`；WebSocket 按 `/api` 前缀选择 `apiPrefixPath` 或 `gatewayPath`，优先 URL token、必要时按 `['im','im.token.<token>']` 连接，并遵守服务端心跳上限 | A：H5 实际 `/api/notify/im` 与服务端直连均回 `101` 并回显 `im`；此前两个独立 H5 登录会话完成无刷新到达、页面重载后重连与历史补偿。IM 媒体、撤回真实写回归待安全测试数据 |
+| IM/通知 | notify 22 操作，REST 契约可用，含 `GET /im/messages/incr?conversationId&sinceId&limit` 的断线增量补偿；WebSocket 返回 `gatewayPath/apiPrefixPath/tokenSources/subProtocol/heartbeatIntervalMs` | 通知页已注册并接入单条/全部已读、删除、清空；消息首页以本机 Socket 状态而非全局在线数展示连接结果；会话页已接入历史消息、已读、撤回、文字/图片/语音发送，统一以 `realUserId` 判断本人消息，上传只回传 `mediaFileId`，展示读取服务端 `mediaUrl`；重连后以最后服务端消息 ID 增量拉取、去重并保持 Long 安全排序，补偿请求失败时保留待补偿标记供后续重连重试；WebSocket 按 `/api` 前缀选择 `apiPrefixPath` 或 `gatewayPath`，优先 URL token、必要时按 `['im','im.token.<token>']` 连接，并遵守服务端心跳上限 | A：H5 实际 `/api/notify/im` 与服务端直连均回 `101` 并回显 `im`；2026-08-27 H5 双登录会话均无控制台错误，第二会话发送 QA 文本后第一会话无需刷新即到达，`IM_MESSAGE` 已通过；本人消息撤回入口与未读状态已恢复，新 QA 消息立即撤回后双端实时替换为“消息已撤回”，`IM_RECALL` 已通过；保留 QA 消息由第一会话自动已读后第二会话实时显示“已读 1”，`IM_READ` 已通过。增量补偿、IM 媒体的本轮真实写回归待继续验证 |
 
 ### 2026-08-15 P1-P4 续推进记录
 

@@ -28,6 +28,12 @@ export function fetchMessages(query: Api.RealNotify.MessagePageQuery) {
   });
 }
 
+export function fetchIncrementalMessages(query: Api.RealNotify.IncrementalMessageQuery) {
+  return realNotifyRequest<Api.RealNotify.Message[], Api.RealNotify.IncrementalMessageQuery>({
+    url: '/im/messages/incr', params: { conversationId: query.conversationId, sinceId: query.sinceId, limit: query.limit || 500 }
+  });
+}
+
 export function sendMessage(params: Api.RealNotify.SendMessageParams) {
   return realNotifyRequest<Api.RealNotify.Message, Api.RealNotify.SendMessageParams>({ url: '/im/messages/send', method: 'POST', data: params });
 }

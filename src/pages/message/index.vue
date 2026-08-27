@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue';
 import { onShow, onUnload } from '@dcloudio/uni-app';
 import { go } from '@/utils/navigate';
-import { fetchConversations, fetchImLinkStatus, fetchImUnreadCount, fetchNotificationUnreadCount, fetchNotifications } from '@/service/api/notify';
-import { imSocket } from '@/service/im-socket';
+import { fetchConversations, fetchImUnreadCount, fetchNotificationUnreadCount, fetchNotifications } from '@/service/api/notify';
+import { imSocket, type ImSocketState } from '@/service/im-socket';
 import EmptyState from '@/components/common/empty-state.vue';
 
 interface Category {
@@ -19,7 +19,9 @@ interface Category {
 
 const categories = ref<Category[]>([]);
 const loadFailed = ref(false);
+const realtimeState = ref<ImSocketState>('idle');
 let unsubscribeRealtime: (() => void) | undefined;
+let unsubscribeRealtimeState: (() => void) | undefined;
 let realtimeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 function isTransactionNotification(notification: Api.RealNotify.Notification) {
@@ -29,12 +31,11 @@ function isTransactionNotification(notification: Api.RealNotify.Notification) {
 async function load() {
   loadFailed.value = false;
   try {
-    const [notificationCount, imCount, notificationPage, conversationPage, imStatus] = await Promise.all([
+    const [notificationCount, imCount, notificationPage, conversationPage] = await Promise.all([
       fetchNotificationUnreadCount(),
       fetchImUnreadCount(),
       fetchNotifications({ pageNo: 1, pageSize: 50 }),
-      fetchConversations({ pageNo: 1, pageSize: 1 }),
-      fetchImLinkStatus()
+      fetchConversations({ pageNo: 1, pageSize: 1 })
     ]);
     const transactions = notificationPage.records.filter(isTransactionNotification);
     const transactionUnread = transactions.filter(item => !item.readFlag).length;
@@ -68,7 +69,7 @@ async function load() {
       title: '订单群聊',
       path: '/pages/im/order-list',
       unread: imCount,
-      latestText: conversation?.lastMessagePreview || (Number(imStatus.onlineConnections) > 0 ? '订单群消息服务已连接' : '实时消息暂不可用，可手动刷新'),
+      latestText: conversation?.lastMessagePreview || (realtimeState.value === 'ready' ? '订单群消息服务已连接' : realtimeState.value === 'connecting' ? '正在连接实时消息服务…' : '实时消息暂不可用，可手动刷新'),
       latestTime: conversation?.lastMessageAt ? new Date(Number(conversation.lastMessageAt)).toLocaleDateString() : ''
     }
   ];
@@ -87,13 +88,21 @@ function refreshFromRealtime() {
 }
 
 function ensureRealtimeSubscription() {
-  if (unsubscribeRealtime) return;
-  unsubscribeRealtime = imSocket.subscribe(event => {
-    const type = String((event as { type?: unknown })?.type || '').toUpperCase();
-    if (type === 'NOTIFICATION' || type === 'IM_MESSAGE' || type === 'IM_READ' || type === 'IM_RECALL') {
-      refreshFromRealtime();
-    }
-  });
+  if (!unsubscribeRealtime) {
+    unsubscribeRealtime = imSocket.subscribe(event => {
+      const type = String((event as { type?: unknown })?.type || '').toUpperCase();
+      if (type === 'NOTIFICATION' || type === 'IM_MESSAGE' || type === 'IM_READ' || type === 'IM_RECALL') {
+        refreshFromRealtime();
+      }
+    });
+  }
+  if (!unsubscribeRealtimeState) {
+    unsubscribeRealtimeState = imSocket.subscribeState(state => {
+      const changed = realtimeState.value !== state;
+      realtimeState.value = state;
+      if (changed) refreshFromRealtime();
+    });
+  }
 }
 
 onShow(() => {
@@ -106,6 +115,8 @@ onUnload(() => {
   realtimeRefreshTimer = undefined;
   unsubscribeRealtime?.();
   unsubscribeRealtime = undefined;
+  unsubscribeRealtimeState?.();
+  unsubscribeRealtimeState = undefined;
   imSocket.stop();
 });
 

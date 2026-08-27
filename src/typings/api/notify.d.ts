@@ -66,6 +66,7 @@ declare namespace Api {
     interface NotificationPageQuery { pageNo?: number; pageSize?: number; unreadOnly?: boolean; }
     interface ConversationPageQuery { pageNo?: number; pageSize?: number; }
     interface MessagePageQuery { pageNo?: number; pageSize?: number; conversationId: Id; }
+    interface IncrementalMessageQuery { conversationId: Id; sinceId?: Id; limit?: number; }
     interface ImReadParams { conversationId: Id; lastReadMessageId: Id; }
     interface ImReadEvent {
       conversationId: Id;

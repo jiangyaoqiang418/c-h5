@@ -55,11 +55,11 @@ async function submit() {
 
 <style lang="scss" scoped>
 .login-page {
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-y: auto;
   box-sizing: border-box;
   background: linear-gradient(135deg, #4d80f0 0%, #722ed1 50%, #fff 50%);
-  padding: calc(32rpx + env(safe-area-inset-top)) 32rpx 32rpx;
+  padding: calc(32rpx + env(safe-area-inset-top)) 32rpx calc(32rpx + env(safe-area-inset-bottom));
 }
 .hero {
   text-align: center;

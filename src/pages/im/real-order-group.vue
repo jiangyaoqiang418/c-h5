@@ -3,7 +3,7 @@ import { computed, nextTick, ref } from 'vue';
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { fetchConversationByOrder, fetchMessages, markImMessagesRead, recallImMessage, sendMessage, uploadImImage, uploadImVoice } from '@/service/api/notify';
+import { fetchConversationByOrder, fetchIncrementalMessages, fetchMessages, markImMessagesRead, recallImMessage, sendMessage, uploadImImage, uploadImVoice } from '@/service/api/notify';
 import { fetchOrderDetail } from '@/service/api/order';
 import { imSocket, type ImSocketState } from '@/service/im-socket';
 
@@ -24,6 +24,7 @@ let unsubscribeState: (() => void) | undefined;
 let recorder: ReturnType<typeof uni.getRecorderManager> | undefined;
 let recorderBound = false;
 let voicePlayer: ReturnType<typeof uni.createInnerAudioContext> | undefined;
+let needsIncrementalRecovery = false;
 
 interface OrderCardContent {
   productTitle?: string;
@@ -140,7 +141,11 @@ function applyRealtimeRead(event: unknown) {
   const payload = eventPayload(event) as Partial<Api.RealNotify.ImReadEvent>;
   const readerId = payload.readerUserId ?? payload.userId;
   if (!conversation.value || readerId == null || payload.lastReadMessageId == null || String(payload.conversationId) !== String(conversation.value.id)) return;
-  readerWatermarks.value[String(readerId)] = payload.lastReadMessageId;
+  const readerKey = String(readerId);
+  const previous = readerWatermarks.value[readerKey];
+  if (!previous || compareBusinessId(payload.lastReadMessageId, previous) > 0) {
+    readerWatermarks.value[readerKey] = payload.lastReadMessageId;
+  }
 }
 
 function handleRealtimeEvent(event: unknown) {
@@ -172,6 +177,45 @@ async function refreshMessages() {
   }
 }
 
+function latestServerMessageId() {
+  return messages.value.reduce<Api.RealNotify.Id | undefined>((latest, message) => {
+    if (String(message.id).startsWith('local:')) return latest;
+    return latest == null || compareBusinessId(message.id, latest) > 0 ? message.id : latest;
+  }, undefined);
+}
+
+function mergeServerMessages(incoming: Api.RealNotify.Message[]) {
+  incoming.forEach(message => {
+    const index = messages.value.findIndex(current => String(current.id) === String(message.id));
+    if (index >= 0) messages.value[index] = { ...messages.value[index], ...message };
+    else messages.value.push(message);
+  });
+  messages.value.sort((left, right) => {
+    const leftLocal = String(left.id).startsWith('local:');
+    const rightLocal = String(right.id).startsWith('local:');
+    if (leftLocal || rightLocal) return Number(left.createdAt || 0) - Number(right.createdAt || 0);
+    return compareBusinessId(left.id, right.id);
+  });
+}
+
+async function recoverIncrementalMessages() {
+  if (!conversation.value) return;
+  const sinceId = latestServerMessageId();
+  if (sinceId == null) {
+    await refreshMessages();
+    return;
+  }
+  const incoming = await fetchIncrementalMessages({ conversationId: conversation.value.id, sinceId, limit: 500 });
+  if (!incoming.length) return;
+  mergeServerMessages(incoming);
+  await nextTick();
+  const last = latestServerMessageId();
+  if (last != null) {
+    scrollIntoView.value = messageAnchor(last);
+    markImMessagesRead({ conversationId: conversation.value.id, lastReadMessageId: last }).catch(() => undefined);
+  }
+}
+
 function createClientMessageId() {
   return `im-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -182,7 +226,7 @@ async function sendText(content = inputText.value.trim()) {
   const localMessage: Api.RealNotify.Message = {
     id: `local:${clientMsgId}`,
     conversationId: conversation.value.id,
-    senderId: userStore.currentUser?.id,
+    senderId: userStore.realUserId,
     senderName: '我',
     msgType: 'TEXT',
     content,
@@ -310,7 +354,7 @@ function playVoice(message: Api.RealNotify.Message) {
 }
 
 function recallMessage(message: Api.RealNotify.Message) {
-  if (!conversation.value || message.recalled || String(message.senderId) !== String(userStore.currentUser?.id)) return;
+  if (!conversation.value || message.recalled || String(message.senderId) !== String(userStore.realUserId)) return;
   uni.showModal({
     title: '撤回消息？',
     success: async result => {
@@ -341,7 +385,15 @@ onLoad(async query => {
     conversation.value = group;
     await refreshMessages();
     unsubscribe = imSocket.subscribe(handleRealtimeEvent);
-    unsubscribeState = imSocket.subscribeState(state => { realtimeState.value = state; });
+    unsubscribeState = imSocket.subscribeState(state => {
+      realtimeState.value = state;
+      if (state === 'unavailable') needsIncrementalRecovery = true;
+      if (state === 'ready' && needsIncrementalRecovery) {
+        recoverIncrementalMessages()
+          .then(() => { needsIncrementalRecovery = false; })
+          .catch(() => undefined);
+      }
+    });
     imSocket.start().catch(() => undefined);
     await nextTick();
     const last = messages.value.at(-1);
@@ -365,7 +417,7 @@ onUnload(() => {
 
 function side(message: Api.RealNotify.Message) {
   if (message.msgType === 'SYSTEM' || message.msgType === 'ORDER_CARD') return 'center';
-  return String(message.senderId) === String(userStore.currentUser?.id) ? 'right' : 'left';
+  return String(message.senderId) === String(userStore.realUserId) ? 'right' : 'left';
 }
 
 function messageText(message: Api.RealNotify.Message) {
@@ -383,13 +435,13 @@ function messageText(message: Api.RealNotify.Message) {
 }
 
 function isMine(message: Api.RealNotify.Message) {
-  return String(message.senderId) === String(userStore.currentUser?.id);
+  return String(message.senderId) === String(userStore.realUserId);
 }
 
 function readText(message: Api.RealNotify.Message) {
   if (!isMine(message) || message.pending || message.failed || message.recalled || String(message.id).startsWith('local:')) return '';
-  const count = Object.values(readerWatermarks.value)
-    .filter(lastReadMessageId => compareBusinessId(lastReadMessageId, message.id) >= 0)
+  const count = Object.entries(readerWatermarks.value)
+    .filter(([readerId, lastReadMessageId]) => String(readerId) !== String(userStore.realUserId) && compareBusinessId(lastReadMessageId, message.id) >= 0)
     .length;
   return count ? `已读 ${count}` : '未读';
 }
