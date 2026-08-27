@@ -99,7 +99,7 @@ onMounted(load);
 </script>
 
 <template>
-  <view class="apply-page">
+  <view class="apply-page yb-page">
     <view v-if="loading" class="loading">加载中...</view>
 
     <template v-else-if="!userStore.buyerApplicationLoadFailed">
@@ -159,8 +159,7 @@ onMounted(load);
 .apply-page {
   min-height: 100%;
   box-sizing: border-box;
-  background: #f7f8fa;
-  padding: 16rpx;
+  padding: 24rpx;
 }
 .loading {
   padding: 120rpx 0;
@@ -170,9 +169,11 @@ onMounted(load);
 }
 .status-card, .form-card, .error-card {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--yb-radius-lg);
   padding: 24rpx;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
+  border:1rpx solid var(--yb-border);
+  box-shadow:var(--yb-shadow-card);
 }
 .status-head {
   display: flex;

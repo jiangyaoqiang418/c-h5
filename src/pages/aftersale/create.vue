@@ -30,7 +30,7 @@ async function submit() {
 </script>
 
 <template>
-  <view v-if="order" class="create-page">
+  <view v-if="order" class="create-page yb-page">
     <view class="step">
       <text class="step-title">仅退款</text>
       <text>退款金额以订单应付金额为准：{{ formatUsdt(order.totalAmount) }}</text>
@@ -48,8 +48,7 @@ async function submit() {
 <style lang="scss" scoped>
 .create-page {
   min-height: 100%;
-  background: #f7f8fa;
-  padding: 16rpx;
+  padding: 24rpx;
 }
 .overseas {
   background: #fff7e6;
@@ -61,9 +60,11 @@ async function submit() {
 }
 .step {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--yb-radius-lg);
   padding: 24rpx;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
+  border:1rpx solid var(--yb-border);
+  box-shadow:var(--yb-shadow-card);
 }
 .step-title {
   display: block;

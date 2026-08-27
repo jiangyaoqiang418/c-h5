@@ -4,6 +4,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { formatAmount } from '@/utils/format-bridge';
 import { fetchBuyerDepositLedger, payBuyerDeposit, refundBuyerDeposit } from '@/service/api/buyer';
 import { useUserStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const ledgers = ref<Api.RealUser.BuyerDepositLedgerDTO[]>([]);
@@ -87,8 +88,8 @@ function bizTypeText(type: Api.RealUser.BuyerDepositBizType): string {
 </script>
 
 <template>
-  <view class="dep-page">
-    <view class="hero">
+  <view class="dep-page yb-page">
+    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.buyer})` }">
       <text class="hero-label">当前保证金余额 (USDT)</text>
       <text class="hero-amount">U {{ formatAmount(currentBalance) }}</text>
 
@@ -156,18 +157,17 @@ function bizTypeText(type: Api.RealUser.BuyerDepositBizType): string {
 </template>
 
 <style lang="scss" scoped>
-.dep-page { min-height: 100%; background: #f7f8fa; }
-.hero { background: linear-gradient(135deg, #722ed1 0%, #4d80f0 100%); color: #fff; padding: 48rpx 32rpx; }
+.dep-page { min-height:100%; }.hero { background-color:#10131f; background-size:cover; background-position:center; color:#fff; padding:48rpx 28rpx 32rpx; }
 .hero-label { display: block; font-size: 22rpx; opacity: 0.8; }
 .hero-amount { display: block; font-size: 64rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0 24rpx; }
 .meter-info { display: flex; justify-content: space-between; font-size: 22rpx; margin-top: 8rpx; opacity: 0.85; }
 .hero-cells { display: flex; gap: 16rpx; margin-top: 24rpx; }
-.cell { flex: 1; background: rgba(255,255,255,0.12); border-radius: 12rpx; padding: 16rpx; }
+.cell { flex:1; background:rgba(255,255,255,.12); border:1rpx solid rgba(255,255,255,.16); border-radius:var(--yb-radius-md); padding:16rpx; }
 .cell-lbl { display: block; font-size: 22rpx; opacity: 0.8; }
 .cell-val { display: block; font-size: 32rpx; font-weight: 700; font-family: ui-monospace, monospace; margin-top: 4rpx; }
 .hero-actions { display: flex; gap: 12rpx; margin-top: 24rpx; }
 .hero-actions > * { flex: 1; }
-.section { background: #fff; margin-top: 16rpx; padding: 24rpx; }
+.section { background:#fff; margin:24rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .section-title { display: block; font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; }
 .txn-row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .txn-main { display: flex; flex-direction: column; }
