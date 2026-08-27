@@ -62,7 +62,7 @@ function onChange(v: 'customer' | 'buyer') {
 }
 .seg.active {
   background: #fff;
-  color: #4d80f0;
+  color: var(--yb-brand);
   font-weight: 600;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
 }

@@ -120,7 +120,7 @@ const eventIcon = computed(() => {
   border: 1rpx solid #f2f3f5;
 }
 .bubble.text.right {
-  background: #4d80f0;
+  background: var(--yb-brand);
   color: #fff;
 }
 .bubble.system {

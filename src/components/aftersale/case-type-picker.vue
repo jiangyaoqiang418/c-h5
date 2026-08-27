@@ -51,8 +51,8 @@ const TYPES: { type: Api.Order.AftersaleCaseType; icon: string; hint: string }[]
   border-radius: 12rpx;
 }
 .card.active {
-  border-color: #4d80f0;
-  background: #f3f7ff;
+  border-color: var(--yb-brand);
+  background: #fff1f2;
 }
 .icon {
   width: 52rpx;

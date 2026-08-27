@@ -33,13 +33,13 @@ function open() {
   gap: 16rpx;
   padding: 24rpx;
   background: #fff;
-  border-bottom: 1rpx solid #f7f8fa;
+  border-bottom: 1rpx solid var(--yb-border);
 }
 .avatar {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: #4d80f0;
+  background: #1d2027;
   color: #fff;
   display: flex;
   align-items: center;

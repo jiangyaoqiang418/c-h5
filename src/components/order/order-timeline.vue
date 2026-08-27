@@ -100,7 +100,7 @@ const steps = computed<Step[]>(() => {
   min-height: 32rpx;
 }
 .step.finish .line {
-  background: #4d80f0;
+  background: var(--yb-brand);
 }
 .right {
   flex: 1;
