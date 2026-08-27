@@ -146,7 +146,7 @@ onReachBottom(() => {
         </view>
       </view>
       <EmptyState v-else-if="!loading" title="暂无商品" />
-      <view v-if="loading" class="loading">加载中...</view>
+      <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     </view>
 
     <view class="fab yb-pressable" @click="go('/pages/buyer/product-create')"><wd-icon name="add" size="17px" /> <text>发布</text></view>
@@ -156,7 +156,7 @@ onReachBottom(() => {
 <style lang="scss" scoped>
 .products-page { min-height: 100%; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
 .list { padding: 20rpx 24rpx; }
-.loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
 .product-card {
   display: flex;
   gap: 16rpx;

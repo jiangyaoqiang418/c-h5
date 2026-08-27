@@ -100,7 +100,7 @@ onMounted(load);
 
 <template>
   <view class="apply-page yb-page">
-    <view v-if="loading" class="loading">加载中...</view>
+    <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载申请状态</text></view>
 
     <template v-else-if="!userStore.buyerApplicationLoadFailed">
       <view v-if="statusMeta" class="status-card">
@@ -162,7 +162,11 @@ onMounted(load);
   padding: 24rpx;
 }
 .loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 120rpx 0;
+  gap: 16rpx;
   text-align: center;
   color: #86909c;
   font-size: 24rpx;

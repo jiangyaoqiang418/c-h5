@@ -79,7 +79,7 @@ onLoad(query => {
 
 <template>
   <view class="detail-page yb-page">
-    <view v-if="loading" class="loading">加载中...</view>
+    <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     <template v-else-if="product">
       <swiper v-if="product.images?.length" indicator-dots class="gallery">
         <swiper-item v-for="image in product.images" :key="image">
@@ -128,7 +128,7 @@ onLoad(query => {
 
 <style lang="scss" scoped>
 .detail-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(160rpx + env(safe-area-inset-bottom)); }
-.loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
 .gallery { width:100%; height:600rpx; overflow:hidden; border-radius:var(--yb-radius-lg); background:#f2f3f5; }
 .gallery-image { width: 100%; height: 100%; }
 .section { margin-top:20rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
