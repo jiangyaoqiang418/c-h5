@@ -128,7 +128,7 @@ function inducePurchaseFrom(text: string) {
   /* 宿主已扣除原生导航栏；100vh 会使输入栏在 H5/App 向下溢出。 */
   height: 100%;
   min-height: 0;
-  background: #FAFAF7;
+  background: var(--yb-bg);
 }
 .msg-scroll {
   flex: 1;
@@ -155,7 +155,7 @@ function inducePurchaseFrom(text: string) {
   align-items: flex-start;
 }
 .bubble.user {
-  background: #4D80F0;
+  background: var(--yb-brand);
   color: #fff;
   padding: 20rpx 24rpx;
   border-radius: 28rpx;
@@ -179,7 +179,7 @@ function inducePurchaseFrom(text: string) {
 }
 .bubble-body {
   background: #FFFFFF;
-  border: 1rpx solid #EDECE6;
+  border: 1rpx solid var(--yb-border);
   padding: 20rpx 24rpx;
   border-radius: 28rpx;
   border-bottom-left-radius: 8rpx;
@@ -197,7 +197,7 @@ function inducePurchaseFrom(text: string) {
 }
 .bubble.loading .dots {
   background: #FFFFFF;
-  border: 1rpx solid #EDECE6;
+  border: 1rpx solid var(--yb-border);
   padding: 20rpx 24rpx;
   border-radius: 28rpx;
   border-bottom-left-radius: 8rpx;
@@ -241,7 +241,7 @@ function inducePurchaseFrom(text: string) {
   flex-shrink: 0;
   padding: 14rpx 24rpx;
   background: #FFFFFF;
-  border: 1rpx solid #EDECE6;
+  border: 1rpx solid var(--yb-border);
   border-radius: 999rpx;
   font-size: 24rpx;
   color: #0F111A;
@@ -253,7 +253,7 @@ function inducePurchaseFrom(text: string) {
 
 .input-bar {
   background: #FFFFFF;
-  border-top: 1rpx solid #EDECE6;
+  border-top: 1rpx solid var(--yb-border);
   padding: 16rpx 24rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
 }
@@ -261,7 +261,7 @@ function inducePurchaseFrom(text: string) {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  background: #FAFAF7;
+  background: #f5f5f2;
   border-radius: 40rpx;
   padding: 8rpx 8rpx 8rpx 24rpx;
 }
@@ -284,6 +284,6 @@ function inducePurchaseFrom(text: string) {
   transition: background 0.2s;
 }
 .send-btn.active {
-  background: #0F111A;
+  background: var(--yb-brand);
 }
 </style>
