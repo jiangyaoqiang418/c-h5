@@ -44,15 +44,15 @@ function copy(text?: string) {
         <view v-if="txn.remark" class="row"><text class="lbl">备注</text><text>{{ txn.remark }}</text></view>
         <view v-if="txn.chainTxHash" class="row" @click="copy(txn.chainTxHash)">
           <text class="lbl">交易哈希</text>
-          <text class="mono">{{ shortAddress(txn.chainTxHash, 10, 8) }} 📋</text>
+          <view class="copy-value"><text class="mono">{{ shortAddress(txn.chainTxHash, 10, 8) }}</text><wd-icon name="copy" size="15px" color="#727782" /></view>
         </view>
         <view v-if="txn.fromAddress" class="row" @click="copy(txn.fromAddress)">
           <text class="lbl">来源地址</text>
-          <text class="mono">{{ shortAddress(txn.fromAddress) }} 📋</text>
+          <view class="copy-value"><text class="mono">{{ shortAddress(txn.fromAddress) }}</text><wd-icon name="copy" size="15px" color="#727782" /></view>
         </view>
         <view v-if="txn.toAddress" class="row" @click="copy(txn.toAddress)">
           <text class="lbl">目标地址</text>
-          <text class="mono">{{ shortAddress(txn.toAddress) }} 📋</text>
+          <view class="copy-value"><text class="mono">{{ shortAddress(txn.toAddress) }}</text><wd-icon name="copy" size="15px" color="#727782" /></view>
         </view>
         <view class="row"><text class="lbl">时间</text><text>{{ new Date(txn.createdAt).toLocaleString() }}</text></view>
       </view>
@@ -75,7 +75,7 @@ function copy(text?: string) {
 }
 .type-tag {
   background: #f3f7ff;
-  color: #4d80f0;
+  color: var(--yb-brand);
   padding: 4rpx 16rpx;
   border-radius: 8rpx;
   font-size: 22rpx;
@@ -102,7 +102,7 @@ function copy(text?: string) {
   padding: 16rpx 0;
   font-size: 26rpx;
   color: #1d2129;
-  border-bottom: 1rpx solid #f7f8fa;
+  border-bottom: 1rpx solid var(--yb-border);
 }
 .lbl {
   color: #86909c;
@@ -110,4 +110,5 @@ function copy(text?: string) {
 .mono {
   font-family: ui-monospace, monospace;
 }
+.copy-value { display:flex; align-items:center; gap:8rpx; min-width:0; }
 </style>

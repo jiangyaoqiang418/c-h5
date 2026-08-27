@@ -36,7 +36,7 @@ const desc = computed(() => props.txn.remark || `${props.txn.refType || ''} ${pr
   justify-content: space-between;
   padding: 24rpx;
   background: #fff;
-  border-bottom: 1rpx solid #f7f8fa;
+  border-bottom: 1rpx solid var(--yb-border);
 }
 .left {
   flex: 1;
@@ -44,8 +44,8 @@ const desc = computed(() => props.txn.remark || `${props.txn.refType || ''} ${pr
 }
 .type {
   display: inline-block;
-  background: #f3f7ff;
-  color: #4d80f0;
+  background: #fff1f2;
+  color: var(--yb-brand);
   padding: 2rpx 12rpx;
   border-radius: 4rpx;
   font-size: 20rpx;
