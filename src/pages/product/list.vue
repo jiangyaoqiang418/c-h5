@@ -88,7 +88,7 @@ function onSortChange(v: string) {
 </script>
 
 <template>
-  <view class="list-page">
+  <view class="list-page yb-page">
     <view class="search">
       <input v-model="keyword" placeholder="搜索商品 / 买手 / 品牌" class="search-input" @confirm="load(true)" />
     </view>
@@ -118,12 +118,11 @@ function onSortChange(v: string) {
 <style lang="scss" scoped>
 .list-page {
   min-height: 100%;
-  background: #f7f8fa;
   padding-bottom: 32rpx;
 }
 .search {
-  padding: 16rpx;
-  background: #fff;
+  padding: 20rpx 24rpx 16rpx;
+  background: var(--yb-surface);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -132,15 +131,15 @@ function onSortChange(v: string) {
 .search { top: 44px; }
 /* #endif */
 .search-input {
-  background: #f7f8fa;
-  border-radius: 32rpx;
+  background: var(--yb-bg-muted);
+  border-radius: var(--yb-radius-pill);
   padding: 16rpx 24rpx;
   font-size: 26rpx;
 }
 .sort-row {
   display: flex;
-  background: #fff;
-  border-bottom: 1rpx solid #f2f3f5;
+  background: var(--yb-surface);
+  border-bottom: 1rpx solid var(--yb-border);
   position: sticky;
   top: 92rpx;
   z-index: 9;
@@ -153,18 +152,18 @@ function onSortChange(v: string) {
   text-align: center;
   padding: 20rpx 0;
   font-size: 26rpx;
-  color: #4e5969;
+  color: var(--yb-text-secondary);
 }
 .sort-item.active {
-  color: #4d80f0;
+  color: var(--yb-brand);
   font-weight: 600;
-  border-bottom: 4rpx solid #4d80f0;
+  border-bottom: 4rpx solid var(--yb-brand);
 }
 .grid {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
-  padding: 16rpx;
+  padding: 24rpx;
 }
 .grid > * { width: calc((100% - 16rpx) / 2); min-width: 0; }
 .loading, .no-more {

@@ -206,6 +206,9 @@ function goPurchase() {
 }
 
 .home-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   min-height: 112rpx;
