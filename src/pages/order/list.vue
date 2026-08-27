@@ -184,7 +184,8 @@ async function submitShipping() {
           @ship="openShipping"
         />
       </view>
-      <EmptyState v-else-if="!loading" title="该状态下没有订单" description="完成购物后这里会显示" />
+      <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载订单</text></view>
+      <EmptyState v-else title="该状态下没有订单" description="完成购物后这里会显示" />
     </view>
 
     <wd-popup v-model="shippingPopupVisible" position="bottom" :safe-area-inset-bottom="true">
@@ -209,6 +210,7 @@ async function submitShipping() {
 .list {
   padding: 24rpx;
 }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .shipping-popup { padding: 32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background: #fff; }
 .shipping-title { display: block; font-size: 32rpx; font-weight: 700; color: #1d2129; }
 .shipping-order { display: block; margin: 12rpx 0 20rpx; font-size: 22rpx; color: #86909c; font-family: ui-monospace, monospace; }
