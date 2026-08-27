@@ -67,7 +67,7 @@ onReachBottom(() => {
         <view class="head"><text class="chain">USDT-{{ item.chain }}</text><wd-tag :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
         <text class="amount">- U {{ formatAmount(item.amount) }}</text>
         <text class="address">{{ item.toAddress || '-' }}</text>
-        <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><text>详情 ›</text></view>
+        <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><view class="detail-link"><text>详情</text><wd-icon name="arrow-right" size="14px" color="#86909c" /></view></view>
       </view>
     </view>
     <EmptyState v-else-if="!loading" title="暂无提现记录" action-text="发起提现" @action="go('/pages/wallet/withdraw')" />
@@ -82,5 +82,6 @@ onReachBottom(() => {
 .amount { display: block; margin: 18rpx 0 8rpx; font-size: 36rpx; font-weight: 700; color: #f53f3f; font-family: ui-monospace, monospace; }
 .address { display: block; margin-bottom: 16rpx; color: #86909c; font-size: 21rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .foot { color: #86909c; font-size: 22rpx; }
+.detail-link { display:flex; align-items:center; gap:4rpx; }
 .loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
 </style>

@@ -66,7 +66,7 @@ onReachBottom(() => {
       >
         <view class="head"><text class="chain">USDT-{{ item.chain }}</text><wd-tag :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
         <text class="amount">+ U {{ formatAmount(item.amount) }}</text>
-        <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><text>详情 ›</text></view>
+        <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><view class="detail-link"><text>详情</text><wd-icon name="arrow-right" size="14px" color="#86909c" /></view></view>
       </view>
     </view>
     <EmptyState v-else-if="!loading" title="暂无充值记录" action-text="发起充值" @action="go('/pages/wallet/deposit')" />
@@ -80,5 +80,6 @@ onReachBottom(() => {
 .chain { font-size: 24rpx; font-weight: 600; color: #1d2129; }
 .amount { display:block; margin:18rpx 0; font-size:36rpx; font-weight:700; color:#00a88a; font-family:ui-monospace,monospace; }
 .foot { color: #86909c; font-size: 22rpx; }
+.detail-link { display:flex; align-items:center; gap:4rpx; }
 .loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
 </style>
