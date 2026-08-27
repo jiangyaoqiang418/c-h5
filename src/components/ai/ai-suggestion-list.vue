@@ -19,18 +19,18 @@ function inducePurchase() {
 <template>
   <view class="ai-list">
     <view v-if="loading" class="loading">
-      <text class="loading-emoji">🤖</text>
+      <wd-icon name="flash" size="48rpx" color="var(--yb-brand)" />
       <text class="loading-text">AI 思考中…</text>
     </view>
 
     <template v-else-if="result">
       <view v-if="result.inducePurchase" class="induce" @click="inducePurchase">
-        <text class="induce-emoji">💡</text>
+        <wd-icon name="bulb" size="28px" color="var(--yb-brand)" />
         <view class="induce-text">
           <text class="t">{{ result.inducePurchaseHint }}</text>
           <text class="s">让全球买手为您代购 · USDT 担保 24h 接单</text>
         </view>
-        <text class="arrow">›</text>
+        <wd-icon name="arrow-right" size="18px" color="#a6a9b1" />
       </view>
 
       <view v-if="result.suggestions.length" class="grid">
@@ -55,10 +55,6 @@ function inducePurchase() {
   text-align: center;
   padding: 96rpx 0;
 }
-.loading-emoji {
-  font-size: 96rpx;
-  display: block;
-}
 .loading-text {
   font-size: 26rpx;
   color: #86909c;
@@ -74,9 +70,6 @@ function inducePurchase() {
   padding: 24rpx;
   margin-bottom: 24rpx;
 }
-.induce-emoji {
-  font-size: 48rpx;
-}
 .induce-text {
   flex: 1;
 }
@@ -91,10 +84,6 @@ function inducePurchase() {
   font-size: 22rpx;
   color: #4e5969;
   margin-top: 4rpx;
-}
-.arrow {
-  font-size: 40rpx;
-  color: #c9cdd4;
 }
 .grid {
   display: flex;

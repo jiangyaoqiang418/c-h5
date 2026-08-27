@@ -147,7 +147,7 @@ function bucketLabel(key: string): string {
         </view>
         <view class="record-link" @click="go('/pages/wallet/withdraw-list')">
           <view><text class="record-title">提现记录</text><text class="record-sub">查看审核与链上到账状态</text></view>
-          <text class="record-arrow">›</text>
+          <wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
         </view>
       </view>
     </view>

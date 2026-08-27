@@ -112,7 +112,7 @@ const kpis = computed(() => {
           <view class="sec-tag primary"><text>ORDERS</text></view>
           <text class="section-title">最近卖出订单</text>
         </view>
-        <text class="more" @click="go('/pages/order/list')">全部 →</text>
+        <view class="more" @click="go('/pages/order/list')"><text>全部</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
       <view v-if="orders.length">
         <BuyerOrderCard v-for="o in orders" :key="String(o.id)" :order="o" :show-actions="false" />
@@ -127,7 +127,7 @@ const kpis = computed(() => {
           <view class="sec-tag gold"><text>CLAIMABLE</text></view>
           <text class="section-title">可接求购</text>
         </view>
-        <text class="more" @click="go('/pages/purchase/hall')">前往大厅 →</text>
+        <view class="more" @click="go('/pages/purchase/hall')"><text>前往大厅</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
       <view v-if="requests.length">
         <PurchaseRequestCard v-for="r in requests" :key="r.id" :request="r" mode="hall" />
@@ -142,7 +142,7 @@ const kpis = computed(() => {
           <view class="sec-tag gold"><text>DEPOSIT</text></view>
           <text class="section-title">押金概况</text>
         </view>
-        <text class="more">押金管理 →</text>
+        <view class="more"><text>押金管理</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
       <view class="deposit-progress"><text class="progress-label">以最新真实保证金流水余额为准</text></view>
       <view class="deposit-total">
@@ -306,6 +306,9 @@ const kpis = computed(() => {
   letter-spacing: -0.5rpx;
 }
 .more {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
   font-size: 22rpx;
   color: #6B7385;
 }

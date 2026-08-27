@@ -162,7 +162,7 @@ watch(() => form.chain, loadRechargeAddress);
     </view>
 
     <view v-else class="record-entry" @click="go('/pages/wallet/recharge-list')">
-      <text>查看充值记录</text><text>›</text>
+      <text>查看充值记录</text><wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
     </view>
   </view>
 </template>
