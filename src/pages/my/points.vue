@@ -221,7 +221,7 @@ function formatDate(value?: string | number): string {
 .log-change { font-size: 28rpx; font-weight: 700; font-family: ui-monospace, monospace; }
 .log-change.pos { color: #00b42a; }
 .log-change.neg { color: #f53f3f; }
-.appeal-btn { font-size: 22rpx; color: #4d80f0; }
+.appeal-btn { font-size: 22rpx; color: var(--yb-brand); }
 .appeal-tag { font-size: 22rpx; color: #ff9a02; }
 .appeal-row {
   background: #fff;
