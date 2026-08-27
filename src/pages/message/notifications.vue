@@ -150,14 +150,15 @@ function clear() {
       <view v-for="item in list" :key="item.id" class="item" :class="{ unread: !item.readFlag }" @click="open(item)">
         <view class="dot" />
         <view class="body"><text class="title">{{ item.title || '系统通知' }}</text><text class="content">{{ item.content || '暂无内容' }}</text><text class="time">{{ item.createdAt ? new Date(Number(item.createdAt)).toLocaleString() : '' }}</text></view>
-        <view class="right"><text class="delete" @click.stop="remove(item)">删除</text><text class="arrow">›</text></view>
+        <view class="right"><text class="delete" @click.stop="remove(item)">删除</text><wd-icon name="arrow-right" size="16px" color="#a6a9b1" /></view>
       </view>
     </view>
     <EmptyState v-else-if="loadFailed" title="通知加载失败" description="请稍后重试" />
-    <EmptyState v-else-if="!loading" title="暂无系统通知" />
+    <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载通知</text></view>
+    <EmptyState v-else title="暂无系统通知" />
   </view>
 </template>
 
 <style lang="scss" scoped>
-.notification-page { min-height:100%; padding:24rpx; }.toolbar,.toolbar-actions,.right { display:flex; align-items:center; }.toolbar { justify-content:space-between; padding:8rpx 8rpx 20rpx; }.toolbar-text { color:#86909c; font-size:22rpx; }.toolbar-actions { gap:24rpx; }.action { color:var(--yb-brand); font-size:24rpx; }.action.danger,.delete { color:#f53f3f; }.disabled { color:#c9cdd4; }.list { background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); overflow:hidden; }.item { display:flex; align-items:flex-start; padding:24rpx 20rpx; border-bottom:1rpx solid var(--yb-border); gap:14rpx; }.item:last-child { border:none; }.dot { width:12rpx; height:12rpx; margin-top:11rpx; border-radius:50%; background:transparent; flex-shrink:0; }.unread .dot { background:var(--yb-brand); }.body { flex:1; min-width:0; }.title,.content,.time { display:block; }.title { color:#1d2129; font-size:28rpx; font-weight:600; }.content { color:#4e5969; font-size:24rpx; line-height:1.5; margin-top:6rpx; }.time { color:#86909c; font-size:20rpx; margin-top:8rpx; }.right { flex-shrink:0; flex-direction:column; align-items:flex-end; gap:8rpx; }.delete { font-size:22rpx; }.arrow { color:#c9cdd4; font-size:32rpx; line-height:1; }
+.notification-page { min-height:100%; padding:24rpx; }.toolbar,.toolbar-actions,.right { display:flex; align-items:center; }.toolbar { justify-content:space-between; padding:8rpx 8rpx 20rpx; }.toolbar-text { color:#86909c; font-size:22rpx; }.toolbar-actions { gap:24rpx; }.action { color:var(--yb-brand); font-size:24rpx; }.action.danger,.delete { color:#f53f3f; }.disabled { color:#c9cdd4; }.list { background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); overflow:hidden; }.item { display:flex; align-items:flex-start; padding:24rpx 20rpx; border-bottom:1rpx solid var(--yb-border); gap:14rpx; }.item:last-child { border:none; }.dot { width:12rpx; height:12rpx; margin-top:11rpx; border-radius:50%; background:transparent; flex-shrink:0; }.unread .dot { background:var(--yb-brand); }.body { flex:1; min-width:0; }.title,.content,.time { display:block; }.title { color:#1d2129; font-size:28rpx; font-weight:600; }.content { color:#4e5969; font-size:24rpx; line-height:1.5; margin-top:6rpx; }.time { color:#86909c; font-size:20rpx; margin-top:8rpx; }.right { flex-shrink:0; flex-direction:column; align-items:flex-end; gap:8rpx; }.delete { font-size:22rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 </style>
