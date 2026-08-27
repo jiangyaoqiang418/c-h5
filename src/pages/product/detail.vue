@@ -239,8 +239,8 @@ function goBack() {
 </script>
 
 <template>
-  <view v-if="product" class="detail-page">
-    <view class="nav"><view class="nav-btn" @click="goBack"><view class="chev" /></view></view>
+  <view v-if="product" class="detail-page yb-page">
+    <view class="nav"><view class="nav-btn yb-pressable" @click="goBack"><wd-icon name="arrow-left" size="22px" color="#151820" /></view></view>
 
     <swiper :indicator-dots="true" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
       <swiper-item v-for="(url, index) in product.images" :key="`${url}-${index}`">
@@ -319,10 +319,9 @@ function goBack() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); background: #fafaf7; }
+.detail-page { min-height: 100%; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
-.nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.92); }
-.chev { width: 24rpx; height: 24rpx; border-left: 5rpx solid #0f111a; border-bottom: 5rpx solid #0f111a; transform: rotate(45deg); }
+.nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }
 .gallery-image { width: 100%; height: 100%; }
 .gallery-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #86909c; font-size: 24rpx; }
@@ -351,7 +350,7 @@ function goBack() {
 .review-row { padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
 .review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
-.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #edece6; background: #fff; }
-.tool { display: flex; flex-direction: column; align-items: center; min-width: 72rpx; color: #6b7385; font-size: 18rpx; }
-.quantity { display: flex; align-items: center; gap: 18rpx; padding: 12rpx 16rpx; border-radius: 8rpx; background: #fafaf7; font-size: 24rpx; }
+.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 8rpx; padding: 14rpx 16rpx calc(14rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
+.tool { display: flex; flex-direction: column; align-items: center; min-width: 58rpx; color: #6b7385; font-size: 18rpx; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; padding:0 12rpx; }
+.quantity { display: flex; flex-shrink:0; align-items: center; gap: 14rpx; padding: 12rpx 12rpx; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }
 </style>
