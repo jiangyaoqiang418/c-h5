@@ -23,15 +23,16 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
-  border-top: 1rpx solid #f2f3f5;
+  background: var(--yb-elevated);
+  border-top: 1rpx solid var(--yb-hairline);
+  box-shadow: 0 -8rpx 32rpx rgba(15, 17, 26, 0.05);
   z-index: 100;
 }
 .content {
-  padding: 16rpx 24rpx;
+  padding: 16rpx 32rpx;
 }
 .safe-area {
   height: env(safe-area-inset-bottom);
-  background: #fff;
+  background: var(--yb-elevated);
 }
 </style>

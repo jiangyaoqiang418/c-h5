@@ -10,6 +10,7 @@ import { fetchPointAccount, type PointAccount } from '@/service/api/point';
 import { countBoughtOrdersByStatus, countSoldOrdersByStatus } from '@/service/api/order';
 import { fetchImUnreadCount, fetchNotificationUnreadCount } from '@/service/api/notify';
 import { useUserStore, useWalletStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
@@ -67,36 +68,36 @@ const orderTabs = computed(() => [
 const cells = computed(() => {
   if (!user.value) {
     return [
-      { label: '帮助中心', icon: '?', go: () => go('/pages/help/index') }
+      { label: '帮助中心', icon: 'service', go: () => go('/pages/help/index') }
     ];
   }
   const buyerActive = userStore.isBuyerActive;
   if (buyerActive) {
     return [
-      { label: '买手仪表盘', icon: '▦', go: () => go('/pages/buyer/dashboard') },
-      { label: '商品管理', icon: '□', go: () => go('/pages/buyer/products') },
-      { label: '我的收藏', icon: '☆', go: () => go('/pages/my/favorites') },
-      { label: '买手押金', icon: '▣', go: () => go('/pages/buyer/deposit') },
-      { label: '我的钱包', icon: '◈', go: () => go('/pages/wallet/index') },
-      { label: '小金库', icon: '◒', go: () => go('/pages/finance/list') },
-      { label: '我的评价', icon: '★', go: () => go('/pages/review/list') },
-      { label: 'VIP 特权', icon: '♛', go: () => go('/pages/vip/index') },
-      { label: 'KYC 认证', icon: '✓', go: () => go('/pages/kyc/index') }
+      { label: '买手仪表盘', icon: 'chart', go: () => go('/pages/buyer/dashboard') },
+      { label: '商品管理', icon: 'goods', go: () => go('/pages/buyer/products') },
+      { label: '我的收藏', icon: 'star', go: () => go('/pages/my/favorites') },
+      { label: '买手押金', icon: 'shield', go: () => go('/pages/buyer/deposit') },
+      { label: '我的钱包', icon: 'wallet', go: () => go('/pages/wallet/index') },
+      { label: '小金库', icon: 'money-circle', go: () => go('/pages/finance/list') },
+      { label: '我的评价', icon: 'comment', go: () => go('/pages/review/list') },
+      { label: 'VIP 特权', icon: 'gift', go: () => go('/pages/vip/index') },
+      { label: 'KYC 认证', icon: 'shield', go: () => go('/pages/kyc/index') }
     ];
   }
   return [
-    { label: '我的钱包', icon: '◈', go: () => go('/pages/wallet/index') },
-    { label: '我的收藏', icon: '☆', go: () => go('/pages/my/favorites') },
-    { label: '小金库', icon: '◒', go: () => go('/pages/finance/list') },
-    { label: '我的求购', icon: '⌕', go: () => go('/pages/purchase/my-list') },
-    { label: '买手申请', icon: '▤', go: () => go('/pages/buyer/apply') },
-    { label: '我的售后', icon: '◇', go: () => go('/pages/aftersale/list') },
-    { label: '我的评价', icon: '★', go: () => go('/pages/review/list') },
-    { label: '我的积分', icon: '◎', go: () => go('/pages/my/points') },
-    { label: '地址管理', icon: '⌖', go: () => go('/pages/my/addresses') },
-    { label: 'KYC 认证', icon: '✓', go: () => go('/pages/kyc/index') },
-    { label: 'VIP 特权', icon: '♛', go: () => go('/pages/vip/index') },
-    { label: '帮助中心', icon: '?', go: () => go('/pages/help/index') }
+    { label: '我的钱包', icon: 'wallet', go: () => go('/pages/wallet/index') },
+    { label: '我的收藏', icon: 'star', go: () => go('/pages/my/favorites') },
+    { label: '小金库', icon: 'money-circle', go: () => go('/pages/finance/list') },
+    { label: '我的求购', icon: 'search', go: () => go('/pages/purchase/my-list') },
+    { label: '买手申请', icon: 'shop', go: () => go('/pages/buyer/apply') },
+    { label: '我的售后', icon: 'service', go: () => go('/pages/aftersale/list') },
+    { label: '我的评价', icon: 'comment', go: () => go('/pages/review/list') },
+    { label: '我的积分', icon: 'medal', go: () => go('/pages/my/points') },
+    { label: '地址管理', icon: 'location', go: () => go('/pages/my/addresses') },
+    { label: 'KYC 认证', icon: 'shield', go: () => go('/pages/kyc/index') },
+    { label: 'VIP 特权', icon: 'gift', go: () => go('/pages/vip/index') },
+    { label: '帮助中心', icon: 'service', go: () => go('/pages/help/index') }
   ];
 });
 
@@ -128,15 +129,14 @@ function goAiChat() {
 
 <template>
   <view class="my-page h5-tab-page">
-    <!-- 用户卡 -->
-    <view class="user-card">
+    <view class="user-card" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.account})` }">
       <view v-if="user" class="bell-btn" @click="goMessages">
-        <text class="local-icon">♢</text>
+        <wd-icon name="chat" size="20px" />
         <view v-if="unreadCount > 0" class="bell-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
       </view>
 
       <view v-if="user" class="user-row">
-        <view class="avatar">{{ user.nickname.slice(0, 1) }}</view>
+        <image class="avatar" :src="UI_ASSETS.placeholders.avatar" mode="aspectFill" />
         <view class="info">
           <view class="name-row">
             <text class="name">{{ user.nickname }}</text>
@@ -149,7 +149,7 @@ function goAiChat() {
         </view>
       </view>
       <view v-else class="user-row guest">
-        <view class="avatar">?</view>
+        <image class="avatar" :src="UI_ASSETS.placeholders.avatar" mode="aspectFill" />
         <view class="info">
           <text class="name">未登录</text>
           <text class="email">登录后享受全部功能</text>
@@ -178,24 +178,24 @@ function goAiChat() {
     </view>
 
     <!-- AI 导购 CTA 横条 -->
-    <view v-if="user" class="ai-cta" @click="goAiChat">
+    <view v-if="user" class="ai-cta" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.ai})` }" @click="goAiChat">
       <view class="ai-left">
         <view class="ai-icon-wrap">
-          <text class="local-icon">✦</text>
+          <wd-icon name="flash" size="22px" />
         </view>
         <view class="ai-copy">
           <text class="ai-title">AI 智能导购</text>
           <text class="ai-sub">告诉我你要什么 · 全球买手 24h 应答</text>
         </view>
       </view>
-      <text class="ai-arrow">›</text>
+      <wd-icon name="arrow-right" size="18px" />
     </view>
 
     <!-- 订单概况 -->
     <view v-if="user" class="section">
       <view class="section-head">
         <text class="section-title">订单概况</text>
-        <text class="more" @click="go('/pages/order/list')">查看全部 ›</text>
+        <view class="more" @click="go('/pages/order/list')">查看全部 <wd-icon name="arrow-right" size="12px" /></view>
       </view>
       <view class="order-tabs">
         <view
@@ -218,7 +218,7 @@ function goAiChat() {
       <view class="cell-grid" :class="{ guest: !user }">
         <view v-for="c in cells" :key="c.label" class="cell" @click="c.go()">
           <view class="cell-icon-wrap">
-            <text class="local-icon">{{ c.icon }}</text>
+            <wd-icon :name="c.icon" size="22px" />
           </view>
           <text class="cell-label">{{ c.label }}</text>
         </view>
@@ -233,15 +233,15 @@ function goAiChat() {
 </template>
 
 <style lang="scss" scoped>
-.local-icon { font-size: 32rpx; line-height: 1; }
 .my-page {
   min-height: 100%;
-  background: #FAFAF7;
 }
 .user-card {
-  background: linear-gradient(135deg, #4d80f0 0%, #722ed1 100%);
+  background-color: #10131f;
+  background-size: cover;
+  background-position: center;
   color: #fff;
-  padding: 32rpx;
+  padding: 36rpx 28rpx 28rpx;
   position: relative;
 }
 .bell-btn {
@@ -293,16 +293,11 @@ function goAiChat() {
   display: block;
 }
 .avatar {
-  width: 96rpx;
-  height: 96rpx;
+  width: 104rpx;
+  height: 104rpx;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40rpx;
-  font-weight: 700;
+  border: 2rpx solid rgba(255, 255, 255, 0.48);
 }
 .info {
   flex: 1;
@@ -364,11 +359,13 @@ function goAiChat() {
   justify-content: space-between;
   align-items: center;
   gap: 20rpx;
-  background: linear-gradient(135deg, #6B4EFF 0%, #4D80F0 100%);
+  background-color: #20146a;
+  background-size: cover;
+  background-position: center;
   color: #fff;
-  border-radius: 20rpx;
-  margin: 20rpx 20rpx 0;
-  padding: 28rpx 32rpx;
+  border-radius: var(--yb-radius-lg);
+  margin: 24rpx 24rpx 0;
+  padding: 28rpx;
 }
 .ai-left {
   display: flex;
@@ -410,10 +407,11 @@ function goAiChat() {
 /* Sections */
 .section {
   background: #fff;
-  margin: 20rpx 20rpx 0;
-  border-radius: 20rpx;
-  border: 1rpx solid #EDECE6;
+  margin: 24rpx 24rpx 0;
+  border-radius: var(--yb-radius-lg);
+  border: 1rpx solid var(--yb-border);
   padding: 20rpx;
+  box-shadow: var(--yb-shadow-card);
 }
 .section-head {
   display: flex;
@@ -428,6 +426,9 @@ function goAiChat() {
   letter-spacing: -0.5rpx;
 }
 .more {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
   font-size: 22rpx;
   color: #86909c;
 }
@@ -457,7 +458,7 @@ function goAiChat() {
 .cell-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
+  gap: 8rpx 0;
 }
 .cell-grid.guest {
   display: flex;
@@ -468,19 +469,19 @@ function goAiChat() {
   box-sizing: border-box;
 }
 .cell {
-  width: calc((100% - 36rpx) / 4);
+  width: 20%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20rpx 8rpx;
-  gap: 12rpx;
+  padding: 16rpx 4rpx;
+  gap: 10rpx;
 }
 .cell-icon-wrap {
-  width: 80rpx;
-  height: 80rpx;
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 50%;
-  background: #FAFAF7;
+  background: var(--yb-bg-muted);
   display: flex;
   align-items: center;
   justify-content: center;

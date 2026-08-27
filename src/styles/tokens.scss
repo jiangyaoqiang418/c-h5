@@ -1,63 +1,199 @@
 /**
- * H5 全局设计 tokens —— 油宝品牌视觉系统（H5 版）
- * 「全亮色高级感 + 科技细节点缀」
- *
- * H5 使用 rpx 作为设计单位（750rpx 基准）；px 单位仅用于 border 等细节
+ * 油宝新版移动端设计 Token
+ * 设计基准：750rpx，亮色交易产品界面。
+ * Wot Design Uni 仅在本层覆写主题，业务页面不可重复定义基础色和基础字号。
  */
 
-:root {
-  /* ==================== 基础层 ==================== */
-  --yb-bg:           #FAFAF7;
-  --yb-surface:      #FFFFFF;
-  --yb-elevated:     #FFFFFF;
-  --yb-hairline:     #EDECE6;
+:root,
+page {
+  /* 基础色 */
+  --yb-bg: #fafaf7;
+  --yb-surface: #ffffff;
+  --yb-elevated: #ffffff;
+  --yb-hairline: #edece6;
+  --yb-hairline-2: #e4e2da;
+  --yb-ink: #0f111a;
+  --yb-ink-2: #1d2129;
+  --yb-muted: #6b7385;
+  --yb-faint: #a8adb8;
 
-  /* ==================== 文字层 ==================== */
-  --yb-ink:          #0F111A;
-  --yb-ink-2:        #1D2129;
-  --yb-muted:        #6B7385;
-  --yb-faint:        #A8ADB8;
-
-  /* ==================== 品牌 accent ==================== */
-  --yb-primary:      #5B5CE7;
-  --yb-primary-2:    #7C5CFC;
+  /* 品牌与业务色 */
+  --yb-brand: #fa243c;
+  --yb-brand-active: #e01f35;
+  --yb-brand-soft: rgba(250, 36, 60, 0.08);
+  --yb-primary: #5b5ce7;
+  --yb-primary-2: #7c5cfc;
   --yb-primary-soft: rgba(91, 92, 231, 0.08);
-  --yb-gold:         #B8935A;
-  --yb-gold-2:       #D4A574;
-  --yb-champagne:    #F6EFE4;
+  --yb-gold: #b8935a;
+  --yb-gold-2: #d4a574;
+  --yb-champagne: #f6efe4;
+  --yb-deep: #0f1b36;
+  --yb-deep-2: #1e1f3a;
 
-  /* ==================== 语义色 ==================== */
-  --yb-success:      #00A88A;
-  --yb-danger:       #E74C3C;
-  --yb-warning:      #D4A574;
-  --yb-info:         #5B5CE7;
+  /* 语义色 */
+  --yb-success: #00a88a;
+  --yb-success-soft: rgba(0, 168, 138, 0.08);
+  --yb-warning: #d4a574;
+  --yb-warning-soft: rgba(212, 165, 116, 0.12);
+  --yb-danger: #e74c3c;
+  --yb-danger-soft: rgba(231, 76, 60, 0.08);
+  --yb-info: var(--yb-primary);
+  --yb-overlay: rgba(15, 17, 26, 0.48);
 
-  /* ==================== 深色 accent ==================== */
-  --yb-deep:         #0F1B36;
-  --yb-deep-2:       #1E1F3A;
+  /* 字体 */
+  --yb-font-display: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --yb-font-body: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --yb-font-mono: ui-monospace, 'SF Mono', 'Roboto Mono', Consolas, monospace;
 
-  /* ==================== Typography ==================== */
-  --yb-font-display: 'PingFang SC', -apple-system, BlinkMacSystemFont, ui-sans-serif, sans-serif;
-  --yb-font-body:    'PingFang SC', -apple-system, BlinkMacSystemFont, ui-sans-serif, sans-serif;
-  --yb-font-mono:    ui-monospace, 'SF Mono', Consolas, monospace;
+  /* 字号 */
+  --yb-fs-micro: 20rpx;
+  --yb-fs-caption: 22rpx;
+  --yb-fs-body-sm: 24rpx;
+  --yb-fs-body: 28rpx;
+  --yb-fs-body-lg: 30rpx;
+  --yb-fs-title-sm: 32rpx;
+  --yb-fs-nav-title: 36rpx;
+  --yb-fs-section-title: 40rpx;
+  --yb-fs-display-sm: 48rpx;
+  --yb-fs-amount-md: 56rpx;
+  --yb-fs-amount-lg: 64rpx;
+  --yb-fs-hero: 80rpx;
+  --yb-fs-maximum: 96rpx;
+
+  /* 间距与形状 */
+  --yb-space-1: 8rpx;
+  --yb-space-2: 12rpx;
+  --yb-space-3: 16rpx;
+  --yb-space-4: 24rpx;
+  --yb-space-5: 32rpx;
+  --yb-space-6: 40rpx;
+  --yb-space-7: 48rpx;
+  --yb-space-8: 64rpx;
+  --yb-space-9: 80rpx;
+  --yb-page-padding: 32rpx;
+  --yb-radius-xs: 8rpx;
+  --yb-radius-sm: 12rpx;
+  --yb-radius-md: 20rpx;
+  --yb-radius-lg: 28rpx;
+  --yb-radius-card: 32rpx;
+  --yb-radius-sheet: 40rpx;
+  --yb-radius-pill: 999rpx;
+
+  /* 阴影与动效 */
+  --yb-shadow-card: 0 2rpx 6rpx rgba(15, 17, 26, 0.04), 0 16rpx 48rpx rgba(15, 17, 26, 0.04);
+  --yb-shadow-float: 0 8rpx 24rpx rgba(15, 17, 26, 0.06), 0 32rpx 64rpx rgba(15, 17, 26, 0.1);
+  --yb-shadow-tech: 0 0 64rpx rgba(91, 92, 231, 0.1), 0 24rpx 48rpx rgba(15, 17, 26, 0.08);
+  --yb-motion-fast: 120ms;
+  --yb-motion-normal: 200ms;
+  --yb-motion-slow: 320ms;
+  --yb-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Wot Design Uni 主题覆写 */
+  --wot-color-theme: var(--yb-brand);
+  --wot-color-success: var(--yb-success);
+  --wot-color-warning: var(--yb-warning);
+  --wot-color-danger: var(--yb-danger);
+  --wot-color-title: var(--yb-ink);
+  --wot-color-content: var(--yb-ink-2);
+  --wot-color-secondary: var(--yb-muted);
+  --wot-color-aid: var(--yb-muted);
+  --wot-color-tip: var(--yb-faint);
+  --wot-color-border: var(--yb-hairline-2);
+  --wot-color-border-light: var(--yb-hairline);
+  --wot-color-bg: var(--yb-bg);
+  --wot-size-side-padding: 32rpx;
+  --wot-fs-title: 32rpx;
+  --wot-fs-content: 28rpx;
+  --wot-fs-secondary: 24rpx;
+  --wot-fs-aid: 20rpx;
+  --wot-fw-medium: 500;
+  --wot-fw-semibold: 600;
+  --wot-navbar-height: 88rpx;
+  --wot-navbar-title-font-size: 36rpx;
+  --wot-navbar-title-font-weight: 600;
+  --wot-button-large-height: 104rpx;
+  --wot-button-large-radius: 28rpx;
+  --wot-button-large-fs: 32rpx;
+  --wot-button-medium-height: 88rpx;
+  --wot-button-medium-radius: 24rpx;
+  --wot-button-medium-fs: 28rpx;
+  --wot-button-small-height: 64rpx;
+  --wot-button-small-radius: 20rpx;
+  --wot-button-small-fs: 24rpx;
+  --wot-action-sheet-radius: 40rpx;
+  --wot-action-sheet-action-height: 96rpx;
+  --wot-message-box-radius: 32rpx;
+  --wot-tabs-nav-height: 88rpx;
+  --wot-tabs-nav-fs: 28rpx;
+  --wot-tabs-nav-line-height: 6rpx;
+  --wot-tabs-nav-line-width: 36rpx;
+  --wot-search-input-height: 72rpx;
+  --wot-search-input-radius: 36rpx;
+  --wot-tabbar-height: 100rpx;
+  --wot-tabbar-active-color: var(--yb-brand);
+  --wot-tabbar-inactive-color: var(--yb-muted);
 }
 
-/* H5 页面基础 style */
 page {
   background: var(--yb-bg);
   color: var(--yb-ink-2);
   font-family: var(--yb-font-body);
+  font-size: var(--yb-fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* 数字字体 helper */
-.yb-mono {
-  font-family: var(--yb-font-mono);
-  font-variant-numeric: tabular-nums;
+.yb-page {
+  width: 100%;
+  max-width: 750rpx;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--yb-page-padding) calc(var(--yb-space-5) + env(safe-area-inset-bottom));
+  background: var(--yb-bg);
+  box-sizing: border-box;
 }
 
-/* 标题字体 helper */
+.yb-card {
+  padding: var(--yb-space-4);
+  border: 1rpx solid var(--yb-hairline);
+  border-radius: var(--yb-radius-card);
+  background: var(--yb-surface);
+}
+
+.yb-card--elevated {
+  border-color: transparent;
+  box-shadow: var(--yb-shadow-card);
+}
+
 .yb-display {
+  color: var(--yb-ink);
   font-family: var(--yb-font-display);
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.yb-mono {
+  font-family: var(--yb-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.yb-pressable {
+  transition: transform var(--yb-motion-fast) var(--yb-ease-out), background-color var(--yb-motion-fast) ease;
+}
+
+.yb-pressable:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yb-pressable {
+    transition: none;
+  }
+
+  .yb-pressable:active {
+    transform: none;
+  }
 }

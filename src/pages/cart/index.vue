@@ -4,6 +4,7 @@ import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go, requireLogin } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useCartStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const cart = useCartStore();
 const items = computed(() => cart.enrichedItems);
@@ -33,16 +34,18 @@ async function goCheckout() {
 </script>
 
 <template>
-  <view class="cart-page h5-tab-page" :class="{ 'has-items': items.length > 0 }">
+  <view class="cart-page yb-page h5-tab-page" :class="{ 'has-items': items.length > 0 }">
     <template v-if="items.length">
       <view class="list">
         <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">
-          <view class="check" @click="cart.setSelected(item.key, !item.selected)">
-            <text class="dot" :class="{ on: item.selected }">{{ item.selected ? '✓' : '' }}</text>
+          <view class="check yb-pressable" @click="cart.setSelected(item.key, !item.selected)">
+            <view class="dot" :class="{ on: item.selected }">
+              <wd-icon v-if="item.selected" name="check" size="18px" color="#fff" />
+            </view>
           </view>
           <image
             v-if="item.product"
-            :src="item.product.cover || `https://picsum.photos/seed/${item.productId}/200/200`"
+            :src="item.product.cover || UI_ASSETS.placeholders.product"
             mode="aspectFill"
             class="cover"
           />
@@ -54,20 +57,24 @@ async function goCheckout() {
                 <text class="price-cny">{{ formatUsdt(item.product?.price || 0) }}</text>
                 <text class="price-usdt">≈ {{ formatCny(item.product?.price || 0) }}</text>
               </view>
-              <view class="qty">
-                <text class="qty-btn" @click="cart.update(item.key, item.qty - 1)">-</text>
+              <view class="qty" @click.stop>
+                <view class="qty-btn yb-pressable" @click="cart.update(item.key, item.qty - 1)">
+                  <wd-icon name="minus" size="14px" />
+                </view>
                 <text class="qty-val">{{ item.qty }}</text>
-                <text class="qty-btn" @click="cart.update(item.key, item.qty + 1)">+</text>
+                <view class="qty-btn yb-pressable" @click="cart.update(item.key, item.qty + 1)">
+                  <wd-icon name="add" size="14px" />
+                </view>
               </view>
             </view>
           </view>
-          <text class="del" @click="remove(item.key)">✕</text>
+          <view class="del yb-pressable" @click="remove(item.key)"><wd-icon name="close" size="18px" /></view>
         </view>
       </view>
 
       <view class="bottom-bar">
-        <view class="all-check" @click="setAll(!cart.allSelected)">
-          <text class="dot" :class="{ on: cart.allSelected }">{{ cart.allSelected ? '✓' : '' }}</text>
+        <view class="all-check yb-pressable" @click="setAll(!cart.allSelected)">
+          <view class="dot" :class="{ on: cart.allSelected }"><wd-icon v-if="cart.allSelected" name="check" size="18px" color="#fff" /></view>
           <text class="label">全选</text>
         </view>
         <view class="amount-block">
@@ -90,56 +97,51 @@ async function goCheckout() {
 </template>
 
 <style lang="scss" scoped>
-.cart-page {
-  min-height: 100%;
-  background: #f7f8fa;
-}
 .cart-page.has-items {
   /* 仅预留结算栏本身的高度，tabBar 已由窗口层扣除。 */
   padding-bottom: calc(184rpx + env(safe-area-inset-bottom));
 }
 .list {
-  padding: 16rpx;
+  padding: 24rpx 24rpx 8rpx;
 }
 .row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  background: #fff;
+  gap: 20rpx;
+  background: var(--yb-surface);
   padding: 24rpx;
-  border-radius: 16rpx;
-  margin-bottom: 16rpx;
+  border-radius: var(--yb-radius-lg);
+  margin-bottom: 20rpx;
+  box-shadow: var(--yb-shadow-card);
 }
 .row.invalid {
   opacity: 0.55;
 }
 .check {
-  width: 48rpx;
-  height: 48rpx;
+  width: 40rpx;
+  height: 40rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .dot {
-  width: 36rpx;
-  height: 36rpx;
+  width: 32rpx;
+  height: 32rpx;
   border-radius: 50%;
-  border: 2rpx solid #c9cdd4;
+  border: 2rpx solid var(--yb-border-strong);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 22rpx;
-  font-weight: 700;
 }
 .dot.on {
-  border-color: #4d80f0;
-  background: #4d80f0;
+  border-color: var(--yb-brand);
+  background: var(--yb-brand);
 }
 .cover {
-  width: 140rpx;
-  height: 140rpx;
-  border-radius: 8rpx;
+  width: 156rpx;
+  height: 156rpx;
+  border-radius: var(--yb-radius-md);
   flex-shrink: 0;
 }
 .info {
@@ -151,15 +153,16 @@ async function goCheckout() {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 26rpx;
-  color: #1d2129;
-  margin-bottom: 4rpx;
+  font-size: var(--yb-font-md);
+  color: var(--yb-text);
+  line-height: 1.45;
+  margin-bottom: 8rpx;
 }
 .seller {
   display: block;
-  font-size: 20rpx;
-  color: #86909c;
-  margin-bottom: 12rpx;
+  font-size: var(--yb-font-xs);
+  color: var(--yb-text-tertiary);
+  margin-bottom: 16rpx;
 }
 .price-row {
   display: flex;
@@ -171,55 +174,54 @@ async function goCheckout() {
   flex-direction: column;
 }
 .price-cny {
-  color: #0F111A;
+  color: var(--yb-text);
   font-weight: 700;
-  font-size: 30rpx;
-  font-family: ui-monospace, monospace;
+  font-size: var(--yb-font-lg);
+  font-family: var(--yb-font-mono);
   letter-spacing: -0.5rpx;
   font-variant-numeric: tabular-nums;
 }
 .price-usdt {
-  font-size: 20rpx;
-  color: #6B7385;
-  font-family: ui-monospace, monospace;
-  margin-top: 2rpx;
+  font-size: var(--yb-font-xs);
+  color: var(--yb-text-tertiary);
+  font-family: var(--yb-font-mono);
+  margin-top: 4rpx;
 }
 .qty {
   display: flex;
   align-items: center;
-  background: #f7f8fa;
-  border-radius: 8rpx;
+  background: var(--yb-bg-muted);
+  border-radius: var(--yb-radius-sm);
 }
 .qty-btn {
-  width: 48rpx;
-  height: 48rpx;
+  width: 44rpx;
+  height: 44rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26rpx;
-  color: #4e5969;
+  color: var(--yb-text-secondary);
 }
 .qty-val {
-  width: 56rpx;
+  width: 48rpx;
   text-align: center;
-  font-size: 24rpx;
+  font-size: var(--yb-font-sm);
 }
 .del {
-  color: #c9cdd4;
-  font-size: 32rpx;
-  padding: 8rpx;
+  color: var(--yb-text-tertiary);
+  padding: 8rpx 0 8rpx 8rpx;
 }
 .bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
-  padding: 16rpx 40rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: var(--yb-surface);
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 16rpx;
-  border-top: 1rpx solid #f2f3f5;
+  border-top: 1rpx solid var(--yb-border);
+  box-shadow: 0 -8rpx 24rpx rgba(24, 29, 42, 0.04);
 }
 /* #ifdef H5 */
 .bottom-bar { bottom: 50px; }
@@ -228,10 +230,10 @@ async function goCheckout() {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  gap: 12rpx;
+  gap: 10rpx;
 }
 .all-check .label {
-  font-size: 24rpx;
+  font-size: var(--yb-font-sm);
 }
 .amount-block {
   flex: 1;
@@ -241,21 +243,21 @@ async function goCheckout() {
   gap: 2rpx;
 }
 .amount-label {
-  font-size: 20rpx;
-  color: #6B7385;
+  font-size: var(--yb-font-xs);
+  color: var(--yb-text-tertiary);
 }
 .amount-cny {
-  color: #0F111A;
+  color: var(--yb-text);
   font-weight: 700;
-  font-size: 34rpx;
-  font-family: ui-monospace, monospace;
+  font-size: var(--yb-font-xl);
+  font-family: var(--yb-font-mono);
   letter-spacing: -0.5rpx;
   font-variant-numeric: tabular-nums;
 }
 .amount-usdt {
-  font-size: 20rpx;
-  color: #6B7385;
-  font-family: ui-monospace, monospace;
+  font-size: var(--yb-font-xs);
+  color: var(--yb-text-tertiary);
+  font-family: var(--yb-font-mono);
 }
 .meta {
   display: block;

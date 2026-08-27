@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { productImageUrl } from '@shared/utils/image';
 import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface Props {
   product: Api.Product.ProductRecord | Api.RealProduct.ProductDTO | Api.RealProduct.ProductListVO;
@@ -49,9 +50,9 @@ function goDetail() {
   <view class="p-card" @click="goDetail">
     <view class="cover-wrap">
       <image v-if="cover && !imgError" :src="cover" mode="aspectFill" class="cover" @error="onImgError" />
-      <view v-else class="cover image-fallback">暂无图片</view>
+      <image v-else :src="UI_ASSETS.placeholders.product" mode="aspectFit" class="cover image-fallback" />
       <view v-if="overseas" class="badge overseas">
-        <text>🌏 海外直邮</text>
+        <text>海外直邮</text>
       </view>
       <view v-if="product.stock === 0" class="sold-out">
         <text>已售罄</text>
@@ -74,12 +75,12 @@ function goDetail() {
 
 <style lang="scss" scoped>
 .p-card {
-  background: #FFFFFF;
-  border-radius: 24rpx;
+  background: var(--yb-surface);
+  border-radius: var(--yb-radius-card);
   overflow: hidden;
   transition: transform 0.2s;
-  box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.04);
-  border: 1rpx solid #EDECE6;
+  box-shadow: var(--yb-shadow-card);
+  border: 1rpx solid var(--yb-hairline);
 }
 .p-card:active {
   transform: scale(0.98);
@@ -88,7 +89,7 @@ function goDetail() {
   position: relative;
   width: 100%;
   aspect-ratio: 1/1;
-  background: #EDECE6;
+  background: var(--yb-champagne);
   overflow: hidden;
 }
 .cover {
@@ -97,11 +98,7 @@ function goDetail() {
   display: block;
 }
 .image-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #86909c;
-  font-size: 22rpx;
+  padding: 24rpx;
 }
 .badge {
   position: absolute;
@@ -114,7 +111,7 @@ function goDetail() {
 }
 .badge.overseas {
   background: rgba(184, 147, 90, 0.92);
-  color: #FFFFFF;
+  color: var(--yb-surface);
 }
 .sold-out {
   position: absolute;
@@ -123,7 +120,7 @@ function goDetail() {
   align-items: center;
   justify-content: center;
   background: rgba(250, 250, 247, 0.88);
-  color: #6B7385;
+  color: var(--yb-muted);
   font-size: 30rpx;
   font-weight: 600;
   letter-spacing: 4rpx;
@@ -138,7 +135,7 @@ function goDetail() {
   font-size: 18rpx;
   letter-spacing: 2rpx;
   text-transform: uppercase;
-  color: #6B7385;
+  color: var(--yb-muted);
 }
 .title {
   display: -webkit-box;
@@ -148,7 +145,7 @@ function goDetail() {
   font-size: 26rpx;
   font-weight: 600;
   line-height: 1.4;
-  color: #0F111A;
+  color: var(--yb-ink);
   min-height: 72rpx;
   letter-spacing: -0.5rpx;
 }
@@ -162,7 +159,7 @@ function goDetail() {
   font-family: ui-monospace, monospace;
   font-size: 34rpx;
   font-weight: 700;
-  color: #0F111A;
+  color: var(--yb-ink);
   letter-spacing: -1rpx;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -170,14 +167,14 @@ function goDetail() {
 .usdt {
   font-family: ui-monospace, monospace;
   font-size: 18rpx;
-  color: #6B7385;
+  color: var(--yb-muted);
   font-weight: 500;
 }
 .bottom {
   display: flex;
   justify-content: space-between;
   font-size: 20rpx;
-  color: #A8ADB8;
+  color: var(--yb-faint);
   margin-top: 4rpx;
 }
 .seller {

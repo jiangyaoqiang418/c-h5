@@ -11,11 +11,14 @@ onLaunch(async () => {
 </script>
 
 <style lang="scss">
-/* 全局样式 */
-page {
-  background-color: #f7f8fa;
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
-  color: #1d2129;
+/* 全局基础样式由 styles/tokens.scss 统一维护。 */
+view,
+text,
+image,
+button,
+input,
+textarea {
+  box-sizing: border-box;
 }
 
 /*
@@ -50,7 +53,7 @@ page > .login-page {
 
 /* #ifdef H5 */
 uni-page-head {
-  box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.1);
+  box-shadow: 0 4rpx 16rpx rgba(15, 17, 26, 0.05);
 }
 
 uni-page-wrapper > uni-page-body {

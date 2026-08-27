@@ -7,6 +7,7 @@ import AudienceSegment from '@/components/common/audience-segment.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { claimRequest, fetchHall } from '@/service/api/purchase';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const list = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
@@ -64,8 +65,8 @@ function goCreate() {
 </script>
 
 <template>
-  <view class="hall-page h5-tab-page">
-    <view class="hero">
+  <view class="hall-page yb-page h5-tab-page">
+    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.purchase})` }">
       <text class="hero-eyebrow">PURCHASE HALL · REAL-TIME</text>
       <text class="hero-title">求购大厅</text>
       <text class="hero-sub">USDT 担保 · 全球买手 · 24h 接单</text>
@@ -73,13 +74,14 @@ function goCreate() {
         <AudienceSegment />
         <view class="hero-actions">
           <wd-button plain size="small" @click="goMy">我的求购</wd-button>
-          <wd-button type="primary" size="small" @click="goCreate">+ 发起</wd-button>
+          <wd-button type="primary" size="small" @click="goCreate"><wd-icon name="add" size="15px" /> 发起</wd-button>
         </view>
       </view>
     </view>
 
     <view v-if="canClaim" class="tip">
-      <text>🙋 您是认证买手，下方为推送给您的求购任务</text>
+      <wd-icon name="shield" size="16px" />
+      <text>您是认证买手，下方为推送给您的求购任务</text>
     </view>
 
     <view class="list">
@@ -110,34 +112,34 @@ function goCreate() {
 </template>
 
 <style lang="scss" scoped>
-.hall-page {
-  min-height: 100%;
-  background: #FAFAF7;
-}
 .hero {
-  background: #FFFFFF;
-  border-bottom: 1rpx solid #EDECE6;
-  padding: 40rpx 32rpx 32rpx;
+  background-color: #10131f;
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  padding: 44rpx 28rpx 32rpx;
+  position: relative;
+  overflow: hidden;
 }
 .hero-eyebrow {
   display: block;
   font-size: 20rpx;
   font-weight: 700;
   letter-spacing: 3rpx;
-  color: #6B7385;
+  color: rgba(255, 255, 255, 0.66);
   margin-bottom: 12rpx;
 }
 .hero-title {
   display: block;
   font-size: 48rpx;
   font-weight: 700;
-  color: #0F111A;
+  color: #fff;
   letter-spacing: -1rpx;
 }
 .hero-sub {
   display: block;
   font-size: 24rpx;
-  color: #6B7385;
+  color: rgba(255, 255, 255, 0.76);
   margin: 8rpx 0 24rpx;
 }
 .hero-row {
@@ -150,16 +152,22 @@ function goCreate() {
   display: flex;
   gap: 8rpx;
 }
+.hero-actions :deep(.wd-button) {
+  min-width: 112rpx;
+}
 .tip {
-  background: #F6EFE4;
-  color: #B8935A;
-  padding: 16rpx 24rpx;
-  font-size: 22rpx;
-  margin: 16rpx;
-  border-radius: 12rpx;
-  border: 1rpx solid rgba(184, 147, 90, 0.24);
+  background: #fff5f6;
+  color: #b91b31;
+  padding: 16rpx 20rpx;
+  font-size: var(--yb-font-xs);
+  margin: 24rpx 24rpx 0;
+  border-radius: var(--yb-radius-md);
+  border: 1rpx solid #ffd5db;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
 }
 .list {
-  padding: 16rpx;
+  padding: 24rpx;
 }
 </style>

@@ -64,16 +64,16 @@
     { "path": "pages/auth/login", "style": { "navigationStyle": "custom" } }
   ],
   "globalStyle": {
-    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarBackgroundColor": "#FAFAF7",
     "navigationBarTitleText": "油宝",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F7F8FA"
+    "backgroundColor": "#FAFAF7"
   },
   "tabBar": {
     "color": "#86909C",
-    "selectedColor": "#4D80F0",
+    "selectedColor": "#FA243C",
     "backgroundColor": "#FFFFFF",
-    "borderStyle": "white",
+    "borderStyle": "black",
     "list": [
       { "pagePath": "pages/index/index", "text": "首页", "iconPath": "static/tab-home.png", "selectedIconPath": "static/tab-home-on.png" },
       { "pagePath": "pages/category/index", "text": "分类", "iconPath": "static/tab-cat.png", "selectedIconPath": "static/tab-cat-on.png" },
