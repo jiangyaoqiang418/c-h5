@@ -35,5 +35,5 @@ function onRedeem(order: Api.RealFinance.OrderVO) {
 }
 </script>
 
-<template><view class="my-lockup-page"><wd-tabs v-model="activeKey" sticky><wd-tab v-for="tab in tabs" :key="tab.key" :name="tab.key" :title="tab.label" /></wd-tabs><view class="list"><view v-if="list.length"><LockupCard v-for="order in list" :key="order.id" :order="order" :redeeming="redeemingId === order.id" :redeem-disabled="redeemingId !== undefined" @redeem="onRedeem" /></view><EmptyState v-else-if="!loading" title="暂无持仓" /></view></view></template>
-<style lang="scss" scoped>.my-lockup-page { min-height:100%; background:#f7f8fa; }.list { padding:16rpx; }</style>
+<template><view class="my-lockup-page yb-page"><wd-tabs v-model="activeKey" sticky><wd-tab v-for="tab in tabs" :key="tab.key" :name="tab.key" :title="tab.label" /></wd-tabs><view class="list"><view v-if="list.length"><LockupCard v-for="order in list" :key="order.id" :order="order" :redeeming="redeemingId === order.id" :redeem-disabled="redeemingId !== undefined" @redeem="onRedeem" /></view><EmptyState v-else-if="!loading" title="暂无持仓" /></view></view></template>
+<style lang="scss" scoped>.my-lockup-page { min-height:100%; }.list { padding:24rpx; }</style>

@@ -122,7 +122,7 @@ async function submit() {
 </script>
 
 <template>
-  <view class="create-page">
+  <view class="create-page yb-page">
     <wd-steps :active="step">
       <wd-step title="基本信息" />
       <wd-step title="价格库存" />
@@ -161,9 +161,9 @@ async function submit() {
         <view class="image-grid">
           <view v-for="(image, index) in form.images" :key="String(image.id)" class="image-cell">
             <image :src="image.url" mode="aspectFill" class="image" />
-            <view class="remove" @click="removeImage(index)">×</view>
+            <view class="remove" @click="removeImage(index)"><wd-icon name="close" size="13px" color="#fff" /></view>
           </view>
-          <view v-if="form.images.length < 6" class="add" @click="chooseImages">{{ uploading ? '上传中' : '+' }}</view>
+          <view v-if="form.images.length < 6" class="add" @click="chooseImages"><wd-icon name="add" size="22px" /><text>{{ uploading ? '上传中' : '添加图片' }}</text></view>
         </view>
       </view>
 
@@ -186,8 +186,7 @@ async function submit() {
 </template>
 
 <style lang="scss" scoped>
-.create-page { min-height: 100%; box-sizing: border-box; background: #f7f8fa; padding: 16rpx 16rpx 200rpx; }
-.content { min-height: 400rpx; margin-top: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
+.create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx 200rpx; }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }
 .hint { display: block; margin-bottom: 16rpx; font-size: 22rpx; color: #86909c; }
 .image-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .image-cell, .add { width: 200rpx; height: 200rpx; }
@@ -195,11 +194,11 @@ async function submit() {
 .image { width: 100%; height: 100%; border-radius: 8rpx; }
 .remove {
   position: absolute; top: 4rpx; right: 4rpx; display: flex; align-items: center; justify-content: center;
-  width: 36rpx; height: 36rpx; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 26rpx;
+  width:36rpx; height:36rpx; border-radius:50%; background:rgba(0,0,0,.55); color:#fff;
 }
 .add {
   display: flex; align-items: center; justify-content: center; box-sizing: border-box;
-  border: 2rpx dashed #c9cdd4; border-radius: 8rpx; background: #f7f8fa; color: #86909c; font-size: 52rpx;
+  flex-direction:column; gap:8rpx; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); background:#f7f8fa; color:#86909c; font-size:20rpx;
 }
 .summary .row { display: flex; justify-content: space-between; gap: 24rpx; padding: 18rpx 0; border-bottom: 1rpx solid #f2f3f5; font-size: 24rpx; }
 .label { flex-shrink: 0; color: #86909c; }
