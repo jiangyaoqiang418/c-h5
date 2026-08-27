@@ -175,7 +175,7 @@ function formatDate(value?: string | number): string {
       </view>
     </view>
 
-    <view v-if="loading" class="loading">加载中...</view>
+    <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载积分数据</text></view>
 
     <wd-popup v-model="appealPopup" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
@@ -202,7 +202,7 @@ function formatDate(value?: string | number): string {
 .hero-amount { display: block; font-size: 80rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0; }
 .hero-hint { display: block; font-size: 22rpx; opacity: 0.8; }
 .list { padding: 24rpx; }
-.loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
 .log-row {
   background: #fff;
   border-radius: var(--yb-radius-lg);

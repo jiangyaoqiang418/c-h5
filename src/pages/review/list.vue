@@ -100,7 +100,7 @@ async function appeal(review: Api.RealReview.ReviewDTO) {
   <view class="review-list yb-page">
     <wd-tabs v-model="activeKey" sticky><wd-tab name="reviewable" title="待评价" /><wd-tab name="sent" title="我发出的" /><wd-tab name="received" title="我收到的" /></wd-tabs>
     <view class="list">
-      <view v-if="loading" class="loading">加载中…</view>
+      <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载评价</text></view>
       <template v-else>
         <EmptyState v-if="loadFailed" title="评价加载失败" description="请稍后重试" />
         <view v-else-if="activeKey === 'reviewable' && reviewable.length">
@@ -118,6 +118,6 @@ async function appeal(review: Api.RealReview.ReviewDTO) {
 </template>
 
 <style lang="scss" scoped>
-.review-list { min-height:100%; }.list { padding:24rpx; }.loading { text-align:center; padding:48rpx 0; color:#86909c; font-size:24rpx; }
+.review-list { min-height:100%; }.list { padding:24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
 .reviewable-card { display:flex; gap:16rpx; align-items:center; background:#fff; padding:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); margin-bottom:16rpx; }.cover { width:96rpx; height:96rpx; border-radius:var(--yb-radius-md); background:#f2f3f5; }.reviewable-main { flex:1; min-width:0; }.title, .order-no { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.title { color:#1d2129; font-size:27rpx; font-weight:600; }.order-no { color:#86909c; font-size:22rpx; margin-top:8rpx; }
 </style>
