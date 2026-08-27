@@ -45,7 +45,7 @@ async function load() {
     categories.value = [
     {
       key: 'system',
-      icon: '⚙',
+      icon: 'setting',
       title: '系统通知',
       path: '/pages/message/notifications',
       unread: Math.max(0, notificationCount - transactionUnread),
@@ -55,7 +55,7 @@ async function load() {
     },
     {
       key: 'txn',
-      icon: '▤',
+      icon: 'wallet',
       title: '交易通知',
       path: '/pages/wallet/history',
       unread: transactionUnread,
@@ -65,7 +65,7 @@ async function load() {
     },
     {
       key: 'im',
-      icon: '◌',
+      icon: 'chat',
       title: '订单群聊',
       path: '/pages/im/order-list',
       unread: imCount,
@@ -154,7 +154,7 @@ function open(c: Category) {
       >
         <view class="cat-left">
           <view class="cat-icon-wrap">
-            <text class="local-icon">{{ c.icon }}</text>
+            <wd-icon :name="c.icon" size="22px" />
             <view v-if="c.unread > 0" class="unread-dot">{{ c.unread > 99 ? '99+' : c.unread }}</view>
           </view>
         </view>
@@ -164,7 +164,7 @@ function open(c: Category) {
         </view>
         <view class="cat-right">
           <text v-if="c.latestTime" class="cat-time">{{ c.latestTime }}</text>
-          <text class="cat-arrow">›</text>
+          <wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
         </view>
       </view>
     </view>
@@ -172,7 +172,6 @@ function open(c: Category) {
 </template>
 
 <style lang="scss" scoped>
-.local-icon { font-size: 34rpx; line-height: 1; }
 .msg-page {
   min-height: 100%;
   background: #FAFAF7;

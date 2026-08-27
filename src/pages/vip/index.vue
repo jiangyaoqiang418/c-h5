@@ -4,6 +4,7 @@ import AudienceSegment from '@/components/common/audience-segment.vue';
 import VipBadge from '@/components/common/vip-badge.vue';
 import { fetchPointAccount, fetchVipConfigs, type PointAccount } from '@/service/api/point';
 import { useUserStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const configs = ref<Api.Vip.LevelConfig[]>([]);
@@ -60,7 +61,7 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 
 <template>
   <view class="vip-page">
-    <view class="hero">
+    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.vip})` }">
       <text class="hero-title">VIP 特权中心</text>
       <view class="my-card">
         <VipBadge v-if="pointAccount" :level="vipLevel" />
@@ -98,7 +99,9 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 <style lang="scss" scoped>
 .vip-page { min-height: 100%; background: #f7f8fa; padding-bottom: 32rpx; }
 .hero {
-  background: linear-gradient(135deg, #722ed1 0%, #4d80f0 100%);
+  background-color: #30110f;
+  background-size: cover;
+  background-position: center;
   color: #fff;
   padding: 48rpx 32rpx;
 }

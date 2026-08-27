@@ -4,6 +4,7 @@ import { onLoad } from '@dcloudio/uni-app';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
 import { fetchOrderDetail } from '@/service/api/order';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const order = ref<Api.RealOrder.OrderView>();
 const orderId = ref<Api.RealOrder.LongId>();
@@ -22,7 +23,7 @@ onLoad(async query => {
 
 <template>
   <view class="success-page">
-    <view class="success-icon">✅</view>
+    <image class="success-icon" :src="UI_ASSETS.illustrations.homeGuarantee" mode="aspectFit" />
     <text class="title">支付成功</text>
     <text v-if="order" class="meta">订单 {{ order.code }} · U {{ formatAmount(order.totalAmount) }}</text>
     <view class="actions">
@@ -42,7 +43,8 @@ onLoad(async query => {
   padding: 96rpx 32rpx;
 }
 .success-icon {
-  font-size: 128rpx;
+  width: 136rpx;
+  height: 136rpx;
   margin-bottom: 24rpx;
 }
 .title {

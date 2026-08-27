@@ -156,7 +156,7 @@ function buildCase(s: CaseSeed): AftersaleCase {
   const evidenceUrls: string[] = [];
   const count = s.evidenceCount || 1;
   for (let i = 0; i < count; i += 1) {
-    evidenceUrls.push(`https://picsum.photos/seed/as${id}-${i}/400/300`);
+    evidenceUrls.push('/static/new-ui/placeholders/placeholder-evidence.png');
   }
 
   const history: AftersaleEvent[] = [];

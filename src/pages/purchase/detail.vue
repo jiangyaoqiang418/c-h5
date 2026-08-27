@@ -86,7 +86,7 @@ function cancel() {
       <wd-tag v-if="statusMeta" plain size="medium">{{ statusMeta.label }}</wd-tag>
       <text class="code">{{ request.code }}</text>
       <text class="title">{{ request.productTitle }}</text>
-      <text class="cat">📂 {{ request.categoryPath }}</text>
+      <view class="cat"><wd-icon name="goods" size="14px" /><text>{{ request.categoryPath }}</text></view>
     </view>
 
     <view class="meta">
@@ -161,7 +161,9 @@ function cancel() {
   font-weight: 700;
 }
 .cat {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
   font-size: 22rpx;
   color: #86909c;
   margin-top: 8rpx;

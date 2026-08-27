@@ -3,6 +3,7 @@ import { nextTick, ref } from 'vue';
 import { aiApi } from '@shared';
 import { go } from '@/utils/navigate';
 import AiSuggestionList from '@/components/ai/ai-suggestion-list.vue';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface BotMsg {
   role: 'bot';
@@ -23,7 +24,7 @@ const PRESETS = ['iPhone 16 Pro', '北海道直邮草莓', '海蓝宝石原石',
 const messages = ref<ChatMsg[]>([
   {
     role: 'bot',
-    text: '你好呀 👋 我是油宝 AI 导购。想找什么可以直接告诉我，或者试试下面的推荐 —— 我会帮你在全球买手网络里找到最合适的选项。'
+    text: '你好，我是油宝 AI 导购。想找什么可以直接告诉我，或者试试下面的推荐。我会帮你在全球买手网络里找到合适的选项。'
   }
 ]);
 const input = ref('');
@@ -70,7 +71,7 @@ function inducePurchaseFrom(text: string) {
       <view class="msg-list">
         <view v-for="(m, i) in messages" :key="i" class="msg-row" :class="m.role">
           <view v-if="m.role === 'bot'" class="bubble bot">
-            <view class="bot-avatar"><text>✦</text></view>
+            <image class="bot-avatar" :src="UI_ASSETS.illustrations.ai" mode="aspectFit" />
             <view class="bubble-body">
               <text class="bubble-text">{{ m.text }}</text>
               <AiSuggestionList
@@ -84,7 +85,7 @@ function inducePurchaseFrom(text: string) {
             <text class="bubble-text">{{ m.text }}</text>
           </view>
           <view v-else class="bubble bot loading">
-            <view class="bot-avatar"><text>✦</text></view>
+            <image class="bot-avatar" :src="UI_ASSETS.illustrations.ai" mode="aspectFit" />
             <view class="dots"><text class="dot">·</text><text class="dot">·</text><text class="dot">·</text></view>
           </view>
         </view>
@@ -108,12 +109,12 @@ function inducePurchaseFrom(text: string) {
         <input
           v-model="input"
           class="input"
-          placeholder="有什么想要的，尽管说 ✨"
+          placeholder="有什么想要的，尽管说"
           confirm-type="send"
           @confirm="() => send()"
         />
         <view class="send-btn" :class="{ active: input.trim() }" @click="() => send()">
-          <text>➤</text>
+          <wd-icon name="arrow-up" size="18px" color="#fff" />
         </view>
       </view>
     </view>
@@ -170,8 +171,7 @@ function inducePurchaseFrom(text: string) {
   height: 56rpx;
   min-width: 56rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6B4EFF 0%, #4D80F0 100%);
-  color: #fff;
+  background: #20146a;
   display: flex;
   align-items: center;
   justify-content: center;

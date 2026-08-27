@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { go } from '@/utils/navigate';
 import PriceTag from '@/components/common/price-tag.vue';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface Props {
   product: Api.Product.ProductRecord;
@@ -9,7 +10,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const cover = computed(
-  () => props.product.images?.[0]?.url || `https://picsum.photos/seed/${props.product.id}/200/200`
+  () => props.product.images?.[0]?.url || UI_ASSETS.placeholders.product
 );
 
 function goDetail() {
@@ -35,14 +36,15 @@ function goDetail() {
 .tile {
   display: flex;
   gap: 16rpx;
-  background: #fff;
-  padding: 16rpx;
-  border-radius: 12rpx;
+  background: var(--yb-surface);
+  padding: 20rpx;
+  border-radius: var(--yb-radius-lg);
+  box-shadow: var(--yb-shadow-card);
 }
 .cover {
   width: 160rpx;
   height: 160rpx;
-  border-radius: 8rpx;
+  border-radius: var(--yb-radius-md);
   flex-shrink: 0;
 }
 .info {

@@ -12,6 +12,7 @@ import { useCartStore } from '@/stores';
 import VipBadge from '@/components/common/vip-badge.vue';
 import ReviewStars from '@/components/common/review-stars.vue';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface ProductView {
   id: string | number;
@@ -245,7 +246,7 @@ function goBack() {
       <swiper-item v-for="(url, index) in product.images" :key="`${url}-${index}`">
         <image :src="url" mode="aspectFill" class="gallery-image" />
       </swiper-item>
-      <swiper-item v-if="!product.images.length"><view class="gallery-empty">暂无图片</view></swiper-item>
+      <swiper-item v-if="!product.images.length"><image :src="UI_ASSETS.placeholders.product" mode="aspectFill" class="gallery-image" /></swiper-item>
     </swiper>
 
     <view class="content-sheet">
@@ -278,7 +279,7 @@ function goBack() {
 
       <view class="seller-section">
         <image v-if="sellerAvatar" :src="sellerAvatar" class="seller-avatar" />
-        <view v-else class="seller-avatar placeholder">买</view>
+        <image v-else :src="UI_ASSETS.placeholders.avatar" class="seller-avatar" mode="aspectFill" />
         <view class="seller-info">
           <view class="seller-head"><text class="seller-name">{{ product.sellerName }}</text><VipBadge level="VIP1" size="sm" /></view>
           <text class="seller-sub">平台认证买手</text>
@@ -305,9 +306,9 @@ function goBack() {
     </view>
 
     <view class="bottom-bar">
-      <view class="tool" @click="startPurchase"><text class="tool-icon">✨</text><text>求购</text></view>
-      <view class="tool" @click="go('/pages/cart/index')"><text class="tool-icon">🛒</text><text>购物车</text></view>
-      <view class="tool" @click="favorite"><text class="tool-icon">☆</text><text>收藏</text></view>
+      <view class="tool yb-pressable" @click="startPurchase"><wd-icon name="search" size="20px" /><text>求购</text></view>
+      <view class="tool yb-pressable" @click="go('/pages/cart/index')"><wd-icon name="cart" size="20px" /><text>购物车</text></view>
+      <view class="tool yb-pressable" @click="favorite"><wd-icon name="star" size="20px" /><text>收藏</text></view>
       <view class="quantity">
         <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="qty = Math.min(product.stock, qty + 1)">+</text>
       </view>
@@ -352,6 +353,5 @@ function goBack() {
 .review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
 .bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 10rpx; padding: 14rpx 20rpx calc(14rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #edece6; background: #fff; }
 .tool { display: flex; flex-direction: column; align-items: center; min-width: 72rpx; color: #6b7385; font-size: 18rpx; }
-.tool-icon { font-size: 30rpx; }
 .quantity { display: flex; align-items: center; gap: 18rpx; padding: 12rpx 16rpx; border-radius: 8rpx; background: #fafaf7; font-size: 24rpx; }
 </style>

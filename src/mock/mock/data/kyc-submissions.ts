@@ -7,7 +7,7 @@
  * V1.7：schema 已统一（不再区分顾客 / 买手 schema），但 Submission 仍保留 audience
  * 标识"提交人身份"（顾客 / 买手），用以触发 KYC_PASS 加分等下游业务。
  *
- * 媒体 URL 用 picsum.photos（图片）与 google sample 视频/音频做演示，不依赖真实上传。
+ * 媒体 URL 使用随包占位资源，仅用于演示，不依赖外部图片服务。
  */
 import { SCHEMA_VERSIONS, latestSchema } from './kyc-form-schemas';
 import { USERS } from './users';
@@ -37,7 +37,7 @@ function daysAgo(d: number, h = 0): string {
 
 function img(n: number, label: string): MediaAsset {
   return {
-    url: `https://picsum.photos/seed/kyc${n}/640/400`,
+    url: '/static/new-ui/placeholders/placeholder-evidence.png',
     name: `${label}.jpg`,
     sizeKB: 280 + (n % 7) * 35,
     width: 640,

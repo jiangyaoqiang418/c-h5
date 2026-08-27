@@ -8,6 +8,7 @@ import TxnDetailPopup from '@/components/wallet/txn-detail-popup.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore, useWalletStore } from '@/stores';
 import { fetchWalletLedger, type WalletTxnView } from '@/service/api/wallet';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
@@ -22,13 +23,13 @@ const cnyEquiv = computed(() =>
 );
 
 const BUCKET_ICON: Record<string, string> = {
-  available: '💳',
-  nonWithdrawable: '⏸',
-  lockedFinance: '🔒',
-  frozenOrder: '📦',
-  frozenRisk: '⚠',
-  depositAvailable: '🪙',
-  depositGuaranteed: '🤝'
+  available: 'wallet',
+  nonWithdrawable: 'clock',
+  lockedFinance: 'lock-on',
+  frozenOrder: 'cart',
+  frozenRisk: 'shield',
+  depositAvailable: 'money-circle',
+  depositGuaranteed: 'shield'
 };
 
 const totalAssetsNum = computed(() => Number(walletStore.totalAssets) || 0);
@@ -78,7 +79,7 @@ function bucketLabel(key: string): string {
 <template>
   <view class="wallet-page">
     <!-- Hero (白底 BiyaPay 风) -->
-    <view class="hero">
+    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.chain})` }">
       <view class="nav">
         <view class="nav-btn" @click="goBack">
           <view class="chev" />
@@ -95,15 +96,15 @@ function bucketLabel(key: string): string {
       </text>
       <view class="hero-actions">
         <view class="action-btn primary" @click="go('/pages/wallet/deposit')">
-          <text class="action-icon">↓</text>
+          <wd-icon name="arrow-down" size="21px" />
           <text>链上充值</text>
         </view>
         <view class="action-btn" @click="go('/pages/wallet/withdraw')">
-          <text class="action-icon">↑</text>
+          <wd-icon name="arrow-up" size="21px" />
           <text>转出</text>
         </view>
         <view class="action-btn" @click="go('/pages/wallet/history')">
-          <text class="action-icon">≡</text>
+          <wd-icon name="list" size="21px" />
           <text>流水</text>
         </view>
       </view>
@@ -120,7 +121,7 @@ function bucketLabel(key: string): string {
           class="bucket-row"
         >
           <view class="row-left">
-            <view class="icon-wrap"><text class="ico">{{ BUCKET_ICON[b.key] || '•' }}</text></view>
+            <view class="icon-wrap"><wd-icon :name="BUCKET_ICON[b.key] || 'wallet'" size="18px" /></view>
             <view class="row-label">
               <text class="label-main">{{ bucketLabel(b.key) }}</text>
             </view>
@@ -142,7 +143,7 @@ function bucketLabel(key: string): string {
       <view class="record-links">
         <view class="record-link" @click="go('/pages/wallet/recharge-list')">
           <view><text class="record-title">充值记录</text><text class="record-sub">查看充值地址与到账状态</text></view>
-          <text class="record-arrow">›</text>
+          <wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
         </view>
         <view class="record-link" @click="go('/pages/wallet/withdraw-list')">
           <view><text class="record-title">提现记录</text><text class="record-sub">查看审核与链上到账状态</text></view>
@@ -158,7 +159,7 @@ function bucketLabel(key: string): string {
           <text class="sec-eyebrow">RECENT TRANSACTIONS</text>
           <text class="sec-title">最近交易</text>
         </view>
-        <text class="more" @click="go('/pages/wallet/history')">查看全部 →</text>
+        <view class="more" @click="go('/pages/wallet/history')">查看全部 <wd-icon name="arrow-right" size="12px" /></view>
       </view>
       <view v-if="recent.length">
         <TxnRow v-for="t in recent" :key="t.id" :txn="t" @detail="openTxn" />
@@ -179,8 +180,11 @@ function bucketLabel(key: string): string {
 
 /* Hero */
 .hero {
-  background: #FFFFFF;
-  border-bottom: 1rpx solid #EDECE6;
+  background-color: #10131f;
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  border-bottom: 1rpx solid rgba(255,255,255,.12);
   padding: env(safe-area-inset-top) 32rpx 40rpx;
 }
 .nav {
@@ -201,15 +205,15 @@ function bucketLabel(key: string): string {
   left: 4rpx;
   width: 28rpx;
   height: 28rpx;
-  border-left: 5rpx solid #0F111A;
-  border-bottom: 5rpx solid #0F111A;
+  border-left: 5rpx solid #fff;
+  border-bottom: 5rpx solid #fff;
   box-sizing: border-box;
   transform: rotate(45deg);
 }
 .nav-title {
   font-size: 30rpx;
   font-weight: 700;
-  color: #0F111A;
+  color: #fff;
   margin-left: 8rpx;
 }
 .hero-eyebrow {
@@ -217,7 +221,7 @@ function bucketLabel(key: string): string {
   font-size: 20rpx;
   font-weight: 700;
   letter-spacing: 3rpx;
-  color: #6B7385;
+  color: rgba(255,255,255,.64);
   margin-bottom: 12rpx;
 }
 .hero-total {
@@ -230,24 +234,24 @@ function bucketLabel(key: string): string {
   font-family: ui-monospace, monospace;
   font-size: 36rpx;
   font-weight: 600;
-  color: #6B7385;
+  color: rgba(255,255,255,.76);
 }
 .hero-total .num {
   font-family: ui-monospace, monospace;
   font-size: 88rpx;
   font-weight: 700;
-  color: #0F111A;
+  color: #fff;
   letter-spacing: -3rpx;
   line-height: 1;
 }
 .hero-sub {
   display: block;
   font-size: 24rpx;
-  color: #6B7385;
+  color: rgba(255,255,255,.76);
 }
 .cny-num {
   font-family: ui-monospace, monospace;
-  color: #1D2129;
+  color: #fff;
   font-weight: 600;
 }
 
@@ -263,20 +267,17 @@ function bucketLabel(key: string): string {
   align-items: center;
   gap: 6rpx;
   padding: 20rpx 12rpx;
-  background: #FAFAF7;
-  border: 1rpx solid #EDECE6;
+  background: rgba(255,255,255,.1);
+  border: 1rpx solid rgba(255,255,255,.16);
   border-radius: 20rpx;
-  color: #0F111A;
+  color: #fff;
   font-size: 22rpx;
   font-weight: 600;
 }
 .action-btn.primary {
-  background: #0F111A;
+  background: var(--yb-brand);
   color: #FFFFFF;
   border-color: #0F111A;
-}
-.action-icon {
-  font-size: 40rpx;
 }
 
 /* Section */
@@ -310,6 +311,9 @@ function bucketLabel(key: string): string {
   margin-bottom: 16rpx;
 }
 .more {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
   font-size: 22rpx;
   color: #6B7385;
 }
@@ -342,9 +346,6 @@ function bucketLabel(key: string): string {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-.ico {
-  font-size: 28rpx;
 }
 .label-main {
   font-size: 26rpx;

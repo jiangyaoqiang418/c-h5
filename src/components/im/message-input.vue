@@ -28,7 +28,7 @@ function send() {
 
 function sendImage() {
   if (props.disabled) return;
-  const url = `https://picsum.photos/seed/im-${Date.now()}/360/360`;
+  const url = '/static/new-ui/placeholders/placeholder-upload.png';
   emit('send', { type: 'image', mediaUrl: url });
 }
 </script>
@@ -36,7 +36,7 @@ function sendImage() {
 <template>
   <view class="msg-input">
     <view class="row">
-      <view class="ic-btn" @click="sendImage">🖼</view>
+      <view class="ic-btn yb-pressable" @click="sendImage"><wd-icon name="camera" size="20px" /></view>
       <input
         v-model="text"
         class="input"
@@ -82,7 +82,7 @@ function sendImage() {
   box-sizing: border-box;
 }
 .send-btn {
-  background: #4d80f0;
+  background: var(--yb-brand);
   color: #fff;
   border-radius: 32rpx;
   padding: 16rpx 28rpx;

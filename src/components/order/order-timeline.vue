@@ -44,7 +44,7 @@ const steps = computed<Step[]>(() => {
     <view v-for="(s, i) in steps" :key="i" class="step" :class="s.status">
       <view class="left">
         <view class="dot">
-          <text v-if="s.status === 'finish'">✓</text>
+          <wd-icon v-if="s.status === 'finish'" name="check" size="12px" color="#fff" />
         </view>
         <view v-if="i < steps.length - 1" class="line" />
       </view>
@@ -85,7 +85,7 @@ const steps = computed<Step[]>(() => {
   z-index: 2;
 }
 .step.finish .dot {
-  background: #4d80f0;
+  background: var(--yb-brand);
 }
 .step.process .dot {
   background: #ff7d00;

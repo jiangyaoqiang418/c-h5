@@ -8,12 +8,11 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { size: 'sm' });
 
 const label = computed(() => (props.level === 'VIP2' ? 'VIP2' : props.level === 'VIP1' ? 'VIP1' : 'VIP0'));
-const symbol = computed(() => (props.level === 'VIP2' ? '♛' : props.level === 'VIP1' ? '★' : ''));
 </script>
 
 <template>
   <view class="vip-badge" :class="[size, `level-${level.toLowerCase()}`]">
-    <text v-if="symbol" class="symbol">{{ symbol }}</text>
+    <wd-icon v-if="level !== 'VIP0'" name="gift" size="12px" />
     <text class="label">{{ label }}</text>
   </view>
 </template>
@@ -33,8 +32,6 @@ const symbol = computed(() => (props.level === 'VIP2' ? '♛' : props.level === 
 .vip-badge.sm { font-size: 20rpx; padding: 3rpx 12rpx; }
 .vip-badge.md { font-size: 24rpx; }
 .vip-badge.lg { font-size: 28rpx; padding: 6rpx 20rpx; }
-
-.symbol { font-size: inherit; }
 
 .vip-badge.level-vip0 {
   background: #EDECE6;

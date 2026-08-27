@@ -30,7 +30,7 @@ function generateTrajectory(scenario: Scenario, shippedDaysAgo: number, withImg 
     location: '东京新宿配送中心',
     description: '买手已揽收，准备出库',
     type: 'normal',
-    imageUrl: withImg ? `https://picsum.photos/seed/log${start}-1/200/200` : undefined
+    imageUrl: withImg ? '/static/new-ui/placeholders/placeholder-evidence.png' : undefined
   });
   events.push({
     time: dt(Math.max(0, start - 1), 14, 0),
@@ -109,7 +109,7 @@ function generateTrajectory(scenario: Scenario, shippedDaysAgo: number, withImg 
     location: '北京朝阳区望京网点',
     description: '派件中',
     type: 'normal',
-    imageUrl: withImg ? `https://picsum.photos/seed/log${start}-2/200/200` : undefined
+    imageUrl: withImg ? '/static/new-ui/placeholders/placeholder-evidence.png' : undefined
   });
 
   return events;

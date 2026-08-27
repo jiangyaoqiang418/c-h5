@@ -35,13 +35,13 @@ function goDetail() {
 
     <view class="body">
       <view class="left">
-        <text class="cat">📂 {{ request.categoryPath }}</text>
+        <view class="cat"><wd-icon name="goods" size="13px" /> <text>{{ request.categoryPath }}</text></view>
         <text class="title">{{ request.productTitle }}</text>
         <text v-if="request.appeal" class="appeal">"{{ request.appeal }}"</text>
         <view class="chips">
-          <text class="chip">📅 {{ request.expectedDays }} 天</text>
-          <text class="chip">🛡️ {{ aftersaleMeta.label }}</text>
-          <text v-if="request.overseasCustoms" class="chip gold">🌏 海外</text>
+          <view class="chip"><wd-icon name="clock" size="12px" /> <text>{{ request.expectedDays }} 天</text></view>
+          <view class="chip"><wd-icon name="shield" size="12px" /> <text>{{ aftersaleMeta.label }}</text></view>
+          <view v-if="request.overseasCustoms" class="chip gold"><wd-icon name="location" size="12px" /> <text>海外</text></view>
         </view>
       </view>
       <view class="reward">
@@ -54,7 +54,7 @@ function goDetail() {
     </view>
 
     <view v-if="mode === 'mine' && request.claimedByName" class="claimed">
-      ✓ 已被买手 <text class="strong">{{ request.claimedByName }}</text> 接单
+      <wd-icon name="check" size="13px" /> 已被买手 <text class="strong">{{ request.claimedByName }}</text> 接单
     </view>
     <view v-if="mode === 'mine' && request.status === 'rejected' && request.auditNote" class="rejected-note">
       驳回原因：{{ request.auditNote }}
@@ -129,6 +129,9 @@ function goDetail() {
 .cat {
   font-size: 20rpx;
   color: #6B7385;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
 }
 .title {
   font-size: 30rpx;
@@ -161,6 +164,9 @@ function goDetail() {
   border-radius: 999rpx;
   font-size: 20rpx;
   color: #1D2129;
+  display: inline-flex;
+  align-items: center;
+  gap: 5rpx;
 }
 .chip.gold {
   background: #F6EFE4;
@@ -215,6 +221,9 @@ function goDetail() {
 }
 .rejected-note {
   margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
   padding: 12rpx 20rpx;
   border-radius: 12rpx;
   background: #fff2f0;

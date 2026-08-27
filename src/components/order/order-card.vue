@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 import OrderStatusTag from './order-status-tag.vue';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface Props {
   order: Api.RealOrder.OrderView;
@@ -19,7 +20,7 @@ defineEmits<{
 }>();
 
 const cover = computed(
-  () => props.order.productCover || `https://picsum.photos/seed/${props.order.productId}/200/200`
+  () => props.order.productCover || UI_ASSETS.placeholders.product
 );
 
 function goDetail() {
@@ -100,16 +101,18 @@ function goDetail() {
 <style lang="scss" scoped>
 .order-card {
   background: #fff;
-  border-radius: 16rpx;
-  margin-bottom: 16rpx;
+  border-radius: var(--yb-radius-lg);
+  margin-bottom: 20rpx;
   padding: 24rpx;
+  border: 1rpx solid var(--yb-border);
+  box-shadow: var(--yb-shadow-card);
 }
 .head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-bottom: 16rpx;
-  border-bottom: 1rpx dashed #f2f3f5;
+  border-bottom: 1rpx dashed var(--yb-border);
 }
 .code {
   font-size: 22rpx;
@@ -124,7 +127,7 @@ function goDetail() {
 .cover {
   width: 120rpx;
   height: 120rpx;
-  border-radius: 8rpx;
+  border-radius: var(--yb-radius-md);
   flex-shrink: 0;
 }
 .info {
@@ -172,6 +175,6 @@ function goDetail() {
   justify-content: flex-end;
   gap: 12rpx;
   padding-top: 16rpx;
-  border-top: 1rpx dashed #f2f3f5;
+  border-top: 1rpx dashed var(--yb-border);
 }
 </style>

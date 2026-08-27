@@ -9,6 +9,7 @@ import OrderTimeline from '@/components/order/order-timeline.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { go } from '@/utils/navigate';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
@@ -169,13 +170,13 @@ async function submitException() {
     <view class="section">
       <text class="section-title">收货地址</text>
       <text class="addr-name">{{ order.receiverName }} · {{ order.receiverPhone }}</text>
-      <text class="addr-detail">📍 {{ order.shippingAddress }}</text>
+      <view class="addr-detail"><wd-icon name="location" size="15px" /><text>{{ order.shippingAddress }}</text></view>
     </view>
 
     <view class="section goods">
       <text class="section-title">商品信息</text>
       <view class="goods-row">
-        <image :src="order.productCover || `https://picsum.photos/seed/${order.productId}/120/120`" mode="aspectFill" class="cover" />
+        <image :src="order.productCover || UI_ASSETS.placeholders.product" mode="aspectFill" class="cover" />
         <view class="goods-info">
           <text class="g-title">{{ order.productTitle }}</text>
           <text class="g-seller">{{ order.counterpartLabel }} · {{ order.counterpartName }}</text>
@@ -220,9 +221,9 @@ async function submitException() {
     <view class="section">
       <text class="section-title">三方群 / 客服</text>
       <view class="link-row" @click="goIm">
-        <text class="link-emoji">💬</text>
+        <wd-icon name="chat" size="21px" />
         <text class="link-label">打开三方群</text>
-        <text class="link-arrow">›</text>
+        <wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
       </view>
     </view>
 
@@ -315,7 +316,9 @@ async function submitException() {
   font-weight: 500;
 }
 .addr-detail {
-  display: block;
+  display: flex;
+  align-items: flex-start;
+  gap: 8rpx;
   font-size: 24rpx;
   color: #4e5969;
   margin-top: 4rpx;
@@ -369,17 +372,10 @@ async function submitException() {
   gap: 12rpx;
   padding: 16rpx 0;
 }
-.link-emoji {
-  font-size: 32rpx;
-}
 .link-label {
   flex: 1;
   font-size: 26rpx;
   color: #1d2129;
-}
-.link-arrow {
-  color: #c9cdd4;
-  font-size: 28rpx;
 }
 .logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#f53f3f; background:#fff2f0; font-size:24rpx; line-height:1.5; }.tracks { margin-top:12rpx; }.track { padding:14rpx 0; border-top:1rpx solid #f2f3f5; font-size:24rpx; color:#1d2129; }.track-meta { display:block; margin-top:6rpx; color:#86909c; font-size:21rpx; }
 .voucher-section { margin-top:20rpx; }.voucher-title { display:block; margin-bottom:12rpx; color:#4e5969; font-size:24rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-image { width:160rpx; height:160rpx; border-radius:8rpx; }

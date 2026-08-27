@@ -356,7 +356,7 @@ function buildOrder(s: OrderSeed): OrderRecord {
     s.status === 'IN_AFTERSALE' ||
     s.status === 'ARCHIVED'
   ) {
-    order.purchaseScreenshotUrl = `https://picsum.photos/seed/purchase${id}/400/300`;
+    order.purchaseScreenshotUrl = '/static/new-ui/placeholders/placeholder-evidence.png';
     order.procuredAt = nowMinus(s.daysAgo - 2, 12, 0);
   }
   if (
@@ -367,7 +367,7 @@ function buildOrder(s: OrderSeed): OrderRecord {
     s.status === 'IN_AFTERSALE' ||
     s.status === 'ARCHIVED'
   ) {
-    order.shippingScreenshotUrl = `https://picsum.photos/seed/shipping${id}/400/300`;
+    order.shippingScreenshotUrl = '/static/new-ui/placeholders/placeholder-evidence.png';
     order.shippingCarrier = s.shippingCarrier || pickCarrier(s.seq);
     order.trackingNumber = `${order.shippingCarrier}${String(1000000 + id * 13).padStart(12, '0')}`;
     order.shippedAt = nowMinus(s.daysAgo - 3, 16, 0);
@@ -385,7 +385,7 @@ function buildOrder(s: OrderSeed): OrderRecord {
   }
   if (s.status === 'COMPLETED' || s.status === 'WARRANTY' || s.status === 'ARCHIVED') {
     if (s.hasReceiptVideo) {
-      order.receiptVideoUrl = `https://picsum.photos/seed/receipt${id}/400/300`;
+      order.receiptVideoUrl = '/static/new-ui/placeholders/placeholder-evidence.png';
     }
   }
   if (s.status === 'WARRANTY') {

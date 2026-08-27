@@ -9,6 +9,7 @@ import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
 import { createBatchOrder, payRealOrderGroup } from '@/service/api/order';
 import { useCartStore, useUserStore, useWalletStore } from '@/stores';
 import { storage } from '@/utils/storage';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const cart = useCartStore();
@@ -149,7 +150,7 @@ async function submit() {
       <text class="block-title">2. 商品清单 ({{ items.length }})</text>
       <view v-for="item in items" :key="item.key" class="goods-row">
         <image
-          :src="item.product?.cover || `https://picsum.photos/seed/${item.productId}/120/120`"
+          :src="item.product?.cover || UI_ASSETS.placeholders.product"
           class="goods-cover"
           mode="aspectFill"
         />
