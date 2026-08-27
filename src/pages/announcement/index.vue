@@ -32,7 +32,7 @@ async function openDetail(a: Api.Cms.Announcement) {
 </script>
 
 <template>
-  <view class="ann-page">
+  <view class="ann-page yb-page">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
     </wd-tabs>
@@ -54,9 +54,9 @@ async function openDetail(a: Api.Cms.Announcement) {
 </template>
 
 <style lang="scss" scoped>
-.ann-page { min-height: 100%; background: #f7f8fa; }
-.list { padding: 16rpx; }
-.popup { padding: 32rpx; max-height: 80vh; }
+.ann-page { min-height: 100%; }
+.list { padding: 20rpx 24rpx; }
+.popup { padding: 32rpx 28rpx calc(32rpx + env(safe-area-inset-bottom)); max-height: 80vh; border-radius: 32rpx 32rpx 0 0; }
 .popup-title { display: block; font-size: 32rpx; font-weight: 700; }
 .popup-meta { display: block; font-size: 22rpx; color: #86909c; margin: 8rpx 0 24rpx; }
 .popup-content { font-size: 26rpx; color: #4e5969; line-height: 1.7; white-space: pre-wrap; }

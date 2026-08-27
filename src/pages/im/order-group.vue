@@ -97,13 +97,13 @@ function getSenderName(msg: Api.Im.Message): string {
       <text class="title">{{ group.productTitle }}</text>
       <text class="meta">订单 {{ group.orderId }} · 状态 {{ group.orderGroupStatus }}</text>
     </view>
-    <view v-if="riskCount > 0" class="risk-banner">⚠️ 本群已触发 {{ riskCount }} 次风控提示</view>
+    <view v-if="riskCount > 0" class="risk-banner"><wd-icon name="warning" size="26rpx" />本群已触发 {{ riskCount }} 次风控提示</view>
 
     <scroll-view scroll-y class="messages" :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
       <view v-for="m in messages" :id="`msg-${m.id}`" :key="m.id">
         <MessageBubble :msg="m" :side="sideOf(m)" :sender-name="getSenderName(m)" />
       </view>
-      <view v-if="!messages.length" class="empty-msg">该群暂无消息，开始聊天吧 👋</view>
+      <view v-if="!messages.length" class="empty-msg">该群暂无消息，开始聊天吧</view>
     </scroll-view>
 
     <MessageInput :disabled="disabled" :disabled-text="disabledText" @send="onSend" />
@@ -119,26 +119,29 @@ function getSenderName(msg: Api.Im.Message): string {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: #f7f8fa;
+  background: var(--yb-bg);
 }
 .header {
   background: #fff;
   padding: 20rpx 32rpx;
-  border-bottom: 1rpx solid #f2f3f5;
+  border-bottom: 1rpx solid var(--yb-border);
 }
 .title { display: block; font-size: 30rpx; font-weight: 600; }
 .meta { display: block; font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
 .risk-banner {
-  background: #fff7e6;
-  color: #ff7d00;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #fff6e8;
+  color: #a85a00;
   padding: 14rpx 32rpx;
   font-size: 24rpx;
-  border-bottom: 1rpx solid #ffe7ba;
+  border-bottom: 1rpx solid #f3d4a0;
 }
 .messages {
   flex: 1;
   min-height: 0;
-  padding: 16rpx;
+  padding: 20rpx 24rpx;
 }
 .empty-msg {
   text-align: center;

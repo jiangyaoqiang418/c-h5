@@ -7,11 +7,11 @@ interface Props {
 const props = defineProps<Props>();
 defineEmits<{ (e: 'open', a: Api.Cms.Announcement): void }>();
 
-const TYPE_META: Record<Api.Cms.AnnouncementType, { label: string; color: string; emoji: string }> = {
-  system: { label: '系统', color: 'primary', emoji: '🔔' },
-  maintenance: { label: '维护', color: 'warning', emoji: '🛠' },
-  campaign: { label: '活动', color: 'danger', emoji: '🎉' },
-  risk: { label: '风险', color: 'default', emoji: '⚠️' }
+const TYPE_META: Record<Api.Cms.AnnouncementType, { label: string; color: string; icon: string }> = {
+  system: { label: '系统', color: 'primary', icon: 'notification' },
+  maintenance: { label: '维护', color: 'warning', icon: 'setting' },
+  campaign: { label: '活动', color: 'danger', icon: 'gift' },
+  risk: { label: '风险', color: 'default', icon: 'warning' }
 };
 const meta = computed(() => TYPE_META[props.announcement.type]);
 </script>
@@ -19,7 +19,7 @@ const meta = computed(() => TYPE_META[props.announcement.type]);
 <template>
   <view class="ann-row" :class="{ pinned: announcement.pinned }" @click="$emit('open', announcement)">
     <view class="head">
-      <text class="emoji">{{ meta.emoji }}</text>
+      <wd-icon :name="meta.icon" size="28rpx" color="var(--yb-brand)" />
       <wd-tag :type="meta.color" plain size="small">{{ meta.label }}</wd-tag>
       <wd-tag v-if="announcement.pinned" type="danger" size="small">置顶</wd-tag>
     </view>
@@ -35,23 +35,22 @@ const meta = computed(() => TYPE_META[props.announcement.type]);
 <style lang="scss" scoped>
 .ann-row {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--yb-radius-lg);
   padding: 24rpx;
   margin-bottom: 16rpx;
-  border-left: 6rpx solid #f2f3f5;
+  border: 1rpx solid var(--yb-border);
+  border-left: 6rpx solid var(--yb-border);
+  box-shadow: var(--yb-shadow-card);
 }
 .ann-row.pinned {
-  border-left-color: #f53f3f;
-  background: linear-gradient(90deg, #fff5f5 0%, #fff 30%);
+  border-left-color: var(--yb-brand);
+  background: linear-gradient(105deg, #fff1f2 0%, #fff 42%);
 }
 .head {
   display: flex;
   align-items: center;
   gap: 8rpx;
   margin-bottom: 12rpx;
-}
-.emoji {
-  font-size: 28rpx;
 }
 .title {
   display: block;

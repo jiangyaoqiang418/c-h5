@@ -32,7 +32,7 @@ function open(group: Api.RealNotify.Conversation) {
 </script>
 
 <template>
-  <view class="list-page">
+  <view class="list-page yb-page">
     <view v-if="groups.length" class="list">
       <view v-for="g in groups" :key="g.id" class="conversation" @click="open(g)">
         <view class="avatar">{{ (g.productTitle || g.title || '订').slice(0, 1) }}</view>
@@ -52,11 +52,10 @@ function open(group: Api.RealNotify.Conversation) {
 <style lang="scss" scoped>
 .list-page {
   min-height: 100%;
-  background: #FAFAF7;
-  padding: 16rpx;
+  padding: 20rpx 24rpx;
 }
-.conversation { display: flex; gap: 16rpx; padding: 24rpx; background: #fff; border-bottom: 1rpx solid #f2f3f5; }
-.avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #4d80f0; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32rpx; flex-shrink: 0; }
+.conversation { display: flex; gap: 16rpx; padding: 24rpx; margin-bottom: 16rpx; background: #fff; border: 1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow: var(--yb-shadow-card); }
+.avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #1d2027; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32rpx; flex-shrink: 0; }
 .info { flex: 1; min-width: 0; }
 .name, .preview, .meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name { font-size: 28rpx; color: #1d2129; font-weight: 500; }
