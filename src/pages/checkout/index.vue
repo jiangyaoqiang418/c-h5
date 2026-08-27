@@ -132,7 +132,7 @@ async function submit() {
 </script>
 
 <template>
-  <view class="checkout-page">
+  <view class="checkout-page yb-page">
     <view class="block">
       <text class="block-title">1. 收货地址</text>
       <view v-if="selectedAddr" class="addr">
@@ -224,15 +224,12 @@ async function submit() {
 </template>
 
 <style lang="scss" scoped>
-.checkout-page {
-  min-height: 100%;
-  background: #f7f8fa;
-  padding-bottom: calc(144rpx + env(safe-area-inset-bottom));
-}
+.checkout-page { min-height:100%; padding:20rpx 24rpx calc(164rpx + env(safe-area-inset-bottom)); }
 .block {
   background: #fff;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
   padding: 24rpx;
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .block-title {
   display: block;
@@ -241,7 +238,7 @@ async function submit() {
   color: #1d2129;
   margin-bottom: 16rpx;
   padding-left: 16rpx;
-  border-left: 6rpx solid #4d80f0;
+  border-left: 6rpx solid var(--yb-brand);
 }
 .addr {
   padding: 16rpx 0;
@@ -329,11 +326,7 @@ async function submit() {
   color: #f53f3f;
   margin-left: 8rpx;
 }
-.agree-row {
-  background: #fff;
-  padding: 24rpx;
-  font-size: 24rpx;
-}
+.agree-row { background:#fff; padding:24rpx; font-size:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .footer-space { display: none; }
 .bottom-bar {
   position: fixed;
@@ -341,7 +334,7 @@ async function submit() {
   left: 0;
   right: 0;
   background: #fff;
-  border-top: 1rpx solid #f2f3f5;
+  border-top: 1rpx solid var(--yb-border);
   padding: 16rpx 24rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
   display: flex;

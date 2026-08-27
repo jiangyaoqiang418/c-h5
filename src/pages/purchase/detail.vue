@@ -81,7 +81,7 @@ function cancel() {
 </script>
 
 <template>
-  <view v-if="request" class="detail-page">
+  <view v-if="request" class="detail-page yb-page">
     <view class="hero">
       <wd-tag v-if="statusMeta" plain size="medium">{{ statusMeta.label }}</wd-tag>
       <text class="code">{{ request.code }}</text>
@@ -139,14 +139,11 @@ function cancel() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page {
-  min-height: 100%;
-  background: #f7f8fa;
-  padding-bottom: calc(144rpx + env(safe-area-inset-bottom));
-}
+.detail-page { min-height:100%; padding:20rpx 24rpx calc(164rpx + env(safe-area-inset-bottom)); }
 .hero {
   background: #fff;
   padding: 32rpx;
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .code {
   display: block;
@@ -170,9 +167,10 @@ function cancel() {
 }
 .meta {
   background: #fff;
-  margin-top: 16rpx;
+  margin-top: 20rpx;
   display: flex;
   padding: 24rpx;
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .meta-cell {
   flex: 1;
@@ -196,8 +194,9 @@ function cancel() {
 }
 .section {
   background: #fff;
-  margin-top: 16rpx;
+  margin-top: 20rpx;
   padding: 24rpx 32rpx;
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .section-title {
   display: block;
@@ -237,7 +236,7 @@ function cancel() {
   background: #fff;
   padding: 16rpx 24rpx;
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid #f2f3f5;
+  border-top: 1rpx solid var(--yb-border);
   display: flex;
   gap: 12rpx;
 }

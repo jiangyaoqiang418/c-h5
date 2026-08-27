@@ -155,7 +155,7 @@ async function submitException() {
 </script>
 
 <template>
-  <view v-if="order" class="detail-page">
+  <view v-if="order" class="detail-page yb-page">
     <view class="hero">
       <OrderStatusTag :status="order.status" />
       <text class="code">{{ order.code }}</text>
@@ -277,17 +277,14 @@ async function submitException() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page {
-  min-height: 100%;
-  background: #f7f8fa;
-  padding-bottom: calc(144rpx + env(safe-area-inset-bottom));
-}
+.detail-page { min-height:100%; padding:20rpx 24rpx calc(164rpx + env(safe-area-inset-bottom)); }
 .hero {
-  background: linear-gradient(135deg, #fff 0%, #f7faff 100%);
+  background: linear-gradient(135deg, #fff 0%, #fff4f4 100%);
   padding: 32rpx;
   display: flex;
   flex-direction: column;
   gap: 12rpx;
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .code {
   font-family: ui-monospace, monospace;
@@ -300,8 +297,9 @@ async function submitException() {
 }
 .section {
   background: #fff;
-  margin-top: 16rpx;
+  margin-top: 20rpx;
   padding: 24rpx 32rpx;
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .section-title {
   display: block;
