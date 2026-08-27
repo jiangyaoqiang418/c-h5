@@ -133,7 +133,7 @@ function onLongPress(a: AddressRecord) {
     </view>
     <EmptyState v-else title="暂无地址" />
 
-    <view class="fab" @click="openNew">+ 新增地址</view>
+    <view class="fab" @click="openNew"><wd-icon name="add" size="17px" /><text>新增地址</text></view>
 
     <wd-popup v-model="popupOpen" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
@@ -142,7 +142,7 @@ function onLongPress(a: AddressRecord) {
         <!-- 智能识别 -->
         <view class="smart-fill">
           <view class="smart-head">
-            <text class="smart-title">📋 粘贴地址智能识别</text>
+            <view class="smart-title"><wd-icon name="copy" size="16px" /><text>粘贴地址智能识别</text></view>
             <text class="smart-hint">支持"姓名 手机 省市区 详细地址"格式</text>
           </view>
           <textarea
@@ -153,7 +153,7 @@ function onLongPress(a: AddressRecord) {
           />
           <view class="smart-actions">
             <view class="smart-btn ghost" @click="pasteFromClipboard">
-              <text>📋 从剪贴板粘贴</text>
+              <wd-icon name="copy" size="15px" /><text>从剪贴板粘贴</text>
             </view>
             <view class="smart-btn primary" @click="applyParsed">
               <text>识别填入</text>
@@ -193,6 +193,7 @@ function onLongPress(a: AddressRecord) {
 .set-default { display: inline-block; margin-top: 16rpx; padding: 8rpx 16rpx; background: #fff1f2; border-radius: 8rpx; color: var(--yb-brand); font-size: 22rpx; }
 .fab {
   position: fixed; right: 28rpx; bottom: calc(28rpx + env(safe-area-inset-bottom));
+  display:flex; align-items:center; gap:8rpx;
   background: var(--yb-brand); color: #fff;
   padding: 20rpx 32rpx; border-radius: 48rpx;
   font-size: 26rpx;
@@ -213,7 +214,9 @@ function onLongPress(a: AddressRecord) {
   margin-bottom: 16rpx;
 }
 .smart-title {
-  display: block;
+  display:flex;
+  align-items:center;
+  gap:8rpx;
   font-size: 26rpx;
   font-weight: 700;
   color: var(--yb-brand);
@@ -251,6 +254,7 @@ function onLongPress(a: AddressRecord) {
   font-size: 24rpx;
   font-weight: 600;
 }
+.smart-btn.ghost { gap:8rpx; }
 .smart-btn.ghost {
   background: #FFFFFF;
   color: var(--yb-brand);
