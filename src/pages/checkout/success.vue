@@ -22,7 +22,7 @@ onLoad(async query => {
 </script>
 
 <template>
-  <view class="success-page">
+  <view class="success-page yb-page">
     <image class="success-icon" :src="UI_ASSETS.illustrations.homeGuarantee" mode="aspectFit" />
     <text class="title">支付成功</text>
     <text v-if="order" class="meta">订单 {{ order.code }} · U {{ formatAmount(order.totalAmount) }}</text>
@@ -36,31 +36,33 @@ onLoad(async query => {
 <style lang="scss" scoped>
 .success-page {
   min-height: 100%;
-  background: #fff;
+  background: var(--yb-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 96rpx 32rpx;
+  padding: 112rpx 32rpx calc(96rpx + env(safe-area-inset-bottom));
 }
 .success-icon {
-  width: 136rpx;
-  height: 136rpx;
-  margin-bottom: 24rpx;
+  width: 168rpx;
+  height: 168rpx;
+  margin-bottom: 32rpx;
 }
 .title {
   font-size: 40rpx;
   font-weight: 700;
-  color: #1d2129;
+  color: #151820;
 }
 .meta {
   font-size: 24rpx;
   color: #86909c;
   margin: 16rpx 0 48rpx;
+  text-align:center;
 }
 .actions {
   display: flex;
   flex-direction: column;
   gap: 16rpx;
-  width: 480rpx;
+  width: 100%;
+  max-width: 520rpx;
 }
 </style>
