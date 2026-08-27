@@ -78,7 +78,7 @@ onLoad(query => {
 </script>
 
 <template>
-  <view class="detail-page">
+  <view class="detail-page yb-page">
     <view v-if="loading" class="loading">加载中...</view>
     <template v-else-if="product">
       <swiper v-if="product.images?.length" indicator-dots class="gallery">
@@ -127,12 +127,12 @@ onLoad(query => {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; box-sizing: border-box; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); background: #f7f8fa; }
+.detail-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(160rpx + env(safe-area-inset-bottom)); }
 .loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
-.gallery { width: 100%; height: 600rpx; background: #f2f3f5; }
+.gallery { width:100%; height:600rpx; overflow:hidden; border-radius:var(--yb-radius-lg); background:#f2f3f5; }
 .gallery-image { width: 100%; height: 100%; }
-.section { margin-top: 16rpx; padding: 24rpx; background: #fff; }
-.main-section { margin-top: 0; }
+.section { margin-top:20rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.main-section { margin-top:20rpx; }
 .status-row { display: flex; align-items: center; justify-content: space-between; }
 .stock { font-size: 22rpx; color: #86909c; }
 .title { display: block; margin-top: 16rpx; font-size: 32rpx; font-weight: 700; line-height: 1.4; color: #1d2129; }

@@ -164,7 +164,7 @@ async function submitShipping() {
 </script>
 
 <template>
-  <view class="order-list-page">
+  <view class="order-list-page yb-page">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
     </wd-tabs>
@@ -195,8 +195,8 @@ async function submitShipping() {
         <wd-input v-if="shippingForm.carrier === 'OTHER'" v-model="shippingForm.carrierName" label="承运商名称" placeholder="请输入" />
         <wd-input v-model="shippingForm.trackingNo" label="运单号" placeholder="请输入真实运单号" />
         <wd-input v-model="shippingForm.purchaseNo" label="采购单号" placeholder="可选，海外采购单号" />
-        <view class="voucher-field"><text class="voucher-label">采购凭证（可选，最多 6 张）</text><view class="voucher-grid"><view v-for="(url, index) in purchaseVouchers" :key="url" class="voucher-cell"><image :src="url" mode="aspectFill" class="voucher-image" /><view class="voucher-remove" @click="removeVoucher('purchase', index)">×</view></view><view v-if="purchaseVouchers.length < 6" class="voucher-add" @click="chooseVouchers('purchase')">{{ voucherUploading ? '上传中' : '+' }}</view></view></view>
-        <view class="voucher-field"><text class="voucher-label">发货凭证（可选，最多 6 张）</text><view class="voucher-grid"><view v-for="(url, index) in shipVouchers" :key="url" class="voucher-cell"><image :src="url" mode="aspectFill" class="voucher-image" /><view class="voucher-remove" @click="removeVoucher('ship', index)">×</view></view><view v-if="shipVouchers.length < 6" class="voucher-add" @click="chooseVouchers('ship')">{{ voucherUploading ? '上传中' : '+' }}</view></view></view>
+        <view class="voucher-field"><text class="voucher-label">采购凭证（可选，最多 6 张）</text><view class="voucher-grid"><view v-for="(url, index) in purchaseVouchers" :key="url" class="voucher-cell"><image :src="url" mode="aspectFill" class="voucher-image" /><view class="voucher-remove" @click="removeVoucher('purchase', index)"><wd-icon name="close" size="12px" color="#fff" /></view></view><view v-if="purchaseVouchers.length < 6" class="voucher-add" @click="chooseVouchers('purchase')"><wd-icon name="add" size="20px" /><text>{{ voucherUploading ? '上传中' : '添加' }}</text></view></view></view>
+        <view class="voucher-field"><text class="voucher-label">发货凭证（可选，最多 6 张）</text><view class="voucher-grid"><view v-for="(url, index) in shipVouchers" :key="url" class="voucher-cell"><image :src="url" mode="aspectFill" class="voucher-image" /><view class="voucher-remove" @click="removeVoucher('ship', index)"><wd-icon name="close" size="12px" color="#fff" /></view></view><view v-if="shipVouchers.length < 6" class="voucher-add" @click="chooseVouchers('ship')"><wd-icon name="add" size="20px" /><text>{{ voucherUploading ? '上传中' : '添加' }}</text></view></view></view>
         <wd-input v-model="shippingForm.remark" label="发货备注" placeholder="可选" />
         <wd-button type="primary" block :loading="shippingSubmitting" @click="submitShipping">确认发货</wd-button>
       </view>
@@ -205,16 +205,12 @@ async function submitShipping() {
 </template>
 
 <style lang="scss" scoped>
-.order-list-page {
-  min-height: 100%;
-  background: #f7f8fa;
-  padding-bottom: 32rpx;
-}
+.order-list-page { min-height:100%; padding-bottom:32rpx; }
 .list {
-  padding: 16rpx;
+  padding: 24rpx;
 }
 .shipping-popup { padding: 32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background: #fff; }
 .shipping-title { display: block; font-size: 32rpx; font-weight: 700; color: #1d2129; }
 .shipping-order { display: block; margin: 12rpx 0 20rpx; font-size: 22rpx; color: #86909c; font-family: ui-monospace, monospace; }
-.voucher-field { padding: 20rpx 32rpx; }.voucher-label { display:block; margin-bottom:12rpx; color:#4e5969; font-size:26rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-cell,.voucher-add { width:160rpx; height:160rpx; }.voucher-cell { position:relative; }.voucher-image { width:100%; height:100%; border-radius:8rpx; }.voucher-remove { position:absolute; top:4rpx; right:4rpx; display:flex; align-items:center; justify-content:center; width:36rpx; height:36rpx; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; font-size:26rpx; }.voucher-add { display:flex; align-items:center; justify-content:center; box-sizing:border-box; border:2rpx dashed #c9cdd4; border-radius:8rpx; background:#f7f8fa; color:#86909c; font-size:52rpx; }
+.voucher-field { padding:20rpx 32rpx; }.voucher-label { display:block; margin-bottom:12rpx; color:#4e5969; font-size:26rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-cell,.voucher-add { width:160rpx; height:160rpx; }.voucher-cell { position:relative; }.voucher-image { width:100%; height:100%; border-radius:var(--yb-radius-md); }.voucher-remove { position:absolute; top:4rpx; right:4rpx; display:flex; align-items:center; justify-content:center; width:36rpx; height:36rpx; border-radius:50%; background:rgba(0,0,0,.55); }.voucher-add { display:flex; flex-direction:column; gap:6rpx; align-items:center; justify-content:center; box-sizing:border-box; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); background:#f7f8fa; color:#86909c; font-size:20rpx; }
 </style>

@@ -6,6 +6,7 @@ import { go } from '@/utils/navigate';
 import ReviewCard from '@/components/review/review-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const activeKey = ref<'reviewable' | 'sent' | 'received'>('reviewable');
@@ -96,7 +97,7 @@ async function appeal(review: Api.RealReview.ReviewDTO) {
 </script>
 
 <template>
-  <view class="review-list">
+  <view class="review-list yb-page">
     <wd-tabs v-model="activeKey" sticky><wd-tab name="reviewable" title="待评价" /><wd-tab name="sent" title="我发出的" /><wd-tab name="received" title="我收到的" /></wd-tabs>
     <view class="list">
       <view v-if="loading" class="loading">加载中…</view>
@@ -104,7 +105,7 @@ async function appeal(review: Api.RealReview.ReviewDTO) {
         <EmptyState v-if="loadFailed" title="评价加载失败" description="请稍后重试" />
         <view v-else-if="activeKey === 'reviewable' && reviewable.length">
           <view v-for="order in reviewable" :key="order.orderId" class="reviewable-card" @click="go(`/pages/review/write?orderId=${order.orderId}`)">
-            <image v-if="order.productImage" :src="order.productImage" class="cover" mode="aspectFill" />
+            <image :src="order.productImage || UI_ASSETS.placeholders.product" class="cover" mode="aspectFill" />
             <view class="reviewable-main"><text class="title">{{ order.productTitle || '订单商品' }}</text><text class="order-no">订单 {{ order.orderNo || order.orderId }}</text></view>
             <wd-button size="small" type="primary">去评价</wd-button>
           </view>
@@ -117,6 +118,6 @@ async function appeal(review: Api.RealReview.ReviewDTO) {
 </template>
 
 <style lang="scss" scoped>
-.review-list { min-height: 100%; background: #f7f8fa; }.list { padding: 16rpx; }.loading { text-align:center; padding:48rpx 0; color:#86909c; font-size:24rpx; }
-.reviewable-card { display: flex; gap: 16rpx; align-items: center; background: #fff; padding: 20rpx; border-radius: 16rpx; margin-bottom: 16rpx; }.cover { width: 88rpx; height: 88rpx; border-radius: 8rpx; background: #f2f3f5; }.reviewable-main { flex: 1; min-width: 0; }.title, .order-no { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.title { color: #1d2129; font-size: 27rpx; font-weight: 600; }.order-no { color: #86909c; font-size: 22rpx; margin-top: 8rpx; }
+.review-list { min-height:100%; }.list { padding:24rpx; }.loading { text-align:center; padding:48rpx 0; color:#86909c; font-size:24rpx; }
+.reviewable-card { display:flex; gap:16rpx; align-items:center; background:#fff; padding:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); margin-bottom:16rpx; }.cover { width:96rpx; height:96rpx; border-radius:var(--yb-radius-md); background:#f2f3f5; }.reviewable-main { flex:1; min-width:0; }.title, .order-no { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.title { color:#1d2129; font-size:27rpx; font-weight:600; }.order-no { color:#86909c; font-size:22rpx; margin-top:8rpx; }
 </style>
