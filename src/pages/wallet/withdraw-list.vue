@@ -71,7 +71,7 @@ onReachBottom(() => {
       </view>
     </view>
     <EmptyState v-else-if="!loading" title="暂无提现记录" action-text="发起提现" @action="go('/pages/wallet/withdraw')" />
-    <view v-if="loading" class="loading">加载中...</view>
+    <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载提现记录</text></view>
   </view>
 </template>
 
@@ -83,5 +83,5 @@ onReachBottom(() => {
 .address { display: block; margin-bottom: 16rpx; color: #86909c; font-size: 21rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .foot { color: #86909c; font-size: 22rpx; }
 .detail-link { display:flex; align-items:center; gap:4rpx; }
-.loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
 </style>

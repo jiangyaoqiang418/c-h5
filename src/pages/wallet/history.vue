@@ -58,7 +58,7 @@ function openTxn(t: WalletTxnView) {
       <TxnRow v-for="t in list" :key="t.id" :txn="t" @detail="openTxn" />
     </view>
     <EmptyState v-else-if="!loading" title="暂无流水" />
-    <view v-if="loading" class="loading">加载中...</view>
+    <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载资金流水</text></view>
     <TxnDetailPopup v-model:visible="popupOpen" :txn="drawerTxn" />
   </view>
 </template>
@@ -69,8 +69,11 @@ function openTxn(t: WalletTxnView) {
   overflow:hidden; background: #fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .loading {
-  padding: 32rpx;
-  text-align: center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:96rpx 0;
+  gap:16rpx;
   color: #86909c;
   font-size: 24rpx;
 }
