@@ -6,6 +6,7 @@ import { formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const refund = ref<Api.RealOrder.OrderRefundDTO>();
@@ -43,7 +44,7 @@ function cancel() {
 </script>
 
 <template>
-  <view v-if="refund" class="as-detail">
+  <view v-if="refund" class="as-detail yb-page">
     <view class="hero">
       <text class="status">{{ status }}</text>
       <text class="type">仅退款</text>
@@ -59,7 +60,7 @@ function cancel() {
 
     <view v-if="refund.evidenceImages?.length" class="section">
       <text class="section-title">凭证图片</text>
-      <view class="evidence"><image v-for="url in refund.evidenceImages" :key="url" :src="url" mode="aspectFill" class="ev-img" /></view>
+      <view class="evidence"><image v-for="url in refund.evidenceImages" :key="url" :src="url || UI_ASSETS.placeholders.evidence" mode="aspectFill" class="ev-img" /></view>
     </view>
 
     <view v-if="refund.reviewRemark" class="section">
@@ -76,8 +77,7 @@ function cancel() {
 </template>
 
 <style lang="scss" scoped>
-.as-detail { min-height: 100%; background: #f7f8fa; }
-.hero, .section { background: #fff; padding: 24rpx 32rpx; }.section { margin-top: 16rpx; }
+.as-detail { min-height: 100%; padding:24rpx; }.hero, .section { background:#fff; padding:24rpx; border-radius:var(--yb-radius-lg); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.section { margin-top:20rpx; }
 .status { display: block; color: #ff7d00; font-size: 36rpx; font-weight: 700; }.type { display: block; margin-top: 8rpx; color: #1d2129; font-size: 28rpx; }.code { display: block; margin-top: 12rpx; color: #86909c; font-family: ui-monospace, monospace; font-size: 22rpx; }
 .section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: #86909c; font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: #f53f3f; font-family: ui-monospace, monospace; font-size: 28rpx; font-weight: 700; }
 .evidence { display: flex; flex-wrap: wrap; gap: 12rpx; }.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }.actions { padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); }.mt { margin-top: 12rpx; }

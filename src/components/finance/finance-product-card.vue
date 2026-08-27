@@ -15,10 +15,10 @@ const effectiveRate = computed(() =>
 
 const productIcon = computed(() => {
   const days = props.product.lockDays;
-  if (days <= 7) return '💧';
-  if (days <= 30) return '💰';
-  if (days <= 90) return '🔒';
-  return '🏦';
+  if (days <= 7) return 'flash';
+  if (days <= 30) return 'money-circle';
+  if (days <= 90) return 'lock-on';
+  return 'wallet';
 });
 
 function goDetail() {
@@ -31,7 +31,7 @@ function goDetail() {
     <view class="ef-head" @click="goDetail">
       <view class="ef-left">
         <view class="ef-icon-wrap">
-          <text class="ef-icon">{{ productIcon }}</text>
+          <wd-icon :name="productIcon" size="22px" color="#b8935a" />
         </view>
         <view class="ef-info">
           <text class="ef-name">{{ product.name }}</text>
@@ -85,9 +85,6 @@ function goDetail() {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-.ef-icon {
-  font-size: 40rpx;
 }
 .ef-info {
   display: flex;

@@ -6,6 +6,7 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { go } from '@/utils/navigate';
 import { formatUsdt } from '@shared/utils/currency';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const activeKey = ref('all');
@@ -62,7 +63,7 @@ watch(() => userStore.currentAudience, load);
 </script>
 
 <template>
-  <view class="as-list-page">
+  <view class="as-list-page yb-page">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
     </wd-tabs>
@@ -74,7 +75,7 @@ watch(() => userStore.currentAudience, load);
             <text class="status" :class="`status-${item.status.toLowerCase()}`">{{ item.statusText || statusLabel[item.status] }}</text>
           </view>
           <view class="body">
-            <image v-if="item.productImage" :src="item.productImage" mode="aspectFill" class="cover" />
+            <image :src="item.productImage || UI_ASSETS.placeholders.product" mode="aspectFill" class="cover" />
             <view class="info">
               <text class="title">{{ item.productTitle || '商品信息待补充' }}</text>
               <text class="reason">退款原因：{{ item.reason || '未填写' }}</text>
@@ -93,19 +94,18 @@ watch(() => userStore.currentAudience, load);
 </template>
 
 <style lang="scss" scoped>
-.as-list-page { min-height: 100%; background: #f7f8fa; }
-.list { padding: 16rpx; }
-.refund-card { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
+.as-list-page { min-height: 100%; }
+.list { padding: 24rpx; }
+.refund-card { margin-bottom: 20rpx; padding: 24rpx; border-radius: var(--yb-radius-lg); background: var(--yb-surface); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .head, .body, .actions { display: flex; }
 .head { justify-content: space-between; align-items: center; padding-bottom: 16rpx; border-bottom: 1rpx dashed #f2f3f5; }
 .code { min-width: 0; overflow: hidden; color: #4e5969; font-family: ui-monospace, monospace; font-size: 22rpx; text-overflow: ellipsis; white-space: nowrap; }
 .status { flex-shrink: 0; margin-left: 16rpx; font-size: 24rpx; color: #ff7d00; }
 .status-agreed { color: #00b42a; }.status-rejected, .status-canceled { color: #86909c; }
 .body { gap: 16rpx; padding-top: 16rpx; }
-.cover { width: 112rpx; height: 112rpx; flex-shrink: 0; border-radius: 8rpx; }
+.cover { width: 128rpx; height: 128rpx; flex-shrink: 0; border-radius: var(--yb-radius-md); }
 .info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
-.title, .reason, .counterpart { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.title { font-size: 26rpx; font-weight: 500; color: #1d2129; }.reason, .counterpart { font-size: 22rpx; color: #86909c; }
+.title { display:-webkit-box; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-size:26rpx; line-height:1.45; font-weight:500; color:#1d2129; }.reason, .counterpart { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:22rpx; color:#86909c; }
 .amount { flex-shrink: 0; color: #0f111a; font-family: ui-monospace, monospace; font-size: 28rpx; font-weight: 700; }
 .actions { justify-content: flex-end; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx dashed #f2f3f5; }
 </style>

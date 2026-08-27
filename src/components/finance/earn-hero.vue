@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { formatAmount } from '@/utils/format-bridge';
 import { getUsdtCnyRate } from '@shared/utils/currency';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface Props {
   balance: string | number;
@@ -28,9 +29,9 @@ function goBack() {
 </script>
 
 <template>
-  <view class="earn-hero">
+  <view class="earn-hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.finance})` }">
     <view class="nav">
-      <view class="nav-btn" @click="goBack"><view class="chev" /></view>
+      <view class="nav-btn" @click="goBack"><wd-icon name="arrow-left" size="20px" /></view>
       <text class="nav-title">小金库</text>
     </view>
     <text class="hero-eyebrow">EARN BALANCE</text>
@@ -40,7 +41,7 @@ function goBack() {
     </view>
     <text class="hero-sub">≈ ¥{{ cnyEquiv }}</text>
     <view v-if="bestApy > 0" class="apy-badge">
-      <text class="apy-icon">▁▂▃▄</text>
+      <wd-icon name="chart" size="16px" color="#fff" />
       <text class="apy-num">{{ bestApy.toFixed(2) }}% APY</text>
     </view>
     <view class="hero-actions">
@@ -56,8 +57,11 @@ function goBack() {
 
 <style lang="scss" scoped>
 .earn-hero {
-  background: #FFFFFF;
-  border-bottom: 1rpx solid #EDECE6;
+  background-color: #432e12;
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  border-bottom: 1rpx solid rgba(255,255,255,.12);
   padding: env(safe-area-inset-top) 32rpx 40rpx;
 }
 .nav {
@@ -73,20 +77,10 @@ function goBack() {
   align-items: center;
   justify-content: center;
 }
-.chev {
-  position: relative;
-  left: 4rpx;
-  width: 28rpx;
-  height: 28rpx;
-  border-left: 5rpx solid #0F111A;
-  border-bottom: 5rpx solid #0F111A;
-  box-sizing: border-box;
-  transform: rotate(45deg);
-}
 .nav-title {
   font-size: 30rpx;
   font-weight: 700;
-  color: #0F111A;
+  color: #fff;
   margin-left: 8rpx;
 }
 .hero-eyebrow {
@@ -94,7 +88,7 @@ function goBack() {
   font-size: 20rpx;
   font-weight: 700;
   letter-spacing: 3rpx;
-  color: #86909C;
+  color: rgba(255,255,255,.68);
   margin-bottom: 16rpx;
   text-align: center;
 }
@@ -109,13 +103,13 @@ function goBack() {
   font-family: ui-monospace, monospace;
   font-size: 44rpx;
   font-weight: 600;
-  color: #86909C;
+  color: rgba(255,255,255,.76);
 }
 .hero-total .num {
   font-family: ui-monospace, monospace;
   font-size: 96rpx;
   font-weight: 700;
-  color: #0F111A;
+  color: #fff;
   letter-spacing: -4rpx;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -125,7 +119,7 @@ function goBack() {
   text-align: center;
   font-family: ui-monospace, monospace;
   font-size: 26rpx;
-  color: #86909C;
+  color: rgba(255,255,255,.76);
   margin-bottom: 24rpx;
 }
 .apy-badge {
@@ -136,16 +130,11 @@ function goBack() {
   margin: 0 auto 40rpx;
   width: fit-content;
   padding: 12rpx 24rpx;
-  background: rgba(0, 168, 138, 0.10);
+  background: rgba(255,255,255,.14);
   border-radius: 999rpx;
 }
-.apy-icon {
-  color: #00A88A;
-  font-size: 20rpx;
-  letter-spacing: 2rpx;
-}
 .apy-num {
-  color: #00A88A;
+  color: #fff;
   font-family: ui-monospace, monospace;
   font-size: 26rpx;
   font-weight: 700;
@@ -165,14 +154,14 @@ function goBack() {
   justify-content: center;
   font-size: 30rpx;
   font-weight: 700;
-  background: #FFFFFF;
-  color: #0F111A;
-  border: 2rpx solid #EDECE6;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  border: 2rpx solid rgba(255,255,255,.22);
   letter-spacing: 2rpx;
 }
 .action-btn.primary {
-  background: #0F111A;
+  background: var(--yb-brand);
   color: #FFFFFF;
-  border-color: #0F111A;
+  border-color: var(--yb-brand);
 }
 </style>
