@@ -70,7 +70,7 @@ onReachBottom(() => {
 </script>
 
 <template>
-  <view class="favorites-page">
+  <view class="favorites-page yb-page">
     <view v-if="list.length" class="grid">
       <view v-for="product in list" :key="product.id" class="favorite-item">
         <ProductCard :product="product" />
@@ -84,9 +84,9 @@ onReachBottom(() => {
 </template>
 
 <style lang="scss" scoped>
-.favorites-page { min-height: 100%; padding: 16rpx; background: #f7f8fa; }
-.grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.favorites-page { min-height: 100%; padding: 24rpx; }
+.grid { display: flex; flex-wrap: wrap; gap: 20rpx 16rpx; }
 .favorite-item { width: calc((100% - 16rpx) / 2); min-width: 0; }
-.remove { margin-top: 12rpx; padding: 14rpx 0; border-radius: 12rpx; background: #fff; color: #6b7385; font-size: 24rpx; text-align: center; }
+.remove { margin-top: 12rpx; padding: 14rpx 0; border-radius: var(--yb-radius-md); background: var(--yb-surface); border:1rpx solid var(--yb-border); color: var(--yb-text-secondary); font-size: 24rpx; text-align: center; }
 .loading, .no-more { padding: 32rpx; color: #86909c; font-size: 24rpx; text-align: center; }
 </style>

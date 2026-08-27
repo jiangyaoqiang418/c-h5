@@ -6,6 +6,7 @@ import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { cancelPurchase, fetchMyPurchases } from '@/service/api/purchase';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const activeKey = ref('all');
@@ -56,8 +57,8 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
 </script>
 
 <template>
-  <view class="my-purchase-page">
-    <view class="hero">
+  <view class="my-purchase-page yb-page">
+    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.purchase})` }">
       <text class="hero-eyebrow">MY PURCHASE REQUESTS</text>
       <text class="hero-title">我的求购</text>
       <text class="hero-sub">跟踪状态 · 接单进度 · 关联订单</text>
@@ -81,37 +82,34 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
 </template>
 
 <style lang="scss" scoped>
-.my-purchase-page {
-  min-height: 100%;
-  background: #FAFAF7;
-}
+.my-purchase-page { min-height:100%; }
 .hero {
-  background: #FFFFFF;
-  border-bottom: 1rpx solid #EDECE6;
-  padding: 40rpx 32rpx 32rpx;
+  background-color: #10131f;
+  background-size: cover;
+  background-position:center;
+  color:#fff;
+  padding: 44rpx 28rpx 32rpx;
 }
 .hero-eyebrow {
   display: block;
   font-size: 20rpx;
   font-weight: 700;
   letter-spacing: 3rpx;
-  color: #6B7385;
+  color: rgba(255,255,255,.64);
   margin-bottom: 12rpx;
 }
 .hero-title {
   display: block;
   font-size: 44rpx;
   font-weight: 700;
-  color: #0F111A;
+  color: #fff;
   letter-spacing: -1rpx;
 }
 .hero-sub {
   display: block;
   font-size: 24rpx;
-  color: #6B7385;
+  color: rgba(255,255,255,.76);
   margin-top: 8rpx;
 }
-.list {
-  padding: 16rpx;
-}
+.list { padding:24rpx; }
 </style>

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { onReachBottom } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 import {
   fetchPointAppeals,
   fetchPointLedger,
@@ -111,8 +112,8 @@ function formatDate(value?: string | number): string {
 </script>
 
 <template>
-  <view class="points-page">
-    <view class="hero">
+  <view class="points-page yb-page">
+    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.points})` }">
       <text class="hero-label">当前积分</text>
       <text class="hero-amount">{{ balance }}</text>
       <text class="hero-hint">完成订单、好评、求购可获得积分</text>
@@ -188,9 +189,11 @@ function formatDate(value?: string | number): string {
 </template>
 
 <style lang="scss" scoped>
-.points-page { min-height: 100%; background: #f7f8fa; }
+.points-page { min-height: 100%; }
 .hero {
-  background: linear-gradient(135deg, #ff9a02 0%, #f53f3f 100%);
+  background-color: #2a175d;
+  background-size: cover;
+  background-position: center;
   color: #fff;
   padding: 48rpx 32rpx;
   text-align: center;
@@ -198,13 +201,15 @@ function formatDate(value?: string | number): string {
 .hero-label { display: block; font-size: 22rpx; opacity: 0.8; }
 .hero-amount { display: block; font-size: 80rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0; }
 .hero-hint { display: block; font-size: 22rpx; opacity: 0.8; }
-.list { padding: 16rpx; }
+.list { padding: 24rpx; }
 .loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
 .log-row {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--yb-radius-lg);
   padding: 24rpx;
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
+  border:1rpx solid var(--yb-border);
+  box-shadow:var(--yb-shadow-card);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -220,9 +225,11 @@ function formatDate(value?: string | number): string {
 .appeal-tag { font-size: 22rpx; color: #ff9a02; }
 .appeal-row {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--yb-radius-lg);
   padding: 24rpx;
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
+  border:1rpx solid var(--yb-border);
+  box-shadow:var(--yb-shadow-card);
 }
 .appeal-head { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; }
 .appeal-title { font-size: 26rpx; font-weight: 600; }
@@ -245,9 +252,11 @@ function formatDate(value?: string | number): string {
 .appeal-times { display: flex; flex-direction: column; gap: 4rpx; margin-top: 12rpx; font-size: 20rpx; color: #86909c; }
 .rule-row {
   background: #fff;
-  border-radius: 16rpx;
+  border-radius: var(--yb-radius-lg);
   padding: 24rpx;
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
+  border:1rpx solid var(--yb-border);
+  box-shadow:var(--yb-shadow-card);
 }
 .rule-title { display: block; font-size: 26rpx; font-weight: 600; }
 .rule-desc { display: block; font-size: 22rpx; color: #4e5969; margin: 8rpx 0; }

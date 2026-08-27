@@ -138,7 +138,7 @@ function clear() {
 </script>
 
 <template>
-  <view class="notification-page">
+  <view class="notification-page yb-page">
     <view v-if="list.length" class="toolbar">
       <text class="toolbar-text">{{ unreadCount ? `${unreadCount} 条未读` : '全部已读' }}</text>
       <view class="toolbar-actions">
@@ -159,5 +159,5 @@ function clear() {
 </template>
 
 <style lang="scss" scoped>
-.notification-page { min-height:100%; padding:16rpx; background:#f7f8fa; }.toolbar,.toolbar-actions,.right { display:flex; align-items:center; }.toolbar { justify-content:space-between; padding:8rpx 8rpx 16rpx; }.toolbar-text { color:#86909c; font-size:22rpx; }.toolbar-actions { gap:24rpx; }.action { color:#4d80f0; font-size:24rpx; }.action.danger,.delete { color:#f53f3f; }.disabled { color:#c9cdd4; }.list { background:#fff; border-radius:16rpx; overflow:hidden; }.item { display:flex; align-items:flex-start; padding:24rpx 20rpx; border-bottom:1rpx solid #f2f3f5; gap:14rpx; }.item:last-child { border:none; }.dot { width:12rpx; height:12rpx; margin-top:11rpx; border-radius:50%; background:transparent; flex-shrink:0; }.unread .dot { background:#f53f3f; }.body { flex:1; min-width:0; }.title,.content,.time { display:block; }.title { color:#1d2129; font-size:28rpx; font-weight:600; }.content { color:#4e5969; font-size:24rpx; line-height:1.5; margin-top:6rpx; }.time { color:#86909c; font-size:20rpx; margin-top:8rpx; }.right { flex-shrink:0; flex-direction:column; align-items:flex-end; gap:8rpx; }.delete { font-size:22rpx; }.arrow { color:#c9cdd4; font-size:32rpx; line-height:1; }
+.notification-page { min-height:100%; padding:24rpx; }.toolbar,.toolbar-actions,.right { display:flex; align-items:center; }.toolbar { justify-content:space-between; padding:8rpx 8rpx 20rpx; }.toolbar-text { color:#86909c; font-size:22rpx; }.toolbar-actions { gap:24rpx; }.action { color:var(--yb-brand); font-size:24rpx; }.action.danger,.delete { color:#f53f3f; }.disabled { color:#c9cdd4; }.list { background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); overflow:hidden; }.item { display:flex; align-items:flex-start; padding:24rpx 20rpx; border-bottom:1rpx solid var(--yb-border); gap:14rpx; }.item:last-child { border:none; }.dot { width:12rpx; height:12rpx; margin-top:11rpx; border-radius:50%; background:transparent; flex-shrink:0; }.unread .dot { background:var(--yb-brand); }.body { flex:1; min-width:0; }.title,.content,.time { display:block; }.title { color:#1d2129; font-size:28rpx; font-weight:600; }.content { color:#4e5969; font-size:24rpx; line-height:1.5; margin-top:6rpx; }.time { color:#86909c; font-size:20rpx; margin-top:8rpx; }.right { flex-shrink:0; flex-direction:column; align-items:flex-end; gap:8rpx; }.delete { font-size:22rpx; }.arrow { color:#c9cdd4; font-size:32rpx; line-height:1; }
 </style>
