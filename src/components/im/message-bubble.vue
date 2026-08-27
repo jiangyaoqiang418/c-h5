@@ -20,16 +20,16 @@ const isEvent = computed(() =>
 const isCard = computed(() => ['card-order', 'card-product', 'card-payment'].includes(props.msg.type));
 const isMedia = computed(() => ['image', 'video', 'audio', 'file'].includes(props.msg.type));
 
-const eventEmoji = computed(() => {
+const eventIcon = computed(() => {
   const m: Record<string, string> = {
-    'order-paid': '💸',
-    'order-shipped': '📦',
-    'order-delivered': '🎁',
-    'price-change': '🏷️',
-    'refund-request': '💰',
-    'presale-merged': '🔗'
+    'order-paid': 'wallet',
+    'order-shipped': 'cart',
+    'order-delivered': 'gift',
+    'price-change': 'label',
+    'refund-request': 'money-circle',
+    'presale-merged': 'link'
   };
-  return m[props.msg.type] || '📢';
+  return m[props.msg.type] || 'notification';
 });
 </script>
 
@@ -42,13 +42,13 @@ const eventEmoji = computed(() => {
 
   <view v-else-if="isEvent" class="msg-row center">
     <view class="bubble event">
-      <text>{{ eventEmoji }} {{ typeMeta.label }}：{{ msg.content || '' }}</text>
+      <wd-icon :name="eventIcon" size="24rpx" /><text>{{ typeMeta.label }}：{{ msg.content || '' }}</text>
     </view>
   </view>
 
   <view v-else-if="isRisk" class="msg-row center">
     <view class="bubble risk" :class="msg.type">
-      <text>⚠️ {{ typeMeta.label }} — {{ msg.content || '已被平台拦截' }}</text>
+      <wd-icon name="warning" size="24rpx" /><text>{{ typeMeta.label }} — {{ msg.content || '已被平台拦截' }}</text>
     </view>
   </view>
 
@@ -75,7 +75,7 @@ const eventEmoji = computed(() => {
 
     <view v-else-if="isMedia" class="bubble media" :class="side">
       <image v-if="msg.type === 'image' && msg.mediaUrl" :src="msg.mediaUrl" mode="aspectFit" class="media-img" />
-      <text v-else>📎 {{ msg.mediaName || typeMeta.label }}</text>
+      <view v-else class="media-label"><wd-icon name="attachment" size="24rpx" /><text>{{ msg.mediaName || typeMeta.label }}</text></view>
     </view>
 
     <view v-else class="bubble text" :class="side">
@@ -130,6 +130,7 @@ const eventEmoji = computed(() => {
   padding: 8rpx 16rpx;
 }
 .bubble.event {
+  display:flex; align-items:center; gap:8rpx;
   background: #fff7e6;
   color: #ff7d00;
   font-size: 22rpx;
@@ -137,6 +138,7 @@ const eventEmoji = computed(() => {
   border: 1rpx solid #ffd591;
 }
 .bubble.risk {
+  display:flex; align-items:center; gap:8rpx;
   font-size: 22rpx;
   padding: 12rpx 20rpx;
 }
@@ -193,6 +195,7 @@ const eventEmoji = computed(() => {
 .bubble.media {
   padding: 4rpx;
 }
+.media-label { display:flex; align-items:center; gap:8rpx; padding:12rpx 16rpx; }
 .media-img {
   max-width: 400rpx;
   max-height: 400rpx;
