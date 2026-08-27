@@ -7,12 +7,12 @@ interface Props {
 defineProps<Props>();
 defineEmits<{ (e: 'update:modelValue', v: Api.Order.AftersaleCaseType): void }>();
 
-const TYPES: { type: Api.Order.AftersaleCaseType; emoji: string; hint: string }[] = [
-  { type: 'REFUND', emoji: '↩️', hint: '退还商品并退还货款' },
-  { type: 'REPLACE', emoji: '🔄', hint: '更换相同或同等价值商品' },
-  { type: 'REPAIR', emoji: '🔧', hint: '维修商品保留所有权' },
-  { type: 'PARTIAL_REFUND', emoji: '💰', hint: '保留商品退还部分货款' },
-  { type: 'REFUND_ONLY', emoji: '📥', hint: '仅退款（适用未发货）' }
+const TYPES: { type: Api.Order.AftersaleCaseType; icon: string; hint: string }[] = [
+  { type: 'REFUND', icon: 'undo', hint: '退还商品并退还货款' },
+  { type: 'REPLACE', icon: 'refresh', hint: '更换相同或同等价值商品' },
+  { type: 'REPAIR', icon: 'setting', hint: '维修商品保留所有权' },
+  { type: 'PARTIAL_REFUND', icon: 'money-circle', hint: '保留商品退还部分货款' },
+  { type: 'REFUND_ONLY', icon: 'arrow-down', hint: '仅退款（适用未发货）' }
 ];
 </script>
 
@@ -25,12 +25,12 @@ const TYPES: { type: Api.Order.AftersaleCaseType; emoji: string; hint: string }[
       :class="{ active: modelValue === t.type }"
       @click="$emit('update:modelValue', t.type)"
     >
-      <text class="emoji">{{ t.emoji }}</text>
+      <view class="icon"><wd-icon :name="t.icon" size="20px" /></view>
       <view class="info">
         <text class="label">{{ enums.AFTERSALE_CASE_TYPE_META[t.type].label }}</text>
         <text class="hint">{{ t.hint }}</text>
       </view>
-      <text v-if="modelValue === t.type" class="check">✓</text>
+      <wd-icon v-if="modelValue === t.type" name="check" size="20px" color="#fa243c" />
     </view>
   </view>
 </template>
@@ -54,8 +54,12 @@ const TYPES: { type: Api.Order.AftersaleCaseType; emoji: string; hint: string }[
   border-color: #4d80f0;
   background: #f3f7ff;
 }
-.emoji {
-  font-size: 40rpx;
+.icon {
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 .info {
@@ -72,10 +76,5 @@ const TYPES: { type: Api.Order.AftersaleCaseType; emoji: string; hint: string }[
   font-size: 22rpx;
   color: #86909c;
   margin-top: 4rpx;
-}
-.check {
-  color: #4d80f0;
-  font-size: 36rpx;
-  font-weight: 700;
 }
 </style>

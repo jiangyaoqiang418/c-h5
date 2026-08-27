@@ -149,7 +149,7 @@ onReachBottom(() => {
       <view v-if="loading" class="loading">加载中...</view>
     </view>
 
-    <view class="fab" @click="go('/pages/buyer/product-create')">+ 发布</view>
+    <view class="fab yb-pressable" @click="go('/pages/buyer/product-create')"><wd-icon name="add" size="17px" /> <text>发布</text></view>
   </view>
 </template>
 
@@ -176,8 +176,8 @@ onReachBottom(() => {
 .card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10rpx; }
 .review-comment { display: block; margin-top: 10rpx; font-size: 22rpx; line-height: 1.5; color: #f53f3f; }
 .fab {
-  position: fixed; right: 32rpx; bottom: calc(48rpx + env(safe-area-inset-bottom));
-  padding: 20rpx 32rpx; border-radius: 48rpx; background: #4d80f0; color: #fff;
-  font-size: 26rpx; box-shadow: 0 8rpx 24rpx rgba(77, 128, 240, 0.4);
+  position: fixed; right: 28rpx; bottom: calc(28rpx + env(safe-area-inset-bottom));
+  display:flex; align-items:center; gap:8rpx; padding: 20rpx 32rpx; border-radius: 48rpx; background: var(--yb-brand); color: #fff;
+  font-size: 26rpx; box-shadow: 0 8rpx 24rpx rgba(250, 36, 60, 0.28);
 }
 </style>

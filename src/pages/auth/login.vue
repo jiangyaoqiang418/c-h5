@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const env = ((import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env || {});
@@ -38,9 +39,9 @@ async function submit() {
 </script>
 
 <template>
-  <view class="login-page">
+  <view class="login-page" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.login})` }">
     <view class="hero">
-      <view class="logo-mark">油宝</view>
+      <image class="logo-mark" :src="UI_ASSETS.icons.brand" mode="aspectFit" />
       <text class="title">油宝</text>
       <text class="sub">Web3 稳定币代购撮合商城</text>
     </view>
@@ -58,7 +59,9 @@ async function submit() {
   min-height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  background: linear-gradient(135deg, #4d80f0 0%, #722ed1 50%, #fff 50%);
+  background-color: #0e1530;
+  background-size: cover;
+  background-position: center;
   padding: calc(32rpx + env(safe-area-inset-top)) 32rpx calc(32rpx + env(safe-area-inset-bottom));
 }
 .hero {
@@ -67,17 +70,9 @@ async function submit() {
   color: #fff;
 }
 .logo-mark {
-  min-width: 96rpx;
+  width: 112rpx;
   height: 96rpx;
-  padding: 0 24rpx;
-  background: rgba(255, 255, 255, 0.18);
   border-radius: 16rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 44rpx;
-  font-weight: 700;
-  letter-spacing: 4rpx;
   margin-bottom: 16rpx;
 }
 .title {

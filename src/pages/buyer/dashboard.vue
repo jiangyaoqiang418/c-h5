@@ -13,6 +13,7 @@ import BuyerOrderCard from '@/components/buyer/buyer-order-card.vue';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const orders = ref<Api.RealOrder.OrderView[]>([]);
@@ -53,10 +54,10 @@ onShow(load);
 
 const kpis = computed(() => {
   return [
-    { label: '在售商品', value: productTotal.value, unit: '件', emoji: '🛍️', color: '#5B5CE7' },
-    { label: '卖出订单', value: orderTotal.value, unit: '单', emoji: '📦', color: '#B8935A' },
-    { label: '可接求购', value: requestTotal.value, unit: '单', emoji: '🎯', color: '#00A88A' },
-    { label: '保证金余额', value: formatAmount(depositBalance.value), unit: 'U', emoji: '🔒', color: '#7C5CFC' }
+    { label: '在售商品', value: productTotal.value, unit: '件', icon: 'goods', color: '#5B5CE7' },
+    { label: '卖出订单', value: orderTotal.value, unit: '单', icon: 'cart', color: '#B8935A' },
+    { label: '可接求购', value: requestTotal.value, unit: '单', icon: 'search', color: '#00A88A' },
+    { label: '保证金余额', value: formatAmount(depositBalance.value), unit: 'U', icon: 'shield', color: '#7C5CFC' }
   ];
 });
 
@@ -65,7 +66,7 @@ const kpis = computed(() => {
 <template>
   <view class="dash-page">
     <!-- Hero -->
-    <view class="hero">
+    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.buyer})` }">
       <view class="hero-glow"></view>
       <view class="hero-top">
         <image v-if="userAvatar" :src="userAvatar" class="hero-avatar" />
@@ -74,7 +75,7 @@ const kpis = computed(() => {
           <view class="hero-name-row">
             <text class="hero-name">{{ user?.nickname || '买手' }}</text>
           </view>
-          <view class="hero-sub">✓ 已读取真实买手数据</view>
+          <view class="hero-sub"><wd-icon name="check" size="13px" /> 已读取真实买手数据</view>
         </view>
       </view>
       <view class="hero-stats">
@@ -167,7 +168,9 @@ const kpis = computed(() => {
 /* Hero */
 .hero {
   position: relative;
-  background: linear-gradient(135deg, #0F1B36 0%, #1E1F3A 60%, #5B5CE7 100%);
+  background-color: #10131f;
+  background-size: cover;
+  background-position: center;
   color: #FFFFFF;
   padding: 48rpx 32rpx 32rpx;
   overflow: hidden;
@@ -217,7 +220,9 @@ const kpis = computed(() => {
   letter-spacing: -1rpx;
 }
 .hero-sub {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
   font-size: 22rpx;
   color: rgba(255, 255, 255, 0.72);
   margin-top: 6rpx;

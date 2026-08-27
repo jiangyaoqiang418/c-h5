@@ -28,14 +28,14 @@ function onChange(v: 'customer' | 'buyer') {
       :class="{ active: value === 'customer' }"
       @click="onChange('customer')"
     >
-      <text>🛒 顾客</text>
+      <wd-icon name="cart" size="14px" /> <text>顾客</text>
     </view>
     <view
       class="seg"
       :class="{ active: value === 'buyer' }"
       @click="onChange('buyer')"
     >
-      <text>🏪 买手</text>
+      <wd-icon name="shop" size="14px" /> <text>买手</text>
     </view>
   </view>
 </template>
@@ -48,6 +48,10 @@ function onChange(v: 'customer' | 'buyer') {
   padding: 4rpx;
 }
 .seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
   flex: 1;
   text-align: center;
   padding: 8rpx 28rpx;

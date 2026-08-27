@@ -40,9 +40,9 @@ function goDetail() {
       <view class="info">
         <text class="title">{{ order.productTitle }}</text>
         <view class="meta-chips">
-          <text class="chip">👤 {{ counterpartName }}</text>
+          <view class="chip"><wd-icon name="user" size="12px" /><text>{{ counterpartName }}</text></view>
         </view>
-        <text class="addr">📍 {{ order.shippingAddress }}</text>
+        <view class="addr"><wd-icon name="location" size="12px" /><text>{{ order.shippingAddress }}</text></view>
       </view>
     </view>
     <view class="footer" @click.stop>
@@ -68,8 +68,8 @@ function goDetail() {
         >
           上传发货
         </wd-button>
-        <text v-else-if="order.status === 'IN_TRANSIT'" class="status-note">🚚 等待签收</text>
-        <text v-else-if="order.status === 'COMPLETED'" class="status-note success">✓ 已完成</text>
+        <view v-else-if="order.status === 'IN_TRANSIT'" class="status-note"><wd-icon name="logistics" size="13px" /> <text>等待签收</text></view>
+        <view v-else-if="order.status === 'COMPLETED'" class="status-note success"><wd-icon name="check" size="13px" /> <text>已完成</text></view>
       </view>
     </view>
   </view>
@@ -136,8 +136,14 @@ function goDetail() {
   border-radius: 999rpx;
   font-size: 20rpx;
   color: #6B7385;
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
 }
 .addr {
+  display: flex;
+  align-items: center;
+  gap: 5rpx;
   font-size: 22rpx;
   color: #A8ADB8;
   overflow: hidden;
@@ -178,6 +184,9 @@ function goDetail() {
   gap: 8rpx;
 }
 .status-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5rpx;
   padding: 8rpx 16rpx;
   background: rgba(91, 92, 231, 0.1);
   color: #5B5CE7;

@@ -192,8 +192,8 @@ function onLongPress(a: AddressRecord) {
 .addr { display: block; font-size: 24rpx; color: #4e5969; margin-top: 12rpx; line-height: 1.5; }
 .set-default { display: inline-block; margin-top: 16rpx; padding: 8rpx 16rpx; background: #f7f8fa; border-radius: 8rpx; color: #4d80f0; font-size: 22rpx; }
 .fab {
-  position: fixed; right: 32rpx; bottom: calc(48rpx + env(safe-area-inset-bottom));
-  background: #4d80f0; color: #fff;
+  position: fixed; right: 28rpx; bottom: calc(28rpx + env(safe-area-inset-bottom));
+  background: var(--yb-brand); color: #fff;
   padding: 20rpx 32rpx; border-radius: 48rpx;
   font-size: 26rpx;
   box-shadow: 0 8rpx 24rpx rgba(77,128,240,0.4);

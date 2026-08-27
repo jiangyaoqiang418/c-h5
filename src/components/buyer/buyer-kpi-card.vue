@@ -3,7 +3,7 @@ interface Props {
   label: string;
   value: string | number;
   unit?: string;
-  emoji: string;
+  icon: string;
   color?: string;
   delta?: number;
 }
@@ -14,7 +14,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   <view class="kpi-card" :style="{ '--c': color }">
     <view class="head">
       <view class="icon-wrap">
-        <text class="emoji">{{ emoji }}</text>
+        <wd-icon :name="icon" size="19px" :color="color" />
       </view>
       <view v-if="delta != null" class="delta" :class="{ up: delta >= 0, down: delta < 0 }">
         <text class="arrow">{{ delta >= 0 ? '↑' : '↓' }}</text>
@@ -55,10 +55,6 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.emoji {
-  font-size: 32rpx;
-  line-height: 1;
 }
 .delta {
   display: inline-flex;
