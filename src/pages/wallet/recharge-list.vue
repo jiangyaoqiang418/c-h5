@@ -56,7 +56,7 @@ onReachBottom(() => {
 </script>
 
 <template>
-  <view class="list-page">
+  <view class="list-page yb-page">
     <view v-if="list.length" class="list">
       <view
         v-for="item in list"
@@ -75,11 +75,10 @@ onReachBottom(() => {
 </template>
 
 <style lang="scss" scoped>
-.list-page { min-height: 100%; padding: 16rpx; box-sizing: border-box; background: #f7f8fa; }
-.record-card { margin-bottom: 12rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
+.list-page { min-height:100%; padding:24rpx; box-sizing:border-box; }.record-card { margin-bottom:16rpx; padding:24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .head, .foot { display: flex; align-items: center; justify-content: space-between; }
 .chain { font-size: 24rpx; font-weight: 600; color: #1d2129; }
-.amount { display: block; margin: 18rpx 0; font-size: 36rpx; font-weight: 700; color: #00b42a; font-family: ui-monospace, monospace; }
+.amount { display:block; margin:18rpx 0; font-size:36rpx; font-weight:700; color:#00a88a; font-family:ui-monospace,monospace; }
 .foot { color: #86909c; font-size: 22rpx; }
 .loading { padding: 32rpx; text-align: center; color: #86909c; font-size: 24rpx; }
 </style>

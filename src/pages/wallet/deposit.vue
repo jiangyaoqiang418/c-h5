@@ -112,7 +112,7 @@ watch(() => form.chain, loadRechargeAddress);
 </script>
 
 <template>
-  <view class="deposit-page">
+  <view class="deposit-page yb-page">
     <view class="form-card">
       <text class="title">链上充值</text>
       <text class="tip">选择链后，使用专属地址直接转账即可到账；创建申报单仅用于留存本次金额。</text>
@@ -168,8 +168,8 @@ watch(() => form.chain, loadRechargeAddress);
 </template>
 
 <style lang="scss" scoped>
-.deposit-page { min-height: 100%; box-sizing: border-box; padding: 16rpx; background: #f7f8fa; }
-.form-card, .detail-card, .record-entry { margin-bottom: 16rpx; padding: 24rpx; border-radius: 16rpx; background: #fff; }
+.deposit-page { min-height: 100%; box-sizing: border-box; padding: 24rpx; }
+.form-card, .detail-card, .record-entry { margin-bottom:20rpx; padding:24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .title { font-size: 28rpx; font-weight: 600; color: #1d2129; }
 .tip { display: block; margin: 10rpx 0 20rpx; color: #86909c; font-size: 23rpx; line-height: 1.6; }
 .submit-btn, .refresh-btn { margin-top: 20rpx; }
@@ -178,7 +178,7 @@ watch(() => form.chain, loadRechargeAddress);
 .label { color: #86909c; }
 .value { color: #1d2129; font-family: ui-monospace, monospace; }
 .block-row { padding: 20rpx 0; border-bottom: 1rpx solid #f7f8fa; }
-.block-value { display: block; margin: 10rpx 0; padding: 16rpx; border-radius: 8rpx; background: #f7f8fa; color: #1d2129; font-family: ui-monospace, monospace; font-size: 22rpx; word-break: break-all; }
+.block-value { display: block; margin:10rpx 0; padding:16rpx; border-radius:var(--yb-radius-md); background:var(--yb-bg-muted); color:#1d2129; font-family:ui-monospace,monospace; font-size:22rpx; word-break:break-all; }
 .warning { display: block; margin-top: 20rpx; color: #ff7d00; font-size: 22rpx; line-height: 1.6; }
 .record-entry { display: flex; justify-content: space-between; color: #4e5969; font-size: 24rpx; }
 </style>

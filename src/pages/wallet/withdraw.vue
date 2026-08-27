@@ -63,7 +63,7 @@ async function doWithdraw() {
 </script>
 
 <template>
-  <view class="withdraw-page">
+  <view class="withdraw-page yb-page">
     <view class="balance-card">
       <text class="lbl">可用余额</text>
       <text class="amount">U {{ formatAmount(available.toFixed(2)) }}</text>
@@ -103,14 +103,15 @@ async function doWithdraw() {
 <style lang="scss" scoped>
 .withdraw-page {
   min-height: 100%;
-  background: #f7f8fa;
-  padding: 16rpx;
+  padding: 24rpx;
 }
 .balance-card, .form-card, .agree-row {
   background: #fff;
   padding: 24rpx;
-  border-radius: 16rpx;
-  margin-bottom: 16rpx;
+  border-radius: var(--yb-radius-lg);
+  margin-bottom: 20rpx;
+  border:1rpx solid var(--yb-border);
+  box-shadow:var(--yb-shadow-card);
 }
 .balance-card {
   text-align: center;
@@ -124,7 +125,7 @@ async function doWithdraw() {
   display: block;
   font-size: 56rpx;
   font-weight: 700;
-  color: #4d80f0;
+  color: var(--yb-brand);
   font-family: ui-monospace, monospace;
   margin-top: 8rpx;
 }
