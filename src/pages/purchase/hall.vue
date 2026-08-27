@@ -100,6 +100,7 @@ function goCreate() {
         title="求购大厅加载失败"
         description="请稍后重试"
       />
+      <view v-else-if="loading" class="hall-loading"><wd-loading size="44rpx" /><text>正在加载求购任务</text></view>
       <EmptyState
         v-else-if="!loading"
         title="暂无求购任务"
@@ -170,4 +171,5 @@ function goCreate() {
 .list {
   padding: 24rpx;
 }
+.hall-loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 </style>
