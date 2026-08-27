@@ -110,7 +110,7 @@ function onSortChange(v: string) {
     </view>
     <EmptyState v-else-if="!loading" title="没有找到符合条件的商品" description="尝试调整搜索条件" />
 
-    <view v-if="loading" class="loading">加载中…</view>
+    <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     <view v-else-if="list.length >= total" class="no-more">没有更多了</view>
   </view>
 </template>
@@ -172,4 +172,5 @@ function onSortChange(v: string) {
   color: #86909c;
   font-size: 24rpx;
 }
+.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; }
 </style>
