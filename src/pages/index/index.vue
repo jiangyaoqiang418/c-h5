@@ -2,37 +2,37 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { fetchCategoryTree } from '@/service/api/category';
 import {
+  fetchBanners,
   fetchBestSellers,
   fetchFlashSale,
   fetchNewArrivals,
   fetchStorefrontRecommend
 } from '@/service/api/product';
 import { UI_ASSETS } from '@/constants/ui-assets';
-import { formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
+import ProductCard from '@/components/product/product-card.vue';
 
 interface CategoryNode {
   id: string;
   name: string;
 }
 
-type Product = Api.RealProduct.ProductDTO | Api.RealProduct.FlashSaleItemVO;
-
 const loading = ref(true);
 const categoryRoots = ref<CategoryNode[]>([]);
 const recommended = ref<Api.RealProduct.ProductDTO[]>([]);
 const hot = ref<Api.RealProduct.ProductDTO[]>([]);
 const newest = ref<Api.RealProduct.ProductDTO[]>([]);
-const flash = ref<Api.RealProduct.FlashSaleItemVO[]>([]);
+const flash = ref<Api.RealProduct.ProductDTO[]>([]);
+const flashItems = ref<Api.RealProduct.FlashSaleItemVO[]>([]);
+const promoBanners = ref<Api.RealProduct.BannerDTO[]>([]);
 const now = ref(Date.now());
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
 
 const categoryIcons = ['phone', 'shop', 'gift', 'cart', 'bags', 'star'];
-const curated = computed(() => recommended.value.length ? recommended.value.slice(0, 4) : [...hot.value, ...newest.value].slice(0, 4));
-const visibleCategories = computed(() => categoryRoots.value.slice(0, 6));
+const visibleCategories = computed(() => categoryRoots.value.slice(0, 10));
 
 const countdown = computed(() => {
-  const endTimes = flash.value
+  const endTimes = flashItems.value
     .map(item => Number(item.sessionEndTime))
     .filter(value => Number.isFinite(value) && value > now.value);
   if (!endTimes.length) return '进行中';
@@ -43,11 +43,20 @@ const countdown = computed(() => {
   return [hours, minutes, secs].map(value => String(value).padStart(2, '0')).join(' : ');
 });
 
-function getProductImage(product: Product) {
-  if ('image' in product && product.image) return product.image;
-  if (!('images' in product)) return UI_ASSETS.placeholders.product;
-  const first = product.images?.[0];
-  return typeof first === 'string' ? first : UI_ASSETS.placeholders.product;
+function toFlashProduct(item: Api.RealProduct.FlashSaleItemVO): Api.RealProduct.ProductDTO {
+  return {
+    id: item.productId,
+    sellerId: '',
+    title: item.title,
+    categoryId: '',
+    price: item.flashPrice,
+    stock: item.stock,
+    afterSaleType: 'NONE',
+    status: 'ON_SALE',
+    statusText: '秒杀中',
+    salesCount: item.salesCount,
+    images: item.image ? [item.image] : []
+  };
 }
 
 onMounted(async () => {
@@ -57,16 +66,21 @@ onMounted(async () => {
     fetchStorefrontRecommend(6),
     fetchBestSellers(1, 6),
     fetchNewArrivals(1, 6),
-    fetchFlashSale(5)
+    fetchFlashSale(4),
+    fetchBanners()
   ]);
-  const [categories, recommends, bestSellers, arrivals, flashSale] = results;
+  const [categories, recommends, bestSellers, arrivals, flashSale, banners] = results;
   if (categories.status === 'fulfilled') categoryRoots.value = categories.value;
   if (recommends.status === 'fulfilled') recommended.value = recommends.value;
   if (bestSellers.status === 'fulfilled') hot.value = bestSellers.value.records || [];
   if (arrivals.status === 'fulfilled') newest.value = arrivals.value.records || [];
   if (flashSale.status === 'fulfilled') {
-    flash.value = flashSale.value;
-    if (flash.value.length) countdownTimer = setInterval(() => { now.value = Date.now(); }, 1000);
+    flashItems.value = flashSale.value;
+    flash.value = flashSale.value.map(toFlashProduct);
+    if (flashItems.value.length) countdownTimer = setInterval(() => { now.value = Date.now(); }, 1000);
+  }
+  if (banners.status === 'fulfilled') {
+    promoBanners.value = banners.value.filter(item => item.enabled !== false).slice(0, 2);
   }
   if (results.some(result => result.status === 'rejected')) {
     uni.showToast({ title: '部分首页数据加载失败', icon: 'none' });
@@ -82,16 +96,17 @@ function goCategory(id?: string | number) {
   go(`/pages/product/list${id ? `?categoryId=${encodeURIComponent(String(id))}` : ''}`);
 }
 
-function goProduct(id: string | number) {
-  go(`/pages/product/detail?id=${encodeURIComponent(String(id))}&source=real`);
-}
-
 function goSearch() {
   go('/pages/product/list');
 }
 
 function goPurchase() {
   go('/pages/purchase/hall');
+}
+
+function goBanner(path?: string) {
+  if (path?.startsWith('/pages/')) go(path);
+  else goSearch();
 }
 </script>
 
@@ -122,10 +137,6 @@ function goPurchase() {
           <view class="hero-secondary" @click="goPurchase">发起求购</view>
         </view>
       </view>
-      <view class="hero-pagination" aria-hidden="true">
-        <text class="active" />
-        <text /><text /><text />
-      </view>
     </view>
 
     <view v-if="visibleCategories.length" class="category-card">
@@ -135,7 +146,7 @@ function goPurchase() {
         class="category-item yb-pressable"
         @click="goCategory(category.id)"
       >
-        <wd-icon :name="categoryIcons[index] || 'shop'" size="52rpx" />
+        <wd-icon :name="categoryIcons[index % categoryIcons.length]" size="52rpx" />
         <text>{{ category.name }}</text>
       </view>
     </view>
@@ -150,13 +161,28 @@ function goPurchase() {
       </view>
       <scroll-view scroll-x class="flash-scroll" :show-scrollbar="false">
         <view class="flash-list">
-          <view v-for="item in flash" :key="String(item.productId)" class="flash-product yb-pressable" @click="goProduct(item.productId)">
-            <image :src="getProductImage(item)" mode="aspectFit" class="flash-image" />
-            <text class="flash-name">{{ item.title }}</text>
-            <view class="flash-price"><text>{{ formatUsdt(item.flashPrice) }}</text><text>{{ formatUsdt(item.price) }}</text></view>
+          <view v-for="item in flash" :key="String(item.id)" class="flash-product">
+            <ProductCard :product="item" />
           </view>
         </view>
       </scroll-view>
+    </view>
+
+    <view v-if="promoBanners.length" class="promo-grid">
+      <view
+        v-for="banner in promoBanners"
+        :key="String(banner.id)"
+        class="promo-banner yb-pressable"
+        @click="goBanner(banner.pathTo)"
+      >
+        <image :src="banner.image" mode="aspectFill" class="promo-image" />
+        <view class="promo-overlay" />
+        <view class="promo-copy">
+          <text v-if="banner.tag" class="promo-tag">{{ banner.tag }}</text>
+          <text v-if="banner.title" class="promo-title">{{ banner.title }}</text>
+          <text v-if="banner.subtitle" class="promo-subtitle">{{ banner.subtitle }}</text>
+        </view>
+      </view>
     </view>
 
     <view class="benefit-grid">
@@ -170,23 +196,36 @@ function goPurchase() {
       </view>
     </view>
 
-    <view v-if="curated.length || loading" class="section recommendation-section">
+    <view v-if="recommended.length || loading" class="section product-section">
       <view class="section-head">
         <text class="section-title">为你推荐</text>
         <view class="section-more" @click="goSearch"><text>查看更多</text><wd-icon name="arrow-right" size="28rpx" /></view>
       </view>
-      <view class="recommend-grid">
-        <view v-for="product in curated" :key="String(product.id)" class="recommend-card yb-pressable" @click="goProduct(product.id)">
-          <image :src="getProductImage(product)" mode="aspectFit" class="recommend-image" />
-          <view class="recommend-copy">
-            <text class="recommend-category">{{ product.categoryName || '油宝甄选' }}</text>
-            <text class="recommend-name">{{ product.title }}</text>
-            <text class="recommend-detail">{{ product.statusText || '认证买手 · 平台保障' }}</text>
-            <text class="recommend-price">{{ formatUsdt(product.price) }}</text>
-            <view class="recommend-meta"><text>{{ product.sellerName || '认证买手' }}</text><text>已售 {{ product.salesCount || 0 }}</text></view>
-          </view>
-        </view>
-        <view v-if="loading" class="recommend-skeleton" />
+      <view v-if="recommended.length" class="product-grid">
+        <ProductCard v-for="product in recommended" :key="String(product.id)" :product="product" />
+      </view>
+      <view v-else class="product-grid" aria-hidden="true">
+        <view v-for="index in 2" :key="index" class="product-skeleton" />
+      </view>
+    </view>
+
+    <view v-if="hot.length" class="section product-section">
+      <view class="section-head">
+        <text class="section-title">热销榜</text>
+        <view class="section-more" @click="goSearch"><text>查看全部</text><wd-icon name="arrow-right" size="28rpx" /></view>
+      </view>
+      <view class="product-grid">
+        <ProductCard v-for="product in hot" :key="String(product.id)" :product="product" />
+      </view>
+    </view>
+
+    <view v-if="newest.length" class="section product-section">
+      <view class="section-head">
+        <text class="section-title">新品直邮</text>
+        <view class="section-more" @click="goSearch"><text>查看全部</text><wd-icon name="arrow-right" size="28rpx" /></view>
+      </view>
+      <view class="product-grid">
+        <ProductCard v-for="product in newest" :key="String(product.id)" :product="product" />
       </view>
     </view>
 
@@ -233,12 +272,8 @@ function goPurchase() {
 .hero-primary, .hero-secondary { display: flex; align-items: center; justify-content: center; min-width: 132rpx; height: 58rpx; padding: 0 18rpx; border-radius: 18rpx; font-size: var(--yb-fs-body-sm); font-weight: 600; }
 .hero-primary { background: var(--yb-brand); color: var(--yb-surface); }
 .hero-secondary { border: 1rpx solid rgba(255, 255, 255, .78); color: var(--yb-surface); }
-.hero-pagination { position: absolute; z-index: 2; right: 28rpx; bottom: 18rpx; display: flex; gap: 10rpx; }
-.hero-pagination text { width: 20rpx; height: 6rpx; border-radius: var(--yb-radius-pill); background: rgba(255, 255, 255, .65); }
-.hero-pagination .active { width: 28rpx; background: var(--yb-brand); }
-
-.category-card { display: flex; margin: 0 20rpx; padding: 24rpx 8rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); box-shadow: var(--yb-shadow-card); }
-.category-item { display: flex; flex: 1; flex-direction: column; align-items: center; min-width: 0; color: var(--yb-ink); font-size: 22rpx; gap: 16rpx; }
+.category-card { display: flex; flex-wrap: wrap; margin: 0 20rpx; padding: 16rpx 8rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); box-shadow: var(--yb-shadow-card); }
+.category-item { display: flex; flex: none; flex-direction: column; align-items: center; width: 20%; min-width: 0; padding: 12rpx 2rpx; color: var(--yb-ink); font-size: 22rpx; gap: 12rpx; }
 .category-item :deep(.wd-icon) { color: var(--yb-ink); }
 
 .section { margin: 32rpx 20rpx 0; padding: 24rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); }
@@ -250,12 +285,16 @@ function goPurchase() {
 .timer { padding: 7rpx 10rpx; border-radius: 10rpx; background: var(--yb-brand); color: var(--yb-surface); font-family: var(--yb-font-mono); font-variant-numeric: tabular-nums; }
 .flash-scroll { width: calc(100% + 48rpx); margin: 24rpx -24rpx -4rpx; white-space: nowrap; }
 .flash-list { display: inline-flex; padding: 0 24rpx 6rpx; gap: 18rpx; }
-.flash-product { width: 136rpx; white-space: normal; }
-.flash-image { width: 136rpx; height: 136rpx; padding: 10rpx; border-radius: 18rpx; background: #fbfbfb; }
-.flash-name { display: -webkit-box; margin-top: 10rpx; overflow: hidden; color: var(--yb-ink-2); font-size: var(--yb-fs-caption); line-height: 30rpx; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.flash-price { display: flex; align-items: baseline; margin-top: 8rpx; gap: 7rpx; font-family: var(--yb-font-mono); font-variant-numeric: tabular-nums; }
-.flash-price text:first-child { color: var(--yb-brand); font-size: var(--yb-fs-body); font-weight: 700; }
-.flash-price text:last-child { color: var(--yb-faint); font-size: var(--yb-fs-micro); text-decoration: line-through; }
+.flash-product { display: inline-block; width: 272rpx; white-space: normal; vertical-align: top; }
+
+.promo-grid { display: flex; margin: 24rpx 20rpx 0; gap: 16rpx; }
+.promo-banner { position: relative; flex: 1; min-width: 0; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 24rpx; background: var(--yb-deep); box-shadow: var(--yb-shadow-card); }
+.promo-image, .promo-overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+.promo-overlay { background: linear-gradient(180deg, rgba(15, 17, 26, .08) 20%, rgba(15, 17, 26, .78) 100%); }
+.promo-copy { position: absolute; z-index: 1; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; padding: 20rpx; color: var(--yb-surface); gap: 5rpx; }
+.promo-tag { align-self: flex-start; padding: 4rpx 10rpx; border-radius: var(--yb-radius-pill); background: rgba(255, 255, 255, .18); font-size: var(--yb-fs-micro); }
+.promo-title { display: -webkit-box; overflow: hidden; font-size: var(--yb-fs-title-sm); font-weight: 700; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.promo-subtitle { overflow: hidden; font-size: var(--yb-fs-caption); line-height: 30rpx; opacity: .84; text-overflow: ellipsis; white-space: nowrap; }
 
 .benefit-grid { display: flex; margin: 24rpx 20rpx 0; gap: 16rpx; }
 .benefit-card { position: relative; display: flex; flex: 1; min-width: 0; height: 154rpx; overflow: hidden; border-radius: 24rpx; }
@@ -271,18 +310,14 @@ function goPurchase() {
 .vip .benefit-copy > text:nth-child(2) { color: rgba(255, 255, 255, .78); }
 .vip .benefit-copy > view { background: var(--yb-gold); color: var(--yb-deep); }
 
-.recommendation-section { padding-bottom: 20rpx; }
-.recommend-grid { display: flex; flex-wrap: wrap; margin-top: 20rpx; gap: 16rpx; }
-.recommend-card { display: flex; width: calc((100% - 16rpx) / 2); min-width: 0; min-height: 254rpx; overflow: hidden; border-radius: 20rpx; background: #fbfbfb; }
-.recommend-image { width: 44%; padding: 10rpx 0 10rpx 10rpx; }
-.recommend-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; padding: 18rpx 12rpx; }
-.recommend-category { align-self: flex-start; padding: 3rpx 8rpx; border-radius: 8rpx; background: var(--yb-champagne); color: var(--yb-gold); font-size: 18rpx; }
-.recommend-name { display: -webkit-box; margin-top: 10rpx; overflow: hidden; color: var(--yb-ink); font-size: var(--yb-fs-body-sm); font-weight: 600; line-height: 32rpx; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.recommend-detail { display: -webkit-box; margin-top: 6rpx; overflow: hidden; color: var(--yb-muted); font-size: var(--yb-fs-micro); line-height: 28rpx; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
-.recommend-price { margin-top: auto; color: var(--yb-brand); font-family: var(--yb-font-mono); font-size: var(--yb-fs-body); font-weight: 700; font-variant-numeric: tabular-nums; }
-.recommend-meta { display: flex; justify-content: space-between; margin-top: 10rpx; color: var(--yb-muted); font-size: 18rpx; gap: 6rpx; }
-.recommend-meta text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.recommend-skeleton { width: calc((100% - 16rpx) / 2); min-height: 254rpx; border-radius: 20rpx; background: #f2f3f5; }
+.product-section { padding-bottom: 20rpx; }
+.product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 20rpx; gap: 16rpx; }
+.product-grid :deep(.p-card) { min-width: 0; }
+.product-skeleton { aspect-ratio: .62; border-radius: var(--yb-radius-card); background: linear-gradient(100deg, #f2f3f5 20%, #fafafa 38%, #f2f3f5 56%); background-size: 200% 100%; animation: skeleton 1.4s ease infinite; }
+
+@keyframes skeleton {
+  to { background-position-x: -200%; }
+}
 
 .ai-entry { display: flex; align-items: center; min-height: 116rpx; margin: 24rpx 20rpx 32rpx; padding: 16rpx 18rpx 16rpx 24rpx; overflow: hidden; border: 1rpx solid #d9d9ff; border-radius: 20rpx; background: #f4f3ff; color: var(--yb-primary); gap: 12rpx; }
 .ai-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 8rpx; }
