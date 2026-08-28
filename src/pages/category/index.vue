@@ -19,6 +19,7 @@ let loadSequence = 0;
 const activeRootNode = computed(() => roots.value.find(item => item.id === activeRoot.value));
 const activeCategory = computed(() => findCategory(roots.value, activeCategoryId.value));
 const activePath = computed(() => findCategoryPath(roots.value, activeCategoryId.value)?.map(item => item.name) || []);
+const activeRootAnchor = computed(() => activeRoot.value ? `category-root-${activeRoot.value}` : undefined);
 const heroImage = computed(() => products.value[0]?.coverImage || UI_ASSETS.placeholders.product);
 
 function findCategory(nodes: CategoryNode[], id?: string): CategoryNode | undefined {
@@ -102,18 +103,28 @@ watch(activeCategoryId, id => load(id, true));
 
 <template>
   <view class="category-page h5-tab-page">
-    <view class="category-layout">
-      <scroll-view v-if="roots.length > 1" scroll-y class="category-sidebar">
-        <view
-          v-for="root in roots"
-          :key="root.id"
-          class="category-tab yb-pressable"
-          :class="{ active: activeRoot === root.id }"
-          @click="activateRoot(root.id)"
-        >
-          <text>{{ root.name }}</text>
+    <view v-if="roots.length" class="category-switcher">
+      <scroll-view
+        scroll-x
+        class="category-root-scroll"
+        :scroll-into-view="activeRootAnchor"
+        :show-scrollbar="false"
+      >
+        <view class="category-root-track">
+          <view
+            v-for="root in roots"
+            :id="`category-root-${root.id}`"
+            :key="root.id"
+            class="category-root-pill yb-pressable"
+            :class="{ active: activeRoot === root.id }"
+            @click="activateRoot(root.id)"
+          >
+            {{ root.name }}
+          </view>
         </view>
       </scroll-view>
+    </view>
+    <view class="category-layout">
       <scroll-view scroll-y class="category-content" @scrolltolower="loadMore">
         <view class="category-hero">
           <view class="category-hero-copy">
@@ -162,12 +173,13 @@ watch(activeCategoryId, id => load(id, true));
 </template>
 
 <style lang="scss" scoped>
-.category-page { height: 100%; overflow: hidden; background: var(--yb-bg); }
-.category-layout { display: flex; height: 100%; min-height: 0; }
-.category-sidebar { width: 180rpx; flex-shrink: 0; height: 100%; border-right: 1rpx solid var(--yb-hairline); background: var(--yb-surface); }
-.category-tab { position: relative; display: flex; align-items: center; justify-content: center; min-height: 104rpx; padding: 18rpx 14rpx; color: var(--yb-ink-2); font-size: var(--yb-fs-body); line-height: 38rpx; text-align: center; }
-.category-tab.active { background: #fff5f6; color: var(--yb-ink); font-weight: 600; }
-.category-tab.active::before { position: absolute; top: 24rpx; bottom: 24rpx; left: 0; width: 7rpx; border-radius: var(--yb-radius-pill); background: var(--yb-brand); content: ''; }
+.category-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--yb-bg); }
+.category-switcher { flex-shrink: 0; padding: 12rpx 20rpx 8rpx; border-bottom: 1rpx solid var(--yb-hairline); background: rgba(255, 255, 255, .96); }
+.category-root-scroll { width: 100%; white-space: nowrap; }
+.category-root-track { display: inline-flex; min-width: 100%; gap: 12rpx; }
+.category-root-pill { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 26rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-pill); background: var(--yb-surface); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); white-space: nowrap; }
+.category-root-pill.active { border-color: var(--yb-brand); background: var(--yb-brand); color: var(--yb-surface); font-weight: 600; }
+.category-layout { display: flex; flex: 1; min-height: 0; }
 .category-content { flex: 1; height: 100%; min-width: 0; padding: 24rpx 20rpx 32rpx; box-sizing: border-box; }
 .category-hero { position: relative; display: flex; align-items: center; min-height: 184rpx; overflow: hidden; padding: 24rpx 22rpx; border-radius: 24rpx; background: #fff0f1; }
 .category-hero::after { position: absolute; right: -80rpx; bottom: -110rpx; width: 290rpx; height: 290rpx; border-radius: 50%; background: rgba(250, 36, 60, .08); content: ''; }
