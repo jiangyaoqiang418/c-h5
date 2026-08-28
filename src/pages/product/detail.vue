@@ -243,12 +243,14 @@ function goBack() {
   <view v-if="product" class="detail-page yb-page">
     <view class="nav"><view class="nav-btn yb-pressable" @click="goBack"><wd-icon name="arrow-left" size="22px" color="#151820" /></view></view>
 
-    <swiper v-if="product.images.length > 1" :indicator-dots="true" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
+    <swiper :indicator-dots="product.images.length > 1" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
       <swiper-item v-for="(url, index) in product.images" :key="`${url}-${index}`">
         <image :src="url" mode="aspectFill" class="gallery-image" />
       </swiper-item>
+      <swiper-item v-if="!product.images.length">
+        <image :src="UI_ASSETS.placeholders.product" mode="aspectFit" class="gallery-image gallery-image--placeholder" />
+      </swiper-item>
     </swiper>
-    <image v-else :src="product.images[0] || UI_ASSETS.placeholders.product" mode="aspectFill" class="gallery gallery-image" />
 
     <view class="content-sheet">
       <text class="category">{{ product.categoryPath }}</text>
@@ -326,6 +328,7 @@ function goBack() {
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }
 .gallery-image { width: 100%; height: 100%; }
+.gallery-image--placeholder { box-sizing: border-box; padding: 96rpx; }
 .gallery-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #86909c; font-size: 24rpx; }
 .content-sheet { position: relative; z-index: 2; margin-top: -48rpx; padding: 40rpx 32rpx; border-radius: 40rpx 40rpx 0 0; background: #fff; }
 .category { display: inline-block; padding: 6rpx 16rpx; border-radius: 8rpx; background: #fafaf7; color: #6b7385; font-size: 20rpx; }
