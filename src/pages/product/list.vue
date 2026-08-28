@@ -121,8 +121,12 @@ function onSortChange(v: string) {
   padding: 0 0 32rpx;
 }
 .search {
-  padding: 20rpx 24rpx 16rpx;
+  height: 96rpx;
+  padding: 12rpx 24rpx;
+  box-sizing: border-box;
   background: var(--yb-surface);
+  border-top: 1rpx solid var(--yb-hairline);
+  border-bottom: 1rpx solid var(--yb-hairline);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -131,10 +135,15 @@ function onSortChange(v: string) {
 .search { top: 44px; }
 /* #endif */
 .search-input {
+  display: block;
+  width: 100%;
+  height: 72rpx;
+  box-sizing: border-box;
   background: var(--yb-bg-muted);
   border-radius: var(--yb-radius-pill);
-  padding: 16rpx 24rpx;
+  padding: 0 24rpx;
   font-size: 26rpx;
+  line-height: 72rpx;
 }
 .sort-row {
   display: flex;
@@ -145,12 +154,16 @@ function onSortChange(v: string) {
   z-index: 9;
 }
 /* #ifdef H5 */
-.sort-row { top: calc(44px + 92rpx); }
+.sort-row { top: calc(44px + 96rpx); }
 /* #endif */
 .sort-item {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80rpx;
   text-align: center;
-  padding: 20rpx 0;
+  padding: 0;
   font-size: 26rpx;
   color: var(--yb-text-secondary);
 }
