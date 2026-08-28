@@ -34,7 +34,7 @@ async function goCheckout() {
 </script>
 
 <template>
-  <view class="cart-page yb-page h5-tab-page" :class="{ 'has-items': items.length > 0 }">
+  <view class="cart-page yb-page yb-page--full-bleed h5-tab-page" :class="{ 'has-items': items.length > 0 }">
     <template v-if="items.length">
       <view class="list">
         <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">
@@ -59,7 +59,7 @@ async function goCheckout() {
               </view>
               <view class="qty" @click.stop>
                 <view class="qty-btn yb-pressable" @click="cart.update(item.key, item.qty - 1)">
-                  <wd-icon name="minus" size="14px" />
+                  <wd-icon name="minus-circle" size="14px" />
                 </view>
                 <text class="qty-val">{{ item.qty }}</text>
                 <view class="qty-btn yb-pressable" @click="cart.update(item.key, item.qty + 1)">
@@ -97,12 +97,13 @@ async function goCheckout() {
 </template>
 
 <style lang="scss" scoped>
+.cart-page { padding: 0; }
 .cart-page.has-items {
   /* 仅预留结算栏本身的高度，tabBar 已由窗口层扣除。 */
   padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
 }
 .list {
-  padding: 16rpx 16rpx 8rpx;
+  padding: 16rpx 12rpx 8rpx;
 }
 .row {
   display: flex;
@@ -119,8 +120,9 @@ async function goCheckout() {
   opacity: 0.55;
 }
 .check {
-  width: 40rpx;
-  height: 40rpx;
+  width: 44rpx;
+  height: 44rpx;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -135,6 +137,14 @@ async function goCheckout() {
   justify-content: center;
   color: #fff;
 }
+.row .check .dot {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #667085;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(15, 17, 26, .08);
+}
+.row .check .dot.on { border-color: var(--yb-brand); background: var(--yb-brand); }
 .dot.on {
   border-color: var(--yb-brand);
   background: var(--yb-brand);
