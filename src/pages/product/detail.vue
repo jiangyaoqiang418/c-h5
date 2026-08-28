@@ -323,7 +323,7 @@ function goBack() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding-bottom: calc(152rpx + env(safe-area-inset-bottom)); }
+.detail-page { min-height: 100%; padding: 0 0 calc(152rpx + env(safe-area-inset-bottom)); }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }
