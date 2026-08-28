@@ -68,7 +68,7 @@ async function goCheckout() {
               </view>
             </view>
           </view>
-          <view class="del yb-pressable" @click="remove(item.key)"><wd-icon name="close" size="18px" /></view>
+          <view class="del yb-pressable" @click="remove(item.key)"><wd-icon name="delete" size="20px" color="#FFFFFF" /></view>
         </view>
       </view>
 
@@ -99,19 +99,20 @@ async function goCheckout() {
 <style lang="scss" scoped>
 .cart-page.has-items {
   /* 仅预留结算栏本身的高度，tabBar 已由窗口层扣除。 */
-  padding-bottom: calc(184rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
 }
 .list {
-  padding: 24rpx 24rpx 8rpx;
+  padding: 16rpx 16rpx 8rpx;
 }
 .row {
   display: flex;
   align-items: center;
-  gap: 20rpx;
+  gap: 12rpx;
   background: var(--yb-surface);
-  padding: 24rpx;
+  padding: 16rpx 0 16rpx 16rpx;
   border-radius: var(--yb-radius-lg);
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
+  overflow: hidden;
   box-shadow: var(--yb-shadow-card);
 }
 .row.invalid {
@@ -139,8 +140,8 @@ async function goCheckout() {
   background: var(--yb-brand);
 }
 .cover {
-  width: 156rpx;
-  height: 156rpx;
+  width: 132rpx;
+  height: 132rpx;
   border-radius: var(--yb-radius-md);
   flex-shrink: 0;
 }
@@ -162,7 +163,7 @@ async function goCheckout() {
   display: block;
   font-size: var(--yb-font-xs);
   color: var(--yb-text-tertiary);
-  margin-bottom: 16rpx;
+  margin-bottom: 8rpx;
 }
 .price-row {
   display: flex;
@@ -207,8 +208,14 @@ async function goCheckout() {
   font-size: var(--yb-font-sm);
 }
 .del {
-  color: var(--yb-text-tertiary);
-  padding: 8rpx 0 8rpx 8rpx;
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  width: 72rpx;
+  flex-shrink: 0;
+  margin: -16rpx 0 -16rpx 0;
+  background: var(--yb-brand);
 }
 .bottom-bar {
   position: fixed;
@@ -216,7 +223,8 @@ async function goCheckout() {
   left: 0;
   right: 0;
   background: var(--yb-surface);
-  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  min-height: 72rpx;
+  padding: 10rpx 16rpx calc(10rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -232,6 +240,14 @@ async function goCheckout() {
   flex-shrink: 0;
   gap: 10rpx;
 }
+.all-check .dot {
+  width: 36rpx;
+  height: 36rpx;
+  border: 3rpx solid #8f99a8;
+  border-radius: 8rpx;
+  background: var(--yb-surface);
+}
+.all-check .dot.on { border-color: var(--yb-brand); background: var(--yb-brand); }
 .all-check .label {
   font-size: var(--yb-font-sm);
 }
@@ -259,6 +275,7 @@ async function goCheckout() {
   color: var(--yb-text-tertiary);
   font-family: var(--yb-font-mono);
 }
+.bottom-bar :deep(.wd-button) { min-width: 132rpx; height: 72rpx; padding: 0 24rpx; }
 .meta {
   display: block;
   font-size: 20rpx;
