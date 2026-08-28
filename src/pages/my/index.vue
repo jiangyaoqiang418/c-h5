@@ -77,12 +77,12 @@ const cells = computed(() => {
       { label: '买手仪表盘', icon: 'chart', go: () => go('/pages/buyer/dashboard') },
       { label: '商品管理', icon: 'goods', go: () => go('/pages/buyer/products') },
       { label: '我的收藏', icon: 'star', go: () => go('/pages/my/favorites') },
-      { label: '买手押金', icon: 'shield', go: () => go('/pages/buyer/deposit') },
+      { label: '买手押金', icon: 'secured', go: () => go('/pages/buyer/deposit') },
       { label: '我的钱包', icon: 'wallet', go: () => go('/pages/wallet/index') },
       { label: '小金库', icon: 'money-circle', go: () => go('/pages/finance/list') },
-      { label: '我的评价', icon: 'comment', go: () => go('/pages/review/list') },
+      { label: '我的评价', icon: 'chat1', go: () => go('/pages/review/list') },
       { label: 'VIP 特权', icon: 'gift', go: () => go('/pages/vip/index') },
-      { label: 'KYC 认证', icon: 'shield', go: () => go('/pages/kyc/index') }
+      { label: 'KYC 认证', icon: 'secured', go: () => go('/pages/kyc/index') }
     ];
   }
   return [
@@ -92,10 +92,10 @@ const cells = computed(() => {
     { label: '我的求购', icon: 'search', go: () => go('/pages/purchase/my-list') },
     { label: '买手申请', icon: 'shop', go: () => go('/pages/buyer/apply') },
     { label: '我的售后', icon: 'service', go: () => go('/pages/aftersale/list') },
-    { label: '我的评价', icon: 'comment', go: () => go('/pages/review/list') },
-    { label: '我的积分', icon: 'medal', go: () => go('/pages/my/points') },
+    { label: '我的评价', icon: 'chat1', go: () => go('/pages/review/list') },
+    { label: '我的积分', icon: 'flag', go: () => go('/pages/my/points') },
     { label: '地址管理', icon: 'location', go: () => go('/pages/my/addresses') },
-    { label: 'KYC 认证', icon: 'shield', go: () => go('/pages/kyc/index') },
+    { label: 'KYC 认证', icon: 'secured', go: () => go('/pages/kyc/index') },
     { label: 'VIP 特权', icon: 'gift', go: () => go('/pages/vip/index') },
     { label: '帮助中心', icon: 'service', go: () => go('/pages/help/index') }
   ];
@@ -161,18 +161,21 @@ function goAiChat() {
         <AudienceSegment />
       </view>
 
-      <view v-if="user" class="stats-row">
-        <view class="stat">
-          <text class="stat-val">U {{ formatAmount(totalAssets) }}</text>
+      <view v-if="user" class="stats-row" :class="{ 'stats-row--three': pointsToNext !== undefined }">
+        <view class="stat stat--asset">
           <text class="stat-lbl">总资产</text>
+          <view class="stat-val stat-val--asset">
+            <text class="stat-unit">U</text>
+            <text>{{ formatAmount(totalAssets) }}</text>
+          </view>
         </view>
-        <view class="stat">
-          <text class="stat-val">{{ formatPoints(user.points) }}</text>
+        <view class="stat stat--secondary">
           <text class="stat-lbl">积分</text>
+          <text class="stat-val">{{ formatPoints(user.points) }}</text>
         </view>
-        <view v-if="pointsToNext !== undefined" class="stat">
-          <text class="stat-val">{{ formatPoints(pointsToNext) }}</text>
+        <view v-if="pointsToNext !== undefined" class="stat stat--secondary">
           <text class="stat-lbl">距升级</text>
+          <text class="stat-val">{{ formatPoints(pointsToNext) }}</text>
         </view>
       </view>
     </view>
@@ -181,7 +184,7 @@ function goAiChat() {
     <view v-if="user" class="ai-cta" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.ai})` }" @click="goAiChat">
       <view class="ai-left">
         <view class="ai-icon-wrap">
-          <wd-icon name="flash" size="22px" />
+          <wd-icon name="star-on" size="22px" />
         </view>
         <view class="ai-copy">
           <text class="ai-title">AI 智能导购</text>
@@ -333,24 +336,55 @@ function goAiChat() {
   margin-top: 24rpx;
 }
 .stats-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(64rpx, 0.72fr);
   margin-top: 24rpx;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--yb-radius-md);
+  background: rgba(4, 15, 39, 0.34);
   gap: 16rpx;
+  box-sizing: border-box;
+}
+.stats-row--three {
+  grid-template-columns: minmax(0, 1.75fr) minmax(64rpx, 0.62fr) minmax(64rpx, 0.62fr);
 }
 .stat {
-  flex: 1;
+  min-width: 0;
+}
+.stat--secondary {
+  padding-left: 16rpx;
+  border-left: 1rpx solid rgba(255, 255, 255, 0.16);
 }
 .stat-val {
-  display: block;
-  font-size: 32rpx;
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  margin-top: 4rpx;
+  overflow: hidden;
+  font-size: 28rpx;
   font-weight: 700;
   font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stat-val--asset {
+  font-size: 30rpx;
+  letter-spacing: -0.02em;
+  gap: 8rpx;
+}
+.stat-unit {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  opacity: 0.78;
 }
 .stat-lbl {
   display: block;
   font-size: 20rpx;
   opacity: 0.78;
-  margin-top: 2rpx;
+  line-height: 1.3;
 }
 
 /* AI CTA */
@@ -481,11 +515,12 @@ function goAiChat() {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: var(--yb-bg-muted);
+  border: 1rpx solid rgba(250, 36, 60, 0.12);
+  background: var(--yb-brand-soft);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0F111A;
+  color: var(--yb-brand);
 }
 .cell-label {
   font-size: 22rpx;
