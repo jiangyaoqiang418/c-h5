@@ -6,11 +6,25 @@ import FinanceProductCard from '@/components/finance/finance-product-card.vue';
 import EarnHero from '@/components/finance/earn-hero.vue';
 import EarnChartCard from '@/components/finance/earn-chart-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
+const userStore = useUserStore();
 const products = ref<Api.RealFinance.ProductVO[]>([]);
 const overview = ref<Api.RealFinance.OverviewVO>({ holdingPrincipal: 0, totalInterest: 0, pendingInterest: 0, expectedInterest: 0, holdingCount: 0 });
 const loading = ref(false);
-async function load() { loading.value = true; try { [products.value, overview.value] = await Promise.all([fetchFinanceProducts(), fetchFinanceOverview()]); } finally { loading.value = false; } }
+async function load() {
+  await userStore.init();
+  if (!userStore.currentUser) {
+    products.value = [];
+    return;
+  }
+  loading.value = true;
+  try {
+    [products.value, overview.value] = await Promise.all([fetchFinanceProducts(), fetchFinanceOverview()]);
+  } finally {
+    loading.value = false;
+  }
+}
 onMounted(load);
 const bestApy = computed(() => Math.max(0, ...products.value.map(item => Number(item.annualRate) * 100)));
 function goDeposit() { uni.pageScrollTo({ selector: '.list-section', duration: 300 }); }

@@ -27,6 +27,11 @@ const statusLabel: Record<Api.RealOrder.RefundStatus, string> = {
 const emptyDescription = computed(() => userStore.isBuyerActive ? '顾客发起的仅退款会显示在这里' : '可在待发货或待收货订单中申请仅退款');
 
 async function load() {
+  await userStore.init();
+  if (!userStore.currentUser) {
+    list.value = [];
+    return;
+  }
   loading.value = true;
   try {
     const tab = TABS.find(item => item.key === activeKey.value);

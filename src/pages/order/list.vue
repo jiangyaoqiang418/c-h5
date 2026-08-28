@@ -34,6 +34,11 @@ const shipVouchers = ref<string[]>([]);
 const voucherUploading = ref(false);
 
 async function load() {
+  await userStore.init();
+  if (!userStore.currentUser) {
+    orders.value = [];
+    return;
+  }
   loading.value = true;
   try {
     const tab = TABS.find(t => t.key === activeKey.value);
