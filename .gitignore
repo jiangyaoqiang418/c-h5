@@ -8,4 +8,5 @@ coverage/
 .vscode/
 .hbuilderx/
 /.h5-test-account.local
+/.ui-acceptance-accounts.local
 .env.*.local
