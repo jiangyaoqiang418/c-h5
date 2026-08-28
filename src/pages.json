@@ -64,7 +64,7 @@
     { "path": "pages/auth/login", "style": { "navigationStyle": "custom" } }
   ],
   "globalStyle": {
-    "navigationBarBackgroundColor": "#FAFAF7",
+    "navigationBarBackgroundColor": "#FFFFFF",
     "navigationBarTitleText": "油宝",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#FAFAF7"
