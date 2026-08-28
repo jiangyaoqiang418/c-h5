@@ -113,9 +113,8 @@ function goBanner(path?: string) {
 <template>
   <view class="home-page h5-tab-page">
     <view class="home-header">
-      <view class="brand" @click="goSearch">
-        <text class="brand-name">油宝</text>
-        <text class="brand-mark">/</text>
+      <view class="brand yb-pressable" @click="goSearch">
+        <image :src="UI_ASSETS.icons.appMark" class="brand-icon" mode="aspectFit" />
       </view>
       <view class="search-entry yb-pressable" @click="goSearch">
         <wd-icon name="search" size="42rpx" />
@@ -259,14 +258,13 @@ function goBanner(path?: string) {
   min-height: 112rpx;
   padding: calc(env(safe-area-inset-top) + 16rpx) 32rpx 16rpx;
   background: var(--yb-surface);
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
-.brand { display: inline-flex; align-items: flex-end; flex-shrink: 0; }
-.brand-name { color: var(--yb-ink); font-size: 56rpx; font-weight: 700; letter-spacing: -4rpx; line-height: 1; }
-.brand-mark { margin: 0 0 2rpx 4rpx; color: var(--yb-brand); font-size: 34rpx; font-weight: 700; line-height: 1; }
-.search-entry { display: flex; flex: 1; align-items: center; height: 80rpx; padding: 0 22rpx; border: 1rpx solid var(--yb-hairline-2); border-radius: var(--yb-radius-pill); color: var(--yb-muted); font-size: var(--yb-fs-body); gap: 14rpx; }
-.message-entry { position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 80rpx; height: 80rpx; color: var(--yb-ink); }
+.brand { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 80rpx; min-width: 40px; height: 80rpx; min-height: 40px; }
+.brand-icon { display: block; width: 56rpx; height: 56rpx; border-radius: 16rpx; }
+.search-entry { display: flex; flex: 1; align-items: center; height: 80rpx; min-height: 40px; padding: 0 22rpx; border: 1rpx solid var(--yb-hairline-2); border-radius: var(--yb-radius-pill); color: var(--yb-muted); font-size: var(--yb-fs-body); gap: 14rpx; }
+.message-entry { position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 80rpx; min-width: 40px; height: 80rpx; min-height: 40px; color: var(--yb-ink); }
 .notice-dot { position: absolute; top: 12rpx; right: 1rpx; width: 14rpx; height: 14rpx; border: 2rpx solid var(--yb-surface); border-radius: 50%; background: var(--yb-brand); }
 
 .hero { position: relative; height: 352rpx; margin: 16rpx 20rpx 24rpx; overflow: hidden; border-radius: var(--yb-radius-card); background: var(--yb-deep); box-shadow: var(--yb-shadow-float); }

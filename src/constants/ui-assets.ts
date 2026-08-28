@@ -36,6 +36,7 @@ export const UI_ASSETS = {
     evidence: `${ROOT}/placeholders/placeholder-evidence.png`
   },
   icons: {
+    appMark: `${ROOT}/icons/custom/icon-app-mark.png`,
     brand: `${ROOT}/icons/custom/brand-youbao-mark.png`,
     verifiedBuyer: `${ROOT}/icons/custom/icon-buyer-verified.png`,
     tokenU: `${ROOT}/icons/custom/icon-token-u.png`
