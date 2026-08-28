@@ -240,7 +240,7 @@ function goBack() {
 </script>
 
 <template>
-  <view v-if="product" class="detail-page yb-page">
+  <view v-if="product" class="detail-page yb-page yb-page--full-bleed">
     <view class="nav"><view class="nav-btn yb-pressable" @click="goBack"><wd-icon name="arrow-left" size="22px" color="#151820" /></view></view>
 
     <swiper :indicator-dots="product.images.length > 1" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
@@ -323,7 +323,7 @@ function goBack() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding-bottom: calc(168rpx + env(safe-area-inset-bottom)); }
+.detail-page { min-height: 100%; padding-bottom: calc(152rpx + env(safe-area-inset-bottom)); }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }
@@ -355,7 +355,7 @@ function goBack() {
 .review-row { padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
 .review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
-.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 6rpx; padding: 8rpx 12rpx calc(8rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
-.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 80rpx; min-height: 80rpx; color: #6b7385; font-size: 22rpx; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; padding:0 8rpx; white-space:nowrap; }
-.quantity { display: flex; flex-shrink:0; align-items: center; padding: 0; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }.quantity > text { display:flex; align-items:center; justify-content:center; min-width:40rpx; min-height:80rpx; }
+.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx calc(6rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
+.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 76rpx; min-height: 72rpx; color: #6b7385; font-size: 22rpx; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:72rpx; padding:0 8rpx; white-space:nowrap; }
+.quantity { display: flex; flex-shrink:0; align-items: center; min-width:156rpx; padding: 0; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:52rpx; min-height:72rpx; }
 </style>
