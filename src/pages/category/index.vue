@@ -8,6 +8,7 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 
 const roots = ref<CategoryNode[]>([]);
 const activeRoot = ref<string>();
+const activeCategoryId = ref<string>();
 const products = ref<Api.RealProduct.ProductListVO[]>([]);
 const loading = ref(false);
 const current = ref(1);
@@ -15,8 +16,40 @@ const total = ref(0);
 const pageSize = 20;
 let loadSequence = 0;
 
-const activeCategory = computed(() => roots.value.find(item => item.id === activeRoot.value));
+const activeRootNode = computed(() => roots.value.find(item => item.id === activeRoot.value));
+const activeCategory = computed(() => findCategory(roots.value, activeCategoryId.value));
+const activePath = computed(() => findCategoryPath(roots.value, activeCategoryId.value)?.map(item => item.name) || []);
 const heroImage = computed(() => products.value[0]?.coverImage || UI_ASSETS.placeholders.product);
+
+function findCategory(nodes: CategoryNode[], id?: string): CategoryNode | undefined {
+  if (!id) return undefined;
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    const child = findCategory(node.children || [], id);
+    if (child) return child;
+  }
+  return undefined;
+}
+
+function findCategoryPath(nodes: CategoryNode[], id?: string, parents: CategoryNode[] = []): CategoryNode[] | undefined {
+  if (!id) return undefined;
+  for (const node of nodes) {
+    const path = [...parents, node];
+    if (node.id === id) return path;
+    const childPath = findCategoryPath(node.children || [], id, path);
+    if (childPath) return childPath;
+  }
+  return undefined;
+}
+
+function activateRoot(id: string) {
+  activeRoot.value = id;
+  activeCategoryId.value = id;
+}
+
+function activateCategory(id: string) {
+  activeCategoryId.value = id;
+}
 
 async function load(id?: string, reset = false) {
   if (!id || (loading.value && !reset)) return;
@@ -51,19 +84,20 @@ async function load(id?: string, reset = false) {
 function loadMore() {
   if (loading.value || products.value.length >= total.value) return;
   current.value += 1;
-  load(activeRoot.value);
+  load(activeCategoryId.value);
 }
 
 onMounted(async () => {
   try {
-    roots.value = (await fetchCategoryTree()).slice(0, 12);
-    activeRoot.value = roots.value[0]?.id;
+    roots.value = await fetchCategoryTree({ onlyEnabled: true });
+    const firstRootId = roots.value[0]?.id;
+    if (firstRootId) activateRoot(firstRootId);
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
   }
 });
 
-watch(activeRoot, id => load(id, true));
+watch(activeCategoryId, id => load(id, true));
 </script>
 
 <template>
@@ -75,15 +109,47 @@ watch(activeRoot, id => load(id, true));
           :key="root.id"
           class="category-tab yb-pressable"
           :class="{ active: activeRoot === root.id }"
-          @click="activeRoot = root.id"
+          @click="activateRoot(root.id)"
         >
           <text>{{ root.name }}</text>
         </view>
       </scroll-view>
       <scroll-view scroll-y class="category-content" @scrolltolower="loadMore">
         <view class="category-hero">
-          <view class="category-hero-copy"><text>精选{{ activeCategory?.name || '好物' }}</text><text>全球直采 · 正品保障</text></view>
+          <view class="category-hero-copy">
+            <text>精选{{ activeCategory?.name || '好物' }}</text>
+            <text>{{ activePath.length > 1 ? activePath.join(' / ') : '全球直采 · 正品保障' }}</text>
+          </view>
           <image :src="heroImage" mode="aspectFit" />
+        </view>
+        <view v-if="activeRootNode?.children?.length" class="category-tree-panel">
+          <view class="category-tree-head">
+            <text class="category-tree-title">选择分类</text>
+            <view
+              class="category-all yb-pressable"
+              :class="{ active: activeCategoryId === activeRootNode.id }"
+              @click="activateCategory(activeRootNode.id)"
+            >全部{{ activeRootNode.name }}</view>
+          </view>
+          <view v-for="group in activeRootNode.children" :key="group.id" class="category-group">
+            <view
+              class="category-group-title yb-pressable"
+              :class="{ active: activeCategoryId === group.id }"
+              @click="activateCategory(group.id)"
+            >
+              <text>{{ group.name }}</text>
+              <text v-if="group.children?.length">{{ group.children.length }} 个分类</text>
+            </view>
+            <view v-if="group.children?.length" class="category-leaves">
+              <view
+                v-for="leaf in group.children"
+                :key="leaf.id"
+                class="category-leaf yb-pressable"
+                :class="{ active: activeCategoryId === leaf.id }"
+                @click="activateCategory(leaf.id)"
+              >{{ leaf.name }}</view>
+            </view>
+          </view>
         </view>
         <view v-if="products.length" class="product-grid">
           <ProductCard v-for="product in products" :key="String(product.id)" :product="product" />
@@ -109,6 +175,18 @@ watch(activeRoot, id => load(id, true));
 .category-hero-copy text:first-child { color: var(--yb-ink); font-size: 38rpx; font-weight: 700; line-height: 48rpx; }
 .category-hero-copy text:last-child { color: var(--yb-muted); font-size: var(--yb-fs-body); }
 .category-hero image { position: relative; z-index: 1; width: 180rpx; height: 166rpx; }
+.category-tree-panel { margin-top: 20rpx; padding: 20rpx; border: 1rpx solid var(--yb-hairline); border-radius: 20rpx; background: var(--yb-surface); }
+.category-tree-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.category-tree-title { color: var(--yb-ink); font-size: var(--yb-fs-title-sm); font-weight: 700; }
+.category-all { display: flex; align-items: center; min-height: 40px; padding: 0 20rpx; border-radius: var(--yb-radius-pill); background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
+.category-all.active { background: var(--yb-brand); color: var(--yb-surface); }
+.category-group { margin-top: 22rpx; }
+.category-group-title { display: flex; align-items: center; justify-content: space-between; min-height: 40px; color: var(--yb-ink); font-size: var(--yb-fs-body); font-weight: 600; }
+.category-group-title > text:last-child { color: var(--yb-muted); font-size: var(--yb-fs-caption); font-weight: 400; }
+.category-group-title.active > text:first-child { color: var(--yb-brand); }
+.category-leaves { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.category-leaf { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 18rpx; border: 1rpx solid var(--yb-hairline); border-radius: 14rpx; background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
+.category-leaf.active { border-color: var(--yb-brand); background: #fff5f6; color: var(--yb-brand); font-weight: 600; }
 .product-grid { display: flex; flex-wrap: wrap; margin-top: 20rpx; gap: 16rpx; }
 .product-grid > * { width: calc((100% - 16rpx) / 2); min-width: 0; }
 .category-loading { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; color: var(--yb-muted); font-size: var(--yb-fs-body-sm); gap: 16rpx; }
