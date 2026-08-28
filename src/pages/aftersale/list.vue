@@ -64,15 +64,17 @@ watch(() => userStore.currentAudience, load);
 
 <template>
   <view class="as-list-page yb-page yb-page--full-bleed">
-    <wd-tabs v-model="activeKey" sticky>
-      <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
-    </wd-tabs>
+    <view class="yb-sticky-tabs-frame">
+      <wd-tabs v-model="activeKey">
+        <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
+      </wd-tabs>
+    </view>
     <view class="list">
       <view v-if="list.length">
         <view v-for="item in list" :key="item.refundId" class="refund-card" @click="openDetail(item)">
           <view class="head">
             <text class="code">订单 {{ item.orderNo || item.orderId }}</text>
-            <text class="status" :class="`status-${item.status.toLowerCase()}`">{{ item.statusText || statusLabel[item.status] }}</text>
+            <text class="status yb-status-pill" :class="`status-${item.status.toLowerCase()}`">{{ item.statusText || statusLabel[item.status] }}</text>
           </view>
           <view class="body">
             <image :src="item.productImage || UI_ASSETS.placeholders.product" mode="aspectFill" class="cover" />
@@ -100,8 +102,9 @@ watch(() => userStore.currentAudience, load);
 .head, .body, .actions { display: flex; }
 .head { justify-content: space-between; align-items: center; padding-bottom: 16rpx; border-bottom: 1rpx dashed #f2f3f5; }
 .code { min-width: 0; overflow: hidden; color: #4e5969; font-family: ui-monospace, monospace; font-size: 22rpx; text-overflow: ellipsis; white-space: nowrap; }
-.status { flex-shrink: 0; margin-left: 16rpx; font-size: 24rpx; color: #ff7d00; }
-.status-agreed { color: #00b42a; }.status-rejected, .status-canceled { color: #86909c; }
+.status { flex-shrink: 0; margin-left: 16rpx; background: var(--yb-warning-soft); color: #a76f22; }
+.status-agreed { background: var(--yb-success-soft); color: var(--yb-success); }
+.status-rejected, .status-canceled { background: #f2f3f5; color: var(--yb-muted); }
 .body { gap: 16rpx; padding-top: 16rpx; }
 .cover { width: 128rpx; height: 128rpx; flex-shrink: 0; border-radius: var(--yb-radius-md); }
 .info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6rpx; }

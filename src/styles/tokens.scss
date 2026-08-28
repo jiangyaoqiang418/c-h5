@@ -111,15 +111,17 @@ page {
   --wot-navbar-height: 88rpx;
   --wot-navbar-title-font-size: 36rpx;
   --wot-navbar-title-font-weight: 600;
-  --wot-button-large-height: 96rpx;
-  --wot-button-large-radius: 28rpx;
-  --wot-button-large-fs: 32rpx;
-  --wot-button-medium-height: 88rpx;
-  --wot-button-medium-radius: 24rpx;
-  --wot-button-medium-fs: 28rpx;
-  --wot-button-small-height: 80rpx;
-  --wot-button-small-radius: 20rpx;
-  --wot-button-small-fs: 24rpx;
+  --wot-button-large-height: 48px;
+  --wot-button-large-radius: 999px;
+  --wot-button-large-fs: 16px;
+  --wot-button-medium-height: 44px;
+  --wot-button-medium-radius: 999px;
+  --wot-button-medium-fs: 14px;
+  --wot-button-small-height: 40px;
+  --wot-button-small-radius: 999px;
+  --wot-button-small-fs: 12px;
+  --wot-tag-fs: 11px;
+  --wot-tag-round-radius: var(--yb-radius-pill);
   --wot-action-sheet-radius: 40rpx;
   --wot-action-sheet-action-height: 96rpx;
   --wot-message-box-radius: 32rpx;
@@ -175,6 +177,37 @@ page {
 .yb-card--elevated {
   border-color: transparent;
   box-shadow: var(--yb-shadow-card);
+}
+
+.yb-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 4rpx 14rpx;
+  border-radius: var(--yb-radius-pill);
+  box-sizing: border-box;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.wd-tag {
+  min-height: 22px;
+  padding: 4rpx 14rpx;
+  border-radius: var(--yb-radius-pill);
+  box-sizing: border-box;
+  line-height: 1.2;
+}
+
+/* sticky tabs 的内部测量容器会脱离文档流，显式保留导航高度，避免首条内容被页签覆盖。 */
+.yb-sticky-tabs-frame {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--wot-tabs-nav-height);
+  background: var(--yb-surface);
 }
 
 .yb-display {

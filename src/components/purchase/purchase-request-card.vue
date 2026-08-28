@@ -27,7 +27,7 @@ function goDetail() {
 <template>
   <view class="pr-card" @click="goDetail">
     <view class="head">
-      <view class="status-pill" :data-status="request.status">
+      <view class="status-pill yb-status-pill" :data-status="request.status">
         <text>● {{ statusMeta.label }}</text>
       </view>
       <PushTierBadge v-if="request.status === 'pushing' && request.currentPushLevel" :level="request.currentPushLevel" />
@@ -98,10 +98,6 @@ function goDetail() {
   margin-bottom: 16rpx;
 }
 .status-pill {
-  padding: 4rpx 16rpx;
-  border-radius: 999rpx;
-  font-size: 20rpx;
-  font-weight: 600;
   background: rgba(91, 92, 231, 0.08);
   color: #5B5CE7;
   font-family: ui-monospace, monospace;

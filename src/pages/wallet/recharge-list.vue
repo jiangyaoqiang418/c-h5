@@ -64,7 +64,7 @@ onReachBottom(() => {
         class="record-card"
         @click="go(`/pages/wallet/recharge-detail?id=${encodeURIComponent(String(item.id))}`)"
       >
-        <view class="head"><text class="chain">USDT-{{ item.chain }}</text><wd-tag :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
+        <view class="head"><text class="chain">USDT-{{ item.chain }}</text><wd-tag round :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
         <text class="amount">+ U {{ formatAmount(item.amount) }}</text>
         <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><view class="detail-link"><text>详情</text><wd-icon name="arrow-right" size="14px" color="#86909c" /></view></view>
       </view>

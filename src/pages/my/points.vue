@@ -119,11 +119,13 @@ function formatDate(value?: string | number): string {
       <text class="hero-hint">完成订单、好评、求购可获得积分</text>
     </view>
 
-    <wd-tabs v-model="activeKey" sticky>
-      <wd-tab name="log" title="积分流水" />
-      <wd-tab name="appeal" title="申诉记录" />
-      <wd-tab name="rule" title="积分规则" />
-    </wd-tabs>
+    <view class="yb-sticky-tabs-frame">
+      <wd-tabs v-model="activeKey">
+        <wd-tab name="log" title="积分流水" />
+        <wd-tab name="appeal" title="申诉记录" />
+        <wd-tab name="rule" title="积分规则" />
+      </wd-tabs>
+    </view>
 
     <view v-if="activeKey === 'log'" class="list">
       <view v-if="logs.length">
@@ -134,8 +136,8 @@ function formatDate(value?: string | number): string {
           </view>
           <view class="log-right">
             <text class="log-change" :class="{ pos: l.change > 0, neg: l.change < 0 }">{{ l.change > 0 ? '+' : '' }}{{ l.change }}</text>
-            <text v-if="l.isAppealable && l.appealStatus !== 'pending'" class="appeal-btn" @click="openAppeal(l)">申诉</text>
-            <text v-else-if="l.appealStatus === 'pending'" class="appeal-tag">申诉中</text>
+            <text v-if="l.isAppealable && l.appealStatus !== 'pending'" class="appeal-btn yb-pressable" @click="openAppeal(l)">申诉</text>
+            <text v-else-if="l.appealStatus === 'pending'" class="appeal-tag yb-status-pill">申诉中</text>
           </view>
         </view>
       </view>
@@ -147,7 +149,7 @@ function formatDate(value?: string | number): string {
         <view v-for="item in appeals" :key="item.id" class="appeal-row">
           <view class="appeal-head">
             <text class="appeal-title">{{ item.behaviorName }}</text>
-            <text class="appeal-status" :class="`status-${item.status.toLowerCase()}`">
+            <text class="appeal-status yb-status-pill" :class="`status-${item.status.toLowerCase()}`">
               {{ appealStatusText(item.status) }}
             </text>
           </view>
@@ -170,7 +172,7 @@ function formatDate(value?: string | number): string {
         <view class="rule-meta">
           <text>每{{ r.unitLabel }} +{{ r.pointsPerUnit }} 分</text>
           <text v-if="Number(r.capDaily) > 0">日上限 {{ r.capDaily }}</text>
-          <wd-tag v-if="!r.enabled" type="warning" size="small">暂停</wd-tag>
+          <wd-tag v-if="!r.enabled" type="warning" size="small" round>暂停</wd-tag>
         </view>
       </view>
     </view>
@@ -221,8 +223,18 @@ function formatDate(value?: string | number): string {
 .log-change { font-size: 28rpx; font-weight: 700; font-family: ui-monospace, monospace; }
 .log-change.pos { color: #00b42a; }
 .log-change.neg { color: #f53f3f; }
-.appeal-btn { font-size: 22rpx; color: var(--yb-brand); }
-.appeal-tag { font-size: 22rpx; color: #ff9a02; }
+.appeal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48rpx;
+  padding: 0 18rpx;
+  border: 1rpx solid rgba(250, 36, 60, 0.28);
+  border-radius: var(--yb-radius-pill);
+  font-size: 22rpx;
+  color: var(--yb-brand);
+}
+.appeal-tag { color: #a76f22; background: var(--yb-warning-soft); }
 .appeal-row {
   background: #fff;
   border-radius: var(--yb-radius-lg);
@@ -233,10 +245,10 @@ function formatDate(value?: string | number): string {
 }
 .appeal-head { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; }
 .appeal-title { font-size: 26rpx; font-weight: 600; }
-.appeal-status { flex-shrink: 0; font-size: 22rpx; }
-.status-pending { color: #ff9a02; }
-.status-approved { color: #00b42a; }
-.status-rejected { color: #f53f3f; }
+.appeal-status { flex-shrink: 0; }
+.status-pending { color: #a76f22; background: var(--yb-warning-soft); }
+.status-approved { color: var(--yb-success); background: var(--yb-success-soft); }
+.status-rejected { color: var(--yb-danger); background: var(--yb-danger-soft); }
 .appeal-score { display: block; margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
 .appeal-reason { display: block; margin-top: 12rpx; font-size: 24rpx; color: #4e5969; line-height: 1.6; }
 .appeal-review {

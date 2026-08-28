@@ -63,9 +63,11 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
       <text class="hero-title">我的求购</text>
       <text class="hero-sub">跟踪状态 · 接单进度 · 关联订单</text>
     </view>
-    <wd-tabs v-model="activeKey" sticky>
-      <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
-    </wd-tabs>
+    <view class="yb-sticky-tabs-frame">
+      <wd-tabs v-model="activeKey">
+        <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
+      </wd-tabs>
+    </view>
     <view class="list">
       <view v-if="list.length">
         <PurchaseRequestCard v-for="r in list" :key="r.id" :request="r" mode="mine" @cancel="onCancel" />

@@ -102,8 +102,8 @@ function goDetail() {
 .order-card {
   background: #fff;
   border-radius: var(--yb-radius-lg);
-  margin-bottom: 20rpx;
-  padding: 24rpx;
+  margin-bottom: 16rpx;
+  padding: 20rpx;
   border: 1rpx solid var(--yb-border);
   box-shadow: var(--yb-shadow-card);
 }
@@ -111,7 +111,7 @@ function goDetail() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 16rpx;
+  padding-bottom: 12rpx;
   border-bottom: 1rpx dashed var(--yb-border);
 }
 .code {
@@ -122,11 +122,11 @@ function goDetail() {
 .body {
   display: flex;
   gap: 16rpx;
-  padding: 16rpx 0;
+  padding: 14rpx 0;
 }
 .cover {
-  width: 120rpx;
-  height: 120rpx;
+  width: 112rpx;
+  height: 112rpx;
   border-radius: var(--yb-radius-md);
   flex-shrink: 0;
 }
@@ -138,7 +138,7 @@ function goDetail() {
   justify-content: space-between;
 }
 .title {
-  font-size: 26rpx;
+  font-size: 27rpx;
   color: #1d2129;
   font-weight: 500;
   display: -webkit-box;
@@ -174,7 +174,6 @@ function goDetail() {
   display: flex;
   justify-content: flex-end;
   gap: 12rpx;
-  padding-top: 16rpx;
-  border-top: 1rpx dashed var(--yb-border);
+  padding-top: 4rpx;
 }
 </style>

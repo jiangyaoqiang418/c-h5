@@ -139,7 +139,7 @@ watch(() => form.chain, loadRechargeAddress);
     <view v-if="detail" class="detail-card">
       <view class="detail-head">
         <text class="title">转账信息</text>
-        <wd-tag :type="detail.status === 'CONFIRMED' ? 'success' : detail.status === 'CANCELED' ? 'danger' : 'warning'">
+        <wd-tag round :type="detail.status === 'CONFIRMED' ? 'success' : detail.status === 'CANCELED' ? 'danger' : 'warning'">
           {{ detail.statusText || detail.status }}
         </wd-tag>
       </view>

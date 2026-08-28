@@ -30,10 +30,10 @@ function openIm() {
   <view class="as-card" @click="detail">
     <view class="head">
       <text class="code">{{ caseRecord.code }}</text>
-      <wd-tag :type="statusTagType" plain size="small">{{ statusMeta.label }}</wd-tag>
+      <wd-tag :type="statusTagType" plain round size="small">{{ statusMeta.label }}</wd-tag>
     </view>
     <view class="row">
-      <wd-tag size="small" plain>{{ caseTypeMeta.label }}</wd-tag>
+      <wd-tag size="small" plain round>{{ caseTypeMeta.label }}</wd-tag>
       <text class="order-link">订单 {{ caseRecord.orderCode }}</text>
     </view>
     <text class="appeal">{{ caseRecord.appeal }}</text>

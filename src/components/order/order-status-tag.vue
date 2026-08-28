@@ -25,5 +25,5 @@ const wdType = computed(() => {
 </script>
 
 <template>
-  <wd-tag :type="wdType" plain size="small">{{ meta.label }}</wd-tag>
+  <wd-tag :type="wdType" plain round size="small">{{ meta.label }}</wd-tag>
 </template>

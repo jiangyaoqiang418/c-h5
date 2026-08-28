@@ -139,15 +139,21 @@ function goBanner(path?: string) {
       </view>
     </view>
 
-    <view v-if="visibleCategories.length" class="category-card">
+    <view
+      v-if="visibleCategories.length"
+      class="category-card"
+      :class="{ 'category-card--compact': visibleCategories.length < 5 }"
+    >
       <view
         v-for="(category, index) in visibleCategories"
         :key="category.id"
         class="category-item yb-pressable"
+        :class="{ 'category-item--compact': visibleCategories.length < 5 }"
         @click="goCategory(category.id)"
       >
         <wd-icon :name="categoryIcons[index % categoryIcons.length]" size="52rpx" />
         <text>{{ category.name }}</text>
+        <wd-icon v-if="visibleCategories.length < 5" class="category-arrow" name="arrow-right" size="30rpx" />
       </view>
     </view>
 
@@ -275,6 +281,10 @@ function goBanner(path?: string) {
 .category-card { display: flex; flex-wrap: wrap; margin: 0 20rpx; padding: 16rpx 8rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); box-shadow: var(--yb-shadow-card); }
 .category-item { display: flex; flex: none; flex-direction: column; align-items: center; width: 20%; min-width: 0; padding: 12rpx 2rpx; color: var(--yb-ink); font-size: 22rpx; gap: 12rpx; }
 .category-item :deep(.wd-icon) { color: var(--yb-ink); }
+.category-card--compact { padding: 10rpx 12rpx; }
+.category-item--compact { flex: 1; flex-direction: row; justify-content: flex-start; width: auto; min-height: 76rpx; padding: 8rpx 16rpx; font-size: var(--yb-fs-body); gap: 14rpx; }
+.category-item--compact text { overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
+.category-item--compact :deep(.category-arrow) { flex-shrink: 0; color: var(--yb-muted); }
 
 .section { margin: 32rpx 20rpx 0; padding: 24rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }

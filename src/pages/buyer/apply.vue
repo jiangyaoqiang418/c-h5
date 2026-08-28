@@ -106,7 +106,7 @@ onMounted(load);
       <view v-if="statusMeta" class="status-card">
         <view class="status-head">
           <text class="status-title">申请状态</text>
-          <text class="status-tag" :class="statusMeta.className">{{ statusMeta.label }}</text>
+          <text class="status-tag yb-status-pill" :class="statusMeta.className">{{ statusMeta.label }}</text>
         </view>
         <text class="status-detail">{{ statusMeta.detail }}</text>
         <view v-if="application" class="record-list">
@@ -190,9 +190,7 @@ onMounted(load);
   color: #1d2129;
 }
 .status-tag {
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-  font-size: 22rpx;
+  flex-shrink: 0;
 }
 .status-tag.pending {
   color: #ff7d00;

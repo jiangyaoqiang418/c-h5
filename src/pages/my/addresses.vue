@@ -125,7 +125,7 @@ function onLongPress(a: AddressRecord) {
         <view class="row">
           <text class="name">{{ a.receiverName }}</text>
           <text class="phone">{{ a.receiverPhone }}</text>
-          <wd-tag v-if="a.isDefault" type="primary" size="small">默认</wd-tag>
+          <wd-tag v-if="a.isDefault" type="primary" round size="small">默认</wd-tag>
         </view>
         <text class="addr">{{ a.province }} {{ a.city }} {{ a.district }} {{ a.detail }}</text>
         <view v-if="!a.isDefault" class="set-default" @click="setDefault(a)">设为默认</view>

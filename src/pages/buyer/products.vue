@@ -108,9 +108,11 @@ onReachBottom(() => {
 
 <template>
   <view class="products-page yb-page yb-page--full-bleed">
-    <wd-tabs v-model="activeKey" sticky>
-      <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
-    </wd-tabs>
+    <view class="yb-sticky-tabs-frame">
+      <wd-tabs v-model="activeKey">
+        <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
+      </wd-tabs>
+    </view>
 
     <view class="list">
       <view v-if="list.length">
@@ -130,7 +132,7 @@ onReachBottom(() => {
               <text class="stock">库存 {{ product.stock }}</text>
             </view>
             <view class="card-foot">
-              <wd-tag size="small" :type="statusType(product.status)">{{ product.statusText || product.status }}</wd-tag>
+              <wd-tag size="small" round :type="statusType(product.status)">{{ product.statusText || product.status }}</wd-tag>
               <wd-button
                 v-if="product.status === 'ON_SALE' || product.status === 'OFF_SHELF'"
                 plain
@@ -183,7 +185,7 @@ onReachBottom(() => {
   border-top: 1rpx solid var(--yb-hairline); background: rgba(255, 255, 255, 0.98);
 }
 .publish-action {
-  display:flex; align-items:center; justify-content:center; min-height:88rpx; gap:8rpx;
+  display:flex; align-items:center; justify-content:center; min-height:44px; gap:8rpx;
   border-radius: var(--yb-radius-md); background: var(--yb-brand); color: #fff;
   font-size: 28rpx; font-weight: 600;
 }

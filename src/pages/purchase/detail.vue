@@ -83,7 +83,7 @@ function cancel() {
 <template>
   <view v-if="request" class="detail-page yb-page">
     <view class="hero">
-      <wd-tag v-if="statusMeta" plain size="medium">{{ statusMeta.label }}</wd-tag>
+      <wd-tag v-if="statusMeta" plain round size="medium">{{ statusMeta.label }}</wd-tag>
       <text class="code">{{ request.code }}</text>
       <text class="title">{{ request.productTitle }}</text>
       <view class="cat"><wd-icon name="goods" size="14px" /><text>{{ request.categoryPath }}</text></view>

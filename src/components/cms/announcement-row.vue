@@ -20,8 +20,8 @@ const meta = computed(() => TYPE_META[props.announcement.type]);
   <view class="ann-row" :class="{ pinned: announcement.pinned }" @click="$emit('open', announcement)">
     <view class="head">
       <wd-icon :name="meta.icon" size="28rpx" color="var(--yb-brand)" />
-      <wd-tag :type="meta.color" plain size="small">{{ meta.label }}</wd-tag>
-      <wd-tag v-if="announcement.pinned" type="danger" size="small">置顶</wd-tag>
+      <wd-tag :type="meta.color" plain round size="small">{{ meta.label }}</wd-tag>
+      <wd-tag v-if="announcement.pinned" type="danger" round size="small">置顶</wd-tag>
     </view>
     <text class="title">{{ announcement.title }}</text>
     <text class="summary">{{ announcement.summary }}</text>

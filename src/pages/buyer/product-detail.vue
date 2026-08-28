@@ -90,7 +90,7 @@ onLoad(query => {
 
       <view class="section main-section">
         <view class="status-row">
-          <wd-tag :type="statusType">{{ product.statusText || product.status }}</wd-tag>
+          <wd-tag round :type="statusType">{{ product.statusText || product.status }}</wd-tag>
           <text class="stock">库存 {{ product.stock }}</text>
         </view>
         <text class="title">{{ product.title }}</text>

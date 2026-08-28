@@ -165,9 +165,11 @@ async function submitShipping() {
 
 <template>
   <view class="order-list-page yb-page yb-page--full-bleed">
-    <wd-tabs v-model="activeKey" sticky>
-      <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
-    </wd-tabs>
+    <view class="yb-sticky-tabs-frame">
+      <wd-tabs v-model="activeKey">
+        <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
+      </wd-tabs>
+    </view>
 
     <view class="list">
       <view v-if="orders.length">
