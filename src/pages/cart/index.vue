@@ -57,13 +57,13 @@ async function goCheckout() {
                 <text class="price-cny">{{ formatUsdt(item.product?.price || 0) }}</text>
                 <text class="price-usdt">≈ {{ formatCny(item.product?.price || 0) }}</text>
               </view>
-              <view class="qty" @click.stop>
+                <view class="qty" @click.stop>
                 <view class="qty-btn yb-pressable" @click="cart.update(item.key, item.qty - 1)">
-                  <wd-icon name="minus-circle" size="14px" />
+                  <text class="qty-symbol">−</text>
                 </view>
                 <text class="qty-val">{{ item.qty }}</text>
                 <view class="qty-btn yb-pressable" @click="cart.update(item.key, item.qty + 1)">
-                  <wd-icon name="add" size="14px" />
+                  <text class="qty-symbol">+</text>
                 </view>
               </view>
             </view>
@@ -211,6 +211,11 @@ async function goCheckout() {
   align-items: center;
   justify-content: center;
   color: var(--yb-text-secondary);
+}
+.qty-symbol {
+  font-size: 32rpx;
+  font-weight: 500;
+  line-height: 1;
 }
 .qty-val {
   width: 48rpx;
