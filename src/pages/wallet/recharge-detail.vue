@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { cancelRecharge, fetchRechargeDetail } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
+import EmptyState from '@/components/common/empty-state.vue';
 
 const detail = ref<Api.RealWallet.RechargeVO>();
 const canceling = ref(false);
@@ -56,6 +57,7 @@ function cancel() {
       <wd-button v-if="detail.status === 'PENDING'" block plain type="error" :loading="canceling" class="cancel-btn" @click="cancel">取消本次申报</wd-button>
     </view>
   </view>
+  <EmptyState v-else title="充值记录不存在" description="请从充值记录列表重新进入" />
 </template>
 
 <style lang="scss" scoped>
@@ -65,6 +67,7 @@ function cancel() {
 .status, .chain { display: block; color: #86909c; font-size: 23rpx; }
 .amount { display: block; margin: 14rpx 0; color: #00b42a; font-size: 52rpx; font-weight: 700; font-family: ui-monospace, monospace; }
 .row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 23rpx; }
+.row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .label { color: #86909c; }
 .block { padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
 .block-value { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 12rpx; background: #f5f5f2; font-size: 21rpx; font-family: ui-monospace, monospace; word-break: break-all; }

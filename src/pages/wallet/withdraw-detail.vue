@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { fetchWithdrawDetail } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
+import EmptyState from '@/components/common/empty-state.vue';
 
 const detail = ref<Api.RealWallet.WithdrawVO>();
 
@@ -53,6 +54,7 @@ onLoad(query => load(String(query?.id || '')));
       <view class="row"><text class="label">完成时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
     </view>
   </view>
+  <EmptyState v-else title="提现记录不存在" description="请从提现记录列表重新进入" />
 </template>
 
 <style lang="scss" scoped>
@@ -62,6 +64,7 @@ onLoad(query => load(String(query?.id || '')));
 .status, .chain { display: block; color: #86909c; font-size: 23rpx; }
 .amount { display: block; margin: 14rpx 0; color: #f53f3f; font-size: 52rpx; font-weight: 700; font-family: ui-monospace, monospace; }
 .row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 23rpx; }
+.row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .label { color: #86909c; }
 .block { padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
 .block-value, .reason { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 12rpx; background: #f5f5f2; font-size: 21rpx; line-height: 1.6; word-break: break-all; }

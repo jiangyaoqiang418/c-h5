@@ -63,7 +63,7 @@ const illustration = computed(() => props.image || (
 .action {
   display: inline-flex;
   align-items: center;
-  min-height: 72rpx;
+  min-height: 80rpx;
   margin-top: 32rpx;
   padding: 0 28rpx;
   border-radius: var(--yb-radius-lg);

@@ -98,12 +98,10 @@ const kpis = computed(() => {
       </view>
     </view>
 
-    <!-- KPI 横滑 -->
-    <scroll-view scroll-x class="kpi-scroll">
-      <view class="kpi-row">
-        <BuyerKpiCard v-for="k in kpis" :key="k.label" v-bind="k" />
-      </view>
-    </scroll-view>
+    <!-- 固定四项指标在手机端完整展示，不使用横向滚动。 -->
+    <view class="kpi-row">
+      <BuyerKpiCard v-for="k in kpis" :key="k.label" v-bind="k" />
+    </view>
 
     <!-- 进行中订单 -->
     <view class="section">
@@ -257,15 +255,11 @@ const kpis = computed(() => {
   letter-spacing: -1rpx;
 }
 
-/* KPI 横滑 */
-.kpi-scroll {
-  white-space: nowrap;
-  padding: 24rpx 24rpx 8rpx;
-}
 .kpi-row {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
-  padding: 4rpx;
+  padding: 24rpx 32rpx 8rpx;
 }
 
 /* Section */

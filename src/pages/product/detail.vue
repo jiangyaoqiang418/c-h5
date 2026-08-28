@@ -12,6 +12,7 @@ import { useCartStore } from '@/stores';
 import VipBadge from '@/components/common/vip-badge.vue';
 import ReviewStars from '@/components/common/review-stars.vue';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
+import EmptyState from '@/components/common/empty-state.vue';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface ProductView {
@@ -242,12 +243,12 @@ function goBack() {
   <view v-if="product" class="detail-page yb-page">
     <view class="nav"><view class="nav-btn yb-pressable" @click="goBack"><wd-icon name="arrow-left" size="22px" color="#151820" /></view></view>
 
-    <swiper :indicator-dots="true" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
+    <swiper v-if="product.images.length > 1" :indicator-dots="true" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
       <swiper-item v-for="(url, index) in product.images" :key="`${url}-${index}`">
         <image :src="url" mode="aspectFill" class="gallery-image" />
       </swiper-item>
-      <swiper-item v-if="!product.images.length"><image :src="UI_ASSETS.placeholders.product" mode="aspectFill" class="gallery-image" /></swiper-item>
     </swiper>
+    <image v-else :src="product.images[0] || UI_ASSETS.placeholders.product" mode="aspectFill" class="gallery gallery-image" />
 
     <view class="content-sheet">
       <text class="category">{{ product.categoryPath }}</text>
@@ -316,10 +317,11 @@ function goBack() {
       <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
     </view>
   </view>
+  <EmptyState v-else title="商品不存在" description="商品可能已下架或链接参数不完整" action-text="返回首页" @action="go('/pages/index/index', true)" />
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
+.detail-page { min-height: 100%; padding-bottom: calc(168rpx + env(safe-area-inset-bottom)); }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }
@@ -350,7 +352,7 @@ function goBack() {
 .review-row { padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
 .review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
-.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 8rpx; padding: 14rpx 16rpx calc(14rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
-.tool { display: flex; flex-direction: column; align-items: center; min-width: 58rpx; color: #6b7385; font-size: 18rpx; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; padding:0 12rpx; }
-.quantity { display: flex; flex-shrink:0; align-items: center; gap: 14rpx; padding: 12rpx 12rpx; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }
+.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 6rpx; padding: 8rpx 12rpx calc(8rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
+.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 80rpx; min-height: 80rpx; color: #6b7385; font-size: 22rpx; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; padding:0 8rpx; white-space:nowrap; }
+.quantity { display: flex; flex-shrink:0; align-items: center; padding: 0; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }.quantity > text { display:flex; align-items:center; justify-content:center; min-width:40rpx; min-height:80rpx; }
 </style>

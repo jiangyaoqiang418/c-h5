@@ -97,7 +97,7 @@ async function appeal(review: Api.RealReview.ReviewDTO) {
 </script>
 
 <template>
-  <view class="review-list yb-page">
+  <view class="review-list yb-page yb-page--full-bleed">
     <wd-tabs v-model="activeKey" sticky><wd-tab name="reviewable" title="待评价" /><wd-tab name="sent" title="我发出的" /><wd-tab name="received" title="我收到的" /></wd-tabs>
     <view class="list">
       <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载评价</text></view>

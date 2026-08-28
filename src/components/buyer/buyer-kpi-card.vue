@@ -34,8 +34,9 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   background: #FFFFFF;
   border-radius: 24rpx;
   padding: 24rpx;
-  flex-shrink: 0;
-  width: 260rpx;
+  flex: 1 1 calc(50% - 8rpx);
+  min-width: 0;
+  box-sizing: border-box;
   border: 1rpx solid #EDECE6;
   box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.04);
   display: flex;
@@ -90,6 +91,8 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   color: #0F111A;
   letter-spacing: -1rpx;
   line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .unit {
   font-size: 22rpx;

@@ -57,7 +57,7 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
 </script>
 
 <template>
-  <view class="my-purchase-page yb-page">
+  <view class="my-purchase-page yb-page yb-page--full-bleed">
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.purchase})` }">
       <text class="hero-eyebrow">MY PURCHASE REQUESTS</text>
       <text class="hero-title">我的求购</text>

@@ -164,7 +164,7 @@ async function submitShipping() {
 </script>
 
 <template>
-  <view class="order-list-page yb-page">
+  <view class="order-list-page yb-page yb-page--full-bleed">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
     </wd-tabs>

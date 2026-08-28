@@ -32,7 +32,7 @@ async function openDetail(a: Api.Cms.Announcement) {
 </script>
 
 <template>
-  <view class="ann-page yb-page">
+  <view class="ann-page yb-page yb-page--full-bleed">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
     </wd-tabs>

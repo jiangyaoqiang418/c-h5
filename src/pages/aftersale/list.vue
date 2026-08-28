@@ -63,7 +63,7 @@ watch(() => userStore.currentAudience, load);
 </script>
 
 <template>
-  <view class="as-list-page yb-page">
+  <view class="as-list-page yb-page yb-page--full-bleed">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
     </wd-tabs>

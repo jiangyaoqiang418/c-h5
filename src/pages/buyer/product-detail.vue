@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { deleteProduct, fetchBuyerProductDetail, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
+import EmptyState from '@/components/common/empty-state.vue';
 
 const id = ref('');
 const product = ref<Api.RealProduct.ProductDTO>();
@@ -123,6 +124,7 @@ onLoad(query => {
         <wd-button v-if="product.status === 'OFF_SHELF'" plain block @click="removeProduct">删除商品</wd-button>
       </view>
     </template>
+    <EmptyState v-else title="商品不存在" description="商品可能已删除或链接参数不完整" />
   </view>
 </template>
 
@@ -140,6 +142,7 @@ onLoad(query => {
 .price { display: block; margin-top: 20rpx; font-size: 42rpx; font-weight: 700; color: #f53f3f; font-family: ui-monospace, monospace; }
 .section-title { display: block; margin-bottom: 12rpx; font-size: 28rpx; font-weight: 600; color: #1d2129; }
 .row { display: flex; justify-content: space-between; gap: 24rpx; padding: 18rpx 0; border-bottom: 1rpx solid #f7f8fa; font-size: 24rpx; }
+.row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .label { flex-shrink: 0; color: #86909c; }
 .review-section { background: #fff7e6; }
 .review-text, .description { display: block; font-size: 24rpx; line-height: 1.7; color: #4e5969; white-space: pre-wrap; }

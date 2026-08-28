@@ -182,7 +182,7 @@ async function submit() {
         </view>
       </view>
       <view class="amount-row">
-        <text class="am-lbl">税费 <InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="22" /></text>
+        <view class="am-lbl with-tip"><text>税费</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="22" /></view>
         <view class="am-val">
           <text class="am-cny">{{ formatUsdt(cart.taxTotal) }}</text>
         </view>
@@ -318,6 +318,7 @@ async function submit() {
   margin-top: 8rpx;
   padding-top: 16rpx;
 }
+.with-tip { display: flex; align-items: center; gap: 4rpx; }
 .pay-row {
   font-size: 26rpx;
   color: #1d2129;

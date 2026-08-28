@@ -4,6 +4,7 @@ import { onLoad } from '@dcloudio/uni-app';
 import { formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 import { fetchOrderDetail, createRealRefund } from '@/service/api/order';
+import EmptyState from '@/components/common/empty-state.vue';
 
 const order = ref<Api.RealOrder.OrderView>();
 const submitting = ref(false);
@@ -43,6 +44,7 @@ async function submit() {
 
     <wd-button type="primary" block class="submit" :loading="submitting" @click="submit">提交申请</wd-button>
   </view>
+  <EmptyState v-else title="缺少可退款订单" description="请从订单详情或订单列表发起仅退款" action-text="返回订单列表" @action="go('/pages/order/list', true)" />
 </template>
 
 <style lang="scss" scoped>

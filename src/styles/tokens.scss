@@ -46,8 +46,8 @@ page {
   --yb-font-mono: ui-monospace, 'SF Mono', 'Roboto Mono', Consolas, monospace;
 
   /* 字号 */
-  --yb-fs-micro: 20rpx;
-  --yb-fs-caption: 22rpx;
+  --yb-fs-micro: 22rpx;
+  --yb-fs-caption: 24rpx;
   --yb-fs-body-sm: 24rpx;
   --yb-fs-body: 28rpx;
   --yb-fs-body-lg: 30rpx;
@@ -105,19 +105,19 @@ page {
   --wot-fs-title: 32rpx;
   --wot-fs-content: 28rpx;
   --wot-fs-secondary: 24rpx;
-  --wot-fs-aid: 20rpx;
+  --wot-fs-aid: 22rpx;
   --wot-fw-medium: 500;
   --wot-fw-semibold: 600;
   --wot-navbar-height: 88rpx;
   --wot-navbar-title-font-size: 36rpx;
   --wot-navbar-title-font-weight: 600;
-  --wot-button-large-height: 104rpx;
+  --wot-button-large-height: 96rpx;
   --wot-button-large-radius: 28rpx;
   --wot-button-large-fs: 32rpx;
   --wot-button-medium-height: 88rpx;
   --wot-button-medium-radius: 24rpx;
   --wot-button-medium-fs: 28rpx;
-  --wot-button-small-height: 64rpx;
+  --wot-button-small-height: 80rpx;
   --wot-button-small-radius: 20rpx;
   --wot-button-small-fs: 24rpx;
   --wot-action-sheet-radius: 40rpx;
@@ -152,6 +152,17 @@ page {
   padding: 0 var(--yb-page-padding) calc(var(--yb-space-5) + env(safe-area-inset-bottom));
   background: var(--yb-bg);
   box-sizing: border-box;
+}
+
+/* Tabs、轮播等需要贴合视口的页面使用全宽外壳，业务内容在内层自行保留边距。 */
+.yb-page--full-bleed {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.yb-page--full-bleed > .yb-page-content {
+  padding-right: var(--yb-page-padding);
+  padding-left: var(--yb-page-padding);
 }
 
 .yb-card {

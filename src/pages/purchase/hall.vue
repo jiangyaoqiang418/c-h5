@@ -145,12 +145,14 @@ function goCreate() {
 }
 .hero-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16rpx;
 }
 .hero-actions {
   display: flex;
+  margin-left: auto;
   gap: 8rpx;
 }
 .hero-actions :deep(.wd-button) {

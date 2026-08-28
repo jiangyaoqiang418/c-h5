@@ -112,7 +112,7 @@ function formatDate(value?: string | number): string {
 </script>
 
 <template>
-  <view class="points-page yb-page">
+  <view class="points-page yb-page yb-page--full-bleed">
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.points})` }">
       <text class="hero-label">当前积分</text>
       <text class="hero-amount">{{ balance }}</text>

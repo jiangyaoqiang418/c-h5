@@ -107,7 +107,7 @@ onReachBottom(() => {
 </script>
 
 <template>
-  <view class="products-page yb-page">
+  <view class="products-page yb-page yb-page--full-bleed">
     <wd-tabs v-model="activeKey" sticky>
       <wd-tab v-for="tab in TABS" :key="tab.key" :name="tab.key" :title="tab.label" />
     </wd-tabs>
@@ -149,7 +149,9 @@ onReachBottom(() => {
       <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     </view>
 
-    <view class="fab yb-pressable" @click="go('/pages/buyer/product-create')"><wd-icon name="add" size="17px" /> <text>发布</text></view>
+    <view class="publish-bar">
+      <view class="publish-action yb-pressable" @click="go('/pages/buyer/product-create')"><wd-icon name="add" size="17px" /> <text>发布商品</text></view>
+    </view>
   </view>
 </template>
 
@@ -175,9 +177,14 @@ onReachBottom(() => {
 .stock { font-size: 22rpx; color: #4e5969; }
 .card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10rpx; }
 .review-comment { display: block; margin-top: 10rpx; font-size: 22rpx; line-height: 1.5; color: #f53f3f; }
-.fab {
-  position: fixed; right: 28rpx; bottom: calc(28rpx + env(safe-area-inset-bottom));
-  display:flex; align-items:center; gap:8rpx; padding: 20rpx 32rpx; border-radius: 48rpx; background: var(--yb-brand); color: #fff;
-  font-size: 26rpx; box-shadow: 0 8rpx 24rpx rgba(250, 36, 60, 0.28);
+.publish-bar {
+  position: fixed; right: 0; bottom: 0; left: 0; z-index: 20;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--yb-hairline); background: rgba(255, 255, 255, 0.98);
+}
+.publish-action {
+  display:flex; align-items:center; justify-content:center; min-height:88rpx; gap:8rpx;
+  border-radius: var(--yb-radius-md); background: var(--yb-brand); color: #fff;
+  font-size: 28rpx; font-weight: 600;
 }
 </style>
