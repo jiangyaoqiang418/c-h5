@@ -190,17 +190,6 @@ function goBanner(path?: string) {
       </view>
     </view>
 
-    <view class="benefit-grid">
-      <view class="benefit-card guarantee yb-pressable" @click="goPurchase">
-        <view class="benefit-copy"><text>买手押金担保</text><text>平台托管 · 交易更安心</text><view>了解保障 <wd-icon name="arrow-right" size="24rpx" /></view></view>
-        <image :src="UI_ASSETS.illustrations.homeGuarantee" mode="aspectFit" />
-      </view>
-      <view class="benefit-card vip yb-pressable" @click="go('/pages/vip/index')">
-        <view class="benefit-copy"><text>成为 VIP</text><text>专属权益 · 更低手续费</text><view>立即开通 <wd-icon name="arrow-right" size="24rpx" /></view></view>
-        <image :src="UI_ASSETS.illustrations.homeVip" mode="aspectFit" />
-      </view>
-    </view>
-
     <view v-if="recommended.length || loading" class="section product-section">
       <view class="section-head">
         <text class="section-title">为你推荐</text>
@@ -304,20 +293,6 @@ function goBanner(path?: string) {
 .promo-title { display: -webkit-box; overflow: hidden; font-size: var(--yb-fs-title-sm); font-weight: 700; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .promo-subtitle { overflow: hidden; font-size: var(--yb-fs-caption); line-height: 30rpx; opacity: .84; text-overflow: ellipsis; white-space: nowrap; }
 
-.benefit-grid { display: flex; margin: 24rpx 20rpx 0; gap: 16rpx; }
-.benefit-card { position: relative; display: flex; flex: 1; min-width: 0; height: 154rpx; overflow: hidden; border-radius: 24rpx; }
-.benefit-card image { position: absolute; right: -10rpx; bottom: 0; width: 148rpx; height: 146rpx; }
-.benefit-copy { position: relative; z-index: 1; display: flex; flex-direction: column; min-width: 0; padding: 22rpx 16rpx; gap: 7rpx; }
-.benefit-copy > text:first-child { font-size: 28rpx; font-weight: 700; }
-.benefit-copy > text:nth-child(2) { font-size: 20rpx; line-height: 28rpx; }
-.benefit-copy > view { display: inline-flex; align-items: center; width: fit-content; margin-top: 2rpx; padding: 4rpx 12rpx; border-radius: var(--yb-radius-pill); font-size: 18rpx; gap: 2rpx; }
-.guarantee { background: var(--yb-champagne); color: var(--yb-gold); }
-.guarantee .benefit-copy > text:nth-child(2) { color: #8f6e3e; }
-.guarantee .benefit-copy > view { background: rgba(184, 147, 90, .16); }
-.vip { background: var(--yb-deep); color: var(--yb-surface); }
-.vip .benefit-copy > text:nth-child(2) { color: rgba(255, 255, 255, .78); }
-.vip .benefit-copy > view { background: var(--yb-gold); color: var(--yb-deep); }
-
 .product-section { padding-bottom: 20rpx; }
 .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 20rpx; gap: 16rpx; }
 .product-grid :deep(.p-card) { min-width: 0; }
@@ -339,7 +314,5 @@ function goBanner(path?: string) {
   .hero-primary, .hero-secondary { min-width: 112rpx; padding: 0 12rpx; }
   .section-title-wrap { gap: 10rpx; }
   .countdown > text:first-child { display: none; }
-  .benefit-copy { padding-left: 12rpx; }
-  .benefit-card image { width: 122rpx; }
 }
 </style>
