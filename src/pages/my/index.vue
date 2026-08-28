@@ -336,8 +336,7 @@ function goAiChat() {
   margin-top: 24rpx;
 }
 .stats-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.9fr) minmax(64rpx, 0.72fr);
+  display: flex;
   margin-top: 24rpx;
   padding: 18rpx 20rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.14);
@@ -346,12 +345,13 @@ function goAiChat() {
   gap: 16rpx;
   box-sizing: border-box;
 }
-.stats-row--three {
-  grid-template-columns: minmax(0, 1.75fr) minmax(64rpx, 0.62fr) minmax(64rpx, 0.62fr);
-}
 .stat {
+  flex: 0.72 1 0;
   min-width: 0;
 }
+.stat--asset { flex: 1.9 1 0; }
+.stats-row--three .stat { flex-grow: 0.62; }
+.stats-row--three .stat--asset { flex-grow: 1.75; }
 .stat--secondary {
   padding-left: 16rpx;
   border-left: 1rpx solid rgba(255, 255, 255, 0.16);

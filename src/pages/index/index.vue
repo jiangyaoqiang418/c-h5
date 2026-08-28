@@ -294,8 +294,8 @@ function goBanner(path?: string) {
 .promo-subtitle { overflow: hidden; font-size: var(--yb-fs-caption); line-height: 30rpx; opacity: .84; text-overflow: ellipsis; white-space: nowrap; }
 
 .product-section { padding-bottom: 20rpx; }
-.product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 20rpx; gap: 16rpx; }
-.product-grid :deep(.p-card) { min-width: 0; }
+.product-grid { display: flex; flex-wrap: wrap; margin-top: 20rpx; gap: 16rpx; }
+.product-grid :deep(.p-card), .product-skeleton { width: calc((100% - 16rpx) / 2); min-width: 0; box-sizing: border-box; }
 .product-skeleton { aspect-ratio: .62; border-radius: var(--yb-radius-card); background: linear-gradient(100deg, #f2f3f5 20%, #fafafa 38%, #f2f3f5 56%); background-size: 200% 100%; animation: skeleton 1.4s ease infinite; }
 
 @keyframes skeleton {
