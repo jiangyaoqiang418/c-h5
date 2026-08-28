@@ -88,7 +88,7 @@ function onSortChange(v: string) {
 </script>
 
 <template>
-  <view class="list-page yb-page">
+  <view class="list-page yb-page yb-page--full-bleed">
     <view class="search">
       <input v-model="keyword" placeholder="搜索商品 / 买手 / 品牌" class="search-input" @confirm="load(true)" />
     </view>
@@ -118,7 +118,7 @@ function onSortChange(v: string) {
 <style lang="scss" scoped>
 .list-page {
   min-height: 100%;
-  padding-bottom: 32rpx;
+  padding: 0 0 32rpx;
 }
 .search {
   padding: 20rpx 24rpx 16rpx;
@@ -162,10 +162,10 @@ function onSortChange(v: string) {
 .grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
-  padding: 24rpx;
+  gap: 12rpx;
+  padding: 16rpx 0;
 }
-.grid > * { width: calc((100% - 16rpx) / 2); min-width: 0; }
+.grid > * { width: calc((100% - 12rpx) / 2); min-width: 0; }
 .loading, .no-more {
   text-align: center;
   padding: 32rpx;
