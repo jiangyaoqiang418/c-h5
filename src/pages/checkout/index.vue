@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onLoad, onShow } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { formatAmount } from '@/utils/format-bridge';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
@@ -22,10 +22,24 @@ const agreed = ref(false);
 const submitting = ref(false);
 const loading = ref(false);
 const loadFailed = ref(false);
+const checkoutMode = ref<'cart' | 'buy-now'>('cart');
+const buyNowContextId = ref('');
 
-const items = computed(() => cart.selectedItems);
+const items = computed(() => {
+  if (checkoutMode.value === 'buy-now') {
+    const item = cart.getBuyNowItem(buyNowContextId.value);
+    return item ? [item] : [];
+  }
+  return cart.selectedItems;
+});
 const hasMockItems = computed(() => items.value.some(item => item.source !== 'real'));
 const hasOnlyRealItems = computed(() => items.value.length > 0 && !hasMockItems.value);
+const subTotal = computed(() => items.value.reduce((sum, item) => sum + Number(item.subtotal), 0).toFixed(2));
+const shippingFeeTotal = computed(() => items.value.reduce((sum, item) => sum + Number(item.shippingFee), 0).toFixed(2));
+const taxTotal = computed(() => items.value.reduce((sum, item) => sum + Number(item.tax), 0).toFixed(2));
+const grandTotal = computed(() => (
+  Number(subTotal.value) + Number(shippingFeeTotal.value) + Number(taxTotal.value)
+).toFixed(2));
 
 interface PendingCheckout {
   fingerprint: string;
@@ -38,11 +52,17 @@ const pendingKey = 'bw_h5_real_checkout_pending_v1';
 
 function checkoutFingerprint() {
   return [
+    ...(checkoutMode.value === 'buy-now' ? ['buy-now', buyNowContextId.value] : []),
     String(userStore.realUserId || ''),
     String(selectedAddrId.value || ''),
     ...items.value.map(item => `${item.key}:${item.qty}`).sort()
   ].join('|');
 }
+
+onLoad(query => {
+  checkoutMode.value = query?.mode === 'buy-now' ? 'buy-now' : 'cart';
+  buyNowContextId.value = checkoutMode.value === 'buy-now' ? String(query?.contextId || '') : '';
+});
 
 function createIdempotencyKey() {
   return `h5-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
@@ -60,13 +80,20 @@ async function loadCheckout() {
   loading.value = true;
   loadFailed.value = false;
   try {
+    cart.init();
     await userStore.init();
     if (!userStore.currentUser) {
-      go('/pages/auth/login?redirect=' + encodeURIComponent('/pages/checkout/index'));
+      const redirectUrl = checkoutMode.value === 'buy-now'
+        ? `/pages/checkout/index?mode=buy-now&contextId=${encodeURIComponent(buyNowContextId.value)}`
+        : '/pages/checkout/index';
+      go('/pages/auth/login?redirect=' + encodeURIComponent(redirectUrl));
       return;
     }
     if (items.value.length === 0) {
-      uni.showToast({ title: '请先选择商品', icon: 'none' });
+      uni.showToast({
+        title: checkoutMode.value === 'buy-now' ? '立即购买信息已失效' : '请先选择商品',
+        icon: 'none'
+      });
       setTimeout(() => uni.navigateBack(), 800);
       return;
     }
@@ -87,9 +114,10 @@ onShow(loadCheckout);
 
 const selectedAddr = computed(() => addresses.value.find(a => a.id === selectedAddrId.value));
 const available = computed(() => Number(walletStore.summary?.available || 0));
-const balanceEnough = computed(() => available.value >= Number(cart.grandTotal));
+const balanceEnough = computed(() => available.value >= Number(grandTotal.value));
 
 async function submit() {
+  if (submitting.value) return;
   if (!agreed.value) {
     uni.showToast({ title: '请阅读并同意协议', icon: 'none' });
     return;
@@ -126,9 +154,13 @@ async function submit() {
     }
 
     await payRealOrderGroup({ orderGroupNo: pending.orderGroupNo });
-    items.value.forEach(item => cart.remove(item.key));
+    if (checkoutMode.value === 'buy-now') {
+      cart.clearBuyNow(buyNowContextId.value);
+    } else {
+      items.value.forEach(item => cart.remove(item.key));
+    }
     storage.remove(pendingKey);
-    await walletStore.refetch();
+    await walletStore.refetch().catch(() => undefined);
     uni.showToast({ title: '支付成功', icon: 'success' });
     const firstId = pending.orderIds?.[0];
     if (firstId !== undefined) reLaunch(`/pages/checkout/success?orderId=${encodeURIComponent(String(firstId))}`);
@@ -186,27 +218,27 @@ async function submit() {
       <view class="amount-row">
         <text class="am-lbl">商品合计</text>
         <view class="am-val">
-          <text class="am-cny">{{ formatUsdt(cart.subTotal) }}</text>
-          <text class="am-usdt">≈ {{ formatCny(cart.subTotal) }}</text>
+          <text class="am-cny">{{ formatUsdt(subTotal) }}</text>
+          <text class="am-usdt">≈ {{ formatCny(subTotal) }}</text>
         </view>
       </view>
       <view class="amount-row">
         <text class="am-lbl">运费</text>
         <view class="am-val">
-          <text class="am-cny">{{ formatUsdt(cart.shippingFeeTotal) }}</text>
+          <text class="am-cny">{{ formatUsdt(shippingFeeTotal) }}</text>
         </view>
       </view>
       <view class="amount-row">
         <view class="am-lbl with-tip"><text>税费</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="22" /></view>
         <view class="am-val">
-          <text class="am-cny">{{ formatUsdt(cart.taxTotal) }}</text>
+          <text class="am-cny">{{ formatUsdt(taxTotal) }}</text>
         </view>
       </view>
       <view class="amount-row total">
         <text class="am-lbl">应付总额</text>
         <view class="am-val">
-          <text class="am-cny total-big">{{ formatUsdt(cart.grandTotal) }}</text>
-          <text class="am-usdt">≈ {{ formatCny(cart.grandTotal) }} · {{ priceSet(cart.grandTotal).rateLabel }}</text>
+          <text class="am-cny total-big">{{ formatUsdt(grandTotal) }}</text>
+          <text class="am-usdt">≈ {{ formatCny(grandTotal) }} · {{ priceSet(grandTotal).rateLabel }}</text>
         </view>
       </view>
     </view>
@@ -230,8 +262,8 @@ async function submit() {
     <view class="bottom-bar">
       <view class="total-block">
         <text class="total-label">应付：</text>
-        <text class="total-val">{{ formatUsdt(cart.grandTotal) }}</text>
-        <text class="total-usdt">≈ {{ formatCny(cart.grandTotal) }}</text>
+        <text class="total-val">{{ formatUsdt(grandTotal) }}</text>
+        <text class="total-usdt">≈ {{ formatCny(grandTotal) }}</text>
       </view>
       <wd-button type="primary" size="large" :loading="submitting" :disabled="!agreed || !hasOnlyRealItems" @click="submit">提交订单</wd-button>
     </view>

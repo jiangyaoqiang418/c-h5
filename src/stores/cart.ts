@@ -37,8 +37,20 @@ export interface EnrichedCartItem extends CartItem {
   lineTotal: string;
 }
 
+interface BuyNowContext {
+  id: string;
+  item: CartItem;
+  createdAt: string;
+}
+
+const buyNowStorageKey = 'bw_h5_buy_now_context_v1';
+
 function itemKey(source: CartItem['source'], productId: CartItem['productId']): string {
   return `${source}:${String(productId)}`;
+}
+
+function createBuyNowContextId(): string {
+  return `buy-now-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
 function mockSnapshot(product: Api.Product.ProductRecord): CartProductSnapshot {
@@ -84,10 +96,19 @@ function enrich(item: CartItem): EnrichedCartItem {
 
 export const useCartStore = defineStore('bw-cart', () => {
   const items = ref<CartItem[]>([]);
+  const buyNowContext = ref<BuyNowContext>();
   const initialized = ref(false);
 
   function persist() {
     storage.set(STORAGE_KEY.cart, JSON.stringify(items.value));
+  }
+
+  function persistBuyNow() {
+    if (buyNowContext.value) {
+      storage.set(buyNowStorageKey, JSON.stringify(buyNowContext.value));
+    } else {
+      storage.remove(buyNowStorageKey);
+    }
   }
 
   function init() {
@@ -113,7 +134,35 @@ export const useCartStore = defineStore('bw-cart', () => {
     } catch {
       items.value = [];
     }
-    initialized.value = true;
+    try {
+      const raw = storage.get<string>(buyNowStorageKey);
+      if (!raw) return;
+      const context = JSON.parse(raw) as Partial<BuyNowContext> & {
+        item?: Partial<CartItem> & { productId?: unknown };
+      };
+      const item = context.item;
+      if (typeof context.id !== 'string' || !context.id || !item) return;
+      if ((typeof item.productId !== 'string' && typeof item.productId !== 'number') || !item.source) return;
+      const source: CartItem['source'] = item.source === 'real' ? 'real' : 'mock';
+      if (source === 'real' && !item.snapshot) return;
+      buyNowContext.value = {
+        id: context.id,
+        createdAt: context.createdAt || new Date().toISOString(),
+        item: {
+          productId: item.productId,
+          source,
+          qty: Math.max(1, Number(item.qty) || 1),
+          addedAt: item.addedAt || new Date().toISOString(),
+          selected: true,
+          snapshot: source === 'real' ? item.snapshot : undefined
+        }
+      };
+    } catch {
+      buyNowContext.value = undefined;
+      storage.remove(buyNowStorageKey);
+    } finally {
+      initialized.value = true;
+    }
   }
 
   function add(productId: number, qty = 1) {
@@ -140,6 +189,63 @@ export const useCartStore = defineStore('bw-cart', () => {
       items.value.unshift({ productId, source: 'real', qty, addedAt: new Date().toISOString(), selected: true, snapshot });
     }
     persist();
+  }
+
+  function setBuyNow(productId: number, qty = 1) {
+    init();
+    const now = new Date().toISOString();
+    const contextId = createBuyNowContextId();
+    buyNowContext.value = {
+      id: contextId,
+      createdAt: now,
+      item: {
+        productId,
+        source: 'mock',
+        qty: Math.max(1, qty),
+        addedAt: now,
+        selected: true
+      }
+    };
+    persistBuyNow();
+    return contextId;
+  }
+
+  function setBuyNowReal(snapshot: CartProductSnapshot, qty = 1) {
+    init();
+    const now = new Date().toISOString();
+    const contextId = createBuyNowContextId();
+    buyNowContext.value = {
+      id: contextId,
+      createdAt: now,
+      item: {
+        productId: snapshot.id,
+        source: 'real',
+        qty: Math.max(1, qty),
+        addedAt: now,
+        selected: true,
+        snapshot
+      }
+    };
+    persistBuyNow();
+    return contextId;
+  }
+
+  function clearBuyNow(contextId: string) {
+    if (buyNowContext.value?.id !== contextId) return;
+    buyNowContext.value = undefined;
+    try {
+      const raw = storage.get<string>(buyNowStorageKey);
+      const stored = raw ? JSON.parse(raw) as Partial<BuyNowContext> : undefined;
+      if (stored?.id === contextId) storage.remove(buyNowStorageKey);
+    } catch {
+      storage.remove(buyNowStorageKey);
+    }
+  }
+
+  function getBuyNowItem(contextId: string): EnrichedCartItem | undefined {
+    if (!contextId || buyNowContext.value?.id !== contextId) return undefined;
+    const item = enrich(buyNowContext.value.item);
+    return item.available ? item : undefined;
   }
 
   function update(key: string, qty: number) {
@@ -215,6 +321,10 @@ export const useCartStore = defineStore('bw-cart', () => {
     init,
     add,
     addReal,
+    setBuyNow,
+    setBuyNowReal,
+    clearBuyNow,
+    getBuyNowItem,
     update,
     remove,
     setSelected,

@@ -189,19 +189,7 @@ onLoad(async query => {
 function addToCart() {
   if (!product.value) return;
   if (isRealProduct.value) {
-    cart.addReal({
-      id: product.value.id,
-      title: product.value.title,
-      sellerId: product.value.sellerId,
-      sellerName: product.value.sellerName,
-      cover: product.value.images[0],
-      price: product.value.price,
-      shippingFee: product.value.shippingFee,
-      tax: product.value.tax,
-      stock: product.value.stock,
-      aftersaleType: product.value.aftersaleType,
-      overseasCustoms: product.value.overseasCustoms
-    }, qty.value);
+    cart.addReal(realProductSnapshot(), qty.value);
   } else if (product.value.legacyId) {
     cart.add(product.value.legacyId, qty.value);
   } else {
@@ -210,18 +198,35 @@ function addToCart() {
   uni.showToast({ title: '已加入购物车', icon: 'success' });
 }
 
+function realProductSnapshot() {
+  if (!product.value) throw new Error('商品不存在');
+  return {
+    id: product.value.id,
+    title: product.value.title,
+    sellerId: product.value.sellerId,
+    sellerName: product.value.sellerName,
+    cover: product.value.images[0],
+    price: product.value.price,
+    shippingFee: product.value.shippingFee,
+    tax: product.value.tax,
+    stock: product.value.stock,
+    aftersaleType: product.value.aftersaleType,
+    overseasCustoms: product.value.overseasCustoms
+  };
+}
+
 async function buyNow() {
   if (!product.value) return showTradeUnavailable();
   if (isRealProduct.value) {
-    addToCart();
-    if (await requireLogin(`/pages/product/detail?id=${encodeURIComponent(String(product.value.id))}&source=real`)) {
-      go('/pages/checkout/index');
-    }
+    const contextId = cart.setBuyNowReal(realProductSnapshot(), qty.value);
+    const checkoutUrl = `/pages/checkout/index?mode=buy-now&contextId=${encodeURIComponent(contextId)}`;
+    if (await requireLogin(checkoutUrl)) go(checkoutUrl);
     return;
   }
   if (!product.value.legacyId) return showTradeUnavailable();
-  cart.add(product.value.legacyId, qty.value);
-  if (await requireLogin(`/pages/product/detail?id=${product.value.legacyId}`)) go('/pages/checkout/index');
+  const contextId = cart.setBuyNow(product.value.legacyId, qty.value);
+  const checkoutUrl = `/pages/checkout/index?mode=buy-now&contextId=${encodeURIComponent(contextId)}`;
+  if (await requireLogin(checkoutUrl)) go(checkoutUrl);
 }
 
 function showTradeUnavailable() {
