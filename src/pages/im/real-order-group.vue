@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores';
 import { fetchConversationByOrder, fetchIncrementalMessages, fetchMessages, markImMessagesRead, recallImMessage, sendMessage, uploadImImage, uploadImVoice } from '@/service/api/notify';
 import { fetchOrderDetail } from '@/service/api/order';
 import { imSocket, type ImSocketState } from '@/service/im-socket';
+import { requireLogin } from '@/utils/navigate';
 
 const userStore = useUserStore();
 const conversation = ref<Api.RealNotify.Conversation>();
@@ -376,6 +377,11 @@ function retryRealtime() {
 onLoad(async query => {
   const orderId = String(query?.orderId || '');
   if (!orderId) return;
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin(`/pages/im/real-order-group?orderId=${encodeURIComponent(orderId)}`);
+    return;
+  }
   currentOrderId = orderId;
   try {
     const [group] = await Promise.all([

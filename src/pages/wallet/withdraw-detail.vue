@@ -4,8 +4,11 @@ import { onLoad } from '@dcloudio/uni-app';
 import { fetchWithdrawDetail } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
+import { requireLogin } from '@/utils/navigate';
 
 const detail = ref<Api.RealWallet.WithdrawVO>();
+const userStore = useUserStore();
 
 function copy(value?: string) {
   if (value) uni.setClipboardData({ data: value, success: () => uni.showToast({ title: '已复制', icon: 'none' }) });
@@ -25,7 +28,16 @@ async function load(id: string) {
   }
 }
 
-onLoad(query => load(String(query?.id || '')));
+onLoad(async query => {
+  const id = String(query?.id || '');
+  if (!id) return;
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(id)}`);
+    return;
+  }
+  await load(id);
+});
 </script>
 
 <template>

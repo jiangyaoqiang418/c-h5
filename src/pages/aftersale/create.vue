@@ -2,18 +2,30 @@
 import { reactive, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { formatUsdt } from '@shared/utils/currency';
-import { go } from '@/utils/navigate';
+import { go, requireLogin } from '@/utils/navigate';
 import { fetchOrderDetail, createRealRefund } from '@/service/api/order';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
 const order = ref<Api.RealOrder.OrderView>();
 const submitting = ref(false);
+const userStore = useUserStore();
 
 const form = reactive({ reason: '' });
 
 onLoad(async query => {
   const orderId = query?.orderId;
-  if (typeof orderId === 'string' && orderId) order.value = await fetchOrderDetail(orderId);
+  if (typeof orderId !== 'string' || !orderId) return;
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin(`/pages/aftersale/create?orderId=${encodeURIComponent(orderId)}`);
+    return;
+  }
+  try {
+    order.value = await fetchOrderDetail(orderId);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });
+  }
 });
 
 async function submit() {

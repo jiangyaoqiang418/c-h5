@@ -5,6 +5,7 @@ import { go } from '@/utils/navigate';
 import { fetchConversations, fetchImUnreadCount, fetchNotificationUnreadCount, fetchNotifications } from '@/service/api/notify';
 import { imSocket, type ImSocketState } from '@/service/im-socket';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
 interface Category {
   key: string;
@@ -18,6 +19,7 @@ interface Category {
 }
 
 const categories = ref<Category[]>([]);
+const userStore = useUserStore();
 const loadFailed = ref(false);
 const realtimeState = ref<ImSocketState>('idle');
 let unsubscribeRealtime: (() => void) | undefined;
@@ -31,6 +33,12 @@ function isTransactionNotification(notification: Api.RealNotify.Notification) {
 async function load() {
   loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      categories.value = [];
+      realtimeState.value = 'idle';
+      return;
+    }
     const [notificationCount, imCount, notificationPage, conversationPage] = await Promise.all([
       fetchNotificationUnreadCount(),
       fetchImUnreadCount(),
@@ -105,7 +113,12 @@ function ensureRealtimeSubscription() {
   }
 }
 
-onShow(() => {
+onShow(async () => {
+  await userStore.init();
+  if (!userStore.currentUser) {
+    categories.value = [];
+    return;
+  }
   ensureRealtimeSubscription();
   imSocket.start().catch(() => undefined);
   load();

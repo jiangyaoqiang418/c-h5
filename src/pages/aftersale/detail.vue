@@ -6,6 +6,7 @@ import { formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { requireLogin } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
@@ -23,9 +24,17 @@ async function reload() {
 
 onLoad(async query => {
   const id = query?.id;
-  if (typeof id === 'string' && id) {
-    refundId.value = id;
+  if (typeof id !== 'string' || !id) return;
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin(`/pages/aftersale/detail?id=${encodeURIComponent(id)}`);
+    return;
+  }
+  refundId.value = id;
+  try {
     await reload();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '售后详情加载失败', icon: 'none' });
   }
 });
 

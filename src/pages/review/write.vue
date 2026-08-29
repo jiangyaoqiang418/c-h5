@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { createReview, fetchReviewableOrders, uploadReviewImage } from '@/service/api/review';
-import { go } from '@/utils/navigate';
+import { go, requireLogin } from '@/utils/navigate';
 import ReviewStars from '@/components/common/review-stars.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
@@ -15,7 +15,16 @@ const form = reactive<{ score: 1 | 2 | 3 | 4 | 5; content: string; photoUrls: st
 onLoad(async query => {
   const orderId = String(query?.orderId || '');
   if (!orderId) return;
-  order.value = (await fetchReviewableOrders({ pageSize: 50 })).records.find(item => String(item.orderId) === orderId);
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin(`/pages/review/write?orderId=${encodeURIComponent(orderId)}`);
+    return;
+  }
+  try {
+    order.value = (await fetchReviewableOrders({ pageSize: 50 })).records.find(item => String(item.orderId) === orderId);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '待评价订单加载失败', icon: 'none' });
+  }
 });
 
 async function addPhoto() {

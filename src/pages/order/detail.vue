@@ -8,7 +8,7 @@ import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { go } from '@/utils/navigate';
+import { go, requireLogin } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
@@ -23,12 +23,15 @@ const exceptionForm = ref({ exception: '', location: '' });
 
 onLoad(async query => {
   id.value = query?.id ? String(query.id) : undefined;
-  if (id.value) {
+  await userStore.init();
+  if (id.value && userStore.currentUser) {
     const scope = userStore.isBuyerActive ? 'sold' : 'bought';
     const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(id.value, scope), fetchOrderLogistics(id.value)]);
     if (detailResult.status === 'fulfilled') order.value = detailResult.value;
     else uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
     if (logisticsResult.status === 'fulfilled') logistics.value = logisticsResult.value;
+  } else if (id.value) {
+    await requireLogin(`/pages/order/detail?id=${encodeURIComponent(String(id.value))}`);
   }
 });
 

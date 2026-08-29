@@ -5,14 +5,22 @@ import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
 import { fetchOrderDetail } from '@/service/api/order';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import { useUserStore } from '@/stores';
+import { requireLogin } from '@/utils/navigate';
 
 const order = ref<Api.RealOrder.OrderView>();
 const orderId = ref<Api.RealOrder.LongId>();
+const userStore = useUserStore();
 
 onLoad(async query => {
   const id = query?.orderId;
   if (typeof id !== 'string' || !id) return;
   orderId.value = id;
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin(`/pages/checkout/success?orderId=${encodeURIComponent(id)}`);
+    return;
+  }
   try {
     order.value = await fetchOrderDetail(id);
   } catch (error) {

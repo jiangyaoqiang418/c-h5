@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { onPullDownRefresh } from '@dcloudio/uni-app';
-import { go } from '@/utils/navigate';
+import { go, requireLogin } from '@/utils/navigate';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -23,6 +23,10 @@ async function load() {
   loadFailed.value = false;
   try {
     await userStore.init();
+    if (!userStore.currentUser) {
+      list.value = [];
+      return;
+    }
     const r = await fetchHall({ size: 30 });
     list.value = r.records;
   } catch (error) {
@@ -55,12 +59,12 @@ async function onClaim(req: Api.PurchaseRequest.PurchaseRequest) {
   }
 }
 
-function goMy() {
-  go('/pages/purchase/my-list');
+async function goMy() {
+  if (await requireLogin('/pages/purchase/my-list')) go('/pages/purchase/my-list');
 }
 
-function goCreate() {
-  go('/pages/purchase/create');
+async function goCreate() {
+  if (await requireLogin('/pages/purchase/create')) go('/pages/purchase/create');
 }
 </script>
 

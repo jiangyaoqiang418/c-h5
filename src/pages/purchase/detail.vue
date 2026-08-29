@@ -7,6 +7,7 @@ import PushTierBadge from '@/components/purchase/push-tier-badge.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { cancelPurchase, claimRequest, fetchPurchaseDetail } from '@/service/api/purchase';
+import { requireLogin } from '@/utils/navigate';
 
 const userStore = useUserStore();
 const request = ref<Api.PurchaseRequest.PurchaseRequest>();
@@ -18,6 +19,10 @@ onLoad(async query => {
   try {
     await userStore.init();
     id.value = query?.id ? String(query.id) : undefined;
+    if (!userStore.currentUser) {
+      if (id.value) await requireLogin(`/pages/purchase/detail?id=${encodeURIComponent(id.value)}`);
+      return;
+    }
     if (id.value) {
       const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
       request.value = r.request;

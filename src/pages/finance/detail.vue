@@ -3,15 +3,18 @@ import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { fetchFinanceProductDetail, subscribeFinance } from '@/service/api/finance';
 import { formatAmount, formatRate } from '@/utils/format-bridge';
-import { go } from '@/utils/navigate';
+import { go, requireLogin } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
-import { useWalletStore } from '@/stores';
+import { useUserStore, useWalletStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 const walletStore = useWalletStore();
+const userStore = useUserStore();
 const product = ref<Api.RealFinance.ProductVO>(); const amount = ref(''); const submitting = ref(false);
 async function load(id: string) {
   try {
+    await userStore.init();
+    if (!userStore.currentUser) return;
     product.value = await fetchFinanceProductDetail(id);
     amount.value = String(product.value.minAmount);
     await walletStore.refetch();
@@ -19,7 +22,7 @@ async function load(id: string) {
     uni.showToast({ title: error instanceof Error ? error.message : '理财产品加载失败', icon: 'none' });
   }
 }
-onLoad(query => { const id = String(query?.id || ''); if (id) load(id); });
+onLoad(async query => { const id = String(query?.id || ''); if (!id) return; await userStore.init(); if (!userStore.currentUser) { await requireLogin(`/pages/finance/detail?id=${encodeURIComponent(id)}`); return; } await load(id); });
 const available = computed(() => Number(walletStore.account?.available || 0));
 const expectedInterest = computed(() => product.value ? Number(amount.value || 0) * Number(product.value.annualRate || 0) * product.value.lockDays / 365 : 0);
 const canSubmit = computed(() => !!product.value && Number(amount.value) >= Number(product.value.minAmount) && (!product.value.maxAmount || Number(amount.value) <= Number(product.value.maxAmount)) && Number(amount.value) <= available.value && product.value.status === 'ON_SALE');

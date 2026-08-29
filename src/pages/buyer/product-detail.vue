@@ -4,10 +4,13 @@ import { onLoad } from '@dcloudio/uni-app';
 import { deleteProduct, fetchBuyerProductDetail, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
+import { requireLogin } from '@/utils/navigate';
 
 const id = ref('');
 const product = ref<Api.RealProduct.ProductDTO>();
 const loading = ref(true);
+const userStore = useUserStore();
 
 const statusType = computed(() => {
   if (product.value?.status === 'ON_SALE') return 'success';
@@ -72,9 +75,15 @@ function removeProduct() {
   } });
 }
 
-onLoad(query => {
+onLoad(async query => {
   id.value = String(query?.id || '');
-  load();
+  await userStore.init();
+  if (!userStore.currentUser) {
+    if (id.value) await requireLogin(`/pages/buyer/product-detail?id=${encodeURIComponent(id.value)}`);
+    loading.value = false;
+    return;
+  }
+  await load();
 });
 </script>
 

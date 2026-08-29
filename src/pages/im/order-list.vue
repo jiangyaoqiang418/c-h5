@@ -4,15 +4,22 @@ import { onShow } from '@dcloudio/uni-app';
 import { fetchConversations } from '@/service/api/notify';
 import EmptyState from '@/components/common/empty-state.vue';
 import { go } from '@/utils/navigate';
+import { useUserStore } from '@/stores';
 
 const groups = ref<Api.RealNotify.Conversation[]>([]);
 const loading = ref(false);
 const loadFailed = ref(false);
+const userStore = useUserStore();
 
 async function load() {
   loading.value = true;
   loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      groups.value = [];
+      return;
+    }
     const page = await fetchConversations({ pageNo: 1, pageSize: 30 });
     groups.value = page.records.filter(item => item.bizType === 'ORDER');
   } catch (error) {

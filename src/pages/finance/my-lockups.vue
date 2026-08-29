@@ -3,14 +3,15 @@ import { onMounted, ref, watch } from 'vue';
 import { fetchFinanceOrders, redeemFinanceOrder } from '@/service/api/finance';
 import LockupCard from '@/components/finance/lockup-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
-import { useWalletStore } from '@/stores';
+import { useUserStore, useWalletStore } from '@/stores';
 
 const walletStore = useWalletStore();
+const userStore = useUserStore();
 const activeKey = ref<Api.RealFinance.OrderStatus>('HOLDING');
 const list = ref<Api.RealFinance.OrderVO[]>([]); const loading = ref(false);
 const redeemingId = ref<Api.RealFinance.Id>();
 const tabs: { key: Api.RealFinance.OrderStatus; label: string }[] = [{ key: 'HOLDING', label: '持仓中' }, { key: 'SETTLED', label: '已结算' }, { key: 'REDEEMED', label: '已赎回' }, { key: 'CANCELED', label: '已取消' }];
-async function load() { loading.value = true; try { list.value = (await fetchFinanceOrders({ pageSize: 50, status: activeKey.value })).records; } catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '锁仓记录加载失败', icon: 'none' }); } finally { loading.value = false; } }
+async function load() { await userStore.init(); if (!userStore.currentUser) { list.value = []; return; } loading.value = true; try { list.value = (await fetchFinanceOrders({ pageSize: 50, status: activeKey.value })).records; } catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '锁仓记录加载失败', icon: 'none' }); } finally { loading.value = false; } }
 onMounted(load); watch(activeKey, load);
 function onRedeem(order: Api.RealFinance.OrderVO) {
   if (!order.canRedeem || redeemingId.value !== undefined) return;

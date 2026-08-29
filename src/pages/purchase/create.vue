@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
-import { go } from '@/utils/navigate';
+import { go, requireLogin } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 import { fetchCategoryTree } from '@/service/api/category';
 import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
@@ -35,6 +35,11 @@ onLoad(query => {
 });
 
 onMounted(async () => {
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin('/pages/purchase/create');
+    return;
+  }
   try {
     const [tree, addressList] = await Promise.all([fetchCategoryTree({ onlyEnabled: true }), fetchMyAddresses()]);
     const leaves = tree.map(item => ({ id: item.id, name: item.name }));

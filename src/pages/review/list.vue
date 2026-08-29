@@ -17,6 +17,7 @@ const operating = ref(false);
 const loadFailed = ref(false);
 
 async function load() {
+  await userStore.init();
   if (!userStore.currentUser) {
     list.value = [];
     reviewable.value = [];

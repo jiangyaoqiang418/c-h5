@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { createRecharge, fetchRechargeAddress, fetchRechargeChains, fetchRechargeDetail } from '@/service/api/wallet';
-import { go } from '@/utils/navigate';
+import { go, requireLogin } from '@/utils/navigate';
+import { useUserStore } from '@/stores';
 
 const form = reactive<{ chain: string; amount: number }>({ chain: '', amount: 100 });
 const submitting = ref(false);
+const userStore = useUserStore();
 const detail = ref<Api.RealWallet.RechargeVO>();
 const rechargeAddress = ref<Api.RealWallet.RechargeAddressVO>();
 const addressLoading = ref(false);
@@ -90,6 +92,11 @@ function submit() {
 }
 
 async function createDeclaration() {
+  await userStore.init();
+  if (!userStore.currentUser) {
+    await requireLogin('/pages/wallet/deposit');
+    return;
+  }
   submitting.value = true;
   try {
     const id = await createRecharge({ chain: form.chain, amount: Number(form.amount) });

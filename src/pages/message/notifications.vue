@@ -5,11 +5,13 @@ import { clearNotifications, deleteNotification, fetchNotifications, markAllNoti
 import { go } from '@/utils/navigate';
 import { imSocket } from '@/service/im-socket';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
 const list = ref<Api.RealNotify.Notification[]>([]);
 const loading = ref(false);
 const loadFailed = ref(false);
 const operating = ref(false);
+const userStore = useUserStore();
 const unreadCount = computed(() => list.value.filter(item => !item.readFlag).length);
 let unsubscribeRealtime: (() => void) | undefined;
 let realtimeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -18,6 +20,11 @@ async function load() {
   loading.value = true;
   loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      list.value = [];
+      return;
+    }
     list.value = (await fetchNotifications({ pageNo: 1, pageSize: 50 })).records;
   } catch (error) {
     loadFailed.value = true;
@@ -34,7 +41,12 @@ function refreshFromRealtime() {
   }, 80);
 }
 
-onShow(() => {
+onShow(async () => {
+  await userStore.init();
+  if (!userStore.currentUser) {
+    list.value = [];
+    return;
+  }
   if (!unsubscribeRealtime) {
     unsubscribeRealtime = imSocket.subscribe(event => {
       if (String((event as { type?: unknown })?.type || '').toUpperCase() === 'NOTIFICATION') {

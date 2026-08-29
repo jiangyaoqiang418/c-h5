@@ -5,6 +5,7 @@ import { fetchWithdrawPage } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
 const list = ref<Api.RealWallet.WithdrawVO[]>([]);
 const loading = ref(false);
@@ -12,6 +13,7 @@ const pageNo = ref(1);
 const total = ref(0);
 const pageSize = 50;
 let loadToken = 0;
+const userStore = useUserStore();
 
 function statusType(status: Api.RealWallet.WithdrawStatus): 'success' | 'warning' | 'danger' {
   if (status === 'SUCCESS') return 'success';
@@ -31,6 +33,11 @@ async function load(reset = true) {
   const token = ++loadToken;
   loading.value = true;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      list.value = [];
+      return;
+    }
     const page = await fetchWithdrawPage({ pageNo: targetPage, pageSize });
     if (token !== loadToken) return;
     const records = page.records || [];

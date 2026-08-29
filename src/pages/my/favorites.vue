@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { onLoad, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
+import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
 import { fetchFavoriteProducts, unfavoriteProduct } from '@/service/api/product';
 import ProductCard from '@/components/product/product-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
+import { useUserStore } from '@/stores';
 
 const list = ref<Api.RealProduct.ProductDTO[]>([]);
 const total = ref(0);
 const current = ref(1);
 const size = 20;
 const loading = ref(false);
+const userStore = useUserStore();
 let loadSequence = 0;
 
-onLoad(() => load(true));
+onShow(() => load(true));
 
 async function load(reset = false) {
   if (loading.value && !reset) return;
@@ -25,6 +27,8 @@ async function load(reset = false) {
   const requestedPage = current.value;
   loading.value = true;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) return;
     const page = await fetchFavoriteProducts({ pageNo: requestedPage, pageSize: size });
     if (sequence !== loadSequence) return;
     list.value = reset ? page.records : list.value.concat(page.records);
