@@ -12,6 +12,8 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 const userStore = useUserStore();
 const refund = ref<Api.RealOrder.OrderRefundDTO>();
 const refundId = ref<Api.RealOrder.LongId>();
+const loading = ref(true);
+const loadFailed = ref(false);
 const statusLabel: Record<Api.RealOrder.RefundStatus, string> = {
   APPLYING: '待审核', AGREED: '已同意', REJECTED: '已驳回', CANCELED: '已撤销'
 };
@@ -24,7 +26,11 @@ async function reload() {
 
 onLoad(async query => {
   const id = query?.id;
-  if (typeof id !== 'string' || !id) return;
+  if (typeof id !== 'string' || !id) {
+    loading.value = false;
+    return;
+  }
+  loadFailed.value = false;
   try {
     await userStore.init();
     if (!userStore.currentUser) {
@@ -34,7 +40,10 @@ onLoad(async query => {
     refundId.value = id;
     await reload();
   } catch (error) {
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '售后详情加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -86,11 +95,14 @@ function cancel() {
       <wd-button v-if="!userStore.isBuyerActive && refund.status === 'APPLYING'" block plain type="warning" class="mt" @click="cancel">撤销申请</wd-button>
     </view>
   </view>
+  <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载仅退款详情</text></view>
+  <EmptyState v-else-if="loadFailed" title="仅退款详情加载失败" description="请稍后重试" />
   <EmptyState v-else title="仅退款记录不存在" />
 </template>
 
 <style lang="scss" scoped>
 .as-detail { min-height: 100%; padding:24rpx; }.hero, .section { background:#fff; padding:24rpx; border-radius:var(--yb-radius-lg); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.section { margin-top:20rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .status { display: block; color: #ff7d00; font-size: 36rpx; font-weight: 700; }.type { display: block; margin-top: 8rpx; color: #1d2129; font-size: 28rpx; }.code { display: block; margin-top: 12rpx; color: #86909c; font-family: ui-monospace, monospace; font-size: 22rpx; }
 .section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: #86909c; font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: #f53f3f; font-family: ui-monospace, monospace; font-size: 28rpx; font-weight: 700; }
 .evidence { display: flex; flex-wrap: wrap; gap: 12rpx; }.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }.actions { padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); }.mt { margin-top: 12rpx; }

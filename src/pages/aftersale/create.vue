@@ -9,13 +9,19 @@ import { useUserStore } from '@/stores';
 
 const order = ref<Api.RealOrder.OrderView>();
 const submitting = ref(false);
+const loading = ref(true);
+const loadFailed = ref(false);
 const userStore = useUserStore();
 
 const form = reactive({ reason: '' });
 
 onLoad(async query => {
   const orderId = query?.orderId;
-  if (typeof orderId !== 'string' || !orderId) return;
+  if (typeof orderId !== 'string' || !orderId) {
+    loading.value = false;
+    return;
+  }
+  loadFailed.value = false;
   try {
     await userStore.init();
     if (!userStore.currentUser) {
@@ -24,7 +30,10 @@ onLoad(async query => {
     }
     order.value = await fetchOrderDetail(orderId);
   } catch (error) {
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -45,7 +54,8 @@ async function submit() {
 </script>
 
 <template>
-  <view v-if="order" class="create-page yb-page">
+  <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载可退款订单</text></view>
+  <view v-else-if="order" class="create-page yb-page">
     <view class="step">
       <text class="step-title">仅退款</text>
       <text>退款金额以订单应付金额为准：{{ formatUsdt(order.totalAmount) }}</text>
@@ -58,6 +68,7 @@ async function submit() {
 
     <wd-button type="primary" block class="submit" :loading="submitting" @click="submit">提交申请</wd-button>
   </view>
+  <EmptyState v-else-if="loadFailed" title="可退款订单加载失败" description="请稍后重试" />
   <EmptyState v-else title="缺少可退款订单" description="请从订单详情或订单列表发起仅退款" action-text="返回订单列表" @action="go('/pages/order/list', true)" />
 </template>
 
@@ -66,6 +77,7 @@ async function submit() {
   min-height: 100%;
   padding: 24rpx;
 }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .overseas {
   background: #fff7e6;
   color: #ff7d00;

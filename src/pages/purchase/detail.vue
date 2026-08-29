@@ -14,6 +14,7 @@ const request = ref<Api.PurchaseRequest.PurchaseRequest>();
 const id = ref<string>();
 const logs = ref<Api.PurchaseRequest.PushLog[]>([]);
 const loading = ref(true);
+const loadFailed = ref(false);
 
 onLoad(async query => {
   try {
@@ -29,6 +30,7 @@ onLoad(async query => {
       logs.value = r.pushLogs;
     }
   } catch (error) {
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '求购详情加载失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -140,6 +142,7 @@ function cancel() {
       <wd-button v-if="isMy && ['pending_audit', 'pushing'].includes(request.status)" type="error" plain @click="cancel">撤销</wd-button>
     </view>
   </view>
+  <EmptyState v-else-if="loadFailed" title="求购详情加载失败" description="请稍后重试" />
   <EmptyState v-else-if="!loading" title="求购不存在" />
 </template>
 

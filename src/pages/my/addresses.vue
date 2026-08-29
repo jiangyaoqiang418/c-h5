@@ -14,6 +14,8 @@ import { useUserStore } from '@/stores';
 
 const userStore = useUserStore();
 const list = ref<AddressRecord[]>([]);
+const loading = ref(false);
+const loadFailed = ref(false);
 const popupOpen = ref(false);
 const smartText = ref('');
 
@@ -28,12 +30,20 @@ const form = reactive({
 });
 
 async function load() {
-  await userStore.init();
-  if (!userStore.currentUser) return;
+  loading.value = true;
+  loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      list.value = [];
+      return;
+    }
     list.value = await fetchMyAddresses();
   } catch (error) {
+    if (!list.value.length) loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '地址加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 }
 onShow(load);
@@ -120,7 +130,8 @@ function onLongPress(a: AddressRecord) {
 
 <template>
   <view class="addr-page">
-    <view v-if="list.length" class="list">
+    <view v-if="loading && !list.length" class="loading">地址加载中…</view>
+    <view v-else-if="list.length" class="list">
       <view v-for="a in list" :key="a.id" class="card" @longpress="onLongPress(a)">
         <view class="row">
           <text class="name">{{ a.receiverName }}</text>
@@ -131,6 +142,7 @@ function onLongPress(a: AddressRecord) {
         <view v-if="!a.isDefault" class="set-default" @click="setDefault(a)">设为默认</view>
       </view>
     </view>
+    <EmptyState v-else-if="loadFailed" title="地址加载失败" description="请稍后重试" />
     <EmptyState v-else title="暂无地址" />
 
     <view class="fab" @click="openNew"><wd-icon name="add" size="17px" /><text>新增地址</text></view>
@@ -180,6 +192,7 @@ function onLongPress(a: AddressRecord) {
 
 <style lang="scss" scoped>
 .addr-page { min-height: 100%; background: var(--yb-bg); padding: 20rpx 24rpx; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
+.loading { padding: 80rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 .card {
   background: #fff;
   border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);

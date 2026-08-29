@@ -10,6 +10,7 @@ import { requireLogin } from '@/utils/navigate';
 const id = ref('');
 const product = ref<Api.RealProduct.ProductDTO>();
 const loading = ref(true);
+const loadFailed = ref(false);
 const userStore = useUserStore();
 
 const statusType = computed(() => {
@@ -38,9 +39,11 @@ function formatTime(value?: string | number): string {
 async function load() {
   if (!id.value) return;
   loading.value = true;
+  loadFailed.value = false;
   try {
     product.value = await fetchBuyerProductDetail(id.value);
   } catch (error) {
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '商品详情加载失败', icon: 'none' });
   } finally {
     loading.value = false;
@@ -77,13 +80,23 @@ function removeProduct() {
 
 onLoad(async query => {
   id.value = String(query?.id || '');
-  await userStore.init();
-  if (!userStore.currentUser) {
-    if (id.value) await requireLogin(`/pages/buyer/product-detail?id=${encodeURIComponent(id.value)}`);
+  if (!id.value) {
     loading.value = false;
     return;
   }
-  await load();
+  try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin(`/pages/buyer/product-detail?id=${encodeURIComponent(id.value)}`);
+      loading.value = false;
+      return;
+    }
+    await load();
+  } catch (error) {
+    loadFailed.value = true;
+    loading.value = false;
+    uni.showToast({ title: error instanceof Error ? error.message : '商品详情加载失败', icon: 'none' });
+  }
 });
 </script>
 
@@ -133,6 +146,7 @@ onLoad(async query => {
         <wd-button v-if="product.status === 'OFF_SHELF'" plain block @click="removeProduct">删除商品</wd-button>
       </view>
     </template>
+    <EmptyState v-else-if="loadFailed" title="商品详情加载失败" description="请稍后重试" />
     <EmptyState v-else title="商品不存在" description="商品可能已删除或链接参数不完整" />
   </view>
 </template>

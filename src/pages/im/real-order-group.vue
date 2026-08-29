@@ -10,6 +10,8 @@ import { requireLogin } from '@/utils/navigate';
 
 const userStore = useUserStore();
 const conversation = ref<Api.RealNotify.Conversation>();
+const loading = ref(true);
+const loadFailed = ref(false);
 const messages = ref<Api.RealNotify.Message[]>([]);
 const scrollIntoView = ref('');
 const inputText = ref('');
@@ -376,14 +378,18 @@ function retryRealtime() {
 
 onLoad(async query => {
   const orderId = String(query?.orderId || '');
-  if (!orderId) return;
-  await userStore.init();
-  if (!userStore.currentUser) {
-    await requireLogin(`/pages/im/real-order-group?orderId=${encodeURIComponent(orderId)}`);
+  if (!orderId) {
+    loading.value = false;
     return;
   }
-  currentOrderId = orderId;
+  loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin(`/pages/im/real-order-group?orderId=${encodeURIComponent(orderId)}`);
+      return;
+    }
+    currentOrderId = orderId;
     const [group] = await Promise.all([
       fetchConversationByOrder(orderId),
       refreshOrderStatus()
@@ -405,7 +411,10 @@ onLoad(async query => {
     const last = messages.value.at(-1);
     if (last) scrollIntoView.value = messageAnchor(last.id);
   } catch (error) {
+    if (!conversation.value) loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '订单群加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -454,7 +463,8 @@ function readText(message: Api.RealNotify.Message) {
 </script>
 
 <template>
-  <view v-if="conversation" class="page">
+  <view v-if="loading" class="state-loading">订单群加载中…</view>
+  <view v-else-if="conversation" class="page">
     <view class="header"><text class="title">{{ headerTitle }}</text><text class="meta">{{ headerMeta }}</text></view>
     <view v-if="realtimeState !== 'ready'" class="realtime-notice">
       <text>{{ realtimeState === 'connecting' ? '正在连接实时服务…' : '实时连接暂不可用，消息仍可发送并在刷新后同步。' }}</text>
@@ -478,11 +488,13 @@ function readText(message: Api.RealNotify.Message) {
       <view class="send" :class="{ disabled: !inputText.trim() || sending }" @click="sendText()">{{ sending ? '发送中' : '发送' }}</view>
     </view>
   </view>
+  <EmptyState v-else-if="loadFailed" title="订单群加载失败" description="请稍后重试" />
   <EmptyState v-else title="三方群不存在" />
 </template>
 
 <style lang="scss" scoped>
 .page { height: 100%; display: flex; flex-direction: column; background: var(--yb-bg); }
+.state-loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 .header { padding: 20rpx 32rpx; background: #fff; border-bottom: 1rpx solid var(--yb-border); }.title,.meta,.sender { display:block; }.title{font-size:30rpx;font-weight:600}.meta,.sender{font-size:22rpx;color:#86909c;margin-top:4rpx}.messages{flex:1;width:100%;min-width:0;min-height:0;padding:20rpx 24rpx;box-sizing:border-box;overflow-x:hidden}.row{display:flex;width:100%;min-width:0;flex-direction:column;margin-bottom:20rpx}.row.right{align-items:flex-end}.row.center{align-items:center}.bubble{max-width:75%;padding:16rpx 20rpx;box-sizing:border-box;border-radius:var(--yb-radius-md);background:#fff;color:#1d2129;font-size:26rpx;overflow-wrap:anywhere;word-break:break-word;border:1rpx solid var(--yb-border)}.bubble.right{background:var(--yb-brand);border-color:var(--yb-brand);color:#fff}.bubble.center{background:#f1f1ee;color:#717784;font-size:22rpx}.empty{text-align:center;color:#86909c;padding:60rpx 0}
 .realtime-notice{display:flex;align-items:center;justify-content:space-between;gap:16rpx;padding:12rpx 32rpx;background:#fff6e8;color:#a85a00;font-size:22rpx}.retry{color:var(--yb-brand)}.delivery,.recall{font-size:20rpx;color:#86909c;margin-top:4rpx}.recall{color:var(--yb-brand)}.message-image{display:block;max-width:100%;border-radius:12rpx}.voice-message{display:block;min-width:150rpx}.composer{display:flex;width:100%;min-width:0;align-items:center;gap:12rpx;padding:16rpx 24rpx;padding-bottom:calc(16rpx + env(safe-area-inset-bottom));box-sizing:border-box;background:#fff;border-top:1rpx solid var(--yb-border)}.image-picker,.voice-picker{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-width:80rpx;min-height:80rpx;color:var(--yb-brand);font-size:24rpx}.image-picker.disabled,.voice-picker.disabled{color:#c9cdd4}.voice-picker.recording{color:#d4380d}.input{flex:1;min-width:0;height:80rpx;padding:0 24rpx;box-sizing:border-box;border-radius:40rpx;background:#f2f2ef;font-size:26rpx}.send{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-height:80rpx;padding:0 28rpx;border-radius:40rpx;background:var(--yb-brand);color:#fff;font-size:26rpx;font-weight:600}.send.disabled{background:#c9cdd4}
 </style>

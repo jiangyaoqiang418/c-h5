@@ -13,6 +13,9 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 const userStore = useUserStore();
 const walletStore = useWalletStore();
 const recent = ref<WalletTxnView[]>([]);
+const loading = ref(false);
+const walletLoadFailed = ref(false);
+const recentLoadFailed = ref(false);
 const popupOpen = ref(false);
 const drawerTxn = ref<WalletTxnView>();
 
@@ -41,14 +44,32 @@ const bucketsWithPct = computed(() =>
 );
 
 async function loadAll() {
-  await userStore.init();
-  if (!userStore.currentUser) return;
+  loading.value = true;
+  walletLoadFailed.value = false;
+  recentLoadFailed.value = false;
   try {
-    await walletStore.fetchWallet(userStore.currentUser.id);
-    const r = await fetchWalletLedger({ size: 5 });
-    recent.value = r.records;
+    await userStore.init();
+    if (!userStore.currentUser) {
+      walletStore.clear();
+      recent.value = [];
+      return;
+    }
+    const [walletResult, ledgerResult] = await Promise.allSettled([
+      walletStore.fetchWallet(userStore.currentUser.id),
+      fetchWalletLedger({ size: 5 })
+    ]);
+    if (walletResult.status === 'rejected' && !walletStore.account) walletLoadFailed.value = true;
+    if (ledgerResult.status === 'fulfilled') recent.value = ledgerResult.value.records;
+    else if (!recent.value.length) recentLoadFailed.value = true;
+    if (walletResult.status === 'rejected' || ledgerResult.status === 'rejected') {
+      uni.showToast({ title: '钱包数据部分加载失败', icon: 'none' });
+    }
   } catch (error) {
+    if (!walletStore.account) walletLoadFailed.value = true;
+    if (!recent.value.length) recentLoadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '钱包数据加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 }
 onShow(loadAll);
@@ -78,6 +99,9 @@ function bucketLabel(key: string): string {
 
 <template>
   <view class="wallet-page">
+    <view v-if="loading && !walletStore.account" class="page-loading">钱包数据加载中…</view>
+    <EmptyState v-else-if="walletLoadFailed && !walletStore.account" title="钱包数据加载失败" description="请稍后重试" />
+    <template v-else>
     <!-- Hero (白底 BiyaPay 风) -->
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.chain})` }">
       <view class="nav">
@@ -164,10 +188,12 @@ function bucketLabel(key: string): string {
       <view v-if="recent.length">
         <TxnRow v-for="t in recent" :key="t.id" :txn="t" @detail="openTxn" />
       </view>
+      <EmptyState v-else-if="recentLoadFailed" title="最近交易加载失败" description="请稍后重试" />
       <EmptyState v-else title="暂无交易" />
     </view>
 
     <TxnDetailPopup v-model:visible="popupOpen" :txn="drawerTxn" />
+    </template>
   </view>
 </template>
 
@@ -177,6 +203,7 @@ function bucketLabel(key: string): string {
   background: #FAFAF7;
   padding-bottom: 40rpx;
 }
+.page-loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 
 /* Hero */
 .hero {

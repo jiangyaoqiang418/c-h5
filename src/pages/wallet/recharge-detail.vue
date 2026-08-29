@@ -9,6 +9,8 @@ import { requireLogin } from '@/utils/navigate';
 
 const detail = ref<Api.RealWallet.RechargeVO>();
 const canceling = ref(false);
+const loading = ref(true);
+const loadFailed = ref(false);
 const userStore = useUserStore();
 
 function copy(value?: string) {
@@ -22,22 +24,37 @@ function formatTime(value?: string | number): string {
 }
 
 async function load(id: string) {
+  loading.value = true;
+  loadFailed.value = false;
   try {
     detail.value = await fetchRechargeDetail(id);
   } catch (error) {
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '充值详情加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 }
 
 onLoad(async query => {
   const id = String(query?.id || '');
-  if (!id) return;
-  await userStore.init();
-  if (!userStore.currentUser) {
-    await requireLogin(`/pages/wallet/recharge-detail?id=${encodeURIComponent(id)}`);
+  if (!id) {
+    loading.value = false;
     return;
   }
-  await load(id);
+  try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin(`/pages/wallet/recharge-detail?id=${encodeURIComponent(id)}`);
+      loading.value = false;
+      return;
+    }
+    await load(id);
+  } catch (error) {
+    loadFailed.value = true;
+    loading.value = false;
+    uni.showToast({ title: error instanceof Error ? error.message : '充值详情加载失败', icon: 'none' });
+  }
 });
 
 function cancel() {
@@ -69,11 +86,14 @@ function cancel() {
       <wd-button v-if="detail.status === 'PENDING'" block plain type="error" :loading="canceling" class="cancel-btn" @click="cancel">取消本次申报</wd-button>
     </view>
   </view>
+  <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载充值详情</text></view>
+  <EmptyState v-else-if="loadFailed" title="充值详情加载失败" description="请稍后重试" />
   <EmptyState v-else title="充值记录不存在" description="请从充值记录列表重新进入" />
 </template>
 
 <style lang="scss" scoped>
 .detail-page { min-height: 100%; padding: 20rpx 24rpx 32rpx; box-sizing: border-box; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .summary, .section { margin-bottom: 20rpx; padding: 24rpx; border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); background: #fff; box-shadow:var(--yb-shadow-card); }
 .summary { text-align: center; }
 .status, .chain { display: block; color: #86909c; font-size: 23rpx; }

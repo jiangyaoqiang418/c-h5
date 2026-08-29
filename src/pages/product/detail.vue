@@ -46,6 +46,8 @@ const realReviewSummary = ref<Api.RealReview.ReviewSummaryDTO>();
 const realSellerRating = ref<Api.RealReview.SellerRatingDTO>();
 const qty = ref(1);
 const isRealProduct = ref(false);
+const loading = ref(true);
+const loadFailed = ref(false);
 
 function toAfterSaleType(value?: string): Api.Product.AftersaleType {
   if (value === 'NONE') return 'none';
@@ -132,8 +134,12 @@ const sellerAvatar = computed(() => (
 
 onLoad(async query => {
   const rawId = String(query?.id || '');
-  if (!rawId) return;
+  if (!rawId) {
+    loading.value = false;
+    return;
+  }
   isRealProduct.value = query?.source === 'real';
+  loadFailed.value = false;
   try {
     if (isRealProduct.value) {
       const [recordResult, categoriesResult] = await Promise.allSettled([
@@ -170,7 +176,10 @@ onLoad(async query => {
     reviews.value = reviewPage.records;
     sellerScore.value = score;
   } catch (error) {
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '商品详情加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -319,11 +328,14 @@ function goBack() {
       <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
     </view>
   </view>
+  <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载商品详情</text></view>
+  <EmptyState v-else-if="loadFailed" title="商品详情加载失败" description="请稍后重试" />
   <EmptyState v-else title="商品不存在" description="商品可能已下架或链接参数不完整" action-text="返回首页" @action="go('/pages/index/index', true)" />
 </template>
 
 <style lang="scss" scoped>
 .detail-page { min-height: 100%; padding: 0 0 calc(152rpx + env(safe-area-inset-bottom)); }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }
