@@ -59,6 +59,15 @@
 | KYC 影像与提交 | `/kyc/files/upload`、`/kyc/files/access`、`/kyc/submit` | 新隔离 QA 账号使用三张带“QA TEST / NOT REAL”标记的 PNG：3 次上传均返回成功码 `1`；3 次签名地址换取均成功并返回 300 秒有效期；提交返回成功码 `1`，详情回读为 `PENDING` 且保留三个 `fileId` | 签名 URL 当前指向不可达的 `127.0.0.1:8000`，实际影像 GET/页面图片展示等待后端修正存储地址；未使用真实证件或个人信息 |
 | IM 语音 | `/im/files/upload?scene=IM_VOICE`、`/im/messages/send`、`/im/messages/page` | 合成 1 秒 M4A 上传返回 `audio/mp4`、时长 `1`；文字/媒体发送返回成功码 `1`；另一会话分页回读 `VOICE`、时长 `1` 和公开音频 URL；H5 订单群语音入口点击无控制台 error/warn，资源 GET 返回 HTTP `200` | 同源 Chrome 标签共享 storage，不将本轮标签作为独立双账号证据；断线增量补偿仍单独等待运行时条件 |
 
+### 2026-08-29 弹窗与折叠交互补充回归
+
+| 能力 | 前端实现 | 真实页面验证 | 结论 |
+|---|---|---|---|
+| 原生确认/说明弹窗 | 购物车删除确认、商品费用说明使用 `uni.showModal` | 本地 H5 打开、取消/知道了关闭；未执行删除确认写入 | 通过 |
+| 原生 ActionSheet | 求购分类选择使用 `uni.showActionSheet` | 本地 H5 打开分类列表并通过坐标选择 `QA测试`，页面值保持正确 | 通过 |
+| Wot 底部弹层 | 地址新增、帮助文章、协议详情使用 `wd-popup` | 本地 H5 打开并点击遮罩关闭，内容与协议版本可读 | 通过 |
+| 帮助分类折叠 | `wd-collapse` + `wd-collapse-item` | 发现缺少 `v-model` 导致点击静默失败；补充 `expandedCategories` 受控状态后分类可展开，文章弹层可打开/关闭 | 已修复并通过 `pnpm typecheck`、`pnpm build:h5` |
+
 ### 2026-08-15 P1-P4 续推进记录
 
 | 梯队 | 当前证据与处理 | 结论 |

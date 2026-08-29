@@ -6,6 +6,7 @@ import EmptyState from '@/components/common/empty-state.vue';
 const articles = ref<Api.Cms.HelpArticle[]>([]);
 const agreements = ref<Api.Cms.Agreement[]>([]);
 const keyword = ref('');
+const expandedCategories = ref<string[]>([]);
 const popupOpen = ref(false);
 const detail = ref<Api.Cms.HelpArticle | Api.Cms.Agreement>();
 const detailKind = ref<'help' | 'agreement'>('help');
@@ -67,7 +68,7 @@ const AGREEMENT_LINKS: { kind: Api.Cms.AgreementKind; label: string }[] = [
     </view>
 
     <view v-if="grouped.length" class="categories">
-      <wd-collapse>
+      <wd-collapse v-model="expandedCategories">
         <wd-collapse-item v-for="g in grouped" :key="g.key" :title="`${g.label} (${g.items.length})`" :name="g.key">
           <view class="art-row" v-for="a in g.items" :key="a.id" @click="openHelp(a)">
             <text class="art-title">{{ a.title }}</text>
