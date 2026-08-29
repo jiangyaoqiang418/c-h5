@@ -11,6 +11,9 @@ const activeRoot = ref<string>();
 const activeCategoryId = ref<string>();
 const products = ref<Api.RealProduct.ProductListVO[]>([]);
 const loading = ref(false);
+const treeLoading = ref(true);
+const treeLoadFailed = ref(false);
+const productsLoadFailed = ref(false);
 const current = ref(1);
 const total = ref(0);
 const pageSize = 20;
@@ -54,6 +57,7 @@ function activateCategory(id: string) {
 async function load(id?: string, reset = false) {
   if (!id || (loading.value && !reset)) return;
   if (reset) {
+    productsLoadFailed.value = false;
     current.value = 1;
     products.value = [];
     total.value = 0;
@@ -74,6 +78,7 @@ async function load(id?: string, reset = false) {
   } catch (error) {
     if (sequence === loadSequence) {
       if (!reset && current.value === requestedPage) current.value = Math.max(1, requestedPage - 1);
+      if (!products.value.length) productsLoadFailed.value = true;
       uni.showToast({ title: error instanceof Error ? error.message : '分类商品加载失败', icon: 'none' });
     }
   } finally {
@@ -88,12 +93,17 @@ function loadMore() {
 }
 
 onMounted(async () => {
+  treeLoading.value = true;
+  treeLoadFailed.value = false;
   try {
     roots.value = await fetchCategoryTree({ onlyEnabled: true });
     const firstRootId = roots.value[0]?.id;
     if (firstRootId) activateRoot(firstRootId);
   } catch (error) {
+    treeLoadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
+  } finally {
+    treeLoading.value = false;
   }
 });
 
@@ -102,7 +112,10 @@ watch(activeCategoryId, id => load(id, true));
 
 <template>
   <view class="category-page h5-tab-page">
-    <view class="category-layout">
+    <view v-if="treeLoading" class="category-loading"><wd-loading size="44rpx" /><text>正在加载分类</text></view>
+    <EmptyState v-else-if="treeLoadFailed" title="分类加载失败" description="请稍后重试" />
+    <EmptyState v-else-if="!roots.length" title="暂无可用分类" description="请稍后再来" />
+    <view v-else class="category-layout">
       <scroll-view v-if="roots.length" scroll-y class="category-sidebar">
         <view
           v-for="root in roots"
@@ -155,6 +168,7 @@ watch(activeCategoryId, id => load(id, true));
           <ProductCard v-for="product in products" :key="String(product.id)" :product="product" />
         </view>
         <view v-else-if="loading" class="category-loading"><wd-loading size="44rpx" /><text>正在加载商品</text></view>
+        <EmptyState v-else-if="productsLoadFailed" title="分类商品加载失败" description="请稍后重试" />
         <EmptyState v-else title="该分类暂无商品" />
       </scroll-view>
     </view>

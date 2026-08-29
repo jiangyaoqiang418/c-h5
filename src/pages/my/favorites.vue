@@ -11,6 +11,7 @@ const total = ref(0);
 const current = ref(1);
 const size = 20;
 const loading = ref(false);
+const loadFailed = ref(false);
 const userStore = useUserStore();
 let loadSequence = 0;
 
@@ -19,6 +20,7 @@ onShow(() => load(true));
 async function load(reset = false) {
   if (loading.value && !reset) return;
   if (reset) {
+    loadFailed.value = false;
     current.value = 1;
     list.value = [];
     total.value = 0;
@@ -36,6 +38,7 @@ async function load(reset = false) {
   } catch (error) {
     if (sequence === loadSequence) {
       if (!reset && current.value === requestedPage) current.value = Math.max(1, requestedPage - 1);
+      if (!list.value.length) loadFailed.value = true;
       uni.showToast({ title: error instanceof Error ? error.message : '收藏加载失败', icon: 'none' });
     }
   } finally {
@@ -81,6 +84,7 @@ onReachBottom(() => {
         <view class="remove" @click.stop="removeFavorite(product.id)">取消收藏</view>
       </view>
     </view>
+    <EmptyState v-else-if="loadFailed" title="收藏加载失败" description="请稍后重试" />
     <EmptyState v-else-if="!loading" title="暂未收藏商品" description="去商品详情收藏你喜欢的商品" />
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载收藏</text></view>
     <view v-else-if="list.length && list.length >= total" class="no-more">没有更多了</view>

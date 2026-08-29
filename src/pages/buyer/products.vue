@@ -12,6 +12,7 @@ const userStore = useUserStore();
 const activeKey = ref<Api.RealProduct.ProductQueryStatus | 'all'>('all');
 const list = ref<Api.RealProduct.ProductDTO[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
 const pageNo = ref(1);
 const total = ref(0);
 const pageSize = 50;
@@ -43,6 +44,7 @@ function statusType(status: Api.RealProduct.ProductStatus): 'success' | 'warning
 
 async function load(reset = true) {
   if (loading.value && !reset) return;
+  if (reset) loadFailed.value = false;
   await userStore.init();
   if (!userStore.currentUser) return;
   const targetPage = reset ? 1 : pageNo.value + 1;
@@ -65,6 +67,7 @@ async function load(reset = true) {
     total.value = result.total;
   } catch (error) {
     if (token !== loadToken) return;
+    if (!list.value.length) loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '商品列表加载失败', icon: 'none' });
   } finally {
     if (token === loadToken) loading.value = false;
@@ -147,6 +150,7 @@ onReachBottom(() => {
           </view>
         </view>
       </view>
+      <EmptyState v-else-if="loadFailed" title="商品列表加载失败" description="请稍后重试" />
       <EmptyState v-else-if="!loading" title="暂无商品" />
       <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     </view>

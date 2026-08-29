@@ -19,6 +19,7 @@ const total = ref(0);
 const current = ref(1);
 const size = 20;
 const loading = ref(false);
+const loadFailed = ref(false);
 const keyword = ref('');
 const categoryId = ref<string>();
 const sortKey = ref<SortKey>('sales');
@@ -34,6 +35,7 @@ onLoad(query => {
 async function load(reset = false) {
   if (loading.value && !reset) return;
   if (reset) {
+    loadFailed.value = false;
     current.value = 1;
     list.value = [];
     total.value = 0;
@@ -56,6 +58,7 @@ async function load(reset = false) {
   } catch (error) {
     if (sequence === loadSequence) {
       if (!reset && current.value === requestedPage) current.value = Math.max(1, requestedPage - 1);
+      if (!list.value.length) loadFailed.value = true;
       uni.showToast({ title: error instanceof Error ? error.message : '商品列表加载失败', icon: 'none' });
     }
   } finally {
@@ -108,6 +111,7 @@ function onSortChange(v: string) {
     <view v-if="list.length" class="grid">
       <ProductCard v-for="p in list" :key="p.id" :product="p" />
     </view>
+    <EmptyState v-else-if="loadFailed" title="商品列表加载失败" description="请稍后重试" />
     <EmptyState v-else-if="!loading" title="没有找到符合条件的商品" description="尝试调整搜索条件" />
 
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>

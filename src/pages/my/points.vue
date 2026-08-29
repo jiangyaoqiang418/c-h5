@@ -19,6 +19,7 @@ const logs = ref<PointLedgerView[]>([]);
 const appeals = ref<PointAppealView[]>([]);
 const rules = ref<import('@/service/api/point').PointRuleView[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
 const logPageNo = ref(1);
 const logTotal = ref(0);
 const appealPageNo = ref(1);
@@ -34,6 +35,7 @@ const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.b
 
 async function load(reset = true) {
   if (loading.value && !reset) return;
+  if (reset) loadFailed.value = false;
   await userStore.init();
   const tab = activeKey.value;
   if (!userStore.currentUser && tab !== 'rule') return;
@@ -63,6 +65,7 @@ async function load(reset = true) {
     }
   } catch (error) {
     if (token !== loadToken) return;
+    loadFailed.value = tab === 'log' ? !logs.value.length : tab === 'appeal' ? !appeals.value.length : !rules.value.length;
     uni.showToast({ title: error instanceof Error ? error.message : '积分数据加载失败', icon: 'none' });
   } finally {
     if (token === loadToken) loading.value = false;
@@ -127,7 +130,9 @@ function formatDate(value?: string | number): string {
       </wd-tabs>
     </view>
 
-    <view v-if="activeKey === 'log'" class="list">
+    <EmptyState v-if="loadFailed" title="积分数据加载失败" description="请稍后重试" />
+
+    <view v-else-if="activeKey === 'log'" class="list">
       <view v-if="logs.length">
         <view v-for="l in logs" :key="l.id" class="log-row">
           <view class="log-main">

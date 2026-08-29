@@ -9,6 +9,7 @@ import { useUserStore } from '@/stores';
 
 const list = ref<Api.RealWallet.WithdrawVO[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
 const pageNo = ref(1);
 const total = ref(0);
 const pageSize = 50;
@@ -29,6 +30,7 @@ function formatTime(value?: string | number): string {
 
 async function load(reset = true) {
   if (loading.value && !reset) return;
+  if (reset) loadFailed.value = false;
   const targetPage = reset ? 1 : pageNo.value + 1;
   const token = ++loadToken;
   loading.value = true;
@@ -46,6 +48,7 @@ async function load(reset = true) {
     total.value = page.total;
   } catch (error) {
     if (token !== loadToken) return;
+    if (!list.value.length) loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '提现记录加载失败', icon: 'none' });
   } finally {
     if (token === loadToken) {
@@ -77,6 +80,7 @@ onReachBottom(() => {
         <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><view class="detail-link"><text>详情</text><wd-icon name="arrow-right" size="14px" color="#86909c" /></view></view>
       </view>
     </view>
+    <EmptyState v-else-if="loadFailed" title="提现记录加载失败" description="请稍后重试" />
     <EmptyState v-else-if="!loading" title="暂无提现记录" action-text="发起提现" @action="go('/pages/wallet/withdraw')" />
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载提现记录</text></view>
   </view>
