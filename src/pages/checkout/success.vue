@@ -16,12 +16,12 @@ onLoad(async query => {
   const id = query?.orderId;
   if (typeof id !== 'string' || !id) return;
   orderId.value = id;
-  await userStore.init();
-  if (!userStore.currentUser) {
-    await requireLogin(`/pages/checkout/success?orderId=${encodeURIComponent(id)}`);
-    return;
-  }
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin(`/pages/checkout/success?orderId=${encodeURIComponent(id)}`);
+      return;
+    }
     order.value = await fetchOrderDetail(id);
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });

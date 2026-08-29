@@ -11,7 +11,9 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 const userStore = useUserStore();
 const activeKey = ref('all');
 const loading = ref(false);
+const loadFailed = ref(false);
 const list = ref<Api.RealOrder.OrderRefundDTO[]>([]);
+let loadToken = 0;
 
 const TABS: { key: string; label: string; status?: Api.RealOrder.RefundStatus }[] = [
   { key: 'all', label: '全部' },
@@ -27,19 +29,26 @@ const statusLabel: Record<Api.RealOrder.RefundStatus, string> = {
 const emptyDescription = computed(() => userStore.isBuyerActive ? '顾客发起的仅退款会显示在这里' : '可在待发货或待收货订单中申请仅退款');
 
 async function load() {
-  await userStore.init();
-  if (!userStore.currentUser) {
-    list.value = [];
-    return;
-  }
+  const token = ++loadToken;
   loading.value = true;
+  loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      if (token === loadToken) list.value = [];
+      return;
+    }
     const tab = TABS.find(item => item.key === activeKey.value);
     const query = { pageNo: 1, pageSize: 30, status: tab?.status };
     const page = userStore.isBuyerActive ? await fetchSoldRefunds(query) : await fetchBoughtRefunds(query);
-    list.value = page.records;
+    if (token === loadToken) list.value = page.records;
+  } catch (error) {
+    if (token !== loadToken) return;
+    list.value = [];
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '仅退款记录加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (token === loadToken) loading.value = false;
     uni.stopPullDownRefresh();
   }
 }
@@ -54,9 +63,13 @@ function cancel(item: Api.RealOrder.OrderRefundDTO) {
     content: '撤销后订单将恢复为原来的待处理状态。',
     success: async result => {
       if (!result.confirm) return;
-      await cancelRealRefund(item.refundId);
-      uni.showToast({ title: '申请已撤销', icon: 'success' });
-      await load();
+      try {
+        await cancelRealRefund(item.refundId);
+        uni.showToast({ title: '申请已撤销', icon: 'success' });
+        await load();
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '撤销申请失败', icon: 'none' });
+      }
     }
   });
 }
@@ -75,7 +88,8 @@ watch(() => userStore.currentAudience, load);
       </wd-tabs>
     </view>
     <view class="list">
-      <view v-if="list.length">
+      <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载仅退款记录</text></view>
+      <view v-else-if="list.length">
         <view v-for="item in list" :key="item.refundId" class="refund-card" @click="openDetail(item)">
           <view class="head">
             <text class="code">订单 {{ item.orderNo || item.orderId }}</text>
@@ -95,7 +109,8 @@ watch(() => userStore.currentAudience, load);
           </view>
         </view>
       </view>
-      <EmptyState v-else-if="!loading" title="暂无仅退款记录" :description="emptyDescription" />
+      <EmptyState v-else-if="loadFailed" title="仅退款记录加载失败" description="请稍后重试" />
+      <EmptyState v-else title="暂无仅退款记录" :description="emptyDescription" />
     </view>
   </view>
 </template>
@@ -103,6 +118,7 @@ watch(() => userStore.currentAudience, load);
 <style lang="scss" scoped>
 .as-list-page { min-height: 100%; }
 .list { padding: 24rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .refund-card { margin-bottom: 20rpx; padding: 24rpx; border-radius: var(--yb-radius-lg); background: var(--yb-surface); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .head, .body, .actions { display: flex; }
 .head { justify-content: space-between; align-items: center; padding-bottom: 16rpx; border-bottom: 1rpx dashed #f2f3f5; }

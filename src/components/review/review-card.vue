@@ -7,13 +7,18 @@ defineEmits<{ (event: 'delete', review: Api.RealReview.ReviewDTO): void; (event:
 const isHidden = computed(() => props.review.status === 'HIDDEN');
 const canGovern = computed(() => props.received && props.review.status === 'PUBLISHED');
 const statusText = computed(() => props.review.statusText || ({ PENDING: '待审核', PUBLISHED: '已发布', REJECTED: '已驳回', HIDDEN: '已隐藏' }[props.review.status] || ''));
+
+function formatDate(value: string | number): string {
+  const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+}
 </script>
 
 <template>
   <view class="rv-card" :class="{ hidden: isHidden }">
     <view class="head"><ReviewStars :score="review.productScore" :show-score="true" size="sm" /><wd-tag size="small" plain round>{{ received ? '我收到的' : '我发出的' }} · {{ statusText }}</wd-tag></view>
     <view v-if="isHidden" class="hidden-overlay"><wd-icon name="warning" size="26rpx" />该评价已被平台隐藏</view>
-    <template v-else><text class="content">{{ review.content || '用户未填写文字评价' }}</text><view v-if="review.images?.length" class="images"><image v-for="url in review.images" :key="url" :src="url" mode="aspectFill" /></view><text v-if="review.replyContent" class="reply">买手回复：{{ review.replyContent }}</text><view class="meta"><text>— {{ review.userName || (review.anonymous ? '匿名用户' : '用户') }}</text><text class="time">{{ new Date(Number(review.createdAt)).toLocaleDateString() }}</text></view><view class="actions"><wd-button v-if="!received" size="small" plain type="error" @click="$emit('delete', review)">删除</wd-button><template v-else-if="canGovern"><wd-button v-if="!review.replyContent" size="small" plain @click="$emit('reply', review)">回复</wd-button><wd-button v-if="!review.appealId || review.appealStatus !== 'PENDING'" size="small" plain type="warning" @click="$emit('appeal', review)">申诉</wd-button></template></view></template>
+    <template v-else><text class="content">{{ review.content || '用户未填写文字评价' }}</text><view v-if="review.images?.length" class="images"><image v-for="url in review.images" :key="url" :src="url" mode="aspectFill" /></view><text v-if="review.replyContent" class="reply">买手回复：{{ review.replyContent }}</text><view class="meta"><text>— {{ review.userName || (review.anonymous ? '匿名用户' : '用户') }}</text><text class="time">{{ formatDate(review.createdAt) }}</text></view><view class="actions"><wd-button v-if="!received" size="small" plain type="error" @click="$emit('delete', review)">删除</wd-button><template v-else-if="canGovern"><wd-button v-if="!review.replyContent" size="small" plain @click="$emit('reply', review)">回复</wd-button><wd-button v-if="!review.appealId || review.appealStatus !== 'PENDING'" size="small" plain type="warning" @click="$emit('appeal', review)">申诉</wd-button></template></view></template>
   </view>
 </template>
 

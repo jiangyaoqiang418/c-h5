@@ -25,13 +25,13 @@ async function reload() {
 onLoad(async query => {
   const id = query?.id;
   if (typeof id !== 'string' || !id) return;
-  await userStore.init();
-  if (!userStore.currentUser) {
-    await requireLogin(`/pages/aftersale/detail?id=${encodeURIComponent(id)}`);
-    return;
-  }
-  refundId.value = id;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin(`/pages/aftersale/detail?id=${encodeURIComponent(id)}`);
+      return;
+    }
+    refundId.value = id;
     await reload();
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '售后详情加载失败', icon: 'none' });
@@ -44,9 +44,13 @@ function cancel() {
     title: '撤销仅退款申请？',
     success: async result => {
       if (!result.confirm || !refund.value) return;
-      await cancelRealRefund(refund.value.refundId);
-      uni.showToast({ title: '申请已撤销', icon: 'success' });
-      await reload();
+      try {
+        await cancelRealRefund(refund.value.refundId);
+        uni.showToast({ title: '申请已撤销', icon: 'success' });
+        await reload();
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '撤销申请失败', icon: 'none' });
+      }
     }
   });
 }

@@ -55,6 +55,10 @@ async function send(text?: string) {
         : '暂时没找到完全匹配的商品，要不要发布一个求购？全球买手 24h 接单。',
       suggestions: result
     });
+  } catch (error) {
+    const idx = messages.value.findIndex(m => m.role === 'loading');
+    if (idx !== -1) messages.value.splice(idx, 1);
+    messages.value.push({ role: 'bot', text: error instanceof Error ? error.message : '搜索失败，请稍后再试。' });
   } finally {
     await scrollToBottom();
   }

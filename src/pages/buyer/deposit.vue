@@ -22,7 +22,7 @@ async function load() {
   if (!userStore.currentUser) return;
   try {
     const page = await fetchBuyerDepositLedger({ pageNo: 1, pageSize: 50 });
-    ledgers.value = [...page.records].sort((left, right) => Number(right.createdAt) - Number(left.createdAt));
+    ledgers.value = [...page.records].sort((left, right) => toTime(right.createdAt) - toTime(left.createdAt));
   } catch (error) {
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '保证金流水加载失败', icon: 'none' });
@@ -85,6 +85,16 @@ async function submitRefund() {
 function bizTypeText(type: Api.RealUser.BuyerDepositBizType): string {
   return ({ PAY: '缴纳保证金', REFUND: '退还保证金', DEDUCT: '保证金扣罚', FREEZE: '保证金冻结', UNFREEZE: '保证金解冻' })[type];
 }
+
+function toTime(value: string | number): number {
+  const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
+  return date.getTime();
+}
+
+function formatTime(value: string | number): string {
+  const timestamp = toTime(value);
+  return Number.isNaN(timestamp) ? '-' : new Date(timestamp).toLocaleString();
+}
 </script>
 
 <template>
@@ -124,7 +134,7 @@ function bizTypeText(type: Api.RealUser.BuyerDepositBizType): string {
           <view class="txn-main">
             <text class="txn-title">{{ bizTypeText(t.bizType) }}</text>
             <text v-if="t.remark" class="txn-remark">{{ t.remark }}</text>
-            <text class="txn-time">{{ new Date(t.createdAt).toLocaleString() }}</text>
+            <text class="txn-time">{{ formatTime(t.createdAt) }}</text>
           </view>
           <view class="txn-side">
             <text class="txn-amount">U {{ formatAmount(t.amount) }}</text>

@@ -13,6 +13,7 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
+const loadFailed = ref(false);
 const id = ref<Api.RealOrder.LongId>();
 const logistics = ref<Api.RealOrder.LogisticsDTO>();
 const trackPopupVisible = ref(false);
@@ -23,15 +24,17 @@ const exceptionForm = ref({ exception: '', location: '' });
 
 onLoad(async query => {
   id.value = query?.id ? String(query.id) : undefined;
-  await userStore.init();
-  if (id.value && userStore.currentUser) {
-    const scope = userStore.isBuyerActive ? 'sold' : 'bought';
-    const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(id.value, scope), fetchOrderLogistics(id.value)]);
-    if (detailResult.status === 'fulfilled') order.value = detailResult.value;
-    else uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
-    if (logisticsResult.status === 'fulfilled') logistics.value = logisticsResult.value;
-  } else if (id.value) {
-    await requireLogin(`/pages/order/detail?id=${encodeURIComponent(String(id.value))}`);
+  loadFailed.value = false;
+  try {
+    await userStore.init();
+    if (id.value && userStore.currentUser) {
+      await reload();
+    } else if (id.value) {
+      await requireLogin(`/pages/order/detail?id=${encodeURIComponent(String(id.value))}`);
+    }
+  } catch (error) {
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });
   }
 });
 
@@ -39,10 +42,22 @@ async function reload() {
   if (id.value) {
     const scope = userStore.isBuyerActive ? 'sold' : 'bought';
     const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(id.value, scope), fetchOrderLogistics(id.value)]);
-    if (detailResult.status === 'fulfilled') order.value = detailResult.value;
-    else uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
+    if (detailResult.status === 'fulfilled') {
+      order.value = detailResult.value;
+      loadFailed.value = false;
+    } else {
+      order.value = undefined;
+      loadFailed.value = true;
+      uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
+    }
     if (logisticsResult.status === 'fulfilled') logistics.value = logisticsResult.value;
   }
+}
+
+function formatTime(value?: string | number): string {
+  if (value === undefined || value === null || value === '') return '';
+  const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
 async function pay() {
@@ -56,9 +71,13 @@ async function pay() {
     content: '将支付该订单组内全部待付款订单。',
     success: async result => {
       if (!result.confirm || !order.value?.orderGroupNo) return;
-      await payRealOrderGroup({ orderGroupNo: order.value.orderGroupNo });
-      uni.showToast({ title: '支付成功', icon: 'success' });
-      await reload();
+      try {
+        await payRealOrderGroup({ orderGroupNo: order.value.orderGroupNo });
+        uni.showToast({ title: '支付成功', icon: 'success' });
+        await reload();
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '支付失败', icon: 'none' });
+      }
     }
   });
 }
@@ -69,9 +88,13 @@ function cancel() {
     title: '取消订单？',
     success: async r => {
       if (r.confirm) {
-        await cancelRealOrder({ id: order.value!.id, reason: '顾客取消' });
-        uni.showToast({ title: '订单已取消', icon: 'success' });
-        await reload();
+        try {
+          await cancelRealOrder({ id: order.value!.id, reason: '顾客取消' });
+          uni.showToast({ title: '订单已取消', icon: 'success' });
+          await reload();
+        } catch (error) {
+          uni.showToast({ title: error instanceof Error ? error.message : '取消订单失败', icon: 'none' });
+        }
       }
     }
   });
@@ -83,9 +106,13 @@ function confirm() {
     title: '确认收货？',
     success: async r => {
       if (r.confirm) {
-        await confirmRealOrder(order.value!.id);
-        uni.showToast({ title: '已确认收货', icon: 'success' });
-        await reload();
+        try {
+          await confirmRealOrder(order.value!.id);
+          uni.showToast({ title: '已确认收货', icon: 'success' });
+          await reload();
+        } catch (error) {
+          uni.showToast({ title: error instanceof Error ? error.message : '确认收货失败', icon: 'none' });
+        }
       }
     }
   });
@@ -131,6 +158,8 @@ async function submitTrack() {
     trackPopupVisible.value = false;
     uni.showToast({ title: '物流轨迹已更新', icon: 'success' });
     await reload();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '物流轨迹提交失败', icon: 'none' });
   } finally {
     logisticsSubmitting.value = false;
   }
@@ -151,6 +180,8 @@ async function submitException() {
     exceptionPopupVisible.value = false;
     uni.showToast({ title: '物流异常已标记', icon: 'success' });
     await reload();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '物流异常提交失败', icon: 'none' });
   } finally {
     logisticsSubmitting.value = false;
   }
@@ -162,7 +193,7 @@ async function submitException() {
     <view class="hero">
       <OrderStatusTag :status="order.status" />
       <text class="code">{{ order.code }}</text>
-      <text v-if="order.createdAt" class="time">{{ new Date(order.createdAt).toLocaleString() }}</text>
+      <text v-if="order.createdAt" class="time">{{ formatTime(order.createdAt) }}</text>
     </view>
 
     <view class="section">
@@ -236,11 +267,11 @@ async function submitException() {
        <view v-if="logistics.carrierName || logistics.carrier" class="amt-row"><text class="amt-lbl">承运商</text><text>{{ logistics.carrierName || logistics.carrier }}</text></view>
        <view v-if="logistics.trackingNo" class="amt-row"><text class="amt-lbl">运单号</text><text>{{ logistics.trackingNo }}</text></view>
        <view v-if="logistics.purchaseNo" class="amt-row"><text class="amt-lbl">采购单号</text><text>{{ logistics.purchaseNo }}</text></view>
-       <view v-if="logistics.eta" class="amt-row"><text class="amt-lbl">预计送达</text><text>{{ new Date(Number(logistics.eta)).toLocaleString() }}</text></view>
+       <view v-if="logistics.eta" class="amt-row"><text class="amt-lbl">预计送达</text><text>{{ formatTime(logistics.eta) }}</text></view>
        <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
        <view v-if="logistics.purchaseVouchers.length" class="voucher-section"><text class="voucher-title">采购凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.purchaseVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
        <view v-if="logistics.shipVouchers.length" class="voucher-section"><text class="voucher-title">发货凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.shipVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
-       <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="track.location || track.occurredAt" class="track-meta">{{ track.location || '' }} {{ track.occurredAt ? new Date(Number(track.occurredAt)).toLocaleString() : '' }}</text></view></view>
+       <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="track.location || track.occurredAt" class="track-meta">{{ track.location || '' }} {{ formatTime(track.occurredAt) }}</text></view></view>
        <text v-else class="track-meta">暂无物流轨迹</text>
        <view v-if="userStore.isBuyerActive && order.status === 'IN_TRANSIT'" class="logistics-actions">
          <wd-button size="small" plain @click="openTrackPopup">更新物流轨迹</wd-button>
@@ -276,6 +307,7 @@ async function submitException() {
       <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" plain @click="goAftersale">申请仅退款</wd-button>
     </view>
   </view>
+  <EmptyState v-else-if="loadFailed" title="订单详情加载失败" description="请稍后重试" />
   <EmptyState v-else title="订单不存在" />
 </template>
 

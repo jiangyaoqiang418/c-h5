@@ -26,6 +26,12 @@ let unsubscribeRealtime: (() => void) | undefined;
 let unsubscribeRealtimeState: (() => void) | undefined;
 let realtimeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
+function formatDate(value?: string | number): string {
+  if (value === undefined || value === null || value === '') return '';
+  const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+}
+
 function isTransactionNotification(notification: Api.RealNotify.Notification) {
   return /RECHARGE|WITHDRAW|WALLET|FUND|FINANCE|ORDER/.test(notification.bizType || notification.templateCode || '');
 }
@@ -58,7 +64,7 @@ async function load() {
       path: '/pages/message/notifications',
       unread: Math.max(0, notificationCount - transactionUnread),
       latestText: notification ? `${notification.title || '系统通知'}：${notification.content || ''}` : '暂无系统通知',
-      latestTime: notification?.createdAt ? new Date(Number(notification.createdAt)).toLocaleDateString() : '',
+      latestTime: formatDate(notification?.createdAt),
       disabled: false
     },
     {
@@ -68,7 +74,7 @@ async function load() {
       path: '/pages/wallet/history',
       unread: transactionUnread,
       latestText: transaction ? `${transaction.title || '交易通知'}：${transaction.content || ''}` : '暂无交易通知',
-      latestTime: transaction?.createdAt ? new Date(Number(transaction.createdAt)).toLocaleDateString() : '',
+      latestTime: formatDate(transaction?.createdAt),
       disabled: false
     },
     {
@@ -78,7 +84,7 @@ async function load() {
       path: '/pages/im/order-list',
       unread: imCount,
       latestText: conversation?.lastMessagePreview || (realtimeState.value === 'ready' ? '订单群消息服务已连接' : realtimeState.value === 'connecting' ? '正在连接实时消息服务…' : '实时消息暂不可用，可手动刷新'),
-      latestTime: conversation?.lastMessageAt ? new Date(Number(conversation.lastMessageAt)).toLocaleDateString() : ''
+      latestTime: formatDate(conversation?.lastMessageAt)
     }
   ];
   } catch (error) {
@@ -114,9 +120,15 @@ function ensureRealtimeSubscription() {
 }
 
 onShow(async () => {
-  await userStore.init();
-  if (!userStore.currentUser) {
-    categories.value = [];
+  try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      categories.value = [];
+      return;
+    }
+  } catch (error) {
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '消息加载失败', icon: 'none' });
     return;
   }
   ensureRealtimeSubscription();

@@ -22,7 +22,7 @@ async function load(id: string) {
     uni.showToast({ title: error instanceof Error ? error.message : '理财产品加载失败', icon: 'none' });
   }
 }
-onLoad(async query => { const id = String(query?.id || ''); if (!id) return; await userStore.init(); if (!userStore.currentUser) { await requireLogin(`/pages/finance/detail?id=${encodeURIComponent(id)}`); return; } await load(id); });
+onLoad(async query => { const id = String(query?.id || ''); if (!id) return; try { await userStore.init(); if (!userStore.currentUser) { await requireLogin(`/pages/finance/detail?id=${encodeURIComponent(id)}`); return; } await load(id); } catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '理财产品加载失败', icon: 'none' }); } });
 const available = computed(() => Number(walletStore.account?.available || 0));
 const expectedInterest = computed(() => product.value ? Number(amount.value || 0) * Number(product.value.annualRate || 0) * product.value.lockDays / 365 : 0);
 const canSubmit = computed(() => !!product.value && Number(amount.value) >= Number(product.value.minAmount) && (!product.value.maxAmount || Number(amount.value) <= Number(product.value.maxAmount)) && Number(amount.value) <= available.value && product.value.status === 'ON_SALE');

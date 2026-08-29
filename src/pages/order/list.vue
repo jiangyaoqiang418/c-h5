@@ -25,6 +25,7 @@ const TABS: TabDef[] = [
 const activeKey = ref('all');
 const orders = ref<Api.RealOrder.OrderView[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
 const shippingOrder = ref<Api.RealOrder.OrderView>();
 const shippingPopupVisible = ref(false);
 const shippingSubmitting = ref(false);
@@ -32,21 +33,29 @@ const shippingForm = ref<{ carrier: Api.RealOrder.CarrierType; carrierName: stri
 const purchaseVouchers = ref<string[]>([]);
 const shipVouchers = ref<string[]>([]);
 const voucherUploading = ref(false);
+let loadToken = 0;
 
 async function load() {
-  await userStore.init();
-  if (!userStore.currentUser) {
-    orders.value = [];
-    return;
-  }
+  const token = ++loadToken;
   loading.value = true;
+  loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      if (token === loadToken) orders.value = [];
+      return;
+    }
     const tab = TABS.find(t => t.key === activeKey.value);
     const query = { pageNo: 1, pageSize: 30, status: tab?.status };
     const r = userStore.isBuyerActive ? await fetchSoldOrders(query) : await fetchBoughtOrders(query);
-    orders.value = r.records;
+    if (token === loadToken) orders.value = r.records;
+  } catch (error) {
+    if (token !== loadToken) return;
+    orders.value = [];
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '订单列表加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (token === loadToken) loading.value = false;
     uni.stopPullDownRefresh();
   }
 }
@@ -66,9 +75,13 @@ function pay(o: Api.RealOrder.OrderView) {
     content: '将支付该订单组内全部待付款订单。',
     success: async result => {
       if (!result.confirm) return;
-      await payRealOrderGroup({ orderGroupNo: o.orderGroupNo! });
-      uni.showToast({ title: '支付成功', icon: 'success' });
-      await load();
+      try {
+        await payRealOrderGroup({ orderGroupNo: o.orderGroupNo! });
+        uni.showToast({ title: '支付成功', icon: 'success' });
+        await load();
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '支付失败', icon: 'none' });
+      }
     }
   });
 }
@@ -78,9 +91,13 @@ function cancel(o: Api.RealOrder.OrderView) {
     title: '取消订单？',
     success: async r => {
       if (r.confirm) {
-        await cancelRealOrder({ id: o.id, reason: '顾客取消' });
-        uni.showToast({ title: '订单已取消', icon: 'success' });
-        await load();
+        try {
+          await cancelRealOrder({ id: o.id, reason: '顾客取消' });
+          uni.showToast({ title: '订单已取消', icon: 'success' });
+          await load();
+        } catch (error) {
+          uni.showToast({ title: error instanceof Error ? error.message : '取消订单失败', icon: 'none' });
+        }
       }
     }
   });
@@ -91,9 +108,13 @@ function confirm(o: Api.RealOrder.OrderView) {
     title: '确认收货？',
     success: async r => {
       if (r.confirm) {
-        await confirmRealOrder(o.id);
-        uni.showToast({ title: '已确认收货', icon: 'success' });
-        load();
+        try {
+          await confirmRealOrder(o.id);
+          uni.showToast({ title: '已确认收货', icon: 'success' });
+          await load();
+        } catch (error) {
+          uni.showToast({ title: error instanceof Error ? error.message : '确认收货失败', icon: 'none' });
+        }
       }
     }
   });
@@ -162,6 +183,8 @@ async function submitShipping() {
     shippingOrder.value = undefined;
     shippingPopupVisible.value = false;
     await load();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '发货信息提交失败', icon: 'none' });
   } finally {
     shippingSubmitting.value = false;
   }
@@ -177,7 +200,8 @@ async function submitShipping() {
     </view>
 
     <view class="list">
-      <view v-if="orders.length">
+      <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载订单</text></view>
+      <view v-else-if="orders.length">
         <OrderCard
           v-for="o in orders"
           :key="o.id"
@@ -191,7 +215,7 @@ async function submitShipping() {
           @ship="openShipping"
         />
       </view>
-      <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载订单</text></view>
+      <EmptyState v-else-if="loadFailed" title="订单列表加载失败" description="请稍后重试" />
       <EmptyState v-else title="该状态下没有订单" description="完成购物后这里会显示" />
     </view>
 

@@ -46,7 +46,7 @@
 | 能力 | 当前 Swagger | H5 现状 | 本批结论 |
 |---|---|---|---|
 | 买入/卖出订单列表 | `POST /order/orders/bought/page`、`sold/page`，7 个原始状态 | 页面按顾客/买手身份调用真实分页；非空记录、Long ID 和空态已在 Chrome 手机视图验证 | A/B：读链路完成；专用单已覆盖 `PAID → SHIPPED → COMPLETED` |
-| 订单详情 | `GET /order/orders/detail?id`、`GET /order/orders/logistics?orderId`、`POST /order/orders/logistics/track/create`、`PUT /order/orders/logistics/exception/mark` | 页面已接入真实详情、物流摘要、轨迹/异常展示及卖家轨迹/异常写入入口；发货 DTO 改为 `carrier/trackingNo` | A/B：原订单详情读回归通过；轨迹/异常写入待安全测试数据 |
+| 订单详情 | `GET /order/orders/detail?id`、`GET /order/orders/logistics?orderId`、`POST /order/orders/logistics/track/create`、`PUT /order/orders/logistics/exception/mark` | 页面已接入真实详情、物流摘要、轨迹/异常展示及卖家轨迹/异常写入入口；发货 DTO 改为 `carrier/trackingNo`；读取失败与“订单不存在”已使用独立页面状态 | B：历史详情读回归通过；2026-08-29 最新复核中分页可读但两条真实订单详情均失败，按当前服务异常记录；轨迹/异常写入待安全测试数据 |
 | 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成顾客创建 → `REFUND_REVIEW` → 撤销 → `PAID`，以及买手侧非空列表/详情回归 |
@@ -277,7 +277,7 @@
 | 地址列表/新增/设默认/删除 | `/user/addresses/list`、`create`、`default`、`delete` | B | 契约完整；`country/detailAddress/receiverName/receiverPhone` 必填，页面字段在 adapter 映射，Long ID 保留原值 |
 | 下单 | `POST /order/orders/create`、`POST /order/orders/create-batch` | B | 单品/最多20项合并下单均支持 `addressId/idempotencyKey`；整批失败不落单，返回订单组号、订单 ID 和总金额 |
 | 订单列表 | `POST /order/orders/bought/page` | B（已接入并读回归） | 列表真实 adapter/page 已接入；后端 7 状态映射至既有展示标签，原始状态保留；非空真实记录已在 Chrome 手机视图验证 |
-| 订单详情 | `GET /order/orders/detail` + `GET /order/orders/logistics` | B（已接入） | 真实详情、地址快照、费用、物流状态/轨迹/异常已接入；物流读取失败不阻断订单主体，非空新字段待登录态回归 |
+| 订单详情 | `GET /order/orders/detail` + `GET /order/orders/logistics` | B（已接入） | 真实详情、地址快照、费用、物流状态/轨迹/异常已接入；物流读取失败不阻断订单主体，详情失败显示独立错误态；历史非空回归通过，2026-08-29 最新两条真实订单详情请求失败，待服务恢复后复核 |
 | 订单状态计数 | 多次调用 `orders/bought/page` 可派生 | B | 无独立统计接口；需按状态请求或由列表数据派生，注意分页总数。当前测试环境 `CREATED/PAID/SHIPPED` 均为 0 |
 | 支付 | `POST /order/orders/pay`、`POST /order/orders/group/pay` | A/B | 支持单笔和订单组一次付款；Long ID 保留原值，组号按字符串透传 |
 | 确认收货 | `POST /order/orders/confirm` | A | 核心操作存在；后端不接收前端预留的收货视频 |

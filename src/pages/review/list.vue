@@ -15,31 +15,40 @@ const reviewable = ref<Api.RealReview.ReviewableOrderVO[]>([]);
 const loading = ref(false);
 const operating = ref(false);
 const loadFailed = ref(false);
+let loadToken = 0;
 
 async function load() {
-  await userStore.init();
-  if (!userStore.currentUser) {
-    list.value = [];
-    reviewable.value = [];
-    return;
-  }
+  const token = ++loadToken;
   loading.value = true;
   loadFailed.value = false;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      if (token === loadToken) {
+        list.value = [];
+        reviewable.value = [];
+      }
+      return;
+    }
     if (activeKey.value === 'reviewable') {
-      reviewable.value = (await fetchReviewableOrders({ pageSize: 50 })).records;
+      const records = (await fetchReviewableOrders({ pageSize: 50 })).records;
+      if (token !== loadToken) return;
+      reviewable.value = records;
       list.value = [];
       return;
     }
-    list.value = activeKey.value === 'sent'
+    const records = activeKey.value === 'sent'
       ? (await fetchMyReviews({ pageSize: 50 })).records
       : (await fetchReceivedReviews({ pageSize: 50 })).records;
+    if (token !== loadToken) return;
+    list.value = records;
     reviewable.value = [];
   } catch (error) {
+    if (token !== loadToken) return;
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '评价加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (token === loadToken) loading.value = false;
   }
 }
 onShow(load);

@@ -61,6 +61,8 @@ async function load() {
       return;
     }
     fillForm();
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '买手申请状态加载失败', icon: 'none' });
   } finally {
     loading.value = false;
   }

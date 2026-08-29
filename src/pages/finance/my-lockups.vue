@@ -9,9 +9,11 @@ const walletStore = useWalletStore();
 const userStore = useUserStore();
 const activeKey = ref<Api.RealFinance.OrderStatus>('HOLDING');
 const list = ref<Api.RealFinance.OrderVO[]>([]); const loading = ref(false);
+const loadFailed = ref(false);
 const redeemingId = ref<Api.RealFinance.Id>();
+let loadToken = 0;
 const tabs: { key: Api.RealFinance.OrderStatus; label: string }[] = [{ key: 'HOLDING', label: '持仓中' }, { key: 'SETTLED', label: '已结算' }, { key: 'REDEEMED', label: '已赎回' }, { key: 'CANCELED', label: '已取消' }];
-async function load() { await userStore.init(); if (!userStore.currentUser) { list.value = []; return; } loading.value = true; try { list.value = (await fetchFinanceOrders({ pageSize: 50, status: activeKey.value })).records; } catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '锁仓记录加载失败', icon: 'none' }); } finally { loading.value = false; } }
+async function load() { const token = ++loadToken; loading.value = true; loadFailed.value = false; try { await userStore.init(); if (!userStore.currentUser) { if (token === loadToken) list.value = []; return; } const records = (await fetchFinanceOrders({ pageSize: 50, status: activeKey.value })).records; if (token === loadToken) list.value = records; } catch (error) { if (token !== loadToken) return; list.value = []; loadFailed.value = true; uni.showToast({ title: error instanceof Error ? error.message : '锁仓记录加载失败', icon: 'none' }); } finally { if (token === loadToken) loading.value = false; } }
 onMounted(load); watch(activeKey, load);
 function onRedeem(order: Api.RealFinance.OrderVO) {
   if (!order.canRedeem || redeemingId.value !== undefined) return;
@@ -36,5 +38,5 @@ function onRedeem(order: Api.RealFinance.OrderVO) {
 }
 </script>
 
-<template><view class="my-lockup-page yb-page yb-page--full-bleed"><view class="yb-sticky-tabs-frame"><wd-tabs v-model="activeKey"><wd-tab v-for="tab in tabs" :key="tab.key" :name="tab.key" :title="tab.label" /></wd-tabs></view><view class="list"><view v-if="list.length"><LockupCard v-for="order in list" :key="order.id" :order="order" :redeeming="redeemingId === order.id" :redeem-disabled="redeemingId !== undefined" @redeem="onRedeem" /></view><view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载持仓</text></view><EmptyState v-else title="暂无持仓" /></view></view></template>
+<template><view class="my-lockup-page yb-page yb-page--full-bleed"><view class="yb-sticky-tabs-frame"><wd-tabs v-model="activeKey"><wd-tab v-for="tab in tabs" :key="tab.key" :name="tab.key" :title="tab.label" /></wd-tabs></view><view class="list"><view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载持仓</text></view><view v-else-if="list.length"><LockupCard v-for="order in list" :key="order.id" :order="order" :redeeming="redeemingId === order.id" :redeem-disabled="redeemingId !== undefined" @redeem="onRedeem" /></view><EmptyState v-else-if="loadFailed" title="持仓记录加载失败" description="请稍后重试" /><EmptyState v-else title="暂无持仓" /></view></view></template>
 <style lang="scss" scoped>.my-lockup-page { min-height:100%; }.list { padding:24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }</style>

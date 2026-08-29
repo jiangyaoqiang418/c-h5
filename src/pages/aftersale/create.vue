@@ -16,12 +16,12 @@ const form = reactive({ reason: '' });
 onLoad(async query => {
   const orderId = query?.orderId;
   if (typeof orderId !== 'string' || !orderId) return;
-  await userStore.init();
-  if (!userStore.currentUser) {
-    await requireLogin(`/pages/aftersale/create?orderId=${encodeURIComponent(orderId)}`);
-    return;
-  }
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin(`/pages/aftersale/create?orderId=${encodeURIComponent(orderId)}`);
+      return;
+    }
     order.value = await fetchOrderDetail(orderId);
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });
@@ -36,6 +36,8 @@ async function submit() {
     const refundId = await createRealRefund({ orderId: order.value.id, reason: form.reason.trim() });
     uni.showToast({ title: '仅退款申请已提交', icon: 'success' });
     setTimeout(() => go(`/pages/aftersale/detail?id=${refundId}`, true), 600);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '仅退款申请提交失败', icon: 'none' });
   } finally {
     submitting.value = false;
   }

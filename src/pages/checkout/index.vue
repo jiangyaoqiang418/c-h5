@@ -4,6 +4,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { formatAmount } from '@/utils/format-bridge';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
+import EmptyState from '@/components/common/empty-state.vue';
 import { go, reLaunch } from '@/utils/navigate';
 import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
 import { createBatchOrder, payRealOrderGroup } from '@/service/api/order';
@@ -19,6 +20,8 @@ const addresses = ref<AddressRecord[]>([]);
 const selectedAddrId = ref<Api.RealAddress.LongId>();
 const agreed = ref(false);
 const submitting = ref(false);
+const loading = ref(false);
+const loadFailed = ref(false);
 
 const items = computed(() => cart.selectedItems);
 const hasMockItems = computed(() => items.value.some(item => item.source !== 'real'));
@@ -54,22 +57,31 @@ function readPending(fingerprint: string): PendingCheckout {
 }
 
 async function loadCheckout() {
-  await userStore.init();
-  if (!userStore.currentUser) {
-    go('/pages/auth/login?redirect=' + encodeURIComponent('/pages/checkout/index'));
-    return;
+  loading.value = true;
+  loadFailed.value = false;
+  try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      go('/pages/auth/login?redirect=' + encodeURIComponent('/pages/checkout/index'));
+      return;
+    }
+    if (items.value.length === 0) {
+      uni.showToast({ title: '请先选择商品', icon: 'none' });
+      setTimeout(() => uni.navigateBack(), 800);
+      return;
+    }
+    addresses.value = await fetchMyAddresses();
+    if (addresses.value.length) {
+      const def = addresses.value.find(a => a.isDefault) || addresses.value[0];
+      selectedAddrId.value = def.id;
+    }
+    await walletStore.fetchWallet();
+  } catch (error) {
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '结算信息加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
-  if (items.value.length === 0) {
-    uni.showToast({ title: '请先选择商品', icon: 'none' });
-    setTimeout(() => uni.navigateBack(), 800);
-    return;
-  }
-  addresses.value = await fetchMyAddresses();
-  if (addresses.value.length) {
-    const def = addresses.value.find(a => a.isDefault) || addresses.value[0];
-    selectedAddrId.value = def.id;
-  }
-  await walletStore.fetchWallet();
 }
 onShow(loadCheckout);
 
@@ -133,6 +145,9 @@ async function submit() {
 
 <template>
   <view class="checkout-page yb-page">
+    <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载结算信息</text></view>
+    <EmptyState v-else-if="loadFailed" title="结算信息加载失败" description="请稍后重试" />
+    <template v-else>
     <view class="block">
       <text class="block-title">1. 收货地址</text>
       <view v-if="selectedAddr" class="addr">
@@ -220,11 +235,13 @@ async function submit() {
       </view>
       <wd-button type="primary" size="large" :loading="submitting" :disabled="!agreed || !hasOnlyRealItems" @click="submit">提交订单</wd-button>
     </view>
+    </template>
   </view>
 </template>
 
 <style lang="scss" scoped>
 .checkout-page { min-height:100%; padding:20rpx 24rpx calc(164rpx + env(safe-area-inset-bottom)); }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .block {
   background: #fff;
   margin-bottom: 20rpx;

@@ -12,6 +12,8 @@ const userStore = useUserStore();
 const activeKey = ref('all');
 const list = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
+let loadToken = 0;
 
 const TABS: { key: string; label: string; statuses?: Api.PurchaseRequest.RequestStatus[] }[] = [
   { key: 'all', label: '全部' },
@@ -23,17 +25,25 @@ const TABS: { key: string; label: string; statuses?: Api.PurchaseRequest.Request
 ];
 
 async function load() {
+  const token = ++loadToken;
   loading.value = true;
+  loadFailed.value = false;
   try {
     await userStore.init();
-    if (!userStore.realUserId) return;
+    if (!userStore.realUserId) {
+      if (token === loadToken) list.value = [];
+      return;
+    }
     const tab = TABS.find(t => t.key === activeKey.value);
     const r = await fetchMyPurchases(userStore.realUserId, tab?.statuses);
-    list.value = r.records;
+    if (token === loadToken) list.value = r.records;
   } catch (error) {
+    if (token !== loadToken) return;
+    list.value = [];
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '求购列表加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (token === loadToken) loading.value = false;
   }
 }
 onShow(load);
@@ -69,11 +79,13 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
       </wd-tabs>
     </view>
     <view class="list">
-      <view v-if="list.length">
+      <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载求购</text></view>
+      <view v-else-if="list.length">
         <PurchaseRequestCard v-for="r in list" :key="r.id" :request="r" mode="mine" @cancel="onCancel" />
       </view>
+      <EmptyState v-else-if="loadFailed" title="求购列表加载失败" description="请稍后重试" />
       <EmptyState
-        v-else-if="!loading"
+        v-else
         title="暂无求购"
         description="发起求购让全球买手为您代购"
         action-text="发起求购"
@@ -114,4 +126,5 @@ function onCancel(req: Api.PurchaseRequest.PurchaseRequest) {
   margin-top: 8rpx;
 }
 .list { padding:24rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 </style>

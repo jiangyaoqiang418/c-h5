@@ -15,12 +15,12 @@ const form = reactive<{ score: 1 | 2 | 3 | 4 | 5; content: string; photoUrls: st
 onLoad(async query => {
   const orderId = String(query?.orderId || '');
   if (!orderId) return;
-  await userStore.init();
-  if (!userStore.currentUser) {
-    await requireLogin(`/pages/review/write?orderId=${encodeURIComponent(orderId)}`);
-    return;
-  }
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin(`/pages/review/write?orderId=${encodeURIComponent(orderId)}`);
+      return;
+    }
     order.value = (await fetchReviewableOrders({ pageSize: 50 })).records.find(item => String(item.orderId) === orderId);
   } catch (error) {
     uni.showToast({ title: error instanceof Error ? error.message : '待评价订单加载失败', icon: 'none' });
@@ -29,15 +29,18 @@ onLoad(async query => {
 
 async function addPhoto() {
   if (form.photoUrls.length >= 9) return;
-  const picked = await uni.chooseImage({ count: Math.min(9 - form.photoUrls.length, 9), sizeType: ['compressed'] });
-  uni.showLoading({ title: '上传中…' });
   try {
+    const picked = await uni.chooseImage({ count: Math.min(9 - form.photoUrls.length, 9), sizeType: ['compressed'] });
+    uni.showLoading({ title: '上传中…' });
     for (const filePath of picked.tempFilePaths) {
       const uploaded = await uploadReviewImage(filePath);
       const url = uploaded.url;
       if (!url) throw new Error('上传响应缺少图片地址');
       form.photoUrls.push(url);
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String((error as { errMsg?: string })?.errMsg || '评价图片上传失败');
+    if (!message.includes('cancel')) uni.showToast({ title: message, icon: 'none' });
   } finally { uni.hideLoading(); }
 }
 function removePhoto(index: number) { form.photoUrls.splice(index, 1); }
@@ -48,6 +51,8 @@ async function submit() {
     await createReview({ orderId: order.value.orderId, productScore: form.score, sellerScore: form.score, content: form.content.trim(), images: form.photoUrls });
     uni.showToast({ title: '评价已提交', icon: 'success' });
     setTimeout(() => go('/pages/review/list', true), 700);
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '评价提交失败', icon: 'none' });
   } finally { submitting.value = false; }
 }
 </script>

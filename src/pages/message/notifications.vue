@@ -16,6 +16,12 @@ const unreadCount = computed(() => list.value.filter(item => !item.readFlag).len
 let unsubscribeRealtime: (() => void) | undefined;
 let realtimeRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
+function formatTime(value?: string | number): string {
+  if (value === undefined || value === null || value === '') return '';
+  const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
+}
+
 async function load() {
   loading.value = true;
   loadFailed.value = false;
@@ -42,9 +48,15 @@ function refreshFromRealtime() {
 }
 
 onShow(async () => {
-  await userStore.init();
-  if (!userStore.currentUser) {
-    list.value = [];
+  try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      list.value = [];
+      return;
+    }
+  } catch (error) {
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '通知加载失败', icon: 'none' });
     return;
   }
   if (!unsubscribeRealtime) {
@@ -106,6 +118,8 @@ async function readAll() {
     await markAllNotificationsRead();
     list.value.forEach(item => { item.readFlag = true; });
     uni.showToast({ title: '已全部标记为已读', icon: 'success' });
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '全部已读失败', icon: 'none' });
   } finally {
     operating.value = false;
   }
@@ -122,6 +136,8 @@ function remove(item: Api.RealNotify.Notification) {
         await deleteNotification(item.id);
         list.value = list.value.filter(current => String(current.id) !== String(item.id));
         uni.showToast({ title: '已删除', icon: 'success' });
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '通知删除失败', icon: 'none' });
       } finally {
         operating.value = false;
       }
@@ -141,6 +157,8 @@ function clear() {
         await clearNotifications();
         list.value = [];
         uni.showToast({ title: '已清空', icon: 'success' });
+      } catch (error) {
+        uni.showToast({ title: error instanceof Error ? error.message : '通知清空失败', icon: 'none' });
       } finally {
         operating.value = false;
       }
@@ -161,7 +179,7 @@ function clear() {
     <view v-if="list.length" class="list">
       <view v-for="item in list" :key="item.id" class="item" :class="{ unread: !item.readFlag }" @click="open(item)">
         <view class="dot" />
-        <view class="body"><text class="title">{{ item.title || '系统通知' }}</text><text class="content">{{ item.content || '暂无内容' }}</text><text class="time">{{ item.createdAt ? new Date(Number(item.createdAt)).toLocaleString() : '' }}</text></view>
+        <view class="body"><text class="title">{{ item.title || '系统通知' }}</text><text class="content">{{ item.content || '暂无内容' }}</text><text class="time">{{ formatTime(item.createdAt) }}</text></view>
         <view class="right"><view class="delete" @click.stop="remove(item)">删除</view><wd-icon name="arrow-right" size="16px" color="#a6a9b1" /></view>
       </view>
     </view>
