@@ -22,42 +22,66 @@ const orderTotal = ref(0);
 const productTotal = ref(0);
 const requestTotal = ref(0);
 const depositBalance = ref<string | number>(0);
+const loading = ref(false);
+const ordersLoadFailed = ref(false);
+const requestsLoadFailed = ref(false);
+const productsLoadFailed = ref(false);
+const depositLoadFailed = ref(false);
 
 const user = computed(() => userStore.currentUser);
 const userAvatar = computed(() => user.value?.avatar || (user.value ? avatarUrl(0) : ''));
 
 async function load() {
-  await userStore.init();
-  if (!userStore.currentUser) return;
-  const results = await Promise.allSettled([
-    fetchSoldOrders({ pageNo: 1, pageSize: 5 }),
-    fetchHall({ current: 1, size: 5 }),
-    fetchMyProducts({ pageNo: 1, pageSize: 1 }),
-    fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 })
-  ]);
-  const [soldOrders, demandHall, products, deposits] = results;
-  if (soldOrders.status === 'fulfilled') {
-    orders.value = soldOrders.value.records;
-    orderTotal.value = soldOrders.value.total;
-  }
-  if (demandHall.status === 'fulfilled') {
-    requests.value = demandHall.value.records;
-    requestTotal.value = demandHall.value.total;
-  }
-  if (products.status === 'fulfilled') productTotal.value = products.value.total;
-  if (deposits.status === 'fulfilled') depositBalance.value = deposits.value.records[0]?.balanceAfter ?? 0;
-  if (results.some(result => result.status === 'rejected')) {
-    uni.showToast({ title: '部分买手数据加载失败', icon: 'none' });
+  loading.value = true;
+  ordersLoadFailed.value = false;
+  requestsLoadFailed.value = false;
+  productsLoadFailed.value = false;
+  depositLoadFailed.value = false;
+  try {
+    await userStore.init();
+    if (!userStore.currentUser) return;
+    const results = await Promise.allSettled([
+      fetchSoldOrders({ pageNo: 1, pageSize: 5 }),
+      fetchHall({ current: 1, size: 5 }),
+      fetchMyProducts({ pageNo: 1, pageSize: 1 }),
+      fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 })
+    ]);
+    const [soldOrders, demandHall, products, deposits] = results;
+    ordersLoadFailed.value = soldOrders.status === 'rejected';
+    requestsLoadFailed.value = demandHall.status === 'rejected';
+    productsLoadFailed.value = products.status === 'rejected';
+    depositLoadFailed.value = deposits.status === 'rejected';
+    if (soldOrders.status === 'fulfilled') {
+      orders.value = soldOrders.value.records;
+      orderTotal.value = soldOrders.value.total;
+    }
+    if (demandHall.status === 'fulfilled') {
+      requests.value = demandHall.value.records;
+      requestTotal.value = demandHall.value.total;
+    }
+    if (products.status === 'fulfilled') productTotal.value = products.value.total;
+    if (deposits.status === 'fulfilled') depositBalance.value = deposits.value.records[0]?.balanceAfter ?? 0;
+    if (results.some(result => result.status === 'rejected')) {
+      uni.showToast({ title: '部分买手数据加载失败', icon: 'none' });
+    }
+  } catch (error) {
+    ordersLoadFailed.value = true;
+    requestsLoadFailed.value = true;
+    productsLoadFailed.value = true;
+    depositLoadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '买手数据加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 }
 onShow(load);
 
 const kpis = computed(() => {
   return [
-    { label: '在售商品', value: productTotal.value, unit: '件', icon: 'goods', color: '#5B5CE7' },
-    { label: '卖出订单', value: orderTotal.value, unit: '单', icon: 'cart', color: '#B8935A' },
-    { label: '可接求购', value: requestTotal.value, unit: '单', icon: 'search', color: '#00A88A' },
-    { label: '保证金余额', value: formatAmount(depositBalance.value), unit: 'U', icon: 'shield', color: '#7C5CFC' }
+    { label: '在售商品', value: productsLoadFailed.value ? '—' : productTotal.value, unit: '件', icon: 'goods', color: '#5B5CE7' },
+    { label: '卖出订单', value: ordersLoadFailed.value ? '—' : orderTotal.value, unit: '单', icon: 'cart', color: '#B8935A' },
+    { label: '可接求购', value: requestsLoadFailed.value ? '—' : requestTotal.value, unit: '单', icon: 'search', color: '#00A88A' },
+    { label: '保证金余额', value: depositLoadFailed.value ? '—' : formatAmount(depositBalance.value), unit: 'U', icon: 'shield', color: '#7C5CFC' }
   ];
 });
 
@@ -81,19 +105,19 @@ const kpis = computed(() => {
       <view class="hero-stats">
         <view class="stat">
           <text class="stat-label">卖出订单</text>
-          <text class="stat-val">{{ orderTotal }}</text>
+          <text class="stat-val">{{ ordersLoadFailed ? '—' : orderTotal }}</text>
         </view>
         <view class="stat">
           <text class="stat-label">在售商品</text>
-          <text class="stat-val">{{ productTotal }}</text>
+          <text class="stat-val">{{ productsLoadFailed ? '—' : productTotal }}</text>
         </view>
         <view class="stat">
           <text class="stat-label">可接求购</text>
-          <text class="stat-val">{{ requestTotal }}</text>
+          <text class="stat-val">{{ requestsLoadFailed ? '—' : requestTotal }}</text>
         </view>
         <view class="stat">
           <text class="stat-label">保证金</text>
-          <text class="stat-val">{{ formatAmount(depositBalance) }}</text>
+          <text class="stat-val">{{ depositLoadFailed ? '—' : formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>
@@ -115,6 +139,8 @@ const kpis = computed(() => {
       <view v-if="orders.length">
         <BuyerOrderCard v-for="o in orders" :key="String(o.id)" :order="o" :show-actions="false" />
       </view>
+      <EmptyState v-else-if="ordersLoadFailed" title="卖出订单加载失败" description="请稍后重试" />
+      <view v-else-if="loading" class="section-loading">卖出订单加载中…</view>
       <EmptyState v-else title="暂无卖出订单" description="去求购大厅接单赚取收益" />
     </view>
 
@@ -130,6 +156,8 @@ const kpis = computed(() => {
       <view v-if="requests.length">
         <PurchaseRequestCard v-for="r in requests" :key="r.id" :request="r" mode="hall" />
       </view>
+      <EmptyState v-else-if="requestsLoadFailed" title="求购大厅加载失败" description="请稍后重试" />
+      <view v-else-if="loading" class="section-loading">求购数据加载中…</view>
       <EmptyState v-else title="暂无可接求购" description="新求购按 VIP 阶梯推送" />
     </view>
 
@@ -147,7 +175,7 @@ const kpis = computed(() => {
         <text class="dep-label">当前保证金余额</text>
         <view class="dep-amount">
           <text class="unit">U</text>
-          <text class="num">{{ formatAmount(depositBalance) }}</text>
+          <text class="num">{{ depositLoadFailed ? '—' : formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>
@@ -266,6 +294,7 @@ const kpis = computed(() => {
 .section {
   margin: 24rpx 32rpx 0;
 }
+.section-loading { padding: 48rpx 0; text-align: center; color: #86909c; font-size: 22rpx; }
 .section-bar {
   display: flex;
   justify-content: space-between;

@@ -13,9 +13,11 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
+const loading = ref(true);
 const loadFailed = ref(false);
 const id = ref<Api.RealOrder.LongId>();
 const logistics = ref<Api.RealOrder.LogisticsDTO>();
+const logisticsLoadFailed = ref(false);
 const trackPopupVisible = ref(false);
 const exceptionPopupVisible = ref(false);
 const logisticsSubmitting = ref(false);
@@ -35,6 +37,8 @@ onLoad(async query => {
   } catch (error) {
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -50,6 +54,7 @@ async function reload() {
       loadFailed.value = true;
       uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
     }
+    logisticsLoadFailed.value = logisticsResult.status === 'rejected';
     if (logisticsResult.status === 'fulfilled') logistics.value = logisticsResult.value;
   }
 }
@@ -278,6 +283,10 @@ async function submitException() {
          <wd-button size="small" type="error" plain @click="openExceptionPopup">标记物流异常</wd-button>
        </view>
      </view>
+    <view v-else-if="logisticsLoadFailed" class="section logistics-load-failed">
+      <text class="section-title">物流信息</text>
+      <text>物流信息加载失败，请稍后重试。</text>
+    </view>
 
     <wd-popup v-model="trackPopupVisible" position="bottom" :safe-area-inset-bottom="true">
       <view class="logistics-popup">
@@ -307,6 +316,7 @@ async function submitException() {
       <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" plain @click="goAftersale">申请仅退款</wd-button>
     </view>
   </view>
+  <view v-else-if="loading" class="page-loading"><wd-loading size="44rpx" /><text>正在加载订单详情</text></view>
   <EmptyState v-else-if="loadFailed" title="订单详情加载失败" description="请稍后重试" />
   <EmptyState v-else title="订单不存在" />
 </template>
@@ -411,6 +421,7 @@ async function submitException() {
   color: #1d2129;
 }
 .logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#f53f3f; background:#fff2f0; font-size:24rpx; line-height:1.5; }.tracks { margin-top:12rpx; }.track { padding:14rpx 0; border-top:1rpx solid #f2f3f5; font-size:24rpx; color:#1d2129; }.track-meta { display:block; margin-top:6rpx; color:#86909c; font-size:21rpx; }
+.page-loading { display:flex; flex-direction:column; align-items:center; gap:16rpx; padding:120rpx 0; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }.logistics-load-failed { color:#a85a00; font-size:24rpx; }
 .voucher-section { margin-top:20rpx; }.voucher-title { display:block; margin-bottom:12rpx; color:#4e5969; font-size:24rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-image { width:160rpx; height:160rpx; border-radius:8rpx; }
 .logistics-actions { display:flex; justify-content:flex-end; gap:12rpx; margin-top:20rpx; }.logistics-popup { padding:32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background:#fff; }.popup-title { display:block; margin-bottom:20rpx; color:#1d2129; font-size:32rpx; font-weight:700; }
 .actions-bar {

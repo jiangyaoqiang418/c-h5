@@ -44,6 +44,7 @@ const sellerScore = ref<Api.Review.UserScoreSummary>();
 const realReviews = ref<Api.RealReview.ReviewDTO[]>([]);
 const realReviewSummary = ref<Api.RealReview.ReviewSummaryDTO>();
 const realSellerRating = ref<Api.RealReview.SellerRatingDTO>();
+const reviewLoadFailed = ref(false);
 const qty = ref(1);
 const isRealProduct = ref(false);
 const loading = ref(true);
@@ -153,11 +154,13 @@ onLoad(async query => {
         : undefined;
       product.value = fromReal(record, categoryPath);
       recordProductBrowse(rawId).catch(() => undefined);
-      const [reviewPage, summary, sellerRating] = await Promise.allSettled([
+      const reviewResults = await Promise.allSettled([
         fetchStorefrontReviews({ productId: rawId, pageSize: 3 }),
         fetchReviewSummary(rawId),
         fetchSellerRating(record.sellerId)
       ]);
+      const [reviewPage, summary, sellerRating] = reviewResults;
+      reviewLoadFailed.value = reviewResults.some(result => result.status === 'rejected');
       if (reviewPage.status === 'fulfilled') realReviews.value = reviewPage.value.records;
       if (summary.status === 'fulfilled') realReviewSummary.value = summary.value;
       if (sellerRating.status === 'fulfilled') realSellerRating.value = sellerRating.value;
@@ -298,8 +301,9 @@ function goBack() {
         </view>
       </view>
 
-      <view v-if="reviews.length || realReviews.length" class="section">
+      <view v-if="reviews.length || realReviews.length || reviewLoadFailed" class="section">
         <text class="section-title">用户评价</text>
+        <text v-if="reviewLoadFailed" class="section-notice">部分评价信息加载失败，请稍后重试。</text>
         <view v-for="review in reviews.slice(0, 3)" :key="review.id" class="review-row">
           <view class="review-head"><text>{{ review.fromUserName }}</text><ReviewStars :score="review.score" size="sm" /></view>
           <text class="review-text">{{ review.content }}</text>
@@ -336,6 +340,7 @@ function goBack() {
 <style lang="scss" scoped>
 .detail-page { min-height: 100%; padding: 0 0 calc(152rpx + env(safe-area-inset-bottom)); }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
+.section-notice { display:block; margin-bottom:16rpx; color:#a85a00; font-size:22rpx; }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }

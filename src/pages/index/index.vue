@@ -25,6 +25,7 @@ const newest = ref<Api.RealProduct.ProductDTO[]>([]);
 const flash = ref<Api.RealProduct.ProductDTO[]>([]);
 const flashItems = ref<Api.RealProduct.FlashSaleItemVO[]>([]);
 const promoBanners = ref<Api.RealProduct.BannerDTO[]>([]);
+const loadFailed = ref(false);
 const now = ref(Date.now());
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -61,6 +62,7 @@ function toFlashProduct(item: Api.RealProduct.FlashSaleItemVO): Api.RealProduct.
 
 onMounted(async () => {
   loading.value = true;
+  loadFailed.value = false;
   const results = await Promise.allSettled([
     fetchCategoryTree({ onlyEnabled: true }),
     fetchStorefrontRecommend(6),
@@ -83,6 +85,7 @@ onMounted(async () => {
     promoBanners.value = banners.value.filter(item => item.enabled !== false).slice(0, 2);
   }
   if (results.some(result => result.status === 'rejected')) {
+    loadFailed.value = true;
     uni.showToast({ title: '部分首页数据加载失败', icon: 'none' });
   }
   loading.value = false;
@@ -137,6 +140,8 @@ function goBanner(path?: string) {
         </view>
       </view>
     </view>
+
+    <view v-if="loadFailed" class="data-notice">部分首页内容加载失败，重新进入页面后可再次加载。</view>
 
     <view
       v-if="visibleCategories.length"
@@ -237,6 +242,7 @@ function goBanner(path?: string) {
   padding-bottom: 32rpx;
   background: var(--yb-bg);
 }
+.data-notice { margin: 0 20rpx 20rpx; padding: 18rpx 22rpx; border-radius: 16rpx; background: #fff6e8; color: #a85a00; font-size: 22rpx; }
 
 .home-header {
   position: sticky;

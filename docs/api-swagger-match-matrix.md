@@ -46,7 +46,7 @@
 | 能力 | 当前 Swagger | H5 现状 | 本批结论 |
 |---|---|---|---|
 | 买入/卖出订单列表 | `POST /order/orders/bought/page`、`sold/page`，7 个原始状态 | 页面按顾客/买手身份调用真实分页；非空记录、Long ID 和空态已在 Chrome 手机视图验证 | A/B：读链路完成；专用单已覆盖 `PAID → SHIPPED → COMPLETED` |
-| 订单详情 | `GET /order/orders/detail?id`、`GET /order/orders/logistics?orderId`、`POST /order/orders/logistics/track/create`、`PUT /order/orders/logistics/exception/mark` | 页面已接入真实详情、物流摘要、轨迹/异常展示及卖家轨迹/异常写入入口；发货 DTO 改为 `carrier/trackingNo`；读取失败与“订单不存在”已使用独立页面状态 | B：历史详情读回归通过；2026-08-29 最新复核中分页可读但两条真实订单详情均失败，按当前服务异常记录；轨迹/异常写入待安全测试数据 |
+| 订单详情 | `GET /order/orders/detail?id`、`GET /order/orders/logistics?orderId`、`POST /order/orders/logistics/track/create`、`PUT /order/orders/logistics/exception/mark` | 页面已接入真实详情、物流摘要、轨迹/异常展示及卖家轨迹/异常写入入口；发货 DTO 改为 `carrier/trackingNo`；主体加载失败、订单不存在和物流子请求失败使用独立页面状态 | B：历史详情及 2026-08-29 从真实列表点击进入的详情、凭证和非空轨迹读回归通过；列表展示订单号、详情路由透传订单实体 ID，不得把展示订单号当作 `id`；轨迹/异常写入待安全测试数据 |
 | 取消订单 | `POST /order/orders/cancel`，`id/reason` 必填 | 已替换 Mock，保留二次确认并使用当前 UI 的“顾客取消”原因 | A：2026-08-14 专用 `CREATED` 单已在 H5 取消并回读 `CANCELED` |
 | 确认收货 | `POST /order/orders/confirm`，`id` 必填 | 已替换 Mock，保留二次确认 | A：2026-08-14 专用 `SHIPPED` 单已在 H5 确认并回读 `COMPLETED` |
 | 仅退款 | 创建、买入/卖出分页、详情、撤销契约完整 | 已收敛为真实“仅退款”：顾客 `PAID/SHIPPED` 申请、双方分页/详情、顾客 `APPLYING` 撤销 | A：Chrome 手机视图完成顾客创建 → `REFUND_REVIEW` → 撤销 → `PAID`，以及买手侧非空列表/详情回归 |
