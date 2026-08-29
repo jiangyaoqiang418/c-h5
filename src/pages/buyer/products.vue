@@ -45,15 +45,21 @@ function statusType(status: Api.RealProduct.ProductStatus): 'success' | 'warning
 async function load(reset = true) {
   if (loading.value && !reset) return;
   if (reset) loadFailed.value = false;
-  await userStore.init();
-  if (!userStore.currentUser) return;
   const targetPage = reset ? 1 : pageNo.value + 1;
   const status = activeKey.value;
   const token = ++loadToken;
   loading.value = true;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) return;
     if (!Object.keys(categoryNames.value).length) {
-      collectCategoryNames(await fetchCategoryTree({ onlyEnabled: true }));
+      try {
+        collectCategoryNames(await fetchCategoryTree({ onlyEnabled: true }));
+      } catch (error) {
+        if (token === loadToken) {
+          uni.showToast({ title: error instanceof Error ? error.message : '商品分类加载失败', icon: 'none' });
+        }
+      }
     }
     const result = await fetchMyProducts({
       pageNo: targetPage,

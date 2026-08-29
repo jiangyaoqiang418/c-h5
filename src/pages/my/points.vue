@@ -36,12 +36,12 @@ const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.b
 async function load(reset = true) {
   if (loading.value && !reset) return;
   if (reset) loadFailed.value = false;
-  await userStore.init();
   const tab = activeKey.value;
-  if (!userStore.currentUser && tab !== 'rule') return;
   const token = ++loadToken;
   loading.value = true;
   try {
+    await userStore.init();
+    if (!userStore.currentUser && tab !== 'rule') return;
     if (tab === 'log') {
       const targetPage = reset ? 1 : logPageNo.value + 1;
       const r = await fetchPointLedger({ pageNo: targetPage, pageSize });

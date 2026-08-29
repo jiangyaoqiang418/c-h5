@@ -14,6 +14,7 @@ const chains = ref<Api.RealWallet.RechargeChainVO[]>([]);
 const chainsLoading = ref(false);
 const chainsLoadFailed = ref(false);
 let pollingTimer: ReturnType<typeof setInterval> | undefined;
+let addressLoadToken = 0;
 
 const selectedChain = computed(() => chains.value.find(item => item.chain === form.chain));
 const canSubmit = computed(() => {
@@ -40,15 +41,24 @@ async function loadRechargeChains() {
 }
 
 async function loadRechargeAddress() {
-  if (!form.chain) return;
+  const chain = form.chain;
+  const token = ++addressLoadToken;
+  if (!chain) {
+    rechargeAddress.value = undefined;
+    addressLoading.value = false;
+    return;
+  }
   addressLoading.value = true;
   rechargeAddress.value = undefined;
   try {
-    rechargeAddress.value = await fetchRechargeAddress(form.chain);
+    const address = await fetchRechargeAddress(chain);
+    if (token === addressLoadToken) rechargeAddress.value = address;
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '充值地址加载失败', icon: 'none' });
+    if (token === addressLoadToken) {
+      uni.showToast({ title: error instanceof Error ? error.message : '充值地址加载失败', icon: 'none' });
+    }
   } finally {
-    addressLoading.value = false;
+    if (token === addressLoadToken) addressLoading.value = false;
   }
 }
 
@@ -92,13 +102,13 @@ function submit() {
 }
 
 async function createDeclaration() {
-  await userStore.init();
-  if (!userStore.currentUser) {
-    await requireLogin('/pages/wallet/deposit');
-    return;
-  }
-  submitting.value = true;
   try {
+    await userStore.init();
+    if (!userStore.currentUser) {
+      await requireLogin('/pages/wallet/deposit');
+      return;
+    }
+    submitting.value = true;
     const id = await createRecharge({ chain: form.chain, amount: Number(form.amount) });
     detail.value = await fetchRechargeDetail(id);
     uni.showToast({ title: '充值单已创建', icon: 'success' });
