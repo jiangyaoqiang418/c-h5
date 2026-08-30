@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { onHide, onShow, onUnload } from '@dcloudio/uni-app';
+import { usePageOperation } from '@/utils/page-operation';
+import { useUserStore } from '@/stores';
+import { getAccessToken } from '@/service/request/token';
+import { fetchImUnreadCount, fetchNotificationUnreadCount } from '@/service/api/notify';
+import { imSocket } from '@/service/im-socket';
 import { fetchCategoryTree } from '@/service/api/category';
 import {
   fetchBanners,
@@ -17,26 +23,49 @@ interface CategoryNode {
   name: string;
 }
 
-const loading = ref(true);
+const loading = ref(false);
 const categoryRoots = ref<CategoryNode[]>([]);
 const recommended = ref<Api.RealProduct.ProductDTO[]>([]);
 const hot = ref<Api.RealProduct.ProductDTO[]>([]);
 const newest = ref<Api.RealProduct.ProductDTO[]>([]);
-const flash = ref<Api.RealProduct.ProductDTO[]>([]);
 const flashItems = ref<Api.RealProduct.FlashSaleItemVO[]>([]);
 const promoBanners = ref<Api.RealProduct.BannerDTO[]>([]);
-const loadFailed = ref(false);
+const failedModules = ref<string[]>([]);
+const loadFailed = computed(() => failedModules.value.length > 0);
 const now = ref(Date.now());
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
+let loadSequence = 0;
+let unreadSequence = 0;
+let unreadLoading = false;
+let unreadRequested = false;
+let unsubscribeRealtime: (() => void) | undefined;
+let unsubscribeState: (() => void) | undefined;
+let refreshedExpiry = '';
+const userStore = useUserStore();
+const unread = ref<number>();
+const unreadFailed = ref(false);
+const page = usePageOperation(() => {
+  unreadSequence++;
+  unread.value = undefined;
+  unreadFailed.value = false;
+  unreadLoading = false;
+  unreadRequested = false;
+  stopRealtime();
+});
 
 const categoryIcons = ['phone', 'shop', 'gift', 'cart', 'bags', 'star'];
 const visibleCategories = computed(() => categoryRoots.value.slice(0, 10));
 
+function endTime(value: string | number): number {
+  if (value == null || String(value).trim() === '') return NaN;
+  const time = typeof value === 'number' || /^\d+$/.test(value) ? Number(value) : Date.parse(value);
+  return time > 0 ? time : NaN;
+}
+const activeFlash = computed(() => flashItems.value.filter(item => endTime(item.sessionEndTime) > now.value));
+const flash = computed(() => activeFlash.value.map(toFlashProduct));
 const countdown = computed(() => {
-  const endTimes = flashItems.value
-    .map(item => Number(item.sessionEndTime))
-    .filter(value => Number.isFinite(value) && value > now.value);
-  if (!endTimes.length) return '进行中';
+  const endTimes = activeFlash.value.map(item => endTime(item.sessionEndTime));
+  if (!endTimes.length) return flashItems.value.some(item => !Number.isFinite(endTime(item.sessionEndTime))) ? '活动时间待确认' : '已结束';
   const seconds = Math.max(0, Math.floor((Math.min(...endTimes) - now.value) / 1000));
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -60,40 +89,100 @@ function toFlashProduct(item: Api.RealProduct.FlashSaleItemVO): Api.RealProduct.
   };
 }
 
-onMounted(async () => {
+async function load(keys?: string[]) {
+  if (!page.visible.value || loading.value) return;
+  const operation = page.capture();
+  const sequence = ++loadSequence;
   loading.value = true;
-  loadFailed.value = false;
-  const results = await Promise.allSettled([
-    fetchCategoryTree({ onlyEnabled: true }),
-    fetchStorefrontRecommend(6),
-    fetchBestSellers(1, 6),
-    fetchNewArrivals(1, 6),
-    fetchFlashSale(4),
-    fetchBanners()
-  ]);
-  const [categories, recommends, bestSellers, arrivals, flashSale, banners] = results;
-  if (categories.status === 'fulfilled') categoryRoots.value = categories.value;
-  if (recommends.status === 'fulfilled') recommended.value = recommends.value;
-  if (bestSellers.status === 'fulfilled') hot.value = bestSellers.value.records || [];
-  if (arrivals.status === 'fulfilled') newest.value = arrivals.value.records || [];
-  if (flashSale.status === 'fulfilled') {
-    flashItems.value = flashSale.value;
-    flash.value = flashSale.value.map(toFlashProduct);
-    if (flashItems.value.length) countdownTimer = setInterval(() => { now.value = Date.now(); }, 1000);
-  }
-  if (banners.status === 'fulfilled') {
-    promoBanners.value = banners.value.filter(item => item.enabled !== false).slice(0, 2);
-  }
-  if (results.some(result => result.status === 'rejected')) {
-    loadFailed.value = true;
-    uni.showToast({ title: '部分首页数据加载失败', icon: 'none' });
-  }
-  loading.value = false;
-});
+  const valid = () => sequence === loadSequence && operation.isCurrent();
+  const modules: Record<string, () => Promise<() => void>> = {
+    categories: async () => { const value = await fetchCategoryTree({ onlyEnabled: true }); return () => { categoryRoots.value = value; }; },
+    recommended: async () => { const value = await fetchStorefrontRecommend(6); return () => { recommended.value = value; }; },
+    hot: async () => { const value = await fetchBestSellers(1, 6); return () => { hot.value = value.records || []; }; },
+    newest: async () => { const value = await fetchNewArrivals(1, 6); return () => { newest.value = value.records || []; }; },
+    flash: async () => { const value = await fetchFlashSale(4); return () => { flashItems.value = value; }; },
+    banners: async () => { const value = await fetchBanners(); return () => { promoBanners.value = value.filter(item => item.enabled !== false).slice(0, 2); }; }
+  };
+  await Promise.all((keys || Object.keys(modules)).map(async key => {
+    try {
+      const apply = await modules[key]();
+      if (!valid()) return;
+      apply();
+      failedModules.value = failedModules.value.filter(item => item !== key);
+    } catch {
+      if (valid() && !failedModules.value.includes(key)) failedModules.value.push(key);
+    }
+  }));
+  if (sequence === loadSequence) loading.value = false;
+}
 
-onUnmounted(() => {
+function stopRealtime() {
+  unsubscribeRealtime?.(); unsubscribeRealtime = undefined;
+  unsubscribeState?.(); unsubscribeState = undefined;
+  imSocket.stopIfUnused();
+}
+async function refreshUnread() {
+  if (!page.visible.value) return;
+  if (unreadLoading) { unreadRequested = true; return; }
+  const operation = page.capture();
+  const sequence = ++unreadSequence;
+  unreadLoading = true;
+  try {
+    await userStore.init();
+    if (!operation.isCurrent() || sequence !== unreadSequence) return;
+    if (!userStore.currentUser) {
+      unread.value = undefined;
+      unreadFailed.value = !!getAccessToken();
+      stopRealtime();
+      return;
+    }
+    if (!unsubscribeRealtime) {
+      unsubscribeRealtime = imSocket.subscribe(event => {
+        if (['NOTIFICATION', 'IM_MESSAGE', 'IM_READ', 'IM_RECALL'].includes(String((event as { type?: unknown })?.type || '').toUpperCase())) void refreshUnread();
+      });
+      unsubscribeState = imSocket.subscribeState(state => { if (state === 'ready') void refreshUnread(); });
+      imSocket.start().catch(() => undefined);
+    }
+    const counts = await Promise.all([fetchNotificationUnreadCount(), fetchImUnreadCount()]);
+    if (!operation.isCurrent() || sequence !== unreadSequence) return;
+    if (counts.some(value => value == null || String(value).trim() === '' || !Number.isSafeInteger(Number(value)) || Number(value) < 0)) throw new Error('未读数无效');
+    unread.value = counts.reduce((sum, count) => sum + Number(count), 0);
+    unreadFailed.value = false;
+  } catch {
+    if (operation.isCurrent() && sequence === unreadSequence) { unread.value = undefined; unreadFailed.value = true; }
+  } finally {
+    if (sequence === unreadSequence) {
+      unreadLoading = false;
+      if (unreadRequested && page.visible.value) { unreadRequested = false; void refreshUnread(); }
+    }
+  }
+}
+function tickCountdown() {
+  now.value = Date.now();
+  const expired = flashItems.value.filter(item => endTime(item.sessionEndTime) <= now.value)
+    .map(item => `${item.sessionId}:${item.sessionEndTime}`).sort().join('|');
+  if (expired && expired !== refreshedExpiry && !loading.value) {
+    refreshedExpiry = expired;
+    void load(['flash']);
+  }
+}
+function leavePage() {
+  loadSequence++; unreadSequence++;
+  loading.value = false; unreadLoading = false; unreadRequested = false;
   if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = undefined;
+  stopRealtime();
+}
+onShow(() => {
+  now.value = Date.now();
+  void load();
+  void refreshUnread();
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(tickCountdown, 1000);
 });
+onHide(leavePage);
+onUnload(leavePage);
+watch(() => userStore.realUserId, () => { if (page.visible.value) void refreshUnread(); });
 
 function goCategory(id?: string | number) {
   go(`/pages/product/list${id ? `?categoryId=${encodeURIComponent(String(id))}` : ''}`);
@@ -125,7 +214,7 @@ function goBanner(path?: string) {
       </view>
       <view class="message-entry yb-pressable" @click="go('/pages/message/index')">
         <wd-icon name="chat" size="48rpx" />
-        <view class="notice-dot" />
+        <view v-if="unread !== undefined && unread > 0" class="notice-dot" />
       </view>
     </view>
 
@@ -141,7 +230,8 @@ function goBanner(path?: string) {
       </view>
     </view>
 
-    <view v-if="loadFailed" class="data-notice">部分首页内容加载失败，重新进入页面后可再次加载。</view>
+    <view v-if="loadFailed" class="data-notice" @click="load([...failedModules])">{{ loading ? '正在重试失败内容…' : '部分首页内容加载失败，点击重试' }}</view>
+    <view v-if="unreadFailed" class="data-notice" @click="refreshUnread">消息未读状态暂不可用，点击重试；仍可进入消息中心。</view>
 
     <view
       v-if="visibleCategories.length"
@@ -161,15 +251,15 @@ function goBanner(path?: string) {
       </view>
     </view>
 
-    <view v-if="flash.length" class="section flash-section">
+    <view v-if="flashItems.length" class="section flash-section">
       <view class="section-head">
         <view class="section-title-wrap">
           <text class="section-title">限时秒杀</text>
-          <view class="countdown"><text>距结束</text><text class="timer">{{ countdown }}</text></view>
+          <view class="countdown"><text v-if="flash.length">距结束</text><text class="timer">{{ countdown }}</text></view>
         </view>
         <view class="section-more" @click="goSearch"><text>查看更多</text><wd-icon name="arrow-right" size="28rpx" /></view>
       </view>
-      <scroll-view scroll-x class="flash-scroll" :show-scrollbar="false">
+      <scroll-view v-if="flash.length" scroll-x class="flash-scroll" :show-scrollbar="false">
         <view class="flash-list">
           <view v-for="item in flash" :key="String(item.id)" class="flash-product">
             <ProductCard :product="item" />

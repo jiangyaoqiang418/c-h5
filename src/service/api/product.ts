@@ -1,14 +1,23 @@
 import { realOrderRequest, realOrderUpload } from '../request';
 
+/** 列表与详情共用既有状态能力；最终权限及未完结订单限制仍由服务端校验。 */
+export function buyerProductActions(product: Api.RealProduct.ProductDTO | undefined, userId: string | undefined) {
+  const owned = !!product && !!userId && String(product.sellerId) === userId;
+  return {
+    shelf: owned && (product?.status === 'ON_SALE' || product?.status === 'OFF_SHELF'),
+    remove: owned && !!product && ['REVIEWING', 'REJECTED', 'OFF_SHELF', 'FROZEN'].includes(product.status)
+  };
+}
+
 export function fetchMyProducts(query: Api.RealProduct.ProductPageQuery = {}) {
-  return realOrderRequest<Api.RealProduct.ProductPage, Api.RealProduct.ProductPageQuery>({
+  return realOrderRequest<Api.RealProduct.ProductPage, Omit<Api.RealProduct.ProductPageQuery, 'status'> & { status?: Api.RealProduct.ProductStatus }>({
     url: '/products/my/page',
     method: 'POST',
     data: {
       pageNo: query.pageNo || 1,
       pageSize: query.pageSize || 50,
       keyword: query.keyword,
-      status: query.status,
+      status: query.status === 'PENDING' ? 'REVIEWING' : query.status,
       categoryId: query.categoryId
     }
   });

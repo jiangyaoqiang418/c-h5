@@ -4,6 +4,7 @@ import { enums } from '@shared';
 import type { BucketKey } from '@shared/enums/wallet';
 import { useUserStore } from './user';
 import { fetchWalletOverview } from '@/service/api/wallet';
+import { getAccessToken, onSessionChanged } from '@/service/request/token';
 
 export interface BucketView {
   key: BucketKey;
@@ -21,20 +22,24 @@ export const useWalletStore = defineStore('bw-wallet', () => {
   const account = ref<Api.Wallet.InternalAccount | undefined>();
   const loading = ref(false);
   const lastFetchedAt = ref<number>(0);
+  let sequence = 0;
 
   async function fetchWallet(_legacyUserId?: number) {
     const userStore = useUserStore();
-    if (!userStore.realUserId) return;
+    if (!userStore.realUserId) { clear(); return; }
+    const token = getAccessToken();
+    const requestSequence = ++sequence;
     loading.value = true;
     try {
       const result = await fetchWalletOverview();
+      if (token !== getAccessToken() || sequence !== requestSequence) return;
       summary.value = result.summary;
       buyerWallet.value = undefined;
       totalAssets.value = result.total;
       account.value = result.account;
       lastFetchedAt.value = Date.now();
     } finally {
-      loading.value = false;
+      if (sequence === requestSequence) loading.value = false;
     }
   }
 
@@ -44,12 +49,15 @@ export const useWalletStore = defineStore('bw-wallet', () => {
   }
 
   function clear() {
+    sequence++;
+    loading.value = false;
     summary.value = undefined;
     buyerWallet.value = undefined;
     totalAssets.value = '0';
     account.value = undefined;
     lastFetchedAt.value = 0;
   }
+  onSessionChanged(clear);
 
   const bucketsArray = computed<BucketView[]>(() => {
     if (!account.value) return [];

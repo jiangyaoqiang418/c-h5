@@ -1,5 +1,6 @@
-import { clearAccessToken, realUserRequest, setAccessToken } from '../request';
-import { fetchPointAccount, type PointAccount } from './point';
+import { clearAccessToken, getAccessToken, realUserRequest, setAccessToken } from '../request';
+
+export type CurrentUser = Omit<Api.User.UserRecord, 'points' | 'vipLevel'> & { points?: number };
 
 export interface LoginParams {
   email: string;
@@ -33,9 +34,8 @@ function normalizeKycStatus(status?: string): Api.User.KycStatus {
   return 'none';
 }
 
-function toUserRecord(profile: CurrentUserResponse, account: PointAccount): Api.User.UserRecord {
+function toUserRecord(profile: CurrentUserResponse): CurrentUser {
   const isBuyer = profile.roles?.some(role => role.toUpperCase() === 'BUYER') || false;
-  const roleInfo = isBuyer ? account.buyer : account.customer;
 
   return {
     // `id` 仅保留给尚未迁移的 Mock 页面兼容使用；真实业务 ID 只能使用 remoteId。
@@ -48,35 +48,31 @@ function toUserRecord(profile: CurrentUserResponse, account: PointAccount): Api.
     isBuyer,
     kycStatus: normalizeKycStatus(profile.kycStatus),
     status: '1',
-    points: Number(account.points ?? profile.points ?? 0),
-    vipLevel: roleInfo?.level === 'VIP1' || roleInfo?.level === 'VIP2' ? roleInfo.level : 'VIP0',
+    points: profile.points == null ? undefined : Number(profile.points),
     tagIds: [],
     registeredAt: ''
   };
 }
 
-export async function fetchCurrentUser(): Promise<Api.User.UserRecord> {
-  const [profile, account] = await Promise.all([
-    realUserRequest<CurrentUserResponse>({ url: '/auth/me' }),
-    fetchPointAccount()
-  ]);
-  return toUserRecord(profile, account);
+export async function fetchCurrentUser(): Promise<CurrentUser> {
+  // 基础身份不依赖积分/VIP服务；各业务页面独立读取自己的账户数据。
+  const profile = await realUserRequest<CurrentUserResponse>({ url: '/auth/me' });
+  return toUserRecord(profile);
 }
 
-export async function login(params: LoginParams): Promise<Api.User.UserRecord> {
+export async function login(params: LoginParams, accept: () => boolean = () => true): Promise<{ profile: CurrentUser; token: string }> {
+  const previousToken = getAccessToken();
   const loginResult = await realUserRequest<LoginResponse, LoginParams>({
     url: '/auth/login',
     method: 'POST',
     data: params,
     requireToken: false
   });
+  if (!accept() || previousToken !== getAccessToken()) throw new Error('登录操作已失效，请重新登录');
   setAccessToken(loginResult.token);
-  try {
-    return await fetchCurrentUser();
-  } catch (error) {
-    clearAccessToken();
-    throw error;
-  }
+  // 登录后的资料请求断网不等于凭据失效，真正的 401 由请求层统一处理。
+  const profile = await fetchCurrentUser();
+  return { profile, token: loginResult.token };
 }
 
 export function logoutLocal(): void {

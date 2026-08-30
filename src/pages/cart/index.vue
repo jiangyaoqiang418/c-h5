@@ -1,40 +1,84 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { onHide, onShow, onUnload } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt } from '@shared/utils/currency';
-import { go, requireLogin } from '@/utils/navigate';
+import { go, useNavigationGuards } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useCartStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
+const { requireLogin } = useNavigationGuards();
+
 const cart = useCartStore();
 const items = computed(() => cart.enrichedItems);
+const openingCheckout = ref(false);
+let pageVersion = 0;
+let visible = true;
+onShow(() => { visible = true; pageVersion++; cart.init(); openingCheckout.value = false; });
+onHide(() => { visible = false; pageVersion++; });
+onUnload(() => { visible = false; pageVersion++; });
 
 function setAll(v: boolean) {
   cart.setAllSelected(v);
 }
 
 function remove(key: string) {
+  const scope = cart.scope;
+  const version = pageVersion;
   uni.showModal({
     title: '从购物车移除？',
-    success: r => r.confirm && cart.remove(key)
+    success: r => r.confirm && visible && version === pageVersion && scope === cart.scope && cart.remove(key)
   });
 }
 
+async function restoreLegacy() {
+  const scope = cart.scope;
+  const version = pageVersion;
+  try {
+    const result = await uni.showModal({
+      title: '恢复旧版购物车？',
+      content: `旧版数据未记录账号归属。确认这些商品属于当前账号后再恢复：\n${cart.legacyItems.map(item => `${item.snapshot?.title || '商品'} ×${item.qty}`).join('\n')}\n同款保留当前购物车数量，新增商品默认不勾选。`,
+      confirmText: '恢复到当前账号'
+    });
+    if (!result.confirm || !visible || version !== pageVersion) return;
+    cart.restoreLegacy(scope);
+  }
+  catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '恢复失败，原数据已保留', icon: 'none' }); }
+}
+
 async function goCheckout() {
+  if (openingCheckout.value || !visible) return;
   if (cart.selectedQty === 0) {
     uni.showToast({ title: '请先勾选商品', icon: 'none' });
     return;
   }
-  if (cart.selectedItems.some(item => item.source !== 'real')) {
+  const selected = items.value.filter(item => item.selected);
+  if (selected.some(item => !item.available || !Number.isSafeInteger(item.qty) || item.qty < 1 || item.qty > (item.product?.stock ?? 0))) {
+    uni.showToast({ title: '已选商品含失效或库存不足项，请调整后结算', icon: 'none' });
+    return;
+  }
+  if (selected.some(item => item.source !== 'real')) {
     uni.showToast({ title: '请仅选择真实商品后结算', icon: 'none' });
     return;
   }
-  if (await requireLogin('/pages/cart/index')) go('/pages/checkout/index');
+  openingCheckout.value = true;
+  const version = pageVersion;
+  const scope = cart.scope;
+  try {
+    const guestTransferId = cart.createGuestTransfer();
+    const url = `/pages/checkout/index${guestTransferId ? `?guestTransferId=${encodeURIComponent(guestTransferId)}` : ''}`;
+    if (await requireLogin(url) && visible && version === pageVersion && scope === cart.scope) await uni.navigateTo({ url });
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '无法进入结算，请重试', icon: 'none' });
+  } finally {
+    if (version === pageVersion) openingCheckout.value = false;
+  }
 }
 </script>
 
 <template>
   <view class="cart-page yb-page yb-page--full-bleed h5-tab-page" :class="{ 'has-items': items.length > 0 }">
+    <wd-button v-if="cart.legacyAvailable" block plain @click="restoreLegacy">发现旧版购物车，确认归属后恢复</wd-button>
     <template v-if="items.length">
       <view class="list">
         <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">

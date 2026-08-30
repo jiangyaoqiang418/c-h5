@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app';
+import { usePrivatePagedList } from '@/utils/private-paged-list';
 import { fetchWithdrawPage } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 
-const list = ref<Api.RealWallet.WithdrawVO[]>([]);
-const loading = ref(false);
-const loadFailed = ref(false);
-const pageNo = ref(1);
-const total = ref(0);
-const pageSize = 50;
-let loadToken = 0;
 const userStore = useUserStore();
+const { list, loading, loadFailed, hasMore, load, retry, login, canOpen } = usePrivatePagedList<Api.RealWallet.WithdrawVO>({
+  url: '/pages/wallet/withdraw-list',
+  key: item => item.id,
+  fetch: (pageNo, pageSize) => fetchWithdrawPage({ pageNo, pageSize })
+});
+function open(item: Api.RealWallet.WithdrawVO) {
+  if (canOpen(item)) go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(item.id))}`);
+}
 
 function statusType(status: Api.RealWallet.WithdrawStatus): 'success' | 'warning' | 'danger' {
   if (status === 'SUCCESS') return 'success';
@@ -28,41 +28,6 @@ function formatTime(value?: string | number): string {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
-async function load(reset = true) {
-  if (loading.value && !reset) return;
-  if (reset) loadFailed.value = false;
-  const targetPage = reset ? 1 : pageNo.value + 1;
-  const token = ++loadToken;
-  loading.value = true;
-  try {
-    await userStore.init();
-    if (!userStore.currentUser) {
-      list.value = [];
-      return;
-    }
-    const page = await fetchWithdrawPage({ pageNo: targetPage, pageSize });
-    if (token !== loadToken) return;
-    const records = page.records || [];
-    list.value = reset ? records : list.value.concat(records);
-    pageNo.value = page.pageNo || targetPage;
-    total.value = page.total;
-  } catch (error) {
-    if (token !== loadToken) return;
-    if (!list.value.length) loadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '提现记录加载失败', icon: 'none' });
-  } finally {
-    if (token === loadToken) {
-      loading.value = false;
-      uni.stopPullDownRefresh();
-    }
-  }
-}
-
-onShow(() => load());
-onPullDownRefresh(() => load());
-onReachBottom(() => {
-  if (list.value.length < total.value) load(false);
-});
 </script>
 
 <template>
@@ -72,7 +37,7 @@ onReachBottom(() => {
         v-for="item in list"
         :key="String(item.id)"
         class="record-card"
-        @click="go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(item.id))}`)"
+        @click="open(item)"
       >
         <view class="head"><text class="chain">USDT-{{ item.chain }}</text><wd-tag round :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
         <text class="amount">- U {{ formatAmount(item.amount) }}</text>
@@ -81,7 +46,10 @@ onReachBottom(() => {
       </view>
     </view>
     <EmptyState v-else-if="loadFailed" title="提现记录加载失败" description="请稍后重试" />
+    <EmptyState v-else-if="!loading && !userStore.currentUser" title="请先登录查看提现记录" action-text="登录" @action="login" />
     <EmptyState v-else-if="!loading" title="暂无提现记录" action-text="发起提现" @action="go('/pages/wallet/withdraw')" />
+    <wd-button v-if="loadFailed" block plain :loading="loading" @click="retry">读取失败，点击重试{{ list.length ? '（当前为上次记录）' : '' }}</wd-button>
+    <wd-button v-else-if="userStore.currentUser && hasMore" block plain :loading="loading" @click="load(false)">加载更多</wd-button>
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载提现记录</text></view>
   </view>
 </template>

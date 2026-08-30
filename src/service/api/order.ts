@@ -29,9 +29,17 @@ export function toOrderView(
   return {
     id: order.orderId,
     code: order.orderNo || order.orderGroupNo || String(order.orderId),
+    orderNo: order.orderNo,
     orderGroupNo: order.orderGroupNo,
     rawStatus: order.status,
     status: DISPLAY_STATUS[order.status],
+    customerId: order.customerId,
+    sellerId: order.sellerId,
+    quantity: order.quantity,
+    goodsAmount: order.unitPrice != null && order.quantity != null
+      ? (Number(order.unitPrice) * order.quantity).toFixed(2)
+      : undefined,
+    originalAmount: order.originalAmount,
     productId: order.productId,
     productTitle: order.productTitle || '商品信息待补充',
     productCover: order.productImage,
@@ -42,7 +50,7 @@ export function toOrderView(
     price: order.unitPrice ?? order.originalAmount ?? order.totalAmount ?? 0,
     shippingFee: order.shippingFee ?? 0,
     tax: order.taxFee ?? 0,
-    totalAmount: order.totalAmount ?? 0,
+    totalAmount: order.totalAmount ?? '',
     shippingAddress: joinAddress(order),
     receiverName: order.receiverName || '—',
     receiverPhone: order.receiverPhone || '—',
@@ -75,6 +83,32 @@ export async function fetchBoughtOrders(query: Api.RealOrder.OrderPageQuery = {}
 export async function fetchSoldOrders(query: Api.RealOrder.OrderPageQuery = {}) {
   const page = await fetchOrderPage('sold', query);
   return { ...page, records: page.records.map(order => toOrderView(order, 'sold')) };
+}
+
+/** 当前契约没有订单组详情查询；必须读完顾客待付款分页，不能仅支付当前页面可见的部分。 */
+export async function fetchPendingOrderGroup(orderGroupNo: string, customerId: string, stillActive: () => boolean = () => true) {
+  const orders: Api.RealOrder.OrderView[] = [];
+  const seen = new Set<string>();
+  for (let pageNo = 1; ; pageNo++) {
+    if (!stillActive()) throw new Error('付款页面或账号已变化');
+    const page = await fetchBoughtOrders({ pageNo, pageSize: 50, status: 'CREATED' });
+    if (!stillActive()) throw new Error('付款页面或账号已变化');
+    const total = Number(page.total);
+    if (!Array.isArray(page.records) || !['number', 'string'].includes(typeof page.total) || String(page.total).trim() === ''
+      || !Number.isSafeInteger(total) || total < 0) throw new Error('订单总数缺失，暂不能确认付款范围');
+    for (const order of page.records) {
+      if (!(typeof order.id === 'string' ? !!order.id.trim() : typeof order.id === 'number' && Number.isSafeInteger(order.id))) throw new Error('订单 ID 无效，暂不能确认付款范围');
+      const id = String(order.id);
+      if (seen.has(id)) throw new Error('订单列表发生变化，请重新确认付款');
+      seen.add(id);
+      if (order.orderGroupNo === orderGroupNo) {
+        if (orderRole(order, customerId) !== 'customer') throw new Error('订单归属无法确认，暂不能付款');
+        orders.push(order);
+      }
+    }
+    if (seen.size >= total) return orders;
+    if (!page.records.length) throw new Error('订单列表不完整，请刷新后重试');
+  }
 }
 
 /**
@@ -111,12 +145,19 @@ export function countSoldOrdersByStatus() {
   return countOrdersByStatus('sold');
 }
 
-export async function fetchOrderDetail(id: Api.RealOrder.LongId, scope: 'bought' | 'sold' = 'bought') {
+export function orderRole(order: Pick<Api.RealOrder.OrderView, 'customerId' | 'sellerId'>, userId?: string): 'customer' | 'seller' | undefined {
+  if (!userId) return;
+  if (order.customerId != null && String(order.customerId) === userId) return 'customer';
+  if (order.sellerId != null && String(order.sellerId) === userId) return 'seller';
+}
+
+export async function fetchOrderDetail(id: Api.RealOrder.LongId, scope: 'bought' | 'sold' = 'bought', viewerId?: string) {
   const order = await realOrderRequest<Api.RealOrder.OrderDTO>({
     url: '/orders/detail',
     params: { id }
   });
-  return toOrderView(order, scope);
+  const role = orderRole(order, viewerId);
+  return toOrderView(order, role ? (role === 'seller' ? 'sold' : 'bought') : scope);
 }
 
 /** 商品、地址和订单组号均保持服务端原值，页面层不转换 Long ID。 */

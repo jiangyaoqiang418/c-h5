@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { onHide, onShow } from '@dcloudio/uni-app';
+import { usePageOperation } from '@/utils/page-operation';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { fetchStorefrontProducts } from '@/service/api/product';
 import ProductCard from '@/components/product/product-card.vue';
@@ -14,10 +16,15 @@ const loading = ref(false);
 const treeLoading = ref(true);
 const treeLoadFailed = ref(false);
 const productsLoadFailed = ref(false);
-const current = ref(1);
+const current = ref(0);
 const total = ref(0);
 const pageSize = 20;
 let loadSequence = 0;
+let treeSequence = 0;
+let retryReset = true;
+let loadedCategoryId: string | undefined;
+const page = usePageOperation(() => {});
+onHide(() => { loadSequence++; treeSequence++; loading.value = false; treeLoading.value = false; });
 
 const activeRootNode = computed(() => roots.value.find(item => item.id === activeRoot.value));
 const activeCategory = computed(() => findCategory(roots.value, activeCategoryId.value));
@@ -55,30 +62,37 @@ function activateCategory(id: string) {
 }
 
 async function load(id?: string, reset = false) {
-  if (!id || (loading.value && !reset)) return;
-  if (reset) {
-    productsLoadFailed.value = false;
-    current.value = 1;
+  if (!page.visible.value || !id || (loading.value && !reset)) return;
+  if (id !== loadedCategoryId) {
+    loadedCategoryId = id;
+    current.value = 0;
     products.value = [];
     total.value = 0;
   }
   const sequence = ++loadSequence;
-  const requestedPage = current.value;
+  const operation = page.capture();
+  const requestedPage = reset ? 1 : current.value + 1;
+  retryReset = reset;
   loading.value = true;
+  productsLoadFailed.value = false;
   try {
     const response = await fetchStorefrontProducts({
       categoryId: id,
-      pageNo: current.value,
+      pageNo: requestedPage,
       pageSize,
       sortBy: 'DEFAULT'
     });
-    if (sequence !== loadSequence) return;
-    products.value = reset ? response.records : products.value.concat(response.records);
-    total.value = response.total;
+    if (sequence !== loadSequence || !operation.isCurrent()) return;
+    const count = Number(response.total);
+    if (!Number.isFinite(count) || count < 0 || (!response.records.length && (requestedPage - 1) * pageSize < count)) throw new Error('分类分页数据不完整，请重试');
+    const records = new Map((reset ? [] : products.value).map(item => [String(item.id), item]));
+    response.records.forEach(item => records.set(String(item.id), item));
+    products.value = [...records.values()];
+    current.value = requestedPage;
+    total.value = count;
   } catch (error) {
-    if (sequence === loadSequence) {
-      if (!reset && current.value === requestedPage) current.value = Math.max(1, requestedPage - 1);
-      if (!products.value.length) productsLoadFailed.value = true;
+    if (sequence === loadSequence && operation.isCurrent()) {
+      productsLoadFailed.value = true;
       uni.showToast({ title: error instanceof Error ? error.message : '分类商品加载失败', icon: 'none' });
     }
   } finally {
@@ -87,24 +101,38 @@ async function load(id?: string, reset = false) {
 }
 
 function loadMore() {
-  if (loading.value || products.value.length >= total.value) return;
-  current.value += 1;
+  if (loading.value || productsLoadFailed.value || current.value * pageSize >= total.value) return;
   load(activeCategoryId.value);
 }
 
-onMounted(async () => {
+async function loadTree() {
+  if (!page.visible.value) return;
+  const operation = page.capture();
+  const sequence = ++treeSequence;
   treeLoading.value = true;
   treeLoadFailed.value = false;
   try {
-    roots.value = await fetchCategoryTree({ onlyEnabled: true });
-    const firstRootId = roots.value[0]?.id;
-    if (firstRootId) activateRoot(firstRootId);
+    const result = await fetchCategoryTree({ onlyEnabled: true });
+    if (sequence !== treeSequence || !operation.isCurrent()) return;
+    roots.value = result;
+    const root = roots.value.find(item => item.id === activeRoot.value) || roots.value[0];
+    if (root) {
+      activeRoot.value = root.id;
+      if (!findCategory([root], activeCategoryId.value)) activeCategoryId.value = root.id;
+      else await load(activeCategoryId.value, true);
+    } else { activeRoot.value = undefined; activeCategoryId.value = undefined; products.value = []; total.value = 0; }
   } catch (error) {
-    treeLoadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
+    if (sequence === treeSequence && operation.isCurrent()) {
+      treeLoadFailed.value = true;
+      uni.showToast({ title: error instanceof Error ? error.message : '分类加载失败', icon: 'none' });
+    }
   } finally {
-    treeLoading.value = false;
+    if (sequence === treeSequence) treeLoading.value = false;
   }
+}
+onShow(() => {
+  if (!roots.value.length || treeLoadFailed.value) return loadTree();
+  return load(activeCategoryId.value, true);
 });
 
 watch(activeCategoryId, id => load(id, true));
@@ -113,7 +141,7 @@ watch(activeCategoryId, id => load(id, true));
 <template>
   <view class="category-page h5-tab-page">
     <view v-if="treeLoading" class="category-loading"><wd-loading size="44rpx" /><text>正在加载分类</text></view>
-    <EmptyState v-else-if="treeLoadFailed" title="分类加载失败" description="请稍后重试" />
+    <EmptyState v-else-if="treeLoadFailed" title="分类加载失败" description="请检查网络后重试" action-text="重新加载" @action="loadTree" />
     <EmptyState v-else-if="!roots.length" title="暂无可用分类" description="请稍后再来" />
     <view v-else class="category-layout">
       <scroll-view v-if="roots.length" scroll-y class="category-sidebar">
@@ -168,8 +196,9 @@ watch(activeCategoryId, id => load(id, true));
           <ProductCard v-for="product in products" :key="String(product.id)" :product="product" />
         </view>
         <view v-else-if="loading" class="category-loading"><wd-loading size="44rpx" /><text>正在加载商品</text></view>
-        <EmptyState v-else-if="productsLoadFailed" title="分类商品加载失败" description="请稍后重试" />
+        <EmptyState v-else-if="productsLoadFailed" title="分类商品加载失败" description="请检查网络后重试" />
         <EmptyState v-else title="该分类暂无商品" />
+        <wd-button v-if="productsLoadFailed" block plain :loading="loading" @click="load(activeCategoryId, retryReset)">加载失败，点击重试</wd-button>
       </scroll-view>
     </view>
   </view>

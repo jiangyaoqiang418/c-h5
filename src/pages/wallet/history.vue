@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app';
+import { usePrivatePagedList } from '@/utils/private-paged-list';
 import TxnRow from '@/components/wallet/txn-row.vue';
 import TxnDetailPopup from '@/components/wallet/txn-detail-popup.vue';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -8,48 +8,17 @@ import { useUserStore } from '@/stores';
 import { fetchWalletLedger, type WalletTxnView } from '@/service/api/wallet';
 
 const userStore = useUserStore();
-const list = ref<WalletTxnView[]>([]);
-const loading = ref(false);
-const loadFailed = ref(false);
-const pageNo = ref(1);
-const total = ref(0);
-const pageSize = 50;
 const popupOpen = ref(false);
 const drawerTxn = ref<WalletTxnView>();
-let loadToken = 0;
-
-async function load(reset = true) {
-  if (loading.value && !reset) return;
-  if (reset) loadFailed.value = false;
-  await userStore.init();
-  if (!userStore.currentUser) return;
-  const targetPage = reset ? 1 : pageNo.value + 1;
-  const token = ++loadToken;
-  loading.value = true;
-  try {
-    const r = await fetchWalletLedger({ current: targetPage, size: pageSize });
-    if (token !== loadToken) return;
-    list.value = reset ? r.records : list.value.concat(r.records);
-    pageNo.value = r.current || targetPage;
-    total.value = r.total;
-  } catch (error) {
-    if (token !== loadToken) return;
-    if (!list.value.length) loadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '流水加载失败', icon: 'none' });
-  } finally {
-    if (token === loadToken) {
-      loading.value = false;
-      uni.stopPullDownRefresh();
-    }
-  }
-}
-onShow(() => load());
-onPullDownRefresh(() => load());
-onReachBottom(() => {
-  if (list.value.length < total.value) load(false);
+const { list, loading, loadFailed, hasMore, load, retry, login, canOpen } = usePrivatePagedList<WalletTxnView>({
+  url: '/pages/wallet/history',
+  key: item => item.id,
+  fetch: (current, size) => fetchWalletLedger({ current, size }),
+  resetView: () => { popupOpen.value = false; drawerTxn.value = undefined; }
 });
 
 function openTxn(t: WalletTxnView) {
+  if (!canOpen(t)) return;
   drawerTxn.value = t;
   popupOpen.value = true;
 }
@@ -61,8 +30,11 @@ function openTxn(t: WalletTxnView) {
       <TxnRow v-for="t in list" :key="t.id" :txn="t" @detail="openTxn" />
     </view>
     <EmptyState v-else-if="loadFailed" title="流水加载失败" description="请稍后重试" />
+    <EmptyState v-else-if="!loading && !userStore.currentUser" title="请先登录查看流水" action-text="登录" @action="login" />
     <EmptyState v-else-if="!loading" title="暂无流水" />
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载资金流水</text></view>
+    <wd-button v-if="loadFailed" block plain :loading="loading" @click="retry">读取失败，点击重试{{ list.length ? '（当前为上次记录）' : '' }}</wd-button>
+    <wd-button v-else-if="userStore.currentUser && hasMore" block plain :loading="loading" @click="load(false)">加载更多</wd-button>
     <TxnDetailPopup v-model:visible="popupOpen" :txn="drawerTxn" />
   </view>
 </template>

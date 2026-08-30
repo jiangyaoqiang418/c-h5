@@ -1,19 +1,33 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { fetchWithdrawDetail } from '@/service/api/wallet';
 import { formatAmount } from '@/utils/format-bridge';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { requireLogin } from '@/utils/navigate';
+import { useNavigationGuards } from '@/utils/navigate';
+import { usePageOperation } from '@/utils/page-operation';
+import { getAccessToken } from '@/service/request/token';
+
+const { requireLogin } = useNavigationGuards();
 
 const detail = ref<Api.RealWallet.WithdrawVO>();
 const loading = ref(true);
 const loadFailed = ref(false);
 const userStore = useUserStore();
+const id = ref('');
+let loadVersion = 0;
+const page = usePageOperation(() => {
+  loadVersion++;
+  detail.value = undefined;
+  loading.value = false;
+  loadFailed.value = false;
+});
 
 function copy(value?: string) {
-  if (value) uni.setClipboardData({ data: value, success: () => uni.showToast({ title: '已复制', icon: 'none' }) });
+  if (!value || !page.visible.value || !userStore.currentUser || loadFailed.value || loading.value) return;
+  const operation = page.capture();
+  uni.setClipboardData({ data: value, success: () => { if (operation.isCurrent()) uni.showToast({ title: '已复制', icon: 'none' }); } });
 }
 
 function formatTime(value?: string | number): string {
@@ -22,39 +36,35 @@ function formatTime(value?: string | number): string {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
-async function load(id: string) {
+async function load() {
+  if (!page.visible.value) return;
+  if (!id.value) { loading.value = false; return; }
+  const operation = page.capture();
+  const version = ++loadVersion;
+  const targetId = id.value;
+  const current = () => operation.isCurrent() && version === loadVersion && id.value === targetId;
   loading.value = true;
   loadFailed.value = false;
   try {
-    detail.value = await fetchWithdrawDetail(id);
+    const loggedIn = await requireLogin(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(targetId)}`);
+    if (!current()) return;
+    if (!loggedIn) { loadFailed.value = !!getAccessToken(); return; }
+    const result = await fetchWithdrawDetail(targetId);
+    if (!current()) return;
+    if (String(result.id) !== targetId) throw new Error('提现详情与请求记录不匹配，请重试');
+    detail.value = result;
   } catch (error) {
+    if (!current()) return;
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '提现详情加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (current()) loading.value = false;
   }
 }
 
-onLoad(async query => {
-  const id = String(query?.id || '');
-  if (!id) {
-    loading.value = false;
-    return;
-  }
-  try {
-    await userStore.init();
-    if (!userStore.currentUser) {
-      await requireLogin(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(id)}`);
-      loading.value = false;
-      return;
-    }
-    await load(id);
-  } catch (error) {
-    loadFailed.value = true;
-    loading.value = false;
-    uni.showToast({ title: error instanceof Error ? error.message : '提现详情加载失败', icon: 'none' });
-  }
-});
+onLoad(query => { id.value = typeof query?.id === 'string' ? query.id : ''; });
+onShow(load);
+onHide(() => { loadVersion++; loading.value = false; });
 </script>
 
 <template>
@@ -65,6 +75,8 @@ onLoad(async query => {
       <text class="chain">USDT-{{ detail.chain }}</text>
     </view>
     <view class="section">
+      <text v-if="loadFailed" class="block">刷新失败，暂时保留上次详情，请重试核对最新状态。</text>
+      <wd-button block plain :loading="loading" @click="load">刷新提现状态</wd-button>
       <view class="row"><text class="label">提现单 ID</text><text>{{ detail.id }}</text></view>
       <view v-if="detail.fee !== undefined" class="row"><text class="label">手续费</text><text>U {{ formatAmount(detail.fee) }}</text></view>
       <view v-if="detail.actualAmount !== undefined" class="row"><text class="label">实际到账</text><text>U {{ formatAmount(detail.actualAmount) }}</text></view>
@@ -84,7 +96,8 @@ onLoad(async query => {
     </view>
   </view>
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载提现详情</text></view>
-  <EmptyState v-else-if="loadFailed" title="提现详情加载失败" description="请稍后重试" />
+  <EmptyState v-else-if="loadFailed" title="提现详情加载失败" description="请稍后重试" action-text="重试" @action="load" />
+  <EmptyState v-else-if="id && !userStore.currentUser" title="请先登录查看提现详情" description="当前尚未读取账号提现记录" action-text="登录或重试" @action="load" />
   <EmptyState v-else title="提现记录不存在" description="请从提现记录列表重新进入" />
 </template>
 

@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { useSubmissionGuard } from '@/utils/submission-guard';
+import SubmissionWarning from '@/components/common/submission-warning.vue';
 import { formatAmount } from '@/utils/format-bridge';
 import { useUserStore, useWalletStore } from '@/stores';
 import { createWithdraw } from '@/service/api/wallet';
-import { go } from '@/utils/navigate';
+import { go, useNavigationGuards } from '@/utils/navigate';
+import { usePageOperation } from '@/utils/page-operation';
+
+const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
@@ -14,59 +20,94 @@ const form = reactive<{
   agreed: boolean;
 }>({ chain: 'TRON', toAddress: '', amount: 0, agreed: false });
 const submitting = ref(false);
-
-const available = computed(() => Number(walletStore.account?.available || 0));
-const canSubmit = computed(() =>
-  form.amount > 0 && form.toAddress.length > 0 && form.agreed && form.amount <= available.value
-);
-
-onMounted(async () => {
-  await userStore.init();
-  if (!userStore.currentUser) return;
-  try {
-    await walletStore.fetchWallet();
-  } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '钱包数据加载失败', icon: 'none' });
-  }
+const submittedId = ref<string | number>();
+const guard = useSubmissionGuard('withdraw', '/pages/wallet/withdraw-list');
+const { uncertain, running } = guard;
+const loading = ref(true);
+const loadFailed = ref(false);
+let loadSequence = 0;
+const page = usePageOperation(() => {
+  loadSequence++;
+  submitting.value = false;
+  submittedId.value = undefined;
+  loading.value = false;
+  loadFailed.value = true;
+  Object.assign(form, { chain: 'TRON', toAddress: '', amount: 0, agreed: false });
 });
 
-function confirmWithdraw() {
-  if (!canSubmit.value || submitting.value) return;
-  uni.showModal({
-    title: '确认转出',
-    content: `确认提交 ${form.amount} U 的提现申请？实际手续费及到账金额以后端处理结果为准。`,
-    confirmText: '确认转出',
-    success: async r => {
-      if (r.confirm) await doWithdraw();
-    }
-  });
-}
+const available = computed(() => {
+  if (!userStore.currentUser || walletStore.account?.available == null) return undefined;
+  const value = Number(walletStore.account.available);
+  return Number.isFinite(value) ? value : undefined;
+});
+const canSubmit = computed(() =>
+  !!userStore.currentUser && !loading.value && !loadFailed.value && !uncertain.value && submittedId.value == null && Number.isFinite(Number(form.amount)) && form.amount > 0
+  && (form.chain === 'TRON' ? /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(form.toAddress.trim()) : /^0x[0-9a-fA-F]{40}$/.test(form.toAddress.trim()))
+  && form.agreed && available.value !== undefined && form.amount <= available.value
+);
 
-async function doWithdraw() {
-  if (!userStore.currentUser || !canSubmit.value || submitting.value) return;
+async function load() {
+  if (!page.visible.value || submitting.value) return;
+  const operation = page.capture();
+  const sequence = ++loadSequence;
+  const valid = () => operation.isCurrent() && sequence === loadSequence;
+  loading.value = true;
+  loadFailed.value = false;
+  try {
+    await userStore.init();
+    if (!valid()) return;
+    if (!userStore.currentUser) { await requireLogin('/pages/wallet/withdraw'); return; }
+    guard.refresh();
+    await walletStore.fetchWallet();
+  } catch (error) {
+    if (!valid()) return;
+    loadFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '钱包数据加载失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession() && sequence === loadSequence) loading.value = false;
+  }
+}
+onShow(load);
+
+async function confirmWithdraw() {
+  if (!page.visible.value || !canSubmit.value || submitting.value || running.value) return;
+  const operation = page.capture();
+  const request = { amount: Number(form.amount), chain: form.chain, toAddress: form.toAddress.trim() };
   submitting.value = true;
   try {
-    const id = await createWithdraw({
-      amount: form.amount,
-      chain: form.chain,
-      toAddress: form.toAddress
+    const result = await uni.showModal({
+      title: '确认转出',
+      content: `链：${request.chain}\n收款地址：${request.toAddress}\n金额：${request.amount} U\n实际手续费及到账金额以后端处理结果为准。`,
+      confirmText: '确认转出'
     });
+    if (!result.confirm || !operation.isCurrent()) return;
+    if (!canSubmit.value || form.chain !== request.chain || form.toAddress.trim() !== request.toAddress || Number(form.amount) !== request.amount) {
+      uni.showToast({ title: '转出信息或余额已变化，请重新确认', icon: 'none' });
+      return;
+    }
+    const id = await guard.run(() => createWithdraw(request));
+    if (!operation.sameSession()) return;
+    submittedId.value = id;
+    if (!operation.isCurrent()) return;
     uni.showToast({ title: '申请已提交', icon: 'success' });
-    await walletStore.refetch();
-    setTimeout(() => go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(id))}`, true), 800);
+    go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(id))}`, true);
+    walletStore.refetch().catch(() => undefined);
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '提现申请失败', icon: 'none' });
+    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '提现申请失败', icon: 'none' });
   } finally {
-    submitting.value = false;
+    if (operation.sameSession()) submitting.value = false;
   }
 }
 </script>
 
 <template>
   <view class="withdraw-page yb-page">
+    <SubmissionWarning :pending="uncertain" :running="running" @review="guard.review" @acknowledge="guard.acknowledge" />
+    <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">钱包数据加载失败，点击重试</wd-button>
+    <wd-button v-if="submittedId != null" block plain @click="go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(submittedId))}`, true)">申请已提交，查看详情</wd-button>
     <view class="balance-card">
       <text class="lbl">可用余额</text>
-      <text class="amount">U {{ formatAmount(available.toFixed(2)) }}</text>
+      <text class="amount">U {{ available === undefined ? '—' : formatAmount(available.toFixed(2)) }}</text>
     </view>
 
     <view class="form-card">
@@ -90,7 +131,7 @@ async function doWithdraw() {
     <wd-button
       type="primary"
       block
-      :disabled="!canSubmit"
+      :disabled="!canSubmit || submitting || running"
       :loading="submitting"
       class="submit-btn"
       @click="confirmWithdraw"

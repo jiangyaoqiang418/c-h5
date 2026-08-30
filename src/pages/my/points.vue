@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { onReachBottom } from '@dcloudio/uni-app';
+import { computed, ref, watch } from 'vue';
+import { onHide, onReachBottom, onShow } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import { usePageOperation } from '@/utils/page-operation';
 import {
   fetchPointAppeals,
   fetchPointLedger,
@@ -30,22 +31,46 @@ let loadToken = 0;
 const appealPopup = ref(false);
 const appealLog = ref<PointLedgerView>();
 const appealReason = ref('');
+const submitting = ref(false);
+const pendingAppeals = ref<Record<string, string>>({});
+let appealOperation: ReturnType<ReturnType<typeof usePageOperation>['capture']> | undefined;
+const page = usePageOperation(() => {
+  loadToken++;
+  logs.value = [];
+  appeals.value = [];
+  logPageNo.value = 1;
+  appealPageNo.value = 1;
+  logTotal.value = 0;
+  appealTotal.value = 0;
+  loading.value = false;
+  loadFailed.value = false;
+  appealPopup.value = false;
+  appealLog.value = undefined;
+  appealReason.value = '';
+  appealOperation = undefined;
+  submitting.value = false;
+  pendingAppeals.value = {};
+});
+onHide(() => { appealPopup.value = false; appealOperation = undefined; });
 
-const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.balanceAfter ?? 0);
+const balance = computed(() => userStore.currentUser?.points ?? logs.value[0]?.balanceAfter ?? '—');
 
 async function load(reset = true) {
-  if (loading.value && !reset) return;
+  if (!page.visible.value || (loading.value && !reset)) return;
   if (reset) loadFailed.value = false;
   const tab = activeKey.value;
   const token = ++loadToken;
+  const operation = page.capture();
+  const valid = () => operation.isCurrent() && token === loadToken;
   loading.value = true;
   try {
     await userStore.init();
+    if (!valid()) return;
     if (!userStore.currentUser && tab !== 'rule') return;
     if (tab === 'log') {
       const targetPage = reset ? 1 : logPageNo.value + 1;
       const r = await fetchPointLedger({ pageNo: targetPage, pageSize });
-      if (token !== loadToken) return;
+      if (!valid()) return;
       logs.value = reset ? r.records : logs.value.concat(r.records);
       logPageNo.value = r.current || targetPage;
       logTotal.value = r.total;
@@ -56,22 +81,33 @@ async function load(reset = true) {
         pageSize,
         userId: userStore.realUserId
       });
-      if (token !== loadToken) return;
+      if (!valid()) return;
       appeals.value = reset ? r.records : appeals.value.concat(r.records);
+      for (const record of r.records) {
+        if (record.status === 'PENDING') continue;
+        for (const [ledgerId, appealId] of Object.entries(pendingAppeals.value)) {
+          if (appealId === String(record.id)) delete pendingAppeals.value[ledgerId];
+        }
+      }
       appealPageNo.value = r.current || targetPage;
       appealTotal.value = r.total;
     } else if (!rules.value.length) {
-      rules.value = await fetchPointRules();
+      const result = await fetchPointRules();
+      if (valid()) rules.value = result;
     }
   } catch (error) {
-    if (token !== loadToken) return;
+    if (!valid()) return;
     loadFailed.value = tab === 'log' ? !logs.value.length : tab === 'appeal' ? !appeals.value.length : !rules.value.length;
     uni.showToast({ title: error instanceof Error ? error.message : '积分数据加载失败', icon: 'none' });
   } finally {
-    if (token === loadToken) loading.value = false;
+    if (operation.sameSession() && token === loadToken) loading.value = false;
   }
 }
-onMounted(load);
+onShow(async () => {
+  const operation = page.capture();
+  try { await userStore.refreshProfile(); } catch { /* 仍读取流水；失败不改写已有资料。 */ }
+  if (operation.isCurrent()) await load();
+});
 watch(activeKey, () => load());
 onReachBottom(() => {
   if (activeKey.value === 'log' && logs.value.length < logTotal.value) load(false);
@@ -79,21 +115,35 @@ onReachBottom(() => {
 });
 
 function openAppeal(l: PointLedgerView) {
+  if (!page.visible.value || !userStore.currentUser || submitting.value || loading.value || loadFailed.value || !l.isAppealable || l.appealStatus === 'pending' || pendingAppeals.value[l.id] || !logs.value.includes(l)) return;
+  appealOperation = page.capture();
   appealLog.value = l;
   appealReason.value = '';
   appealPopup.value = true;
 }
+function viewAppeals() {
+  if (activeKey.value === 'appeal') void load();
+  else activeKey.value = 'appeal';
+}
 
 async function submitAppeal() {
-  if (!appealLog.value) return;
+  const operation = appealOperation;
+  if (!operation?.isCurrent() || !userStore.currentUser || !appealPopup.value || submitting.value || !appealLog.value || pendingAppeals.value[appealLog.value.id]) return;
   if (appealReason.value.trim().length < 5) return uni.showToast({ title: '理由 ≥ 5 字', icon: 'none' });
+  const request = { ledgerId: appealLog.value.id, reason: appealReason.value.trim() };
+  submitting.value = true;
   try {
-    await submitPointAppeal({ ledgerId: appealLog.value.id, reason: appealReason.value.trim() });
-    uni.showToast({ title: '已提交', icon: 'success' });
+    const id = await submitPointAppeal(request);
+    if (!operation.sameSession()) return;
+    pendingAppeals.value[request.ledgerId] = String(id);
     appealPopup.value = false;
+    if (!operation.isCurrent()) return;
+    uni.showToast({ title: '已提交', icon: 'success' });
     await load();
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '提交失败', icon: 'none' });
+    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '提交失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) submitting.value = false;
   }
 }
 
@@ -130,7 +180,8 @@ function formatDate(value?: string | number): string {
       </wd-tabs>
     </view>
 
-    <EmptyState v-if="loadFailed" title="积分数据加载失败" description="请稍后重试" />
+    <wd-button v-if="Object.keys(pendingAppeals).length" block plain @click="viewAppeals">申诉已提交，查看记录</wd-button>
+    <EmptyState v-if="loadFailed" title="积分数据加载失败" description="请重新加载后继续" action-text="重新加载" @action="load()" />
 
     <view v-else-if="activeKey === 'log'" class="list">
       <view v-if="logs.length">
@@ -141,8 +192,8 @@ function formatDate(value?: string | number): string {
           </view>
           <view class="log-right">
             <text class="log-change" :class="{ pos: l.change > 0, neg: l.change < 0 }">{{ l.change > 0 ? '+' : '' }}{{ l.change }}</text>
-            <text v-if="l.isAppealable && l.appealStatus !== 'pending'" class="appeal-btn yb-pressable" @click="openAppeal(l)">申诉</text>
-            <text v-else-if="l.appealStatus === 'pending'" class="appeal-tag yb-status-pill">申诉中</text>
+            <text v-if="l.isAppealable && l.appealStatus !== 'pending' && !pendingAppeals[l.id]" class="appeal-btn yb-pressable" @click="openAppeal(l)">申诉</text>
+            <text v-else-if="l.appealStatus === 'pending' || pendingAppeals[l.id]" class="appeal-tag yb-status-pill">申诉中</text>
           </view>
         </view>
       </view>
@@ -189,7 +240,7 @@ function formatDate(value?: string | number): string {
         <text class="popup-title">申诉积分扣减</text>
         <text v-if="appealLog" class="popup-meta">{{ labelOf(appealLog.behavior) }} · {{ appealLog.change }}</text>
         <wd-textarea v-model="appealReason" placeholder="请说明申诉理由（≥ 5 字）" :max-length="200" />
-        <wd-button type="primary" block class="popup-btn" @click="submitAppeal">提交申诉</wd-button>
+        <wd-button type="primary" block class="popup-btn" :loading="submitting" :disabled="submitting" @click="submitAppeal">提交申诉</wd-button>
       </view>
     </wd-popup>
   </view>

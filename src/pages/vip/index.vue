@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import AudienceSegment from '@/components/common/audience-segment.vue';
+import { computed, ref } from 'vue';
+import { onHide, onShow } from '@dcloudio/uni-app';
+import { usePageOperation } from '@/utils/page-operation';
+import { getAccessToken } from '@/service/request/token';
 import VipBadge from '@/components/common/vip-badge.vue';
 import { fetchPointAccount, fetchVipConfigs, type PointAccount } from '@/service/api/point';
 import { useUserStore } from '@/stores';
@@ -9,33 +11,64 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 const userStore = useUserStore();
 const configs = ref<Api.Vip.LevelConfig[]>([]);
 const pointAccount = ref<PointAccount>();
+const loading = ref(false);
+const loadFailed = ref(false);
+let loadSequence = 0;
+const page = usePageOperation(() => {
+  loadSequence++;
+  pointAccount.value = undefined;
+  loading.value = false;
+  loadFailed.value = false;
+});
 
-const audience = computed<Api.Vip.Audience>(() => (
+// 权益预览不是业务身份切换，非买手也能查看买手权益。
+const audience = ref<Api.Vip.Audience>(
   userStore.isBuyerActive ? 'buyer' : 'customer'
-));
+);
 const activeVip = computed(() => (
   audience.value === 'buyer' ? pointAccount.value?.buyer : pointAccount.value?.customer
 ));
-const vipLevel = computed<Api.User.VipLevel>(() => {
+const vipLevel = computed<Api.User.VipLevel | undefined>(() => {
   const level = activeVip.value?.level;
-  return level === 'VIP1' || level === 'VIP2' ? level : 'VIP0';
+  return level === 'VIP0' || level === 'VIP1' || level === 'VIP2' ? level : undefined;
 });
-const points = computed(() => Number(pointAccount.value?.points ?? userStore.currentUser?.points ?? 0));
+const points = computed(() => {
+  const value = pointAccount.value?.points ?? userStore.currentUser?.points;
+  return value == null || String(value).trim() === '' || !Number.isFinite(Number(value)) ? undefined : Number(value);
+});
 const pointsToNext = computed(() => {
   const nextThreshold = Number(activeVip.value?.nextThreshold);
-  if (!Number.isFinite(nextThreshold) || nextThreshold <= points.value) return undefined;
+  if (points.value == null || !Number.isFinite(nextThreshold) || nextThreshold <= points.value) return undefined;
   return nextThreshold - points.value;
 });
 
-onMounted(async () => {
-  await userStore.init();
+async function load() {
+  if (!page.visible.value || loading.value) return;
+  const operation = page.capture();
+  const sequence = ++loadSequence;
+  loading.value = true;
+  loadFailed.value = false;
   try {
-    configs.value = await fetchVipConfigs();
-    if (userStore.currentUser) pointAccount.value = await fetchPointAccount();
+    const configTask = fetchVipConfigs();
+    const accountTask = (async () => {
+      await userStore.init();
+      if (!operation.isCurrent()) return undefined;
+      if (!userStore.currentUser && getAccessToken()) throw new Error('账户资料暂未加载成功');
+      return userStore.currentUser ? fetchPointAccount() : undefined;
+    })();
+    const [catalog, account] = await Promise.allSettled([configTask, accountTask]);
+    if (!operation.isCurrent() || sequence !== loadSequence) return;
+    if (catalog.status === 'fulfilled') configs.value = catalog.value;
+    if (account.status === 'fulfilled') pointAccount.value = account.value;
+    loadFailed.value = catalog.status === 'rejected' || account.status === 'rejected';
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : 'VIP 数据加载失败', icon: 'none' });
+    if (operation.isCurrent()) loadFailed.value = true;
+  } finally {
+    if (sequence === loadSequence) loading.value = false;
   }
-});
+}
+onShow(load);
+onHide(() => { loadSequence++; loading.value = false; });
 
 const audienceConfigs = computed(() => configs.value.filter(c => c.audience === audience.value));
 
@@ -64,17 +97,19 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.vip})` }">
       <text class="hero-title">VIP 特权中心</text>
       <view class="my-card">
-        <VipBadge v-if="pointAccount" :level="vipLevel" />
+        <VipBadge v-if="vipLevel" :level="vipLevel" />
         <view class="my-info">
-          <text class="my-points">{{ points }} 积分</text>
+          <text class="my-points">{{ points == null ? '—' : points }} 积分</text>
           <text v-if="pointsToNext !== undefined" class="my-next">距下一级还差 {{ pointsToNext }} 积分</text>
         </view>
       </view>
     </view>
 
     <view class="segment-wrap">
-      <AudienceSegment />
+      <wd-tabs v-model="audience"><wd-tab name="customer" title="顾客权益" /><wd-tab name="buyer" title="买手权益" /></wd-tabs>
     </view>
+
+    <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">部分 VIP 数据加载失败，点击重试</wd-button>
 
     <view class="table-wrap">
       <view class="th">

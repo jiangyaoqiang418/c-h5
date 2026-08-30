@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { onLoad, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
+import { onLoad, onPullDownRefresh, onReachBottom, onUnload } from '@dcloudio/uni-app';
 import { fetchStorefrontProducts } from '@/service/api/product';
 import ProductCard from '@/components/product/product-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -16,7 +16,7 @@ const sortMap: Record<SortKey, Api.RealProduct.PublicProductSort> = {
 
 const list = ref<Api.RealProduct.ProductListVO[]>([]);
 const total = ref(0);
-const current = ref(1);
+const current = ref(0);
 const size = 20;
 const loading = ref(false);
 const loadFailed = ref(false);
@@ -24,41 +24,48 @@ const keyword = ref('');
 const categoryId = ref<string>();
 const sortKey = ref<SortKey>('sales');
 let loadSequence = 0;
+let disposed = false;
+let querySnapshot: { keyword?: string; categoryId?: string; sortBy: Api.RealProduct.PublicProductSort } = { sortBy: 'DEFAULT' };
+
+function submitSearch() {
+  querySnapshot = { keyword: keyword.value.trim() || undefined, categoryId: categoryId.value, sortBy: sortMap[sortKey.value] };
+  return load(true);
+}
 
 onLoad(query => {
   if (query?.keyword) keyword.value = String(query.keyword);
   if (query?.categoryId) categoryId.value = String(query.categoryId);
   if (query?.sort && query.sort in sortMap) sortKey.value = query.sort as SortKey;
-  load(true);
+  submitSearch();
 });
+onUnload(() => { disposed = true; loadSequence++; });
 
 async function load(reset = false) {
-  if (loading.value && !reset) return;
+  if (disposed || (loading.value && !reset)) return;
+  loadFailed.value = false;
   if (reset) {
-    loadFailed.value = false;
-    current.value = 1;
+    current.value = 0;
     list.value = [];
     total.value = 0;
   }
   const sequence = ++loadSequence;
-  const requestedPage = current.value;
+  const requestedPage = reset ? 1 : current.value + 1;
+  const query = querySnapshot;
   loading.value = true;
   try {
     const r = await fetchStorefrontProducts({
-      pageNo: current.value,
+      pageNo: requestedPage,
       pageSize: size,
-      keyword: keyword.value || undefined,
-      categoryId: categoryId.value,
-      sortBy: sortMap[sortKey.value]
+      ...query
     });
     if (sequence !== loadSequence) return;
     if (reset) list.value = r.records;
     else list.value = list.value.concat(r.records);
     total.value = r.total;
+    current.value = requestedPage;
   } catch (error) {
     if (sequence === loadSequence) {
-      if (!reset && current.value === requestedPage) current.value = Math.max(1, requestedPage - 1);
-      if (!list.value.length) loadFailed.value = true;
+      loadFailed.value = true;
       uni.showToast({ title: error instanceof Error ? error.message : '商品列表加载失败', icon: 'none' });
     }
   } finally {
@@ -71,8 +78,7 @@ async function load(reset = false) {
 
 onPullDownRefresh(() => load(true));
 onReachBottom(() => {
-  if (list.value.length < total.value) {
-    current.value += 1;
+  if (!loading.value && list.value.length < total.value) {
     load();
   }
 });
@@ -86,14 +92,14 @@ const SORTS = [
 
 function onSortChange(v: string) {
   sortKey.value = v as SortKey;
-  load(true);
+  submitSearch();
 }
 </script>
 
 <template>
   <view class="list-page yb-page yb-page--full-bleed">
     <view class="search">
-      <input v-model="keyword" placeholder="搜索商品 / 买手 / 品牌" class="search-input" @confirm="load(true)" />
+      <input v-model="keyword" placeholder="搜索商品 / 买手 / 品牌" class="search-input" @confirm="submitSearch" />
     </view>
 
     <view class="sort-row">
@@ -115,6 +121,7 @@ function onSortChange(v: string) {
     <EmptyState v-else-if="!loading" title="没有找到符合条件的商品" description="尝试调整搜索条件" />
 
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
+    <wd-button v-else-if="loadFailed" block plain @click="load(false)">加载失败，点击重试</wd-button>
     <view v-else-if="list.length >= total" class="no-more">没有更多了</view>
   </view>
 </template>

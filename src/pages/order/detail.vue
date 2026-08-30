@@ -1,15 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { computed, ref, watch } from 'vue';
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
-import { cancelRealOrder, confirmRealOrder, createOrderLogisticsTrack, fetchOrderDetail, fetchOrderLogistics, markOrderLogisticsException, payRealOrderGroup } from '@/service/api/order';
+import { createOrderLogisticsTrack, fetchOrderDetail, fetchOrderLogistics, markOrderLogisticsException, orderRole } from '@/service/api/order';
+import { confirmOrderGroupPayment, paymentReceiptMessage, readPaymentReceipts, reconcileOrderGroupPayment, type PaymentReceipt } from '@/utils/order-payment';
+import { changeOrderWithReceipt, orderChangeBlocks, orderChangeMessage, readOrderChangeReceipts, reconcileOrderChange, type OrderChangeReceipt } from '@/utils/order-change';
+import { readRefundCreateReceipts, refundCreationBlocks, refundCreateMessage, type RefundCreateReceipt } from '@/utils/refund-create';
+import { usePageOperation } from '@/utils/page-operation';
+import { RequestError } from '@/service/request';
+import { getAccessToken } from '@/service/request/token';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { go, requireLogin } from '@/utils/navigate';
+import { go, useNavigationGuards } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
+
+const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
@@ -17,45 +25,134 @@ const loading = ref(true);
 const loadFailed = ref(false);
 const id = ref<Api.RealOrder.LongId>();
 const logistics = ref<Api.RealOrder.LogisticsDTO>();
+const logisticsStatusLabel = computed(() => order.value?.rawStatus === 'CANCELED'
+  && (!logistics.value?.logisticsStatus || logistics.value.logisticsStatus === 'PENDING_SHIPMENT')
+  && !logistics.value?.trackingNo && !logistics.value?.tracks.length
+  ? '订单已取消，未发货' : logistics.value?.logisticsStatusText || logistics.value?.logisticsStatus || '待发货');
 const logisticsLoadFailed = ref(false);
 const trackPopupVisible = ref(false);
 const exceptionPopupVisible = ref(false);
 const logisticsSubmitting = ref(false);
+const operating = ref(false);
+const isCustomer = computed(() => !!order.value && orderRole(order.value, userStore.realUserId) === 'customer');
+const isSeller = computed(() => !!order.value && orderRole(order.value, userStore.realUserId) === 'seller');
+let loadSequence = 0;
+let popupVersion = 0;
+const changeReceipts = ref<OrderChangeReceipt[]>([]);
+const changeReceiptFailed = ref(false);
+const currentChanges = computed(() => changeReceipts.value.filter(item => String(item.orderId) === String(id.value)));
+const refundReceipt = ref<RefundCreateReceipt>();
+const refundReceiptFailed = ref(false);
+const refundBlocked = computed(() => refundReceiptFailed.value || (!!refundReceipt.value && refundCreationBlocks(id.value!, [refundReceipt.value])));
+const paymentReceipts = ref<PaymentReceipt[]>([]);
+const paymentReceiptFailed = ref(false);
+const paymentReceipt = computed(() => paymentReceipts.value.find(item => item.orderGroupNo === order.value?.orderGroupNo));
+const busy = computed(() => operating.value || logisticsSubmitting.value);
+type LogisticsReceipt = { kind: 'track' | 'exception'; id?: Api.RealOrder.LongId; unknown: boolean; beforeException?: string; description?: string; occurredAt?: Api.RealOrder.LongId; status?: Api.RealOrder.LogisticsStatus; location?: string; exceptionNode?: boolean; exception?: string };
+const logisticsReceipt = ref<LogisticsReceipt>();
 const trackForm = ref<{ status: Api.RealOrder.LogisticsStatus; description: string; location: string; exceptionNode: boolean }>({ status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false });
 const exceptionForm = ref({ exception: '', location: '' });
-
-onLoad(async query => {
-  id.value = query?.id ? String(query.id) : undefined;
-  loadFailed.value = false;
-  try {
-    await userStore.init();
-    if (id.value && userStore.currentUser) {
-      await reload();
-    } else if (id.value) {
-      await requireLogin(`/pages/order/detail?id=${encodeURIComponent(String(id.value))}`);
-    }
-  } catch (error) {
-    loadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '订单详情加载失败', icon: 'none' });
-  } finally {
-    loading.value = false;
-  }
+const page = usePageOperation(() => {
+  loadSequence++; popupVersion++;
+  order.value = undefined; logistics.value = undefined;
+  loading.value = false; loadFailed.value = false; logisticsLoadFailed.value = false;
+  operating.value = false; logisticsSubmitting.value = false;
+  changeReceipts.value = []; changeReceiptFailed.value = false; logisticsReceipt.value = undefined;
+  refundReceipt.value = undefined; refundReceiptFailed.value = false;
+  paymentReceipts.value = []; paymentReceiptFailed.value = false;
+  closePopups();
 });
+const actionsDisabled = computed(() => !page.visible.value || busy.value || loading.value || loadFailed.value
+  || (isCustomer.value && (refundBlocked.value || changeReceiptFailed.value || (!!order.value && orderChangeBlocks(order.value, currentChanges.value))))
+  || (isCustomer.value && order.value?.rawStatus === 'CREATED' && (paymentReceiptFailed.value || !!paymentReceipt.value)));
+const logisticsDisabled = computed(() => actionsDisabled.value || logisticsLoadFailed.value || !!logisticsReceipt.value);
+function closePopups() {
+  trackPopupVisible.value = false; exceptionPopupVisible.value = false;
+  trackForm.value = { status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false };
+  exceptionForm.value = { exception: '', location: '' };
+}
+watch([trackPopupVisible, exceptionPopupVisible], () => { popupVersion++; }, { flush: 'sync' });
+
+function refreshPaymentReceipts() {
+  try {
+    paymentReceipts.value = userStore.realUserId ? readPaymentReceipts(userStore.realUserId) : [];
+    paymentReceiptFailed.value = false;
+  } catch { paymentReceiptFailed.value = true; }
+}
+function refreshChangeReceipts() {
+  try {
+    changeReceipts.value = userStore.realUserId ? readOrderChangeReceipts(userStore.realUserId) : [];
+    changeReceiptFailed.value = false;
+  } catch { changeReceiptFailed.value = true; }
+  try {
+    refundReceipt.value = userStore.realUserId ? readRefundCreateReceipts(userStore.realUserId).find(item => String(item.orderId) === String(id.value)) : undefined;
+    refundReceiptFailed.value = false;
+  } catch { refundReceiptFailed.value = true; }
+}
+
+function viewOriginalRefund() {
+  if (page.visible.value && !busy.value && isCustomer.value && id.value != null) go(`/pages/aftersale/create?orderId=${encodeURIComponent(String(id.value))}`);
+}
+
+onLoad(query => {
+  id.value = query?.id ? String(query.id) : undefined;
+});
+onShow(() => { if (!busy.value) return reload(); });
+onHide(() => { loadSequence++; loading.value = false; closePopups(); });
 
 async function reload() {
-  if (id.value) {
-    const scope = userStore.isBuyerActive ? 'sold' : 'bought';
-    const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(id.value, scope), fetchOrderLogistics(id.value)]);
-    if (detailResult.status === 'fulfilled') {
-      order.value = detailResult.value;
-      loadFailed.value = false;
-    } else {
-      order.value = undefined;
-      loadFailed.value = true;
-      uni.showToast({ title: detailResult.reason instanceof Error ? detailResult.reason.message : '订单详情加载失败', icon: 'none' });
+  if (!page.visible.value) return;
+  const operation = page.capture();
+  const sequence = ++loadSequence;
+  loading.value = true;
+  loadFailed.value = false;
+  try {
+    if (id.value == null) return;
+    const orderId = id.value;
+    await userStore.init();
+    if (!operation.isCurrent() || sequence !== loadSequence) return;
+    if (!userStore.currentUser) {
+      order.value = undefined; logistics.value = undefined;
+      if (getAccessToken()) throw new Error('账户资料暂未加载成功');
+      await requireLogin(`/pages/order/detail?id=${encodeURIComponent(String(orderId))}`);
+      return;
     }
-    logisticsLoadFailed.value = logisticsResult.status === 'rejected';
-    if (logisticsResult.status === 'fulfilled') logistics.value = logisticsResult.value;
+    refreshPaymentReceipts();
+    refreshChangeReceipts();
+    const scope = userStore.isBuyerActive ? 'sold' : 'bought';
+    const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(orderId, scope, userStore.realUserId), fetchOrderLogistics(orderId)]);
+    if (sequence !== loadSequence || !operation.isCurrent()) return;
+    if (detailResult.status === 'fulfilled' && String(detailResult.value.id) === String(orderId)) {
+      order.value = detailResult.value;
+    } else {
+      loadFailed.value = true;
+    }
+    logisticsLoadFailed.value = logisticsResult.status === 'rejected' || (logisticsResult.status === 'fulfilled' && String(logisticsResult.value.orderId) !== String(orderId));
+    if (logisticsResult.status === 'fulfilled' && !logisticsLoadFailed.value) {
+      logistics.value = logisticsResult.value;
+      const receipt = logisticsReceipt.value;
+      if (receipt?.kind === 'track' && logistics.value.tracks.some(track => receipt.id != null
+        ? String(track.trackId) === String(receipt.id)
+        : String(track.occurredAt) === String(receipt.occurredAt) && track.description === receipt.description && track.status === receipt.status
+          && (track.location || '') === (receipt.location || '') && !!track.exceptionNode === !!receipt.exceptionNode)) logisticsReceipt.value = undefined;
+      if (receipt?.kind === 'exception' && logistics.value.logisticsException === receipt.exception
+        && (!receipt.unknown || receipt.beforeException !== receipt.exception)) logisticsReceipt.value = undefined;
+    }
+    if (!loadFailed.value && isCustomer.value && paymentReceipt.value && !paymentReceiptFailed.value) {
+      await reconcileOrderGroupPayment(paymentReceipt.value.orderGroupNo, userStore.realUserId!, () => operation.isCurrent() && sequence === loadSequence);
+      if (operation.isCurrent() && sequence === loadSequence) refreshPaymentReceipts();
+    }
+    if (!loadFailed.value && isCustomer.value && !changeReceiptFailed.value) {
+      for (const receipt of currentChanges.value) {
+        if (!operation.isCurrent() || sequence !== loadSequence) return;
+        if (receipt.state !== 'verified') await reconcileOrderChange(userStore.realUserId!, receipt, () => operation.isCurrent() && sequence === loadSequence);
+      }
+      if (operation.isCurrent() && sequence === loadSequence) refreshChangeReceipts();
+    }
+  } catch (error) {
+    if (operation.isCurrent() && sequence === loadSequence) loadFailed.value = true;
+  } finally {
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 
@@ -66,135 +163,137 @@ function formatTime(value?: string | number): string {
 }
 
 async function pay() {
-  if (!order.value) return;
+  if (actionsDisabled.value || !isCustomer.value || order.value?.rawStatus !== 'CREATED') return;
   if (!order.value.orderGroupNo) {
     uni.showToast({ title: '订单组信息缺失，暂无法继续付款', icon: 'none' });
     return;
   }
-  uni.showModal({
-    title: '确认付款？',
-    content: '将支付该订单组内全部待付款订单。',
-    success: async result => {
-      if (!result.confirm || !order.value?.orderGroupNo) return;
-      try {
-        await payRealOrderGroup({ orderGroupNo: order.value.orderGroupNo });
-        uni.showToast({ title: '支付成功', icon: 'success' });
-        await reload();
-      } catch (error) {
-        uni.showToast({ title: error instanceof Error ? error.message : '支付失败', icon: 'none' });
-      }
+  operating.value = true;
+  const userId = userStore.realUserId!;
+  const operation = page.capture();
+  try {
+    const receipt = await confirmOrderGroupPayment(order.value.orderGroupNo, userId, operation.isCurrent);
+    if (receipt && operation.sameSession()) {
+      paymentReceipts.value = [...paymentReceipts.value.filter(item => item.orderGroupNo !== receipt.orderGroupNo), receipt];
+      refreshPaymentReceipts();
+      if (operation.isCurrent()) uni.showToast({ title: paymentReceiptMessage(receipt), icon: 'none' });
     }
-  });
+  } catch (error) {
+    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '付款结果待确认，请刷新订单，勿重复创建', icon: 'none' });
+  } finally {
+    if (operation.sameSession() && page.visible.value) await reload();
+    if (operation.sameSession()) operating.value = false;
+  }
 }
 
-function cancel() {
-  if (!order.value) return;
-  uni.showModal({
-    title: '取消订单？',
-    success: async r => {
-      if (r.confirm) {
-        try {
-          await cancelRealOrder({ id: order.value!.id, reason: '顾客取消' });
-          uni.showToast({ title: '订单已取消', icon: 'success' });
-          await reload();
-        } catch (error) {
-          uni.showToast({ title: error instanceof Error ? error.message : '取消订单失败', icon: 'none' });
-        }
-      }
+async function changeOrder(action: 'cancel' | 'confirm') {
+  const before = action === 'cancel' ? 'CREATED' : 'SHIPPED';
+  if (actionsDisabled.value || !isCustomer.value || order.value?.rawStatus !== before) return;
+  const operation = page.capture();
+  const expected = order.value;
+  const userId = userStore.realUserId!;
+  operating.value = true;
+  try {
+    const receipt = await changeOrderWithReceipt(expected, action, operation.isCurrent);
+    if (!operation.sameSession()) return;
+    refreshChangeReceipts();
+    if (receipt && operation.isCurrent()) {
+      const checked = await reconcileOrderChange(userId, receipt, operation.isCurrent);
+      if (operation.isCurrent()) { refreshChangeReceipts(); uni.showToast({ title: orderChangeMessage(checked || receipt), icon: 'none' }); }
     }
-  });
-}
-
-function confirm() {
-  if (!order.value) return;
-  uni.showModal({
-    title: '确认收货？',
-    success: async r => {
-      if (r.confirm) {
-        try {
-          await confirmRealOrder(order.value!.id);
-          uni.showToast({ title: '已确认收货', icon: 'success' });
-          await reload();
-        } catch (error) {
-          uni.showToast({ title: error instanceof Error ? error.message : '确认收货失败', icon: 'none' });
-        }
-      }
+  } catch (error) {
+    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '订单操作结果待核对', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) {
+      refreshChangeReceipts();
+      if (page.visible.value) await reload();
+      if (operation.sameSession()) operating.value = false;
     }
-  });
+  }
 }
+function cancel() { return changeOrder('cancel'); }
+function confirm() { return changeOrder('confirm'); }
 
 function goIm() {
   if (order.value) go(`/pages/im/real-order-group?orderId=${encodeURIComponent(String(order.value.id))}`);
 }
 
 function goAftersale() {
-  if (order.value) go(`/pages/aftersale/create?orderId=${order.value.id}`);
+  if (!actionsDisabled.value && isCustomer.value && order.value && ['PAID', 'SHIPPED'].includes(order.value.rawStatus)) go(`/pages/aftersale/create?orderId=${order.value.id}`);
 }
 
 function goReview() {
-  if (order.value) go(`/pages/review/write?orderId=${encodeURIComponent(String(order.value.id))}`);
+  if (!actionsDisabled.value && isCustomer.value && order.value?.rawStatus === 'COMPLETED') go(`/pages/review/write?orderId=${encodeURIComponent(String(order.value.id))}`);
 }
 
 function openTrackPopup() {
+  if (logisticsDisabled.value || !isSeller.value || order.value?.rawStatus !== 'SHIPPED') return;
+  closePopups();
   trackForm.value = { status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false };
   trackPopupVisible.value = true;
 }
 
 function openExceptionPopup() {
+  if (logisticsDisabled.value || !isSeller.value || order.value?.rawStatus !== 'SHIPPED') return;
+  closePopups();
   exceptionForm.value = { exception: '', location: '' };
   exceptionPopupVisible.value = true;
 }
 
-async function submitTrack() {
-  if (!id.value || !trackForm.value.description.trim()) {
-    uni.showToast({ title: '请填写轨迹说明', icon: 'none' });
-    return;
-  }
+async function submitLogistics(kind: 'track' | 'exception') {
+  if (logisticsDisabled.value || !isSeller.value || order.value?.rawStatus !== 'SHIPPED'
+    || !(kind === 'track' ? trackPopupVisible.value : exceptionPopupVisible.value)) return;
+  const orderId = order.value.id;
+  const track = { orderId, occurredAt: Date.now(), ...trackForm.value, description: trackForm.value.description.trim(), location: trackForm.value.location.trim() || undefined };
+  const exception = { orderId, exception: exceptionForm.value.exception.trim(), location: exceptionForm.value.location.trim() || undefined };
+  if (!(kind === 'track' ? track.description : exception.exception)) return uni.showToast({ title: kind === 'track' ? '请填写轨迹说明' : '请填写异常说明', icon: 'none' });
+  const operation = page.capture();
+  const version = popupVersion;
+  const receipt: LogisticsReceipt = { kind, unknown: false, beforeException: logistics.value?.logisticsException, description: track.description, occurredAt: track.occurredAt, status: track.status, location: track.location, exceptionNode: track.exceptionNode, exception: exception.exception };
+  let sent = false;
   logisticsSubmitting.value = true;
   try {
-    await createOrderLogisticsTrack({
-      orderId: id.value,
-      occurredAt: Date.now(),
-      status: trackForm.value.status,
-      description: trackForm.value.description.trim(),
-      location: trackForm.value.location.trim() || undefined,
-      exceptionNode: trackForm.value.exceptionNode
-    });
-    trackPopupVisible.value = false;
-    uni.showToast({ title: '物流轨迹已更新', icon: 'success' });
-    await reload();
+    const latest = await fetchOrderDetail(orderId, 'sold', userStore.realUserId);
+    if (!operation.isCurrent() || version !== popupVersion) return;
+    if (String(latest.id) !== String(orderId) || latest.rawStatus !== 'SHIPPED' || orderRole(latest, userStore.realUserId) !== 'seller') throw new Error('订单状态或归属已变化，请刷新后操作');
+    sent = true;
+    receipt.id = kind === 'track' ? await createOrderLogisticsTrack(track) : await markOrderLogisticsException(exception);
+    if (receipt.id == null || receipt.id === '') { receipt.id = undefined; throw new Error('物流提交回执缺失'); }
+    if (!operation.sameSession()) return;
+    logisticsReceipt.value = receipt;
+    closePopups();
+    if (operation.isCurrent()) uni.showToast({ title: kind === 'track' ? '物流轨迹已提交' : '物流异常已提交', icon: 'success' });
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '物流轨迹提交失败', icon: 'none' });
+    const unknown = sent && !(error instanceof RequestError && (error.kind === 'business' || error.kind === 'config'));
+    if (unknown && operation.sameSession()) { logisticsReceipt.value = { ...receipt, unknown: true }; closePopups(); }
+    if (operation.isCurrent()) uni.showToast({ title: unknown ? '物流提交结果待核对，请刷新后确认' : error instanceof Error ? error.message : '物流提交失败', icon: 'none' });
   } finally {
-    logisticsSubmitting.value = false;
+    if (operation.sameSession() && page.visible.value) await reload();
+    if (operation.sameSession()) logisticsSubmitting.value = false;
   }
 }
-
-async function submitException() {
-  if (!id.value || !exceptionForm.value.exception.trim()) {
-    uni.showToast({ title: '请填写异常说明', icon: 'none' });
-    return;
-  }
-  logisticsSubmitting.value = true;
-  try {
-    await markOrderLogisticsException({
-      orderId: id.value,
-      exception: exceptionForm.value.exception.trim(),
-      location: exceptionForm.value.location.trim() || undefined
-    });
-    exceptionPopupVisible.value = false;
-    uni.showToast({ title: '物流异常已标记', icon: 'success' });
-    await reload();
-  } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '物流异常提交失败', icon: 'none' });
-  } finally {
-    logisticsSubmitting.value = false;
-  }
-}
+function submitTrack() { return submitLogistics('track'); }
+function submitException() { return submitLogistics('exception'); }
 </script>
 
 <template>
   <view v-if="order" class="detail-page yb-page">
+    <view v-if="isCustomer && refundBlocked" class="section">
+      <text>{{ refundReceiptFailed ? '本机退款申请记录读取失败，请先核对售后，暂不操作订单。' : refundReceipt ? refundCreateMessage(refundReceipt) : '' }}</text>
+      <wd-button block plain :disabled="busy || loading" @click="viewOriginalRefund">核对原退款申请</wd-button>
+    </view>
+    <view v-if="isCustomer && (paymentReceipt || paymentReceiptFailed)" class="section">
+      <text>{{ paymentReceiptFailed ? '本机付款回执读取失败，已暂停待付款操作，请先核对记录。' : paymentReceipt ? paymentReceiptMessage(paymentReceipt) : '' }}</text>
+      <text v-if="paymentReceipt && order.rawStatus === 'CREATED'">当前订单仍显示待付款；这不能证明上次没有付款。</text>
+      <wd-button block plain :disabled="busy" :loading="loading" @click="reload">只读核对付款状态</wd-button>
+    </view>
+    <view v-if="isCustomer && (changeReceiptFailed || currentChanges.length)" class="section">
+      <text v-if="changeReceiptFailed">订单操作回执读取失败，已暂停操作，请先核对记录。</text>
+      <text v-for="receipt in currentChanges" :key="receipt.action">{{ orderChangeMessage(receipt) }}</text>
+      <text v-if="orderChangeBlocks(order, currentChanges)">当前展示可能仍为上次读取的状态，不会据此重复操作。</text>
+      <wd-button block plain :disabled="busy" :loading="loading" @click="reload">只读核对订单状态</wd-button>
+    </view>
+    <wd-button v-if="loadFailed || logisticsLoadFailed || logisticsReceipt" block plain :disabled="busy" :loading="loading" @click="reload">{{ logisticsReceipt?.unknown ? '物流结果待核对，点击刷新' : logisticsReceipt ? '操作已提交，刷新核对最新状态' : '部分数据刷新失败，点击重试' }}</wd-button>
     <view class="hero">
       <OrderStatusTag :status="order.status" />
       <text class="code">{{ order.code }}</text>
@@ -218,6 +317,7 @@ async function submitException() {
         <image :src="order.productCover || UI_ASSETS.placeholders.product" mode="aspectFill" class="cover" />
         <view class="goods-info">
           <text class="g-title">{{ order.productTitle }}</text>
+          <text class="g-seller">数量 {{ order.quantity ?? '待确认' }}</text>
           <text class="g-seller">{{ order.counterpartLabel }} · {{ order.counterpartName }}</text>
         </view>
         <view class="g-price-block">
@@ -230,10 +330,10 @@ async function submitException() {
     <view class="section">
       <text class="section-title">金额明细</text>
       <view class="amt-row">
-        <text class="amt-lbl">商品</text>
+        <text class="amt-lbl">商品小计</text>
         <view class="amt-val">
-          <text class="amt-cny">{{ formatUsdt(order.price) }}</text>
-          <text class="amt-usdt">≈ {{ formatCny(order.price) }}</text>
+          <text class="amt-cny">{{ order.goodsAmount == null ? '待确认' : formatUsdt(order.goodsAmount) }}</text>
+          <text v-if="order.goodsAmount != null" class="amt-usdt">≈ {{ formatCny(order.goodsAmount) }}</text>
         </view>
       </view>
       <view class="amt-row">
@@ -255,6 +355,10 @@ async function submitException() {
           <text class="amt-usdt">≈ {{ formatCny(order.totalAmount) }} · {{ priceSet(order.totalAmount).rateLabel }}</text>
         </view>
       </view>
+      <view v-if="order.originalAmount != null && Number(order.originalAmount) !== Number(order.totalAmount)" class="amt-row">
+        <text class="amt-lbl">订单已改价，原始合计</text>
+        <text>{{ formatUsdt(order.originalAmount) }}（以当前应付为准）</text>
+      </view>
     </view>
 
     <view class="section">
@@ -268,7 +372,7 @@ async function submitException() {
 
     <view v-if="logistics" class="section">
       <text class="section-title">物流信息</text>
-      <view class="amt-row"><text class="amt-lbl">状态</text><text>{{ logistics.logisticsStatusText || logistics.logisticsStatus || '待发货' }}</text></view>
+      <view class="amt-row"><text class="amt-lbl">状态</text><text>{{ logisticsStatusLabel }}</text></view>
        <view v-if="logistics.carrierName || logistics.carrier" class="amt-row"><text class="amt-lbl">承运商</text><text>{{ logistics.carrierName || logistics.carrier }}</text></view>
        <view v-if="logistics.trackingNo" class="amt-row"><text class="amt-lbl">运单号</text><text>{{ logistics.trackingNo }}</text></view>
        <view v-if="logistics.purchaseNo" class="amt-row"><text class="amt-lbl">采购单号</text><text>{{ logistics.purchaseNo }}</text></view>
@@ -278,9 +382,9 @@ async function submitException() {
        <view v-if="logistics.shipVouchers.length" class="voucher-section"><text class="voucher-title">发货凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.shipVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
        <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="track.location || track.occurredAt" class="track-meta">{{ track.location || '' }} {{ formatTime(track.occurredAt) }}</text></view></view>
        <text v-else class="track-meta">暂无物流轨迹</text>
-       <view v-if="userStore.isBuyerActive && order.status === 'IN_TRANSIT'" class="logistics-actions">
-         <wd-button size="small" plain @click="openTrackPopup">更新物流轨迹</wd-button>
-         <wd-button size="small" type="error" plain @click="openExceptionPopup">标记物流异常</wd-button>
+       <view v-if="isSeller && order.status === 'IN_TRANSIT'" class="logistics-actions">
+         <wd-button size="small" plain :disabled="logisticsDisabled" @click="openTrackPopup">更新物流轨迹</wd-button>
+         <wd-button size="small" type="error" plain :disabled="logisticsDisabled" @click="openExceptionPopup">标记物流异常</wd-button>
        </view>
      </view>
     <view v-else-if="logisticsLoadFailed" class="section logistics-load-failed">
@@ -295,7 +399,7 @@ async function submitException() {
         <wd-input v-model="trackForm.description" label="轨迹说明" placeholder="例如：包裹已到达转运中心" />
         <wd-input v-model="trackForm.location" label="当前位置" placeholder="可选" />
         <wd-cell title="异常节点"><wd-switch v-model="trackForm.exceptionNode" /></wd-cell>
-        <wd-button type="primary" block :loading="logisticsSubmitting" @click="submitTrack">提交轨迹</wd-button>
+        <wd-button type="primary" block :disabled="logisticsDisabled" :loading="logisticsSubmitting" @click="submitTrack">提交轨迹</wd-button>
       </view>
     </wd-popup>
 
@@ -304,20 +408,21 @@ async function submitException() {
         <text class="popup-title">标记物流异常</text>
         <wd-input v-model="exceptionForm.exception" label="异常说明" placeholder="请说明异常情况" />
         <wd-input v-model="exceptionForm.location" label="当前位置" placeholder="可选" />
-        <wd-button type="error" block :loading="logisticsSubmitting" @click="submitException">确认标记</wd-button>
+        <wd-button type="error" block :disabled="logisticsDisabled" :loading="logisticsSubmitting" @click="submitException">确认标记</wd-button>
       </view>
     </wd-popup>
 
-    <view class="actions-bar">
-      <wd-button v-if="order.status === 'PENDING_PAYMENT'" type="primary" @click="pay">立即付款</wd-button>
-      <wd-button v-if="order.status === 'PENDING_PAYMENT'" plain @click="cancel">取消订单</wd-button>
-      <wd-button v-if="order.status === 'IN_TRANSIT'" type="primary" @click="confirm">确认收货</wd-button>
-      <wd-button v-if="order.status === 'COMPLETED'" plain @click="goReview">写评价</wd-button>
-      <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" plain @click="goAftersale">申请仅退款</wd-button>
+    <view v-if="isCustomer" class="actions-bar">
+      <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" type="primary" @click="pay">立即付款</wd-button>
+      <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" plain @click="cancel">取消订单</wd-button>
+      <wd-button v-if="order.status === 'IN_TRANSIT'" :disabled="actionsDisabled" type="primary" @click="confirm">确认收货</wd-button>
+      <wd-button v-if="order.status === 'COMPLETED'" :disabled="actionsDisabled" plain @click="goReview">写评价</wd-button>
+      <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" :disabled="actionsDisabled" plain @click="goAftersale">申请仅退款</wd-button>
     </view>
   </view>
   <view v-else-if="loading" class="page-loading"><wd-loading size="44rpx" /><text>正在加载订单详情</text></view>
-  <EmptyState v-else-if="loadFailed" title="订单详情加载失败" description="请稍后重试" />
+  <EmptyState v-else-if="loadFailed" title="订单详情加载失败" description="请检查网络后重试" action-text="重新加载" @action="reload" />
+  <EmptyState v-else-if="id && !userStore.currentUser" title="请先登录查看订单" description="当前尚未读取账号订单" action-text="登录或重试" @action="reload" />
   <EmptyState v-else title="订单不存在" />
 </template>
 

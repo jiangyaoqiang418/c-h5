@@ -1,20 +1,48 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
-import { cancelRecharge, fetchRechargeDetail } from '@/service/api/wallet';
+import { computed, ref } from 'vue';
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
+import { usePageOperation } from '@/utils/page-operation';
+import { getAccessToken } from '@/service/request/token';
+import { fetchRechargeDetail } from '@/service/api/wallet';
+import { cancelRechargeWithReceipt, readRechargeCancelReceipts, rechargeCancelMessage, reconcileRechargeCancel, type RechargeCancelReceipt } from '@/utils/recharge-cancel';
 import { formatAmount } from '@/utils/format-bridge';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { requireLogin } from '@/utils/navigate';
+import { useNavigationGuards } from '@/utils/navigate';
+
+const { requireLogin } = useNavigationGuards();
 
 const detail = ref<Api.RealWallet.RechargeVO>();
 const canceling = ref(false);
 const loading = ref(true);
 const loadFailed = ref(false);
 const userStore = useUserStore();
+const id = ref('');
+const cancelReceipt = ref<RechargeCancelReceipt>();
+const receiptFailed = ref(false);
+let loadVersion = 0;
+const page = usePageOperation(() => {
+  loadVersion++;
+  detail.value = undefined;
+  cancelReceipt.value = undefined; receiptFailed.value = false;
+  canceling.value = false;
+  loading.value = false;
+  loadFailed.value = false;
+});
+const canCancel = computed(() => page.visible.value && !!userStore.currentUser && !!detail.value
+  && detail.value.status === 'PENDING' && !detail.value.txHash && !loading.value && !loadFailed.value && !canceling.value && !cancelReceipt.value && !receiptFailed.value);
+
+function refreshCancelReceipt() {
+  try {
+    cancelReceipt.value = userStore.realUserId ? readRechargeCancelReceipts(userStore.realUserId).find(item => String(item.id) === id.value) : undefined;
+    receiptFailed.value = false;
+  } catch { receiptFailed.value = true; }
+}
 
 function copy(value?: string) {
-  if (value) uni.setClipboardData({ data: value, success: () => uni.showToast({ title: '已复制', icon: 'none' }) });
+  if (!value || !page.visible.value || !userStore.currentUser) return;
+  const operation = page.capture();
+  uni.setClipboardData({ data: value, success: () => { if (operation.isCurrent()) uni.showToast({ title: '已复制', icon: 'none' }); } });
 }
 
 function formatTime(value?: string | number): string {
@@ -23,49 +51,67 @@ function formatTime(value?: string | number): string {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
-async function load(id: string) {
+async function load() {
+  if (!page.visible.value || canceling.value) return;
+  if (!id.value) { loading.value = false; return; }
+  const operation = page.capture();
+  const version = ++loadVersion;
+  const current = () => operation.isCurrent() && version === loadVersion;
   loading.value = true;
   loadFailed.value = false;
   try {
-    detail.value = await fetchRechargeDetail(id);
+    await userStore.init();
+    if (!current()) return;
+    if (!userStore.currentUser) {
+      if (getAccessToken()) throw new Error('账户资料加载失败，请重试');
+      await requireLogin(`/pages/wallet/recharge-detail?id=${encodeURIComponent(id.value)}`);
+      return;
+    }
+    refreshCancelReceipt();
+    const result = await fetchRechargeDetail(id.value);
+    if (!current()) return;
+    if (String(result.id) !== id.value) throw new Error('充值回读记录不匹配，请重试');
+    detail.value = result;
+    if (cancelReceipt.value && !receiptFailed.value) {
+      await reconcileRechargeCancel(userStore.realUserId!, id.value, current);
+      if (current()) refreshCancelReceipt();
+    }
   } catch (error) {
+    if (!current()) return;
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '充值详情加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (current()) loading.value = false;
   }
 }
 
-onLoad(async query => {
-  const id = String(query?.id || '');
-  if (!id) {
-    loading.value = false;
-    return;
-  }
-  try {
-    await userStore.init();
-    if (!userStore.currentUser) {
-      await requireLogin(`/pages/wallet/recharge-detail?id=${encodeURIComponent(id)}`);
-      loading.value = false;
-      return;
-    }
-    await load(id);
-  } catch (error) {
-    loadFailed.value = true;
-    loading.value = false;
-    uni.showToast({ title: error instanceof Error ? error.message : '充值详情加载失败', icon: 'none' });
-  }
-});
+onLoad(query => { id.value = String(query?.id || ''); });
+onShow(load);
+onHide(() => { loadVersion++; loading.value = false; });
 
-function cancel() {
-  if (!detail.value || detail.value.status !== 'PENDING' || canceling.value) return;
-  uni.showModal({ title: '取消充值申报？', content: '取消后本次申报记录将作废，已发生的链上转账仍可能自动到账。', success: async result => {
-    if (!result.confirm || !detail.value || canceling.value) return;
-    canceling.value = true;
-    try { await cancelRecharge(detail.value.id); await load(String(detail.value.id)); uni.showToast({ title: '已取消申报', icon: 'success' }); }
-    catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '取消申报失败', icon: 'none' }); }
-    finally { canceling.value = false; }
-  } });
+async function cancel() {
+  if (!canCancel.value || !detail.value) return;
+  const operation = page.capture();
+  const expected = detail.value;
+  canceling.value = true;
+  try {
+    const receipt = await cancelRechargeWithReceipt(expected, operation.isCurrent);
+    if (!operation.sameSession()) return;
+    refreshCancelReceipt();
+    if (receipt && operation.isCurrent()) uni.showToast({ title: rechargeCancelMessage(receipt), icon: 'none' });
+  } catch (error) {
+    if (!operation.sameSession()) return;
+    refreshCancelReceipt();
+    if (operation.isCurrent()) uni.showToast({
+      title: cancelReceipt.value ? rechargeCancelMessage(cancelReceipt.value) : error instanceof Error ? error.message : '取消申报失败', icon: 'none'
+    });
+  } finally {
+    if (operation.sameSession()) {
+      refreshCancelReceipt();
+      canceling.value = false;
+      if (page.visible.value) await load();
+    }
+  }
 }
 </script>
 
@@ -77,17 +123,23 @@ function cancel() {
       <text class="chain">{{ detail.chainLabel || `USDT-${detail.chain}` }}</text>
     </view>
     <view class="section">
+      <text v-if="receiptFailed" class="block">本机取消回执读取失败，已暂停取消操作，请重新读取并核对。</text>
+      <text v-if="cancelReceipt" class="block">{{ rechargeCancelMessage(cancelReceipt) }}</text>
+      <text v-if="cancelReceipt && detail.status === 'PENDING'" class="block">当前仍显示待到账，不代表上次取消失败，不会据此重发。</text>
+      <text v-if="loadFailed" class="block">详情刷新失败，暂时保留上次信息；请重试后再操作。</text>
       <view class="row"><text class="label">充值单 ID</text><text>{{ detail.id }}</text></view>
       <view class="block"><text class="label">平台充值地址</text><text class="block-value">{{ detail.depositAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.depositAddress)">复制地址</wd-button></view>
       <view class="block"><text class="label">转账备注</text><text class="block-value">{{ detail.memo || String(detail.id) }}</text><wd-button plain size="small" @click="copy(detail.memo || String(detail.id))">复制备注</wd-button></view>
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
       <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
       <view class="row"><text class="label">到账时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
-      <wd-button v-if="detail.status === 'PENDING'" block plain type="error" :loading="canceling" class="cancel-btn" @click="cancel">取消本次申报</wd-button>
+      <wd-button block plain :loading="loading" :disabled="canceling" class="cancel-btn" @click="load">刷新状态</wd-button>
+      <wd-button v-if="detail.status === 'PENDING'" block plain type="error" :disabled="!canCancel" :loading="canceling" class="cancel-btn" @click="cancel">取消本次申报</wd-button>
     </view>
   </view>
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载充值详情</text></view>
-  <EmptyState v-else-if="loadFailed" title="充值详情加载失败" description="请稍后重试" />
+  <EmptyState v-else-if="loadFailed" title="充值详情加载失败" description="请稍后重试" action-text="重试" @action="load" />
+  <EmptyState v-else-if="!userStore.currentUser && id" title="请先登录查看充值详情" description="当前尚未读取账号充值记录" action-text="登录或重试" @action="load" />
   <EmptyState v-else title="充值记录不存在" description="请从充值记录列表重新进入" />
 </template>
 

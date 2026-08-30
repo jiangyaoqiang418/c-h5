@@ -1,20 +1,33 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app';
-import { cancelRealRefund, fetchBoughtRefunds, fetchSoldRefunds } from '@/service/api/order';
+import { onHide, onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app';
+import { usePagedList } from '@/utils/paged-list';
+import { usePageOperation } from '@/utils/page-operation';
+import { getAccessToken } from '@/service/request/token';
+import { fetchBoughtRefunds, fetchSoldRefunds } from '@/service/api/order';
+import { cancelRefundWithReceipt, readRefundCancelReceipts, reconcileRefundCancels, refundCancelMessage, type RefundCancelReceipt } from '@/utils/refund-cancel';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { go } from '@/utils/navigate';
+import { go, useNavigationGuards } from '@/utils/navigate';
 import { formatUsdt } from '@shared/utils/currency';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
+const { requireLogin } = useNavigationGuards();
 const activeKey = ref('all');
-const loading = ref(false);
-const loadFailed = ref(false);
-const list = ref<Api.RealOrder.OrderRefundDTO[]>([]);
-let loadToken = 0;
-
+const operating = ref(false);
+const reading = ref(false);
+const initFailed = ref(false);
+const receiptFailed = ref(false);
+const receipts = ref(new Map<string, RefundCancelReceipt>());
+let readVersion = 0;
+let filterVersion = 0;
+let retryReset = true;
+const page = usePageOperation(() => {
+  readVersion++; filterVersion++;
+  operating.value = false; reading.value = false; initFailed.value = false;
+  receiptFailed.value = false; receipts.value = new Map();
+});
 const TABS: { key: string; label: string; status?: Api.RealOrder.RefundStatus }[] = [
   { key: 'all', label: '全部' },
   { key: 'applying', label: '待审核', status: 'APPLYING' },
@@ -22,62 +35,112 @@ const TABS: { key: string; label: string; status?: Api.RealOrder.RefundStatus }[
   { key: 'rejected', label: '已驳回', status: 'REJECTED' },
   { key: 'canceled', label: '已撤销', status: 'CANCELED' }
 ];
-
 const statusLabel: Record<Api.RealOrder.RefundStatus, string> = {
   APPLYING: '待审核', AGREED: '已同意', REJECTED: '已驳回', CANCELED: '已撤销'
 };
 const emptyDescription = computed(() => userStore.isBuyerActive ? '顾客发起的仅退款会显示在这里' : '可在待发货或待收货订单中申请仅退款');
-
-async function load() {
-  const token = ++loadToken;
-  loading.value = true;
-  loadFailed.value = false;
+const pager = usePagedList<Api.RealOrder.OrderRefundDTO>({
+  key: item => item.refundId,
+  preserveOnReset: true,
+  fetch: (pageNo, pageSize) => {
+    const tab = TABS.find(item => item.key === activeKey.value);
+    const query = { pageNo, pageSize, status: tab?.status };
+    return userStore.isBuyerActive ? fetchSoldRefunds(query) : fetchBoughtRefunds(query);
+  }
+});
+const list = pager.list;
+const hasMore = pager.hasMore;
+const loading = computed(() => reading.value || pager.loading.value);
+const loadFailed = computed(() => initFailed.value || pager.loadFailed.value);
+const pendingReceipts = computed(() => [...receipts.value.values()].filter(item => item.state !== 'verified'));
+function refreshReceipts() {
+  if (!userStore.realUserId) return;
+  try {
+    const next = new Map(readRefundCancelReceipts(userStore.realUserId).map(item => [String(item.refundId), item]));
+    for (const [id, prior] of receipts.value) {
+      const saved = next.get(id);
+      if (prior.state !== 'unknown' && (!saved || saved.state === 'unknown' || (prior.state === 'verified' && saved.state !== 'verified'))) next.set(id, prior);
+    }
+    receipts.value = next;
+    receiptFailed.value = false;
+  } catch { receiptFailed.value = true; }
+}
+async function load(reset = true) {
+  if (!page.visible.value || reading.value || operating.value) return;
+  const operation = page.capture();
+  const version = ++readVersion;
+  const current = () => operation.isCurrent() && version === readVersion;
+  reading.value = true; initFailed.value = false; retryReset = reset;
   try {
     await userStore.init();
-    if (!userStore.currentUser) {
-      if (token === loadToken) list.value = [];
+    if (!current()) return;
+    if (!userStore.currentUser || !userStore.realUserId) {
+      if (getAccessToken()) throw new Error('账户资料读取失败，请重试');
+      pager.clear();
       return;
     }
-    const tab = TABS.find(item => item.key === activeKey.value);
-    const query = { pageNo: 1, pageSize: 30, status: tab?.status };
-    const page = userStore.isBuyerActive ? await fetchSoldRefunds(query) : await fetchBoughtRefunds(query);
-    if (token === loadToken) list.value = page.records;
+    refreshReceipts();
+    await pager.load(reset);
+    if (!current() || receiptFailed.value) return;
+    await reconcileRefundCancels(userStore.realUserId, current);
+    if (current()) refreshReceipts();
   } catch (error) {
-    if (token !== loadToken) return;
-    list.value = [];
-    loadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '仅退款记录加载失败', icon: 'none' });
+    if (!current()) return;
+    initFailed.value = true;
+    uni.showToast({ title: error instanceof Error ? error.message : '退款记录读取失败', icon: 'none' });
   } finally {
-    if (token === loadToken) loading.value = false;
-    uni.stopPullDownRefresh();
+    if (current()) { reading.value = false; uni.stopPullDownRefresh(); }
   }
 }
-
+function retry() { return load(retryReset); }
+function canCancel(item: Api.RealOrder.OrderRefundDTO) {
+  return page.visible.value && !!userStore.realUserId && !userStore.isBuyerActive && !operating.value && !loading.value && !loadFailed.value
+    && !receiptFailed.value && !receipts.value.has(String(item.refundId)) && item.status === 'APPLYING' && list.value.includes(item)
+    && (item.buyerId == null || String(item.buyerId) === userStore.realUserId);
+}
 function openDetail(item: Api.RealOrder.OrderRefundDTO) {
-  go(`/pages/aftersale/detail?id=${item.refundId}`);
+  if (page.visible.value && userStore.currentUser && !operating.value && list.value.includes(item)) go(`/pages/aftersale/detail?id=${encodeURIComponent(String(item.refundId))}`);
 }
-
-function cancel(item: Api.RealOrder.OrderRefundDTO) {
-  uni.showModal({
-    title: '撤销仅退款申请？',
-    content: '撤销后订单将恢复为原来的待处理状态。',
-    success: async result => {
-      if (!result.confirm) return;
-      try {
-        await cancelRealRefund(item.refundId);
-        uni.showToast({ title: '申请已撤销', icon: 'success' });
-        await load();
-      } catch (error) {
-        uni.showToast({ title: error instanceof Error ? error.message : '撤销申请失败', icon: 'none' });
-      }
+function openReceipt(receipt: RefundCancelReceipt) {
+  if (page.visible.value && userStore.currentUser && !operating.value && receipts.value.get(String(receipt.refundId))?.attempt === receipt.attempt) go(`/pages/aftersale/detail?id=${encodeURIComponent(String(receipt.refundId))}`);
+}
+async function login() {
+  const operation = page.capture();
+  if (await requireLogin('/pages/aftersale/list') && operation.isCurrent()) await load();
+}
+async function cancel(item: Api.RealOrder.OrderRefundDTO) {
+  if (!canCancel(item)) return;
+  const operation = page.capture();
+  const filter = filterVersion;
+  const current = () => operation.isCurrent() && filter === filterVersion;
+  operating.value = true;
+  try {
+    const receipt = await cancelRefundWithReceipt(item, current);
+    if (receipt && operation.sameSession()) receipts.value.set(String(receipt.refundId), receipt);
+    if (receipt && current()) uni.showToast({ title: '申请已撤销', icon: 'success' });
+  } catch (error) {
+    if (!operation.sameSession()) return;
+    refreshReceipts();
+    const receipt = receipts.value.get(String(item.refundId));
+    if (current()) uni.showToast({ title: receipt ? refundCancelMessage(receipt) : error instanceof Error ? error.message : '撤销失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) {
+      operating.value = false;
+      if (page.visible.value) await load();
     }
-  });
+  }
 }
-
-onShow(load);
-onPullDownRefresh(load);
-watch(activeKey, load);
-watch(() => userStore.currentAudience, load);
+function changeFilter() {
+  filterVersion++; readVersion++;
+  reading.value = false; initFailed.value = false; retryReset = true;
+  pager.clear();
+  load();
+}
+onShow(() => load());
+onPullDownRefresh(() => load());
+onReachBottom(() => loadFailed.value ? retry() : load(false));
+onHide(() => { readVersion++; reading.value = false; pager.invalidate(); });
+watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync' });
 </script>
 
 <template>
@@ -88,7 +151,15 @@ watch(() => userStore.currentAudience, load);
       </wd-tabs>
     </view>
     <view class="list">
-      <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载仅退款记录</text></view>
+      <view v-if="receiptFailed || pendingReceipts.length" class="refund-card">
+        <text v-if="receiptFailed">本机撤销回执读取失败，暂不能撤销；仍可查看退款记录</text>
+        <view v-for="receipt in pendingReceipts" :key="String(receipt.refundId)">
+          <text>{{ refundCancelMessage(receipt) }}</text>
+          <wd-button plain size="small" :disabled="operating" @click="openReceipt(receipt)">查看退款单</wd-button>
+        </view>
+        <wd-button block plain :loading="loading" :disabled="operating" @click="load()">刷新核对</wd-button>
+      </view>
+      <view v-if="loading && !list.length" class="loading"><wd-loading size="44rpx" /><text>正在加载仅退款记录</text></view>
       <view v-else-if="list.length">
         <view v-for="item in list" :key="item.refundId" class="refund-card" @click="openDetail(item)">
           <view class="head">
@@ -102,15 +173,19 @@ watch(() => userStore.currentAudience, load);
               <text class="reason">退款原因：{{ item.reason || '未填写' }}</text>
               <text class="counterpart">{{ userStore.isBuyerActive ? '顾客' : '买手' }}：{{ userStore.isBuyerActive ? (item.buyerName || '—') : (item.sellerName || '—') }}</text>
             </view>
-            <text class="amount">{{ formatUsdt(item.amount || 0) }}</text>
+            <text class="amount">{{ item.amount == null ? '—' : formatUsdt(item.amount) }}</text>
           </view>
+          <text v-if="receipts.has(String(item.refundId))">{{ refundCancelMessage(receipts.get(String(item.refundId))) }}{{ item.status === 'APPLYING' && receipts.get(String(item.refundId))?.state !== 'unknown' ? '（上方为旧状态，等待同步）' : '' }}</text>
           <view v-if="!userStore.isBuyerActive && item.status === 'APPLYING'" class="actions" @click.stop>
-            <wd-button plain size="small" @click="cancel(item)">撤销申请</wd-button>
+            <wd-button plain size="small" :disabled="!canCancel(item)" @click="cancel(item)">撤销申请</wd-button>
           </view>
         </view>
       </view>
       <EmptyState v-else-if="loadFailed" title="仅退款记录加载失败" description="请稍后重试" />
+      <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看退款记录" action-text="登录" @action="login" />
       <EmptyState v-else title="暂无仅退款记录" :description="emptyDescription" />
+      <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="retry">读取失败，点击重试{{ list.length ? '（当前为上次记录）' : '' }}</wd-button>
+      <wd-button v-else-if="userStore.currentUser && hasMore" block plain :loading="loading" :disabled="operating" @click="load(false)">加载更多</wd-button>
     </view>
   </view>
 </template>

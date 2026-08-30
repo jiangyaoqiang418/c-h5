@@ -5,6 +5,39 @@ import { realServiceConfig } from '../config';
 const DEFAULT_TIMEOUT = 15_000;
 let loginRedirecting = false;
 
+// 只保留各页面实际消费的业务参数，不把凭据或任意查询参数带入登录地址。
+const LOGIN_RETURN_PARAMS: Record<string, readonly string[]> = {
+  '/pages/product/detail': ['id', 'source'],
+  '/pages/product/list': ['keyword', 'categoryId', 'sort'],
+  '/pages/buyer/product-detail': ['id'],
+  '/pages/order/detail': ['id'],
+  '/pages/order/list': ['status'],
+  '/pages/checkout/index': ['mode', 'contextId', 'guestTransferId'],
+  '/pages/checkout/success': ['orderId', 'orderIds'],
+  '/pages/purchase/create': ['productHint', 'categoryId'],
+  '/pages/purchase/detail': ['id'],
+  '/pages/aftersale/create': ['orderId'],
+  '/pages/aftersale/detail': ['id'],
+  '/pages/review/write': ['orderId'],
+  '/pages/finance/detail': ['id'],
+  '/pages/wallet/recharge-detail': ['id'],
+  '/pages/wallet/withdraw-detail': ['id'],
+  '/pages/my/addresses': ['mode', 'selectedId'],
+  '/pages/message/notifications': ['category'],
+  '/pages/im/real-order-group': ['orderId'],
+  '/pages/im/order-group': ['orderCode']
+};
+
+export function loginReturnUrl(page?: { route?: string; options?: Record<string, unknown> }): string {
+  const path = page?.route ? `/${page.route.replace(/^\//, '')}` : '/pages/my/index';
+  if (!/^\/pages\/[a-z0-9/-]+$/i.test(path) || path.startsWith('/pages/auth/')) return '/pages/my/index';
+  const query = (LOGIN_RETURN_PARAMS[path] || []).flatMap(key => {
+    const value = page?.options?.[key];
+    return typeof value === 'string' && value ? [`${key}=${encodeURIComponent(value)}`] : [];
+  }).join('&');
+  return path + (query ? `?${query}` : '');
+}
+
 function appendParams(url: string, params?: RequestOptions['params']): string {
   if (!params) return url;
   const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== null);
@@ -26,32 +59,37 @@ function isAllowedServiceURL(baseURL: string): boolean {
   return false;
 }
 
-function notifyLoginExpired(): void {
+export function notifyLoginExpired(token: string): void {
+  if (!token || token !== getAccessToken()) return;
   clearAccessToken();
   if (loginRedirecting) return;
   loginRedirecting = true;
   uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' });
   setTimeout(() => {
-    uni.reLaunch({ url: '/pages/auth/login' });
+    if (getAccessToken()) { loginRedirecting = false; return; }
+    const page = getCurrentPages().slice(-1)[0] as { route?: string; options?: Record<string, string> } | undefined;
+    if (page?.route?.replace(/^\//, '') !== 'pages/auth/login') {
+      uni.reLaunch({ url: `/pages/auth/login?redirect=${encodeURIComponent(loginReturnUrl(page))}` });
+    }
     loginRedirecting = false;
   }, 300);
 }
 
-function throwBusinessError(body: ServiceEnvelope<unknown>): never {
+function throwBusinessError(body: ServiceEnvelope<unknown>, token: string): never {
   const code = body.code === undefined || body.code === null ? '' : String(body.code);
   const message = body.message || body.msg || '业务请求失败';
   if (realServiceConfig.logoutCodes.includes(code) || realServiceConfig.modalLogoutCodes.includes(code)) {
-    notifyLoginExpired();
+    notifyLoginExpired(token);
     throw new RequestError({ kind: 'unauthorized', message, code: body.code });
   }
   throw new RequestError({ kind: 'business', message, code: body.code });
 }
 
-function unwrapBody<T>(body: unknown): T {
+function unwrapBody<T>(body: unknown, token: string): T {
   if (!isEnvelope(body)) return body as T;
   const code = body.code === undefined || body.code === null ? '' : String(body.code);
   if ((code && code !== realServiceConfig.successCode) || body.success === false) {
-    throwBusinessError(body);
+    throwBusinessError(body, token);
   }
   return body.data as T;
 }
@@ -85,15 +123,18 @@ export function createRequest(baseURL: string) {
       });
     }
 
+    if (token && token !== getAccessToken()) {
+      throw new RequestError({ kind: 'unauthorized', message: '会话已切换，本次响应已忽略' });
+    }
     if (response.statusCode === 401) {
-      notifyLoginExpired();
+      notifyLoginExpired(token);
       throw new RequestError({ kind: 'unauthorized', message: '登录已失效', statusCode: response.statusCode });
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw new RequestError({ kind: 'http', message: `请求失败（${response.statusCode}）`, statusCode: response.statusCode });
     }
 
-    return unwrapBody<T>(response.data);
+    return unwrapBody<T>(response.data, token);
   };
 }
 
@@ -128,8 +169,11 @@ export function createUpload(baseURL: string) {
       });
     }
 
+    if (token && token !== getAccessToken()) {
+      throw new RequestError({ kind: 'unauthorized', message: '会话已切换，本次上传响应已忽略' });
+    }
     if (response.statusCode === 401) {
-      notifyLoginExpired();
+      notifyLoginExpired(token);
       throw new RequestError({ kind: 'unauthorized', message: '登录已失效', statusCode: response.statusCode });
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -142,7 +186,7 @@ export function createUpload(baseURL: string) {
     } catch {
       body = response.data;
     }
-    return unwrapBody<T>(body);
+    return unwrapBody<T>(body, token);
   };
 }
 

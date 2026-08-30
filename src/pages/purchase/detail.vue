@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { enums } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
 import PushTierBadge from '@/components/purchase/push-tier-badge.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { cancelPurchase, claimRequest, fetchPurchaseDetail } from '@/service/api/purchase';
-import { requireLogin } from '@/utils/navigate';
+import { fetchPurchaseDetail } from '@/service/api/purchase';
+import { go, useNavigationGuards } from '@/utils/navigate';
+import { usePageOperation } from '@/utils/page-operation';
+import { claimPurchase, readClaimReceipts, reconcileClaimReceipts, type ClaimReceipt } from '@/utils/purchase-claim';
+import { cancelPurchaseWithReceipt, readPurchaseCancelReceipts, reconcilePurchaseCancel, purchaseCancelMessage, type PurchaseCancelReceipt } from '@/utils/purchase-cancel';
+import { getAccessToken } from '@/service/request/token';
+
+const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
 const request = ref<Api.PurchaseRequest.PurchaseRequest>();
@@ -15,80 +21,152 @@ const id = ref<string>();
 const logs = ref<Api.PurchaseRequest.PushLog[]>([]);
 const loading = ref(true);
 const loadFailed = ref(false);
-
-onLoad(async query => {
-  try {
-    await userStore.init();
-    id.value = query?.id ? String(query.id) : undefined;
-    if (!userStore.currentUser) {
-      if (id.value) await requireLogin(`/pages/purchase/detail?id=${encodeURIComponent(id.value)}`);
-      return;
-    }
-    if (id.value) {
-      const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
-      request.value = r.request;
-      logs.value = r.pushLogs;
-    }
-  } catch (error) {
-    loadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '求购详情加载失败', icon: 'none' });
-  } finally {
-    loading.value = false;
-  }
+const operating = ref(false);
+const confirmedAction = ref<'claim'>();
+const claimReceipt = ref<ClaimReceipt>();
+const claimReceiptFailed = ref(false);
+const cancelReceipt = ref<PurchaseCancelReceipt>();
+const cancelReceiptFailed = ref(false);
+let loadSequence = 0;
+const page = usePageOperation(() => {
+  loadSequence++;
+  request.value = undefined;
+  logs.value = [];
+  loading.value = false;
+  loadFailed.value = true;
+  operating.value = false;
+  confirmedAction.value = undefined;
+  claimReceipt.value = undefined;
+  claimReceiptFailed.value = false;
+  cancelReceipt.value = undefined;
+  cancelReceiptFailed.value = false;
 });
 
+onLoad(query => { id.value = query?.id ? String(query.id) : undefined; });
+
 const statusMeta = computed(() => (request.value ? enums.PURCHASE_STATUS_META[request.value.status] : undefined));
-const isMy = computed(() => !!userStore.realUserId && userStore.realUserId === String(request.value?.customerId || ''));
+const isMy = computed(() => !!userStore.realUserId && userStore.realUserId === String(request.value?.customerId ?? ''));
+const canCancel = computed(() => page.visible.value && !loading.value && !loadFailed.value && !operating.value && isMy.value
+  && !!request.value && ['pending_audit', 'pushing'].includes(request.value.status) && !cancelReceipt.value && !cancelReceiptFailed.value);
 const canClaim = computed(() => {
-  if (!request.value || !userStore.currentUser) return false;
-  return request.value.status === 'pushing' && userStore.isBuyerActive && userStore.currentUser.kycStatus === 'approved';
+  if (!request.value || !userStore.currentUser || claimReceipt.value || claimReceiptFailed.value) return false;
+  return !isMy.value && request.value.status === 'pushing' && userStore.currentUser.isBuyer && userStore.isBuyerActive && userStore.currentUser.kycStatus === 'approved';
 });
 
 async function reload() {
-  if (id.value) {
-    try {
-      const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
-      request.value = r.request;
-      logs.value = r.pushLogs;
-    } catch (error) {
-      uni.showToast({ title: error instanceof Error ? error.message : '求购详情加载失败', icon: 'none' });
+  if (!page.visible.value || operating.value) return;
+  if (!id.value) { loading.value = false; return; }
+  const operation = page.capture();
+  const sequence = ++loadSequence;
+  const valid = () => operation.isCurrent() && sequence === loadSequence;
+  loading.value = true;
+  loadFailed.value = false;
+  try {
+    await userStore.init();
+    if (!valid()) return;
+    if (!userStore.currentUser) {
+      if (getAccessToken()) throw new Error('账户资料加载失败，请重试');
+      await requireLogin(`/pages/purchase/detail?id=${encodeURIComponent(id.value)}`); return;
     }
+    refreshClaimReceipt();
+    refreshCancelReceipt();
+    const r = await fetchPurchaseDetail(id.value, userStore.realUserId);
+    if (!valid()) return;
+    if (String(r.request.id) !== id.value) throw new Error('求购详情与请求 ID 不匹配');
+    request.value = r.request;
+    logs.value = r.pushLogs;
+    if (confirmedAction.value === 'claim' && r.request.status !== 'pushing') {
+      confirmedAction.value = undefined;
+    }
+    if (claimReceipt.value?.state === 'unknown' && !claimReceiptFailed.value) {
+      await reconcileClaimReceipts(userStore.realUserId || '', valid);
+      if (valid()) refreshClaimReceipt();
+    }
+    if (valid() && isMy.value && cancelReceipt.value && !cancelReceiptFailed.value) {
+      const checked = await reconcilePurchaseCancel(userStore.realUserId!, id.value, valid);
+      if (valid() && checked && cancelReceipt.value.state !== 'verified'
+        && (cancelReceipt.value.state === 'unknown' || checked.state !== 'unknown')) cancelReceipt.value = checked;
+    }
+  } catch (error) {
+    if (!valid()) return;
+    loadFailed.value = true;
+    uni.showToast({ title: confirmedAction.value ? '操作已成功，状态刷新失败，请重新加载' : error instanceof Error ? error.message : '求购详情加载失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession() && sequence === loadSequence) loading.value = false;
   }
+}
+onShow(() => { if (!operating.value) return reload(); });
+onHide(() => { loadSequence++; loading.value = false; });
+
+function refreshCancelReceipt() {
+  try {
+    const saved = readPurchaseCancelReceipts(userStore.realUserId || '').find(item => String(item.demandId) === id.value);
+    if (!cancelReceipt.value || cancelReceipt.value.state === 'unknown' || saved?.state === 'verified'
+      || (cancelReceipt.value.state === 'confirmed' && saved?.state === 'confirmed')) cancelReceipt.value = saved;
+    cancelReceiptFailed.value = false;
+  } catch { cancelReceiptFailed.value = true; }
+}
+
+function refreshClaimReceipt() {
+  try {
+    const saved = readClaimReceipts(userStore.realUserId || '').find(item => String(item.demandId) === id.value);
+    if (claimReceipt.value?.state !== 'confirmed' || saved?.state === 'confirmed') claimReceipt.value = saved;
+    claimReceiptFailed.value = false;
+  } catch { claimReceiptFailed.value = true; }
 }
 
 async function claim() {
-  if (!request.value || !userStore.currentUser) return;
+  if (!page.visible.value || loading.value || loadFailed.value || confirmedAction.value || !request.value || !canClaim.value || operating.value) return;
+  const operation = page.capture();
+  operating.value = true;
   try {
-    const r = await claimRequest(request.value.id);
-    if (r.ok) {
-      uni.showToast({ title: '接单成功', icon: 'success' });
-      reload();
-    } else uni.showToast({ title: r.message || '失败', icon: 'none' });
+    const receipt = await claimPurchase(request.value, operation.isCurrent);
+    if (!operation.sameSession()) return;
+    claimReceipt.value = receipt;
+    confirmedAction.value = 'claim';
+    if (operation.isCurrent()) uni.showToast({ title: '接单成功', icon: 'success' });
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '接单失败', icon: 'none' });
+    if (!operation.sameSession()) return;
+    refreshClaimReceipt();
+    if (operation.isCurrent()) uni.showToast({ title: claimReceipt.value?.state === 'unknown' ? '接单结果尚未确认，请刷新核对，不要重复提交' : error instanceof Error ? error.message : '接单失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) {
+      operating.value = false;
+      if (page.visible.value) await reload();
+    }
   }
 }
 
-function cancel() {
-  if (!request.value) return;
-  uni.showModal({
-    title: '撤销求购？',
-    success: async r => {
-      if (r.confirm) {
-        try {
-          await cancelPurchase(request.value!.id);
-          reload();
-        } catch (error) {
-          uni.showToast({ title: error instanceof Error ? error.message : '撤销失败', icon: 'none' });
-        }
-      }
-    }
-  });
+async function cancel() {
+  if (!canCancel.value || !request.value) return;
+  const operation = page.capture();
+  operating.value = true;
+  try {
+    const receipt = await cancelPurchaseWithReceipt(request.value, operation.isCurrent);
+    if (receipt && operation.sameSession()) cancelReceipt.value = receipt;
+    if (receipt && operation.isCurrent()) uni.showToast({ title: purchaseCancelMessage(receipt), icon: 'none' });
+  } catch (error) {
+    if (operation.sameSession()) refreshCancelReceipt();
+    if (operation.isCurrent()) uni.showToast({ title: cancelReceipt.value ? purchaseCancelMessage(cancelReceipt.value) : error instanceof Error ? error.message : '撤销失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) { operating.value = false; if (page.visible.value) await reload(); }
+  }
 }
 </script>
 
 <template>
   <view v-if="request" class="detail-page yb-page">
+    <view v-if="isMy && (cancelReceipt || cancelReceiptFailed)" class="section">
+      <text>{{ cancelReceiptFailed ? '本机撤销回执读取失败，已暂停撤销，请先核对记录。' : cancelReceipt ? purchaseCancelMessage(cancelReceipt) : '' }}</text>
+      <text v-if="cancelReceipt && ['pending_audit', 'pushing'].includes(request.status)">当前仍为上次读取的可撤销状态，不能据此重复提交。</text>
+      <wd-button plain :loading="loading" :disabled="operating" @click="reload">只读核对撤销结果</wd-button>
+    </view>
+    <view v-if="claimReceipt || claimReceiptFailed">
+      <text>{{ claimReceiptFailed ? '本机接单回执读取失败，暂不能接单' : claimReceipt?.state === 'confirmed' ? '接单已成功，订单回执已保留' : '接单结果尚未确认，请刷新核对，勿重复提交' }}</text>
+      <wd-button plain :loading="loading" :disabled="operating" @click="reload">刷新核对</wd-button>
+      <wd-button v-if="claimReceipt?.orderId != null" plain @click="go(`/pages/order/detail?id=${encodeURIComponent(String(claimReceipt.orderId))}`)">查看接单订单</wd-button>
+    </view>
+    <wd-button v-if="loadFailed || confirmedAction" block plain :loading="loading" :disabled="operating" @click="reload">{{ confirmedAction ? '操作已成功，点击刷新最新状态' : '状态刷新失败，点击重试' }}</wd-button>
     <view class="hero">
       <wd-tag v-if="statusMeta" plain round size="medium">{{ statusMeta.label }}</wd-tag>
       <text class="code">{{ request.code }}</text>
@@ -138,12 +216,15 @@ function cancel() {
     </view>
 
     <view class="bottom-bar">
-      <wd-button v-if="canClaim" type="primary" block @click="claim">我接此单</wd-button>
-      <wd-button v-if="isMy && ['pending_audit', 'pushing'].includes(request.status)" type="error" plain @click="cancel">撤销</wd-button>
+      <wd-button v-if="canClaim" type="primary" block :loading="operating" :disabled="operating || loading || loadFailed || !!confirmedAction" @click="claim">我接此单</wd-button>
+      <wd-button v-if="isMy && ['pending_audit', 'pushing'].includes(request.status)" type="error" plain :disabled="!canCancel" @click="cancel">撤销</wd-button>
     </view>
   </view>
-  <EmptyState v-else-if="loadFailed" title="求购详情加载失败" description="请稍后重试" />
-  <EmptyState v-else-if="!loading" title="求购不存在" />
+  <view v-else-if="loading" class="section">正在加载求购详情…</view>
+  <EmptyState v-else-if="loadFailed" title="求购详情加载失败" description="请重新加载后继续" action-text="重新加载" @action="reload" />
+  <EmptyState v-else-if="!id" title="缺少求购信息" description="请从求购列表进入详情" action-text="查看我的求购" @action="go('/pages/purchase/my-list', true)" />
+  <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看求购" action-text="登录或重试" @action="reload" />
+  <EmptyState v-else title="求购暂不可读取" action-text="重新加载" @action="reload" />
 </template>
 
 <style lang="scss" scoped>

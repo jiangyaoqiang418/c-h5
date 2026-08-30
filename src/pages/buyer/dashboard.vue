@@ -43,7 +43,7 @@ async function load() {
     const results = await Promise.allSettled([
       fetchSoldOrders({ pageNo: 1, pageSize: 5 }),
       fetchHall({ current: 1, size: 5 }),
-      fetchMyProducts({ pageNo: 1, pageSize: 1 }),
+      fetchMyProducts({ pageNo: 1, pageSize: 1, status: 'ON_SALE' }),
       fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 })
     ]);
     const [soldOrders, demandHall, products, deposits] = results;

@@ -1,23 +1,45 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import { applyBuyer } from '@/service/api/buyer';
 import { useUserStore } from '@/stores';
-import { go, requireLogin } from '@/utils/navigate';
+import { go, useNavigationGuards } from '@/utils/navigate';
+import { usePageOperation } from '@/utils/page-operation';
+
+const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
 const loading = ref(true);
 const submitting = ref(false);
+const loadFailed = ref(false);
+const submittedId = ref<string | number>();
+let loadSequence = 0;
+let formVersion: string | undefined;
+let rejectedBeforeSubmit: string | undefined;
 
 const form = reactive<Api.RealUser.BuyerApplyParams>({
   realName: '',
   contact: '',
   reason: ''
 });
+const page = usePageOperation(() => {
+  loadSequence++;
+  loading.value = false;
+  loadFailed.value = true;
+  submitting.value = false;
+  submittedId.value = undefined;
+  formVersion = undefined;
+  rejectedBeforeSubmit = undefined;
+  Object.assign(form, { realName: '', contact: '', reason: '' });
+});
+function applicationVersion(record: Api.RealUser.BuyerApplicationDTO | null | undefined) {
+  return record ? JSON.stringify([String(record.id), record.status, record.appliedAt ?? null, record.reviewedAt ?? null]) : 'none';
+}
 
 const application = computed(() => userStore.buyerApplication);
-const canApply = computed(() => !application.value || application.value.status === 'REJECTED');
+const canApply = computed(() => submittedId.value == null && (!application.value || application.value.status === 'REJECTED'));
 const canSubmit = computed(() => (
-  form.realName.trim().length > 0
+  !!userStore.currentUser && !loading.value && !loadFailed.value && !userStore.buyerApplicationLoadFailed && canApply.value && form.realName.trim().length > 0
   && form.contact.trim().length > 0
   && form.reason.trim().length >= 10
   && form.reason.trim().length <= 500
@@ -52,59 +74,83 @@ function fillForm() {
 }
 
 async function load() {
+  if (!page.visible.value) return;
+  const operation = page.capture();
+  const sequence = ++loadSequence;
+  const valid = () => operation.isCurrent() && sequence === loadSequence;
   loading.value = true;
+  loadFailed.value = false;
   try {
     if (!(await requireLogin('/pages/buyer/apply'))) return;
+    if (!valid()) return;
     await userStore.refreshBuyerApplication();
-    if (userStore.buyerApplicationLoadFailed) {
-      uni.showToast({ title: '买手申请状态加载失败', icon: 'none' });
-      return;
+    if (!valid()) return;
+    if (userStore.buyerApplicationLoadFailed) throw new Error('买手申请状态加载失败');
+    const record = application.value;
+    if (record && submittedId.value != null && String(record.id) === String(submittedId.value)) {
+      if (record.status === 'PENDING' || record.status === 'APPROVED') rejectedBeforeSubmit = undefined;
+      if (record.status === 'REJECTED' && applicationVersion(record) !== rejectedBeforeSubmit) {
+        submittedId.value = undefined;
+        rejectedBeforeSubmit = undefined;
+      }
     }
-    fillForm();
+    const version = applicationVersion(record);
+    if (formVersion !== version) {
+      fillForm();
+      formVersion = version;
+    }
   } catch (error) {
+    if (!valid()) return;
+    loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '买手申请状态加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (operation.sameSession() && sequence === loadSequence) loading.value = false;
   }
 }
 
 async function submit() {
+  if (!page.visible.value || submitting.value || !canApply.value || loading.value || loadFailed.value || userStore.buyerApplicationLoadFailed) return;
   if (!canSubmit.value) {
     uni.showToast({ title: '请填写姓名、联系方式和不少于 10 字的申请说明', icon: 'none' });
     return;
   }
-  uni.showModal({
-    title: application.value?.status === 'REJECTED' ? '确认重新提交' : '确认提交申请',
-    content: '提交后将进入平台审核，请确认联系方式准确。',
-    confirmText: '确认提交',
-    success: async result => {
-      if (!result.confirm) return;
-      submitting.value = true;
-      try {
-        const id = await applyBuyer({
-          realName: form.realName.trim(),
-          contact: form.contact.trim(),
-          reason: form.reason.trim()
-        });
-        await userStore.refreshBuyerApplication();
-        uni.showToast({ title: `申请已提交（${id}）`, icon: 'success' });
-      } catch (error) {
-        uni.showToast({ title: error instanceof Error ? error.message : '买手申请提交失败', icon: 'none' });
-      } finally {
-        submitting.value = false;
-      }
+  const operation = page.capture();
+  const request = { realName: form.realName.trim(), contact: form.contact.trim(), reason: form.reason.trim() };
+  const rejection = application.value?.status === 'REJECTED' ? applicationVersion(application.value) : undefined;
+  submitting.value = true;
+  try {
+    const result = await uni.showModal({
+      title: application.value?.status === 'REJECTED' ? '确认重新提交' : '确认提交申请',
+      content: '提交后将进入平台审核，请确认联系方式准确。', confirmText: '确认提交'
+    });
+    if (!result.confirm || !operation.isCurrent() || !canSubmit.value) return;
+    if (request.realName !== form.realName.trim() || request.contact !== form.contact.trim() || request.reason !== form.reason.trim()) {
+      uni.showToast({ title: '申请信息已变化，请重新确认', icon: 'none' });
+      return;
     }
-  });
+    const id = await applyBuyer(request);
+    if (!operation.sameSession()) return;
+    submittedId.value = id;
+    rejectedBeforeSubmit = rejection;
+    if (!operation.isCurrent()) return;
+    uni.showToast({ title: '申请已提交', icon: 'success' });
+    await load();
+  } catch (error) {
+    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '买手申请提交失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) submitting.value = false;
+  }
 }
 
-onMounted(load);
+onShow(() => { if (!submitting.value) load(); });
 </script>
 
 <template>
   <view class="apply-page yb-page">
+    <wd-button v-if="submittedId != null" block plain :loading="loading" :disabled="submitting" @click="load">申请已提交，刷新审核状态</wd-button>
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载申请状态</text></view>
 
-    <template v-else-if="!userStore.buyerApplicationLoadFailed">
+    <template v-else-if="!loadFailed && !userStore.buyerApplicationLoadFailed">
       <view v-if="statusMeta" class="status-card">
         <view class="status-head">
           <text class="status-title">申请状态</text>
@@ -143,7 +189,7 @@ onMounted(load);
           :max-length="500"
           show-word-limit
         />
-        <wd-button type="primary" block :disabled="!canSubmit" :loading="submitting" class="submit-btn" @click="submit">
+        <wd-button type="primary" block :disabled="!canSubmit || submitting" :loading="submitting" class="submit-btn" @click="submit">
           {{ application?.status === 'REJECTED' ? '重新提交' : '提交申请' }}
         </wd-button>
       </view>

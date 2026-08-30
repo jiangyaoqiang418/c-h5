@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
+import { getAccessToken, onSessionChanged } from '@/service/request/token';
 import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
@@ -14,23 +15,55 @@ const form = reactive({
 });
 const submitting = ref(false);
 const redirect = ref('/pages/my/index');
+const loginConfirmed = ref(false);
+let confirmedToken = '';
+let visible = true;
+let disposed = false;
+let pageVersion = 0;
+const unsubscribe = onSessionChanged(() => { loginConfirmed.value = false; confirmedToken = ''; form.password = ''; });
+onShow(() => { visible = true; });
+onHide(() => { visible = false; pageVersion++; form.password = ''; });
+onUnload(() => { disposed = true; visible = false; pageVersion++; form.password = ''; unsubscribe(); });
+
+function continueLogin() {
+  if (visible && !disposed && loginConfirmed.value && confirmedToken === getAccessToken() && userStore.currentUser) go(redirect.value, true);
+}
 
 onLoad(query => {
-  if (query?.redirect) redirect.value = decodeURIComponent(query.redirect as string);
+  if (query?.redirect) {
+    try {
+      const raw = String(query.redirect);
+      // H5/App 路由可能已解码外层参数；不要再次解码目标 URL 内的查询值。
+      const target = raw.startsWith('/pages/') ? raw : decodeURIComponent(raw);
+      if (/^\/pages\/[a-z0-9/-]+(?:\?|$)/i.test(target) && !target.startsWith('/pages/auth/')) redirect.value = target;
+    } catch { /* 非法回跳参数使用默认个人中心。 */ }
+  }
 });
 
 async function submit() {
+  if (!visible || disposed || submitting.value) return;
+  if (loginConfirmed.value) return continueLogin();
   if (!form.email || !form.password) {
     uni.showToast({ title: '请填写邮箱密码', icon: 'none' });
     return;
   }
   submitting.value = true;
+  const version = pageVersion;
+  const origin = getCurrentPages().slice(-1)[0];
+  const current = () => visible && !disposed && version === pageVersion && origin === getCurrentPages().slice(-1)[0];
+  const request = { email: form.email, password: form.password };
   try {
-    await userStore.login(form);
-    uni.showToast({ title: '登录成功', icon: 'success' });
-    setTimeout(() => go(redirect.value, true), 500);
+    const receipt = await userStore.login(request, current);
+    if (disposed || receipt.token !== getAccessToken() || receipt.userId !== userStore.realUserId) return;
+    confirmedToken = receipt.token;
+    loginConfirmed.value = true;
+    form.password = '';
+    if (current()) {
+      uni.showToast({ title: '登录成功', icon: 'success' });
+      continueLogin();
+    }
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '登录失败', icon: 'none' });
+    if (current()) uni.showToast({ title: loginConfirmed.value ? '已登录，请点击继续进入' : error instanceof Error ? error.message : '登录失败', icon: 'none' });
   } finally {
     submitting.value = false;
   }
@@ -49,7 +82,7 @@ async function submit() {
     <view class="form-card">
       <wd-input class="login-input" v-model="form.email" label="邮箱" label-width="36px" placeholder="如 wangxiaomei@bw-shop.com" />
       <wd-input class="login-input" v-model="form.password" label="密码" label-width="36px" type="password" placeholder="请输入登录密码" />
-      <wd-button type="primary" block :loading="submitting" @click="submit">登 录</wd-button>
+      <wd-button type="primary" block :loading="submitting" @click="submit">{{ loginConfirmed ? '已登录，继续进入' : '登 录' }}</wd-button>
     </view>
   </view>
 </template>

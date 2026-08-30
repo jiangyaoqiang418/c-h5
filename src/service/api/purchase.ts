@@ -24,7 +24,7 @@ function toStatus(value?: string): Api.PurchaseRequest.RequestStatus {
   if (status === 'TAKEN' || status === 'CLAIMED') return 'claimed';
   if (status === 'CANCELED' || status === 'CANCELLED' || status === 'VOID') return 'cancelled';
   if (status === 'REJECTED') return 'rejected';
-  return 'pending_audit';
+  throw new Error('求购状态缺失或无法识别，请刷新核对');
 }
 
 function toIso(value?: string | number): string {
@@ -47,7 +47,7 @@ async function getCategoryPath(id: string | number): Promise<string> {
       };
       walk(nodes);
       return cache;
-    });
+    }).catch(error => { categoryPathPromise = undefined; throw error; });
   }
   const categoryPathCache = await categoryPathPromise;
   return categoryPathCache.get(key) || `分类已失效 · ${key}`;
@@ -60,7 +60,7 @@ async function toPurchaseRequest(
   return {
     id: dto.id,
     code: `PUR-${dto.id}`,
-    customerId: customerId || '',
+    customerId: dto.buyerId ?? customerId ?? '',
     customerName: '',
     productTitle: dto.title,
     productDescription: dto.description || '',
@@ -118,31 +118,43 @@ export async function fetchMyPurchases(
   statuses?: Api.PurchaseRequest.RequestStatus[],
   query: { current?: number; size?: number } = {}
 ) {
-  const page = await realOrderRequest<Api.RealPurchase.PurchaseDemandPage, Api.RealPurchase.PurchaseDemandPageQuery>({
-    url: '/demands/my/page',
-    method: 'POST',
-    data: {
-      pageNo: query.current || 1,
-      pageSize: query.size || 30
-    }
-  });
+  const page = await fetchMyPurchaseRecords({ pageNo: query.current || 1, pageSize: query.size || 30 });
   const mapped = await mapPage(page, customerId);
   if (statuses?.length) mapped.records = mapped.records.filter(record => statuses.includes(record.status));
   return mapped;
 }
 
-export async function fetchPurchaseDetail(id: string | number, customerId?: string) {
-  const dto = await realOrderRequest<Api.RealPurchase.PurchaseDemandVO>({
+/** 原请求恢复使用完整记录，不用展示 adapter 的默认值推断原地址或归属。 */
+export function fetchMyPurchaseRecords(query: Api.RealPurchase.PurchaseDemandPageQuery = {}) {
+  return realOrderRequest<Api.RealPurchase.PurchaseDemandPage, Api.RealPurchase.PurchaseDemandPageQuery>({
+    url: '/demands/my/page',
+    method: 'POST',
+    data: {
+      pageNo: query.pageNo || 1,
+      pageSize: query.pageSize || 30,
+      categoryId: query.categoryId,
+      keyword: query.keyword
+    }
+  });
+}
+
+export function fetchPurchaseRecord(id: string | number) {
+  return realOrderRequest<Api.RealPurchase.PurchaseDemandVO>({
     url: '/demands/detail',
     params: { id }
   });
+}
+
+export async function fetchPurchaseDetail(id: string | number, _viewerId?: string) {
+  const dto = await fetchPurchaseRecord(id);
   return {
-    request: await toPurchaseRequest(dto, customerId),
-    pushLogs: [] as Api.PurchaseRequest.PushLog[]
+    request: await toPurchaseRequest(dto),
+    pushLogs: [] as Api.PurchaseRequest.PushLog[],
+    rawStatus: dto.status
   };
 }
 
-export async function createPurchase(params: {
+export interface PurchaseCreateParams {
   productTitle: string;
   productDescription: string;
   categoryId: string | number;
@@ -153,7 +165,9 @@ export async function createPurchase(params: {
   appeal: string;
   addressId: string | number;
   evidenceUrls?: Api.RealPurchase.ProductImageParam[];
-}, customerId?: string) {
+}
+
+export async function createPurchase(params: PurchaseCreateParams) {
   const id = await realOrderRequest<string | number, Api.RealPurchase.PurchaseDemandCreateParams>({
     url: '/demands/create',
     method: 'POST',
@@ -170,7 +184,8 @@ export async function createPurchase(params: {
       images: params.evidenceUrls
     }
   });
-  return (await fetchPurchaseDetail(id, customerId)).request;
+  // 创建回执已确认，详情回读由目标页独立处理，避免读取失败导致重复创建。
+  return { id };
 }
 
 export function uploadPurchaseImage(filePath: string) {
@@ -182,20 +197,20 @@ export function uploadPurchaseImage(filePath: string) {
   });
 }
 
-export async function cancelPurchase(id: string | number, reason?: string) {
-  await realOrderRequest<string | number, { id: string | number; reason?: string }>({
+export function cancelPurchase(id: string | number, reason?: string) {
+  return realOrderRequest<string | number, { id: string | number; reason?: string }>({
     url: '/demands/cancel',
     method: 'POST',
     data: { id, reason }
   });
-  return { ok: true, message: '' };
 }
 
 export async function claimRequest(id: string | number) {
-  await realOrderRequest<string | number, { id: string | number }>({
+  const orderId = await realOrderRequest<string | number, { id: string | number }>({
     url: '/demands/grab',
     method: 'POST',
     data: { id }
   });
-  return { ok: true, message: '' };
+  if (orderId == null || orderId === '') throw new Error('接单回执缺失，请核对求购和订单记录');
+  return { ok: true, message: '', orderId };
 }

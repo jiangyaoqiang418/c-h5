@@ -1,71 +1,133 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { onPullDownRefresh } from '@dcloudio/uni-app';
-import { go, requireLogin } from '@/utils/navigate';
+import { computed, ref } from 'vue';
+import { onHide, onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app';
+import { usePagedList } from '@/utils/paged-list';
+import { useNavigationGuards } from '@/utils/navigate';
+import { usePageOperation } from '@/utils/page-operation';
+import { claimPurchase, readClaimReceipts, reconcileClaimReceipts, type ClaimReceipt } from '@/utils/purchase-claim';
+import { getAccessToken } from '@/service/request/token';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { claimRequest, fetchHall } from '@/service/api/purchase';
+import { fetchHall } from '@/service/api/purchase';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
+const { requireLogin } = useNavigationGuards();
+
 const userStore = useUserStore();
-const list = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
-const loading = ref(false);
-const loadFailed = ref(false);
+const claiming = ref(false);
+const opening = ref(false);
+const reading = ref(false);
+const receiptFailed = ref(false);
+const receipts = ref(new Map<string, ClaimReceipt>());
+const lastClaim = ref<ClaimReceipt>();
+let readVersion = 0;
+let retryReset = true;
+const page = usePageOperation(() => {
+  readVersion++;
+  claiming.value = false;
+  opening.value = false;
+  reading.value = false;
+  receiptFailed.value = false;
+  receipts.value = new Map();
+  lastClaim.value = undefined;
+});
 
 const canClaim = computed(
   () => userStore.currentUser?.isBuyer && userStore.currentUser?.kycStatus === 'approved' && userStore.isBuyerActive
 );
 
-async function load() {
-  loading.value = true;
-  loadFailed.value = false;
+const { list, loading, loadFailed, hasMore, load: loadPage, invalidate, clear } = usePagedList<Api.PurchaseRequest.PurchaseRequest>({
+  key: item => item.id,
+  preserveOnReset: true,
+  fetch: async (pageNo, pageSize) => {
+    if (!page.visible.value || !userStore.currentUser) throw new Error('请先登录查看求购任务');
+    return fetchHall({ current: pageNo, size: pageSize });
+  }
+});
+const displayedRequests = computed(() => list.value.filter(item => receipts.value.get(String(item.id))?.state !== 'confirmed'));
+const unknownCount = computed(() => [...receipts.value.values()].filter(item => item.state === 'unknown').length);
+
+function refreshReceipts() {
+  try {
+    const saved = readClaimReceipts(userStore.realUserId || '');
+    const next = new Map(saved.map(item => [String(item.demandId), item]));
+    if (lastClaim.value?.state === 'confirmed') next.set(String(lastClaim.value.demandId), lastClaim.value);
+    receipts.value = next;
+    receiptFailed.value = false;
+  } catch { receiptFailed.value = true; }
+}
+
+async function load(reset = true) {
+  if (!page.visible.value || reading.value || claiming.value) return;
+  const operation = page.capture();
+  const version = ++readVersion;
+  const current = () => operation.isCurrent() && version === readVersion;
+  reading.value = true;
+  retryReset = reset;
   try {
     await userStore.init();
+    if (!current()) return;
     if (!userStore.currentUser) {
-      list.value = [];
+      if (getAccessToken()) throw new Error('账户资料读取失败，请重试');
+      clear();
       return;
     }
-    const r = await fetchHall({ size: 30 });
-    list.value = r.records;
-  } catch (error) {
-    loadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '求购大厅加载失败', icon: 'none' });
-  } finally {
-    loading.value = false;
-    uni.stopPullDownRefresh();
-  }
-}
-
-onMounted(load);
-onPullDownRefresh(load);
-
-async function onClaim(req: Api.PurchaseRequest.PurchaseRequest) {
-  if (!userStore.currentUser) {
-    uni.showToast({ title: '请先登录', icon: 'none' });
-    return;
-  }
-  try {
-    const r = await claimRequest(req.id);
-    if (r.ok) {
-      uni.showToast({ title: '接单成功', icon: 'success' });
-      load();
-    } else {
-      uni.showToast({ title: r.message || '接单失败', icon: 'none' });
+    refreshReceipts();
+    await loadPage(reset);
+    if (!current() || receiptFailed.value) return;
+    const pendingIds = new Set([...receipts.value.values()].filter(item => item.state === 'unknown').map(item => String(item.demandId)));
+    await reconcileClaimReceipts(userStore.realUserId || '', current);
+    if (current()) {
+      refreshReceipts();
+      const recovered = [...receipts.value.values()].find(item => item.state === 'confirmed' && pendingIds.has(String(item.demandId)));
+      if (recovered) lastClaim.value = recovered;
     }
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '接单失败', icon: 'none' });
+    if (current()) { loadFailed.value = true; uni.showToast({ title: error instanceof Error ? error.message : '求购任务读取失败', icon: 'none' }); }
+  } finally { if (version === readVersion) { reading.value = false; uni.stopPullDownRefresh(); } }
+}
+onShow(() => load());
+onPullDownRefresh(() => load());
+onReachBottom(() => load(false));
+onHide(() => { readVersion++; reading.value = false; opening.value = false; invalidate(); });
+
+async function onClaim(req: Api.PurchaseRequest.PurchaseRequest) {
+  if (!page.visible.value || reading.value || loading.value || loadFailed.value || receiptFailed.value || claiming.value || !canClaim.value || req.status !== 'pushing'
+    || receipts.value.has(String(req.id)) || String(req.customerId) === userStore.realUserId || !list.value.some(item => String(item.id) === String(req.id))) return;
+  const operation = page.capture();
+  claiming.value = true;
+  try {
+    const receipt = await claimPurchase(req, operation.isCurrent);
+    if (!operation.sameSession()) return;
+    lastClaim.value = receipt;
+    receipts.value.set(String(req.id), receipt);
+    if (operation.isCurrent()) uni.showToast({ title: '接单成功', icon: 'success' });
+  } catch (error) {
+    if (!operation.sameSession()) return;
+    refreshReceipts();
+    if (operation.isCurrent()) uni.showToast({ title: receipts.value.get(String(req.id))?.state === 'unknown' ? '接单结果尚未确认，请刷新核对，不要重复接单' : error instanceof Error ? error.message : '接单失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) {
+      claiming.value = false;
+      if (page.visible.value) await load();
+    }
   }
 }
 
-async function goMy() {
-  if (await requireLogin('/pages/purchase/my-list')) go('/pages/purchase/my-list');
+async function openProtected(url: string) {
+  if (!page.visible.value || opening.value || claiming.value) return;
+  const operation = page.capture();
+  opening.value = true;
+  try { if (await requireLogin(url) && operation.isCurrent()) await uni.navigateTo({ url }); }
+  catch (error) { if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '页面打开失败，请重试', icon: 'none' }); }
+  finally { if (operation.isCurrent()) opening.value = false; }
 }
 
-async function goCreate() {
-  if (await requireLogin('/pages/purchase/create')) go('/pages/purchase/create');
-}
+const goMy = () => openProtected('/pages/purchase/my-list');
+const goCreate = () => openProtected('/pages/purchase/create');
+const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')) await load(); };
 </script>
 
 <template>
@@ -77,8 +139,8 @@ async function goCreate() {
       <view class="hero-row">
         <AudienceSegment />
         <view class="hero-actions">
-          <wd-button plain size="small" @click="goMy">我的求购</wd-button>
-          <wd-button type="primary" size="small" @click="goCreate"><wd-icon name="add" size="15px" /> 发起</wd-button>
+          <wd-button plain size="small" :disabled="opening || claiming" @click="goMy">我的求购</wd-button>
+          <wd-button type="primary" size="small" :disabled="opening || claiming" @click="goCreate"><wd-icon name="add" size="15px" /> 发起</wd-button>
         </view>
       </view>
     </view>
@@ -89,13 +151,15 @@ async function goCreate() {
     </view>
 
     <view class="list">
-      <view v-if="list.length">
+      <view v-if="lastClaim?.orderId != null"><text>接单已成功，订单回执已保留。</text><wd-button plain @click="openProtected(`/pages/order/detail?id=${encodeURIComponent(String(lastClaim.orderId))}`)">查看本次订单</wd-button></view>
+      <view v-if="unknownCount || receiptFailed"><text>{{ receiptFailed ? '本机接单回执读取失败，暂不能接单' : '有接单结果待核对，请刷新求购和订单记录，不要重复提交' }}</text><wd-button plain :loading="reading" :disabled="claiming" @click="load()">刷新核对</wd-button></view>
+      <view v-if="displayedRequests.length">
         <PurchaseRequestCard
-          v-for="r in list"
+          v-for="r in displayedRequests"
           :key="r.id"
           :request="r"
           mode="hall"
-          :can-claim="canClaim"
+          :can-claim="canClaim && !claiming && !reading && !loadFailed && !receiptFailed && !receipts.has(String(r.id)) && String(r.customerId) !== userStore.realUserId"
           @claim="onClaim"
         />
       </view>
@@ -105,6 +169,7 @@ async function goCreate() {
         description="请稍后重试"
       />
       <view v-else-if="loading" class="hall-loading"><wd-loading size="44rpx" /><text>正在加载求购任务</text></view>
+      <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看求购任务" action-text="登录" @action="loginToHall" />
       <EmptyState
         v-else-if="!loading"
         title="暂无求购任务"
@@ -112,6 +177,7 @@ async function goCreate() {
         action-text="发起求购"
         @action="goCreate"
       />
+      <wd-button v-if="userStore.currentUser && (hasMore || loadFailed)" block plain :loading="reading" :disabled="claiming" @click="load(loadFailed ? retryReset : false)">{{ loadFailed ? '加载失败，点击重试' : '加载更多' }}</wd-button>
     </view>
   </view>
 </template>

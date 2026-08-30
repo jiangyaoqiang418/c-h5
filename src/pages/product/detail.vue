@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onLoad } from '@dcloudio/uni-app';
+import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { productApi, reviewApi } from '@shared';
 import { avatarUrl } from '@shared/utils/image';
 import { formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { favoriteProduct, fetchStorefrontProductDetail, recordProductBrowse } from '@/service/api/product';
 import { fetchReviewSummary, fetchSellerRating, fetchStorefrontReviews } from '@/service/api/review';
-import { go, requireLogin } from '@/utils/navigate';
+import { go, useNavigationGuards } from '@/utils/navigate';
 import { useCartStore } from '@/stores';
 import VipBadge from '@/components/common/vip-badge.vue';
 import ReviewStars from '@/components/common/review-stars.vue';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { UI_ASSETS } from '@/constants/ui-assets';
+
+const { requireLogin } = useNavigationGuards();
 
 interface ProductView {
   id: string | number;
@@ -49,6 +51,12 @@ const qty = ref(1);
 const isRealProduct = ref(false);
 const loading = ref(true);
 const loadFailed = ref(false);
+const buying = ref(false);
+let pageActive = true;
+let pageVersion = 0;
+onShow(() => { pageActive = true; pageVersion++; buying.value = false; });
+onHide(() => { pageActive = false; pageVersion++; });
+onUnload(() => { pageActive = false; pageVersion++; });
 
 function toAfterSaleType(value?: string): Api.Product.AftersaleType {
   if (value === 'NONE') return 'none';
@@ -189,9 +197,9 @@ onLoad(async query => {
 function addToCart() {
   if (!product.value) return;
   if (isRealProduct.value) {
-    cart.addReal(realProductSnapshot(), qty.value);
+    if (!cart.addReal(realProductSnapshot(), qty.value)) return;
   } else if (product.value.legacyId) {
-    cart.add(product.value.legacyId, qty.value);
+    if (!cart.add(product.value.legacyId, qty.value)) return;
   } else {
     return;
   }
@@ -216,17 +224,22 @@ function realProductSnapshot() {
 }
 
 async function buyNow() {
+  if (buying.value || !pageActive) return;
   if (!product.value) return showTradeUnavailable();
-  if (isRealProduct.value) {
-    const contextId = cart.setBuyNowReal(realProductSnapshot(), qty.value);
+  if (!isRealProduct.value && !product.value.legacyId) return showTradeUnavailable();
+  buying.value = true;
+  const version = pageVersion;
+  try {
+    const contextId = isRealProduct.value
+      ? cart.setBuyNowReal(realProductSnapshot(), qty.value)
+      : cart.setBuyNow(product.value.legacyId!, qty.value);
     const checkoutUrl = `/pages/checkout/index?mode=buy-now&contextId=${encodeURIComponent(contextId)}`;
-    if (await requireLogin(checkoutUrl)) go(checkoutUrl);
-    return;
+    if (await requireLogin(checkoutUrl) && pageActive && version === pageVersion) await uni.navigateTo({ url: checkoutUrl });
+  } catch (error) {
+    uni.showToast({ title: error instanceof Error ? error.message : '暂时无法进入结算，请重试', icon: 'none' });
+  } finally {
+    if (pageActive && version === pageVersion) buying.value = false;
   }
-  if (!product.value.legacyId) return showTradeUnavailable();
-  const contextId = cart.setBuyNow(product.value.legacyId, qty.value);
-  const checkoutUrl = `/pages/checkout/index?mode=buy-now&contextId=${encodeURIComponent(contextId)}`;
-  if (await requireLogin(checkoutUrl)) go(checkoutUrl);
 }
 
 function showTradeUnavailable() {
@@ -334,7 +347,7 @@ function goBack() {
         <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="qty = Math.min(product.stock, qty + 1)">+</text>
       </view>
       <wd-button plain :disabled="!canAdd" @click="canAdd ? addToCart() : showTradeUnavailable()">加购</wd-button>
-      <wd-button type="primary" :disabled="!canBuy" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
+      <wd-button type="primary" :disabled="!canBuy || buying" :loading="buying" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
     </view>
   </view>
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载商品详情</text></view>

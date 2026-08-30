@@ -30,9 +30,10 @@ declare namespace Api {
       title: string;
       categoryId: string | number;
       categoryName?: string;
-      price: number;
-      shippingFee?: number;
-      taxFee?: number;
+      /** 实际服务的 BigDecimal 可能返回十进制字符串，包括零值 0E-8。 */
+      price: string | number;
+      shippingFee?: string | number;
+      taxFee?: string | number;
       stock: number;
       afterSaleType: AfterSaleType;
       overseasClearance?: boolean;

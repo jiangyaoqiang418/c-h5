@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
@@ -18,6 +18,16 @@ const walletLoadFailed = ref(false);
 const recentLoadFailed = ref(false);
 const popupOpen = ref(false);
 const drawerTxn = ref<WalletTxnView>();
+let loadSequence = 0;
+watch(() => userStore.realUserId, () => {
+  loadSequence++;
+  recent.value = [];
+  drawerTxn.value = undefined;
+  popupOpen.value = false;
+  loading.value = false;
+  walletLoadFailed.value = false;
+  recentLoadFailed.value = false;
+}, { flush: 'sync' });
 
 import { getUsdtCnyRate } from '@shared/utils/currency';
 const cnyRate = getUsdtCnyRate();
@@ -44,11 +54,12 @@ const bucketsWithPct = computed(() =>
 );
 
 async function loadAll() {
+  await userStore.init();
+  const sequence = ++loadSequence;
   loading.value = true;
   walletLoadFailed.value = false;
   recentLoadFailed.value = false;
   try {
-    await userStore.init();
     if (!userStore.currentUser) {
       walletStore.clear();
       recent.value = [];
@@ -58,6 +69,7 @@ async function loadAll() {
       walletStore.fetchWallet(userStore.currentUser.id),
       fetchWalletLedger({ size: 5 })
     ]);
+    if (sequence !== loadSequence) return;
     if (walletResult.status === 'rejected' && !walletStore.account) walletLoadFailed.value = true;
     if (ledgerResult.status === 'fulfilled') recent.value = ledgerResult.value.records;
     else if (!recent.value.length) recentLoadFailed.value = true;
@@ -65,11 +77,12 @@ async function loadAll() {
       uni.showToast({ title: '钱包数据部分加载失败', icon: 'none' });
     }
   } catch (error) {
+    if (sequence !== loadSequence) return;
     if (!walletStore.account) walletLoadFailed.value = true;
     if (!recent.value.length) recentLoadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '钱包数据加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 onShow(loadAll);

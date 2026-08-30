@@ -9,6 +9,8 @@ interface Props {
   request: Api.PurchaseRequest.PurchaseRequest;
   mode?: 'hall' | 'mine';
   canClaim?: boolean;
+  cancelDisabled?: boolean;
+  navigationDisabled?: boolean;
 }
 const props = withDefaults(defineProps<Props>(), { mode: 'hall', canClaim: false });
 defineEmits<{
@@ -20,6 +22,7 @@ const statusMeta = computed(() => enums.PURCHASE_STATUS_META[props.request.statu
 const aftersaleMeta = computed(() => enums.AFTERSALE_TYPE_META[props.request.aftersaleType]);
 
 function goDetail() {
+  if (props.navigationDisabled) return;
   go(`/pages/purchase/detail?id=${props.request.id}`);
 }
 </script>
@@ -71,6 +74,7 @@ function goDetail() {
       </wd-button>
       <wd-button
         v-if="mode === 'mine' && ['pending_audit', 'pushing'].includes(request.status)"
+        :disabled="cancelDisabled"
         type="error"
         plain
         size="small"

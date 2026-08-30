@@ -1,5 +1,6 @@
 import { realServiceConfig } from './config';
-import { getAccessToken } from './request';
+import { getAccessToken, notifyLoginExpired } from './request';
+import { onSessionChanged } from './request/token';
 import { fetchImLinkStatus } from './api/notify';
 
 type Listener = (message: unknown) => void;
@@ -54,6 +55,8 @@ class ImSocket {
   private state: ImSocketState = 'idle';
   private listeners = new Set<Listener>();
   private stateListeners = new Set<StateListener>();
+  private startTask?: Promise<void>;
+  private generation = 0;
 
   subscribe(listener: Listener) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   subscribeState(listener: StateListener) {
@@ -64,16 +67,21 @@ class ImSocket {
   get connected() { return this.ready; }
 
   async start() {
-    if (!this.manuallyStopped && this.task) return;
+    if (!this.manuallyStopped && (this.task || this.reconnectTimer)) return;
+    if (this.startTask) return this.startTask;
+    const task = this.startConnection(this.generation);
+    this.startTask = task;
+    try { await task; } finally { if (this.startTask === task) this.startTask = undefined; }
+  }
+
+  private async startConnection(generation: number) {
+    const token = getAccessToken();
+    if (!token) return;
     this.manuallyStopped = false;
     this.updateState('connecting');
     try {
       const status = await fetchImLinkStatus();
-      const token = getAccessToken();
-      if (!token) {
-        this.updateState('idle');
-        return;
-      }
+      if (generation !== this.generation || token !== getAccessToken() || this.manuallyStopped) return;
       const connection = websocketOptions(status, token);
       await this.connect(
         connection.url,
@@ -81,6 +89,7 @@ class ImSocket {
         connection.protocols
       );
     } catch (error) {
+      if (generation !== this.generation || token !== getAccessToken() || this.manuallyStopped) return;
       this.updateState('unavailable');
       throw error;
     }
@@ -92,12 +101,20 @@ class ImSocket {
   }
 
   stop() {
+    this.generation++;
+    this.startTask = undefined;
     this.manuallyStopped = true;
     this.ready = false;
     this.clearTimers();
-    this.closeTask(this.task, 1000, 'page-unload');
+    const task = this.task;
     this.task = undefined;
+    this.closeTask(task, 1000, 'page-unload');
     this.updateState('idle');
+  }
+
+  /** 多个消息页面共用连接，只有最后一个订阅者退出时才释放；退出账号仍强制 stop。 */
+  stopIfUnused() {
+    if (!this.listeners.size && !this.stateListeners.size) this.stop();
   }
 
   private async connect(url: string, heartbeatMs: number, protocols?: string[]) {
@@ -131,6 +148,7 @@ class ImSocket {
       try { message = JSON.parse(raw); } catch { /* READY/PONG can be plain text */ }
       const type = typeof message === 'object' && message ? String((message as { type?: unknown }).type || '') : raw;
       if (type === 'READY') {
+        if (this.ready) return;
         if (this.readyTimer) clearTimeout(this.readyTimer);
         this.readyTimer = undefined;
         this.ready = true;
@@ -142,7 +160,7 @@ class ImSocket {
       if (type === 'PONG') return;
       if (type === '401' || (typeof message === 'object' && message && Number((message as { code?: unknown }).code) === 401)) {
         this.stop();
-        uni.showToast({ title: '登录已失效，请重新登录', icon: 'none' });
+        notifyLoginExpired(token);
         return;
       }
       this.listeners.forEach(listener => listener(message));
@@ -155,6 +173,7 @@ class ImSocket {
     task.onError(() => {
       if (this.task !== task) return;
       this.task = undefined;
+      this.closeTask(task, 4001, 'socket-error');
       this.reconnect(url, heartbeatMs, protocols);
     });
   }
@@ -199,3 +218,4 @@ class ImSocket {
 }
 
 export const imSocket = new ImSocket();
+onSessionChanged(() => imSocket.stop());

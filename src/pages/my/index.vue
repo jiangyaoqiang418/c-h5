@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import { formatAmount, formatPoints } from '@shared';
 import { go } from '@/utils/navigate';
@@ -18,12 +18,19 @@ const walletStore = useWalletStore();
 const orderCounts = ref<Record<string, number>>({});
 const pointAccount = ref<PointAccount>();
 const unreadCount = ref(0);
+const countsLoading = ref(false);
+const countsLoadFailed = ref(false);
+let loadSequence = 0;
 
 const user = computed(() => userStore.currentUser);
 const totalAssets = computed(() => walletStore.totalAssets);
 const activeVip = computed(() => (
   userStore.isBuyerActive ? pointAccount.value?.buyer : pointAccount.value?.customer
 ));
+const vipLevel = computed(() => {
+  const level = activeVip.value?.level;
+  return level === 'VIP0' || level === 'VIP1' || level === 'VIP2' ? level : undefined;
+});
 const pointsToNext = computed(() => {
   const nextThreshold = Number(activeVip.value?.nextThreshold);
   const points = Number(pointAccount.value?.points ?? user.value?.points ?? 0);
@@ -33,36 +40,52 @@ const pointsToNext = computed(() => {
 
 async function loadAll() {
   await userStore.init();
-  if (!user.value) return;
+  const sequence = ++loadSequence;
+  countsLoading.value = true;
+  countsLoadFailed.value = false;
+  if (!user.value) { countsLoading.value = false; orderCounts.value = {}; return; }
   try {
-    const [, counts, account] = await Promise.all([
+    const [wallet, counts, account, notifications, im] = await Promise.allSettled([
       walletStore.fetchWallet(),
       userStore.isBuyerActive ? countSoldOrdersByStatus() : countBoughtOrdersByStatus(),
-      fetchPointAccount()
+      fetchPointAccount(),
+      fetchNotificationUnreadCount(),
+      fetchImUnreadCount()
     ]);
-    orderCounts.value = counts;
-    pointAccount.value = account;
-    try {
-      const [notificationCount, imCount] = await Promise.all([
-        fetchNotificationUnreadCount(),
-        fetchImUnreadCount()
-      ]);
-      unreadCount.value = notificationCount + imCount;
-    } catch {
-      unreadCount.value = 0;
-    }
+    if (sequence !== loadSequence) return;
+    if (counts.status === 'fulfilled') orderCounts.value = counts.value;
+    else countsLoadFailed.value = true;
+    if (account.status === 'fulfilled') pointAccount.value = account.value;
+    if (notifications.status === 'fulfilled' && im.status === 'fulfilled') unreadCount.value = notifications.value + im.value;
+    if ([wallet, counts, account, notifications, im].some(result => result.status === 'rejected')) uni.showToast({ title: '部分账户数据加载失败，可返回此页重试', icon: 'none' });
   } catch (error) {
+    if (sequence !== loadSequence) return;
+    countsLoadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '账户数据加载失败', icon: 'none' });
+  } finally {
+    if (sequence === loadSequence) countsLoading.value = false;
   }
 }
-onShow(loadAll);
+onShow(async () => {
+  try { await userStore.refreshProfile(); } catch { /* 保留上次资料，账户区域仍可重试读取。 */ }
+  await loadAll();
+});
+watch(() => userStore.realUserId, () => {
+  loadSequence++;
+  countsLoading.value = false;
+  countsLoadFailed.value = false;
+  orderCounts.value = {};
+  pointAccount.value = undefined;
+  unreadCount.value = 0;
+}, { flush: 'sync' });
+watch(() => userStore.currentAudience, () => { orderCounts.value = {}; loadAll(); });
 
 const orderTabs = computed(() => [
-  { label: '待付款', count: orderCounts.value.CREATED || 0 },
-  { label: '待发货', count: orderCounts.value.PAID || 0 },
-  { label: '待收货', count: orderCounts.value.SHIPPED || 0 },
-  { label: '已完成', count: orderCounts.value.COMPLETED || 0 },
-  { label: '售后', count: (orderCounts.value.REFUND_REVIEW || 0) + (orderCounts.value.REFUNDED || 0) }
+  { label: '待付款', path: '/pages/order/list?status=CREATED', count: orderCounts.value.CREATED || 0 },
+  { label: '待发货', path: '/pages/order/list?status=PAID', count: orderCounts.value.PAID || 0 },
+  { label: '待收货', path: '/pages/order/list?status=SHIPPED', count: orderCounts.value.SHIPPED || 0 },
+  { label: '已完成', path: '/pages/order/list?status=COMPLETED', count: orderCounts.value.COMPLETED || 0 },
+  { label: '售后', path: '/pages/aftersale/list', count: (orderCounts.value.REFUND_REVIEW || 0) + (orderCounts.value.REFUNDED || 0) }
 ]);
 
 const cells = computed(() => {
@@ -140,7 +163,7 @@ function goAiChat() {
         <view class="info">
           <view class="name-row">
             <text class="name">{{ user.nickname }}</text>
-            <VipBadge :level="user.vipLevel" />
+            <VipBadge v-if="vipLevel" :level="vipLevel" />
             <KycStatusTag :status="user.kycStatus" light />
           </view>
           <view class="tag-row">
@@ -171,7 +194,7 @@ function goAiChat() {
         </view>
         <view class="stat stat--secondary">
           <text class="stat-lbl">积分</text>
-          <text class="stat-val">{{ formatPoints(user.points) }}</text>
+          <text class="stat-val">{{ user.points == null ? '—' : formatPoints(user.points) }}</text>
         </view>
         <view v-if="pointsToNext !== undefined" class="stat stat--secondary">
           <text class="stat-lbl">距升级</text>
@@ -205,9 +228,9 @@ function goAiChat() {
           v-for="t in orderTabs"
           :key="t.label"
           class="ot-cell"
-          @click="go('/pages/order/list')"
+          @click="go(t.path)"
         >
-          <text class="ot-num">{{ t.count }}</text>
+          <text class="ot-num">{{ countsLoading || countsLoadFailed ? '—' : t.count }}</text>
           <text class="ot-lbl">{{ t.label }}</text>
         </view>
       </view>

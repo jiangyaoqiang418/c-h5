@@ -86,10 +86,17 @@ declare namespace Api {
     interface OrderView {
       id: LongId;
       code: string;
+      /** 真实订单号；code 可能回退为组号，不能作为精确查询条件。 */
+      orderNo?: string;
       /** 同一订单组的待付款订单会由 group/pay 一次性支付。 */
       orderGroupNo?: string;
       rawStatus: OrderStatus;
       status: Api.Order.OrderStatus;
+      customerId?: LongId;
+      sellerId?: LongId;
+      quantity?: number;
+      goodsAmount?: string;
+      originalAmount?: string | number;
       productId?: LongId;
       productTitle: string;
       productCover?: string;
@@ -166,6 +173,9 @@ declare namespace Api {
     interface OrderRefundDTO {
       refundId: LongId;
       orderId: LongId;
+      refundType?: 'REFUND_ONLY';
+      buyerId?: LongId;
+      sellerId?: LongId;
       orderNo?: string;
       orderStatus?: OrderStatus;
       buyerName?: string;

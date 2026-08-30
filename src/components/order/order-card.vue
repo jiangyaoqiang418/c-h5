@@ -8,6 +8,7 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 interface Props {
   order: Api.RealOrder.OrderView;
   sellerMode?: boolean;
+  actionsDisabled?: boolean;
 }
 const props = defineProps<Props>();
 defineEmits<{
@@ -51,6 +52,7 @@ function goDetail() {
         type="primary"
         size="small"
         @click="$emit('ship', order)"
+        :disabled="actionsDisabled"
       >
         填写发货
       </wd-button>
@@ -59,6 +61,7 @@ function goDetail() {
         type="primary"
         size="small"
         @click="$emit('pay', order)"
+        :disabled="actionsDisabled"
       >
         立即付款
       </wd-button>
@@ -67,6 +70,7 @@ function goDetail() {
         plain
         size="small"
         @click="$emit('cancel', order)"
+        :disabled="actionsDisabled"
       >
         取消
       </wd-button>
@@ -75,6 +79,7 @@ function goDetail() {
         type="primary"
         size="small"
         @click="$emit('confirm', order)"
+        :disabled="actionsDisabled"
       >
         确认收货
       </wd-button>
@@ -83,6 +88,7 @@ function goDetail() {
         plain
         size="small"
         @click="$emit('review', order)"
+        :disabled="actionsDisabled"
       >
         写评价
       </wd-button>
@@ -91,6 +97,7 @@ function goDetail() {
         plain
         size="small"
         @click="$emit('aftersale', order)"
+        :disabled="actionsDisabled"
       >
         申请仅退款
       </wd-button>

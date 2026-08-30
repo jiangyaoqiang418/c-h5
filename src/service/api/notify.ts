@@ -7,6 +7,21 @@ export function fetchNotifications(query: Api.RealNotify.NotificationPageQuery =
 }
 
 export function fetchNotificationUnreadCount() { return realNotifyRequest<number>({ url: '/notifications/unread/count' }); }
+
+export function isTransactionNotification(notification: Api.RealNotify.Notification): boolean {
+  return /RECHARGE|WITHDRAW|WALLET|FUND|FINANCE|ORDER/.test(`${notification.bizType || ''} ${notification.templateCode || ''}`.toUpperCase());
+}
+
+export async function fetchUnreadNotifications(): Promise<Api.RealNotify.Notification[]> {
+  const records = new Map<string, Api.RealNotify.Notification>();
+  for (let pageNo = 1; ; pageNo++) {
+    const page = await fetchNotifications({ pageNo, pageSize: 50, unreadOnly: true });
+    if (!Number.isFinite(Number(page.total))) throw new Error('未读通知总数无效');
+    page.records.forEach(item => records.set(String(item.id), item));
+    if (pageNo * 50 >= Number(page.total)) return [...records.values()];
+    if (!page.records.length) throw new Error('未读通知分页不完整，请重试');
+  }
+}
 export function markNotificationRead(id: Api.RealNotify.Id) { return realNotifyRequest<boolean, { id: Api.RealNotify.Id }>({ url: '/notifications/read', method: 'PUT', data: { id } }); }
 export function markAllNotificationsRead() { return realNotifyRequest<boolean>({ url: '/notifications/read-all', method: 'PUT' }); }
 export function deleteNotification(id: Api.RealNotify.Id) { return realNotifyRequest<boolean>({ url: '/notifications/delete', method: 'DELETE', params: { id } }); }

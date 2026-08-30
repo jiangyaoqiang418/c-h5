@@ -2,22 +2,42 @@
 import { ref, watch } from 'vue';
 import { onReachBottom, onShow } from '@dcloudio/uni-app';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
-import { deleteProduct, fetchMyProducts, setProductShelf } from '@/service/api/product';
+import { buyerProductActions, deleteProduct, fetchBuyerProductDetail, fetchMyProducts, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
-import { go } from '@/utils/navigate';
+import { go, useNavigationGuards } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { usePageOperation } from '@/utils/page-operation';
+
+const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
 const activeKey = ref<Api.RealProduct.ProductQueryStatus | 'all'>('all');
 const list = ref<Api.RealProduct.ProductDTO[]>([]);
 const loading = ref(false);
 const loadFailed = ref(false);
-const pageNo = ref(1);
+const pageNo = ref(0);
 const total = ref(0);
 const pageSize = 50;
 const categoryNames = ref<Record<string, string>>({});
 let loadToken = 0;
+let retryReset = true;
+const operating = ref(false);
+const pendingShelf = ref<Record<string, Api.RealProduct.ProductStatus>>({});
+const deletedIds = new Set<string>();
+const page = usePageOperation(() => {
+  loadToken++;
+  list.value = [];
+  pageNo.value = 0;
+  total.value = 0;
+  loading.value = false;
+  loadFailed.value = false;
+  operating.value = false;
+  pendingShelf.value = {};
+  deletedIds.clear();
+  retryReset = true;
+});
+const actions = (product: Api.RealProduct.ProductDTO) => buyerProductActions(product, userStore.realUserId);
 
 const TABS: { key: Api.RealProduct.ProductQueryStatus | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -43,75 +63,122 @@ function statusType(status: Api.RealProduct.ProductStatus): 'success' | 'warning
 }
 
 async function load(reset = true) {
-  if (loading.value && !reset) return;
+  if (!page.visible.value || (loading.value && !reset)) return;
   if (reset) loadFailed.value = false;
   const targetPage = reset ? 1 : pageNo.value + 1;
   const status = activeKey.value;
   const token = ++loadToken;
+  const operation = page.capture();
+  const valid = () => operation.isCurrent() && token === loadToken;
   loading.value = true;
   try {
     await userStore.init();
-    if (!userStore.currentUser) return;
+    if (!valid()) return;
+    if (!userStore.currentUser) { await requireLogin('/pages/buyer/products'); return; }
     if (!Object.keys(categoryNames.value).length) {
       try {
-        collectCategoryNames(await fetchCategoryTree({ onlyEnabled: true }));
+        const tree = await fetchCategoryTree({ onlyEnabled: true });
+        if (!valid()) return;
+        collectCategoryNames(tree);
       } catch (error) {
-        if (token === loadToken) {
+        if (valid()) {
           uni.showToast({ title: error instanceof Error ? error.message : '商品分类加载失败', icon: 'none' });
         }
       }
     }
+    if (!valid()) return;
+    const confirmed = new Map<string, Api.RealProduct.ProductDTO>();
+    await Promise.all(Object.entries(pendingShelf.value).map(async ([productId]) => {
+      try {
+        const latest = await fetchBuyerProductDetail(productId);
+        if (valid() && String(latest.id) === productId) confirmed.set(productId, latest);
+      } catch { /* 操作成功回执保留，用户可以继续重试回读。 */ }
+    }));
+    if (!valid()) return;
     const result = await fetchMyProducts({
       pageNo: targetPage,
       pageSize,
       status: status === 'all' ? undefined : status
     });
-    if (token !== loadToken) return;
-    const records = result.records || [];
-    list.value = reset ? records : list.value.concat(records);
-    pageNo.value = result.pageNo || result.current || targetPage;
-    total.value = result.total;
+    if (!valid()) return;
+    if (result.total == null || !Number.isSafeInteger(Number(result.total)) || Number(result.total) < 0) throw new Error('商品分页总数无效，请重试');
+    if (!result.records?.length && (targetPage - 1) * pageSize < Number(result.total)) throw new Error('商品分页数据不完整，请重试');
+    const records = (result.records || []).filter(item => !deletedIds.has(String(item.id)));
+    for (const [productId, before] of Object.entries(pendingShelf.value)) {
+      const index = records.findIndex(item => String(item.id) === productId);
+      const latest = confirmed.get(productId);
+      if (index >= 0 && records[index].status !== before) delete pendingShelf.value[productId];
+      else if (latest && latest.status !== before) {
+        if (index >= 0) records[index] = latest;
+        delete pendingShelf.value[productId];
+      }
+    }
+    const merged = new Map((reset ? [] : list.value).map(item => [String(item.id), item]));
+    records.forEach(item => merged.set(String(item.id), item));
+    list.value = [...merged.values()];
+    pageNo.value = targetPage;
+    total.value = Number(result.total);
+    loadFailed.value = false;
   } catch (error) {
-    if (token !== loadToken) return;
-    if (!list.value.length) loadFailed.value = true;
+    if (!valid()) return;
+    loadFailed.value = true;
+    retryReset = reset;
     uni.showToast({ title: error instanceof Error ? error.message : '商品列表加载失败', icon: 'none' });
   } finally {
-    if (token === loadToken) loading.value = false;
+    if (operation.sameSession() && token === loadToken) loading.value = false;
   }
 }
 
-function toggleShelf(product: Api.RealProduct.ProductDTO) {
-  const onShelf = product.status === 'OFF_SHELF';
-  uni.showModal({
-    title: onShelf ? '确认上架' : '确认下架',
-    content: onShelf ? '重新上架后，顾客可继续购买该商品。' : '下架后，顾客将无法继续购买该商品。',
-    confirmText: onShelf ? '确认上架' : '确认下架',
-    success: async result => {
-      if (!result.confirm) return;
-      try {
-        await setProductShelf(product.id, onShelf);
-        uni.showToast({ title: onShelf ? '已上架' : '已下架', icon: 'success' });
-        await load();
-      } catch (error) {
-        uni.showToast({ title: error instanceof Error ? error.message : '商品状态更新失败', icon: 'none' });
-      }
+async function changeProduct(product: Api.RealProduct.ProductDTO, action: 'shelf' | 'remove') {
+  if (!page.visible.value || loading.value || loadFailed.value || operating.value || pendingShelf.value[String(product.id)] || deletedIds.has(String(product.id)) || !actions(product)[action] || !list.value.includes(product)) return;
+  const operation = page.capture();
+  const productId = product.id;
+  const before = product.status;
+  const filter = activeKey.value;
+  const onShelf = before === 'OFF_SHELF';
+  operating.value = true;
+  try {
+    const result = await uni.showModal(action === 'remove'
+      ? { title: '删除商品？', content: '删除后商品和收藏关系将不可恢复，请确认没有未完结订单。', confirmText: '确认删除' }
+      : { title: onShelf ? '确认上架' : '确认下架', content: onShelf ? '重新上架后，顾客可继续购买该商品。' : '下架后，顾客将无法继续购买该商品。', confirmText: onShelf ? '确认上架' : '确认下架' });
+    const current = list.value.find(item => String(item.id) === String(productId));
+    if (!result.confirm || !operation.isCurrent() || filter !== activeKey.value || !current || current.status !== before || !actions(current)[action]) return;
+    const latest = await fetchBuyerProductDetail(productId);
+    if (!operation.isCurrent() || filter !== activeKey.value) return;
+    if (String(latest.id) !== String(productId) || latest.status !== before || !actions(latest)[action]) {
+      if (String(latest.id) === String(productId)) list.value = list.value.map(item => String(item.id) === String(productId) ? latest : item);
+      uni.showToast({ title: '商品状态或归属已变化，请重新确认', icon: 'none' });
+      return;
     }
-  });
+    if (action === 'remove') await deleteProduct(productId);
+    else await setProductShelf(productId, onShelf);
+    if (!operation.sameSession()) return;
+    if (action === 'remove') {
+      deletedIds.add(String(productId));
+      list.value = list.value.filter(item => String(item.id) !== String(productId));
+    } else pendingShelf.value[String(productId)] = before;
+    if (!operation.isCurrent()) return;
+    uni.showToast({ title: action === 'remove' ? '已删除' : onShelf ? '已上架' : '已下架', icon: 'success' });
+    await load();
+  } catch (error) {
+    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '商品操作失败', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) operating.value = false;
+    if (operation.isCurrent() && filter !== activeKey.value) void load();
+  }
 }
 
-function removeProduct(product: Api.RealProduct.ProductDTO) {
-  if (product.status === 'ON_SALE') return;
-  uni.showModal({ title: '删除商品？', content: '删除后商品和收藏关系将不可恢复，请确认没有未完结订单。', confirmText: '确认删除', success: async result => {
-    if (!result.confirm) return;
-    try { await deleteProduct(product.id); uni.showToast({ title: '已删除', icon: 'success' }); await load(); }
-    catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '商品删除失败', icon: 'none' }); }
-  } });
-}
-
-onShow(load);
-watch(activeKey, () => load());
+onShow(() => { if (!operating.value) return load(); });
+watch(activeKey, () => {
+  loadToken++;
+  list.value = [];
+  pageNo.value = 0;
+  total.value = 0;
+  loading.value = false;
+  if (!operating.value) void load();
+});
 onReachBottom(() => {
-  if (list.value.length < total.value) load(false);
+  if (!operating.value && !loadFailed.value && pageNo.value * pageSize < total.value) load(false);
 });
 </script>
 
@@ -124,6 +191,7 @@ onReachBottom(() => {
     </view>
 
     <view class="list">
+      <wd-button v-if="loadFailed || Object.keys(pendingShelf).length" block plain :loading="loading" :disabled="operating" @click="load(loadFailed ? retryReset : true)">{{ loadFailed ? '商品数据刷新失败，点击重试' : '商品操作已成功，点击回读最新状态' }}</wd-button>
       <view v-if="list.length">
         <view
           v-for="product in list"
@@ -143,20 +211,22 @@ onReachBottom(() => {
             <view class="card-foot">
               <wd-tag size="small" round :type="statusType(product.status)">{{ product.statusText || product.status }}</wd-tag>
               <wd-button
-                v-if="product.status === 'ON_SALE' || product.status === 'OFF_SHELF'"
+                v-if="actions(product).shelf"
                 plain
                 size="small"
-                @click.stop="toggleShelf(product)"
+                :disabled="operating || loading || loadFailed || !!pendingShelf[String(product.id)]"
+                @click.stop="changeProduct(product, 'shelf')"
               >
                 {{ product.status === 'ON_SALE' ? '下架' : '上架' }}
               </wd-button>
-              <wd-button v-if="product.status !== 'ON_SALE'" plain size="small" @click.stop="removeProduct(product)">删除</wd-button>
+              <wd-button v-if="actions(product).remove" plain size="small" :disabled="operating || loading || loadFailed || !!pendingShelf[String(product.id)]" @click.stop="changeProduct(product, 'remove')">删除</wd-button>
             </view>
             <text v-if="product.reviewComment" class="review-comment">审核意见：{{ product.reviewComment }}</text>
           </view>
         </view>
       </view>
       <EmptyState v-else-if="loadFailed" title="商品列表加载失败" description="请稍后重试" />
+      <EmptyState v-else-if="!loading && !userStore.currentUser" title="请先登录查看商品" description="当前尚未读取账号商品数据" action-text="登录或重试" @action="load()" />
       <EmptyState v-else-if="!loading" title="暂无商品" />
       <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     </view>
