@@ -71,9 +71,14 @@ async function load(reset = true) {
       const targetPage = reset ? 1 : logPageNo.value + 1;
       const r = await fetchPointLedger({ pageNo: targetPage, pageSize });
       if (!valid()) return;
-      logs.value = reset ? r.records : logs.value.concat(r.records);
-      logPageNo.value = r.current || targetPage;
-      logTotal.value = r.total;
+      const total = Number(r.total);
+      if (!Array.isArray(r.records) || !Number.isSafeInteger(total) || total < 0
+        || (!r.records.length && (targetPage - 1) * pageSize < total)) throw new Error('积分流水分页数据不完整，请重试');
+      const records = new Map((reset ? [] : logs.value).map(item => [String(item.id), item]));
+      r.records.forEach(item => records.set(String(item.id), item));
+      logs.value = [...records.values()];
+      logPageNo.value = targetPage;
+      logTotal.value = total;
     } else if (tab === 'appeal') {
       const targetPage = reset ? 1 : appealPageNo.value + 1;
       const r = await fetchPointAppeals({
@@ -82,15 +87,20 @@ async function load(reset = true) {
         userId: userStore.realUserId
       });
       if (!valid()) return;
-      appeals.value = reset ? r.records : appeals.value.concat(r.records);
+      const total = Number(r.total);
+      if (!Array.isArray(r.records) || !Number.isSafeInteger(total) || total < 0
+        || (!r.records.length && (targetPage - 1) * pageSize < total)) throw new Error('申诉分页数据不完整，请重试');
+      const records = new Map((reset ? [] : appeals.value).map(item => [String(item.id), item]));
+      r.records.forEach(item => records.set(String(item.id), item));
+      appeals.value = [...records.values()];
       for (const record of r.records) {
         if (record.status === 'PENDING') continue;
         for (const [ledgerId, appealId] of Object.entries(pendingAppeals.value)) {
           if (appealId === String(record.id)) delete pendingAppeals.value[ledgerId];
         }
       }
-      appealPageNo.value = r.current || targetPage;
-      appealTotal.value = r.total;
+      appealPageNo.value = targetPage;
+      appealTotal.value = total;
     } else if (!rules.value.length) {
       const result = await fetchPointRules();
       if (valid()) rules.value = result;

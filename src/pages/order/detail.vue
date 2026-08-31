@@ -9,6 +9,7 @@ import { readRefundCreateReceipts, refundCreationBlocks, refundCreateMessage, ty
 import { usePageOperation } from '@/utils/page-operation';
 import { RequestError } from '@/service/request';
 import { getAccessToken } from '@/service/request/token';
+import { beginLogisticsUpdate, matchesLogisticsUpdate, readLogisticsUpdateReceipts, removeRejectedLogisticsUpdate, retainLogisticsUpdate, type LogisticsUpdateReceipt } from '@/utils/order-logistics-state';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 import OrderTimeline from '@/components/order/order-timeline.vue';
@@ -48,8 +49,8 @@ const paymentReceipts = ref<PaymentReceipt[]>([]);
 const paymentReceiptFailed = ref(false);
 const paymentReceipt = computed(() => paymentReceipts.value.find(item => item.orderGroupNo === order.value?.orderGroupNo));
 const busy = computed(() => operating.value || logisticsSubmitting.value);
-type LogisticsReceipt = { kind: 'track' | 'exception'; id?: Api.RealOrder.LongId; unknown: boolean; beforeException?: string; description?: string; occurredAt?: Api.RealOrder.LongId; status?: Api.RealOrder.LogisticsStatus; location?: string; exceptionNode?: boolean; exception?: string };
-const logisticsReceipt = ref<LogisticsReceipt>();
+const logisticsReceipt = ref<LogisticsUpdateReceipt>();
+const logisticsReceiptFailed = ref(false);
 const trackForm = ref<{ status: Api.RealOrder.LogisticsStatus; description: string; location: string; exceptionNode: boolean }>({ status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false });
 const exceptionForm = ref({ exception: '', location: '' });
 const page = usePageOperation(() => {
@@ -57,7 +58,7 @@ const page = usePageOperation(() => {
   order.value = undefined; logistics.value = undefined;
   loading.value = false; loadFailed.value = false; logisticsLoadFailed.value = false;
   operating.value = false; logisticsSubmitting.value = false;
-  changeReceipts.value = []; changeReceiptFailed.value = false; logisticsReceipt.value = undefined;
+  changeReceipts.value = []; changeReceiptFailed.value = false; logisticsReceipt.value = undefined; logisticsReceiptFailed.value = false;
   refundReceipt.value = undefined; refundReceiptFailed.value = false;
   paymentReceipts.value = []; paymentReceiptFailed.value = false;
   closePopups();
@@ -65,7 +66,7 @@ const page = usePageOperation(() => {
 const actionsDisabled = computed(() => !page.visible.value || busy.value || loading.value || loadFailed.value
   || (isCustomer.value && (refundBlocked.value || changeReceiptFailed.value || (!!order.value && orderChangeBlocks(order.value, currentChanges.value))))
   || (isCustomer.value && order.value?.rawStatus === 'CREATED' && (paymentReceiptFailed.value || !!paymentReceipt.value)));
-const logisticsDisabled = computed(() => actionsDisabled.value || logisticsLoadFailed.value || !!logisticsReceipt.value);
+const logisticsDisabled = computed(() => actionsDisabled.value || logisticsLoadFailed.value || logisticsReceiptFailed.value || !!logisticsReceipt.value && logisticsReceipt.value.state !== 'verified');
 function closePopups() {
   trackPopupVisible.value = false; exceptionPopupVisible.value = false;
   trackForm.value = { status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false };
@@ -88,6 +89,14 @@ function refreshChangeReceipts() {
     refundReceipt.value = userStore.realUserId ? readRefundCreateReceipts(userStore.realUserId).find(item => String(item.orderId) === String(id.value)) : undefined;
     refundReceiptFailed.value = false;
   } catch { refundReceiptFailed.value = true; }
+}
+function refreshLogisticsReceipt() {
+  try {
+    logisticsReceipt.value = userStore.realUserId
+      ? readLogisticsUpdateReceipts(userStore.realUserId).find(item => String(item.orderId) === String(id.value) && item.state !== 'verified')
+      : undefined;
+    logisticsReceiptFailed.value = false;
+  } catch { logisticsReceiptFailed.value = true; }
 }
 
 function viewOriginalRefund() {
@@ -119,6 +128,7 @@ async function reload() {
     }
     refreshPaymentReceipts();
     refreshChangeReceipts();
+    refreshLogisticsReceipt();
     const scope = userStore.isBuyerActive ? 'sold' : 'bought';
     const [detailResult, logisticsResult] = await Promise.allSettled([fetchOrderDetail(orderId, scope, userStore.realUserId), fetchOrderLogistics(orderId)]);
     if (sequence !== loadSequence || !operation.isCurrent()) return;
@@ -131,12 +141,10 @@ async function reload() {
     if (logisticsResult.status === 'fulfilled' && !logisticsLoadFailed.value) {
       logistics.value = logisticsResult.value;
       const receipt = logisticsReceipt.value;
-      if (receipt?.kind === 'track' && logistics.value.tracks.some(track => receipt.id != null
-        ? String(track.trackId) === String(receipt.id)
-        : String(track.occurredAt) === String(receipt.occurredAt) && track.description === receipt.description && track.status === receipt.status
-          && (track.location || '') === (receipt.location || '') && !!track.exceptionNode === !!receipt.exceptionNode)) logisticsReceipt.value = undefined;
-      if (receipt?.kind === 'exception' && logistics.value.logisticsException === receipt.exception
-        && (!receipt.unknown || receipt.beforeException !== receipt.exception)) logisticsReceipt.value = undefined;
+      if (receipt && userStore.realUserId && matchesLogisticsUpdate(logistics.value, receipt)) {
+        retainLogisticsUpdate(userStore.realUserId, { ...receipt, state: 'verified' });
+        logisticsReceipt.value = undefined;
+      }
     }
     if (!loadFailed.value && isCustomer.value && paymentReceipt.value && !paymentReceiptFailed.value) {
       await reconcileOrderGroupPayment(paymentReceipt.value.orderGroupNo, userStore.realUserId!, () => operation.isCurrent() && sequence === loadSequence);
@@ -249,23 +257,27 @@ async function submitLogistics(kind: 'track' | 'exception') {
   if (!(kind === 'track' ? track.description : exception.exception)) return uni.showToast({ title: kind === 'track' ? '请填写轨迹说明' : '请填写异常说明', icon: 'none' });
   const operation = page.capture();
   const version = popupVersion;
-  const receipt: LogisticsReceipt = { kind, unknown: false, beforeException: logistics.value?.logisticsException, description: track.description, occurredAt: track.occurredAt, status: track.status, location: track.location, exceptionNode: track.exceptionNode, exception: exception.exception };
+  let receipt: LogisticsUpdateReceipt | undefined;
   let sent = false;
   logisticsSubmitting.value = true;
   try {
     const latest = await fetchOrderDetail(orderId, 'sold', userStore.realUserId);
     if (!operation.isCurrent() || version !== popupVersion) return;
     if (String(latest.id) !== String(orderId) || latest.rawStatus !== 'SHIPPED' || orderRole(latest, userStore.realUserId) !== 'seller') throw new Error('订单状态或归属已变化，请刷新后操作');
+    receipt = beginLogisticsUpdate(userStore.realUserId!, { orderId, kind, beforeException: logistics.value?.logisticsException, description: track.description, occurredAt: track.occurredAt, status: track.status, location: track.location, exceptionNode: track.exceptionNode, exception: exception.exception });
     sent = true;
     receipt.id = kind === 'track' ? await createOrderLogisticsTrack(track) : await markOrderLogisticsException(exception);
     if (receipt.id == null || receipt.id === '') { receipt.id = undefined; throw new Error('物流提交回执缺失'); }
     if (!operation.sameSession()) return;
-    logisticsReceipt.value = receipt;
+    logisticsReceipt.value = retainLogisticsUpdate(userStore.realUserId!, { ...receipt, state: 'confirmed' });
     closePopups();
     if (operation.isCurrent()) uni.showToast({ title: kind === 'track' ? '物流轨迹已提交' : '物流异常已提交', icon: 'success' });
   } catch (error) {
     const unknown = sent && !(error instanceof RequestError && (error.kind === 'business' || error.kind === 'config'));
-    if (unknown && operation.sameSession()) { logisticsReceipt.value = { ...receipt, unknown: true }; closePopups(); }
+    if (error instanceof RequestError && (error.kind === 'business' || error.kind === 'config') && receipt && userStore.realUserId) {
+      try { removeRejectedLogisticsUpdate(userStore.realUserId, receipt); } catch { logisticsReceiptFailed.value = true; }
+    }
+    if (unknown && receipt && operation.sameSession()) { logisticsReceipt.value = receipt; closePopups(); }
     if (operation.isCurrent()) uni.showToast({ title: unknown ? '物流提交结果待核对，请刷新后确认' : error instanceof Error ? error.message : '物流提交失败', icon: 'none' });
   } finally {
     if (operation.sameSession() && page.visible.value) await reload();
@@ -293,7 +305,7 @@ function submitException() { return submitLogistics('exception'); }
       <text v-if="orderChangeBlocks(order, currentChanges)">当前展示可能仍为上次读取的状态，不会据此重复操作。</text>
       <wd-button block plain :disabled="busy" :loading="loading" @click="reload">只读核对订单状态</wd-button>
     </view>
-    <wd-button v-if="loadFailed || logisticsLoadFailed || logisticsReceipt" block plain :disabled="busy" :loading="loading" @click="reload">{{ logisticsReceipt?.unknown ? '物流结果待核对，点击刷新' : logisticsReceipt ? '操作已提交，刷新核对最新状态' : '部分数据刷新失败，点击重试' }}</wd-button>
+    <wd-button v-if="loadFailed || logisticsLoadFailed || logisticsReceipt || logisticsReceiptFailed" block plain :disabled="busy" :loading="loading" @click="reload">{{ logisticsReceiptFailed ? '物流操作记录读取失败，请刷新核对' : logisticsReceipt?.state === 'unknown' ? '物流结果待核对，点击刷新' : logisticsReceipt ? '操作已提交，刷新核对最新状态' : '部分数据刷新失败，点击重试' }}</wd-button>
     <view class="hero">
       <OrderStatusTag :status="order.status" />
       <text class="code">{{ order.code }}</text>

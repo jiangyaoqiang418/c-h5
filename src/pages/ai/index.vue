@@ -9,6 +9,7 @@ interface BotMsg {
   role: 'bot';
   text: string;
   suggestions?: aiApi.AiSearchResult;
+  demo?: boolean;
 }
 interface UserMsg {
   role: 'user';
@@ -16,6 +17,7 @@ interface UserMsg {
 }
 interface LoadingMsg {
   role: 'loading';
+  requestId: number;
 }
 type ChatMsg = BotMsg | UserMsg | LoadingMsg;
 
@@ -30,6 +32,7 @@ const messages = ref<ChatMsg[]>([
 const input = ref('');
 const scrollTop = ref(0);
 const scrollTs = ref(0);
+let nextRequestId = 0;
 
 async function scrollToBottom() {
   await nextTick();
@@ -41,22 +44,24 @@ async function send(text?: string) {
   const t = (text || input.value).trim();
   if (!t) return;
   input.value = '';
+  const requestId = ++nextRequestId;
   messages.value.push({ role: 'user', text: t });
-  messages.value.push({ role: 'loading' });
+  messages.value.push({ role: 'loading', requestId });
   await scrollToBottom();
   try {
     const result = await aiApi.aiSearchMock(t);
-    const idx = messages.value.findIndex(m => m.role === 'loading');
+    const idx = messages.value.findIndex(m => m.role === 'loading' && m.requestId === requestId);
     if (idx !== -1) messages.value.splice(idx, 1);
     messages.value.push({
       role: 'bot',
       text: result.suggestions.length
         ? `我为你找到 ${result.suggestions.length} 件相关商品，看看有没有心仪的：`
         : '暂时没找到完全匹配的商品，要不要发布一个求购？全球买手 24h 接单。',
-      suggestions: result
+      suggestions: result,
+      demo: true
     });
   } catch (error) {
-    const idx = messages.value.findIndex(m => m.role === 'loading');
+    const idx = messages.value.findIndex(m => m.role === 'loading' && m.requestId === requestId);
     if (idx !== -1) messages.value.splice(idx, 1);
     messages.value.push({ role: 'bot', text: error instanceof Error ? error.message : '搜索失败，请稍后再试。' });
   } finally {
@@ -82,6 +87,7 @@ function inducePurchaseFrom(text: string) {
                 v-if="m.suggestions"
                 :result="m.suggestions"
                 :loading="false"
+                :demo="m.demo"
               />
             </view>
           </view>

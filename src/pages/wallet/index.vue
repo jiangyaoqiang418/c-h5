@@ -9,6 +9,8 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore, useWalletStore } from '@/stores';
 import { fetchWalletLedger, type WalletTxnView } from '@/service/api/wallet';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import { getAccessToken } from '@/service/request/token';
+import { useNavigationGuards } from '@/utils/navigate';
 
 const userStore = useUserStore();
 const walletStore = useWalletStore();
@@ -16,8 +18,10 @@ const recent = ref<WalletTxnView[]>([]);
 const loading = ref(false);
 const walletLoadFailed = ref(false);
 const recentLoadFailed = ref(false);
+const profileFailed = ref(false);
 const popupOpen = ref(false);
 const drawerTxn = ref<WalletTxnView>();
+const { requireLogin } = useNavigationGuards();
 let loadSequence = 0;
 watch(() => userStore.realUserId, () => {
   loadSequence++;
@@ -27,6 +31,7 @@ watch(() => userStore.realUserId, () => {
   loading.value = false;
   walletLoadFailed.value = false;
   recentLoadFailed.value = false;
+  profileFailed.value = false;
 }, { flush: 'sync' });
 
 import { getUsdtCnyRate } from '@shared/utils/currency';
@@ -59,10 +64,12 @@ async function loadAll() {
   loading.value = true;
   walletLoadFailed.value = false;
   recentLoadFailed.value = false;
+  profileFailed.value = false;
   try {
     if (!userStore.currentUser) {
       walletStore.clear();
       recent.value = [];
+      profileFailed.value = !!getAccessToken();
       return;
     }
     const [walletResult, ledgerResult] = await Promise.allSettled([
@@ -93,8 +100,14 @@ function openTxn(t: WalletTxnView) {
 }
 
 function goBack() {
-  uni.navigateBack();
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack();
+    return;
+  }
+  go('/pages/my/index', true);
 }
+
+async function login() { await requireLogin('/pages/wallet/index'); }
 
 function bucketLabel(key: string): string {
   const m: Record<string, string> = {
@@ -114,6 +127,8 @@ function bucketLabel(key: string): string {
   <view class="wallet-page">
     <view v-if="loading && !walletStore.account" class="page-loading">钱包数据加载中…</view>
     <EmptyState v-else-if="walletLoadFailed && !walletStore.account" title="钱包数据加载失败" description="请稍后重试" />
+    <EmptyState v-else-if="profileFailed" title="账户资料加载失败" description="请联网后重试" action-text="重新加载" @action="loadAll" />
+    <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看钱包" description="登录后可查看资产与资金流水" action-text="登录" @action="login" />
     <template v-else>
     <!-- Hero (白底 BiyaPay 风) -->
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.chain})` }">
@@ -129,7 +144,7 @@ function bucketLabel(key: string): string {
         <text class="num">{{ formatAmount(walletStore.totalAssets) }}</text>
       </view>
       <text class="hero-sub">
-        ≈ <text class="cny-num">¥{{ cnyEquiv }}</text>  · 1 USDT = ¥{{ cnyRate.toFixed(2) }}
+        参考 ≈ <text class="cny-num">¥{{ cnyEquiv }}</text>  · 参考汇率 1 USDT = ¥{{ cnyRate.toFixed(2) }}
       </text>
       <view class="hero-actions">
         <view class="action-btn primary" @click="go('/pages/wallet/deposit')">

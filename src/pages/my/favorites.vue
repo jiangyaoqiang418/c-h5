@@ -6,6 +6,7 @@ import ProductCard from '@/components/product/product-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { getAccessToken, onSessionChanged } from '@/service/request/token';
+import { useNavigationGuards } from '@/utils/navigate';
 
 const list = ref<Api.RealProduct.ProductDTO[]>([]);
 const total = ref(0);
@@ -13,8 +14,10 @@ const current = ref(1);
 const size = 20;
 const loading = ref(false);
 const loadFailed = ref(false);
+const profileFailed = ref(false);
 const userStore = useUserStore();
 const removing = ref(false);
+const { requireLogin } = useNavigationGuards();
 let loadSequence = 0;
 let visible = true;
 let disposed = false;
@@ -25,6 +28,7 @@ const unsubscribeSession = onSessionChanged(() => {
   current.value = 1;
   loading.value = false;
   loadFailed.value = false;
+  profileFailed.value = false;
   removing.value = false;
 });
 
@@ -37,6 +41,7 @@ async function load(reset = false) {
   if (loading.value && !reset) return;
   if (reset) {
     loadFailed.value = false;
+    profileFailed.value = false;
     current.value = 1;
     list.value = [];
     total.value = 0;
@@ -46,15 +51,20 @@ async function load(reset = false) {
   loading.value = true;
   try {
     await userStore.init();
-    if (!userStore.currentUser) return;
+    if (!userStore.currentUser) {
+      profileFailed.value = !!getAccessToken();
+      return;
+    }
     const page = await fetchFavoriteProducts({ pageNo: requestedPage, pageSize: size });
     if (sequence !== loadSequence) return;
-    list.value = reset ? page.records : list.value.concat(page.records);
+    const known = new Set((reset ? [] : list.value).map(item => String(item.id)));
+    const incoming = page.records.filter(item => !known.has(String(item.id)));
+    list.value = reset ? incoming : list.value.concat(incoming);
     total.value = page.total;
     current.value = requestedPage;
   } catch (error) {
     if (sequence === loadSequence) {
-      if (!list.value.length) loadFailed.value = true;
+      if (!list.value.length && userStore.currentUser) loadFailed.value = true;
       uni.showToast({ title: error instanceof Error ? error.message : '收藏加载失败', icon: 'none' });
     }
   } finally {
@@ -64,6 +74,8 @@ async function load(reset = false) {
     }
   }
 }
+
+async function login() { await requireLogin('/pages/my/favorites'); }
 
 async function removeFavorite(id: string | number) {
   const token = getAccessToken();
@@ -107,7 +119,9 @@ onReachBottom(() => {
         <view class="remove" @click.stop="removeFavorite(product.id)">{{ removing ? '处理中…' : '取消收藏' }}</view>
       </view>
     </view>
+    <EmptyState v-else-if="profileFailed" title="账户资料加载失败" description="请联网后重试" action-text="重新加载" @action="load(true)" />
     <EmptyState v-else-if="loadFailed" title="收藏加载失败" description="请稍后重试" />
+    <EmptyState v-else-if="!userStore.currentUser && !loading" title="请先登录查看收藏" description="登录后可同步收藏商品" action-text="登录" @action="login" />
     <EmptyState v-else-if="!loading" title="暂未收藏商品" description="去商品详情收藏你喜欢的商品" />
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载收藏</text></view>
     <wd-button v-if="loadFailed" block plain :loading="loading" @click="load(true)">加载失败，点击重试</wd-button>

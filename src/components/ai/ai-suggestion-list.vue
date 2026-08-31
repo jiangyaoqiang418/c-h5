@@ -7,6 +7,7 @@ import EmptyState from '@/components/common/empty-state.vue';
 interface Props {
   result?: AiSearchResult;
   loading?: boolean;
+  demo?: boolean;
 }
 const props = defineProps<Props>();
 
@@ -24,6 +25,7 @@ function inducePurchase() {
     </view>
 
     <template v-else-if="result">
+      <text v-if="demo" class="demo-notice">模拟推荐：仅供浏览，实际商品以搜索和详情页为准</text>
       <view v-if="result.inducePurchase" class="induce" @click="inducePurchase">
         <wd-icon name="bulb" size="28px" color="var(--yb-brand)" />
         <view class="induce-text">
@@ -51,6 +53,7 @@ function inducePurchase() {
 .ai-list {
   padding: 16rpx;
 }
+.demo-notice { display: block; margin-bottom: 16rpx; color: #86909c; font-size: 22rpx; line-height: 1.5; }
 .loading {
   text-align: center;
   padding: 96rpx 0;

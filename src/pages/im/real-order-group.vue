@@ -10,6 +10,7 @@ import { useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
 import { RequestError } from '@/service/request';
 import { getAccessToken } from '@/service/request/token';
+import { beginImRecall, readImRecallReceipts, reconcileImRecall, removeRejectedImRecall, retainImRecall } from '@/utils/im-recall';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -60,6 +61,7 @@ let refreshTask: Promise<void> | undefined;
 let owner: { userId: string; operation: ReturnType<ReturnType<typeof usePageOperation>['capture']> } | undefined;
 const recallingId = ref('');
 const uncertainRecalls = ref<string[]>([]);
+const recallReceiptFailed = ref(false);
 const page = usePageOperation(clearPrivateState);
 let recordingScope: ReturnType<typeof captureConversation> | undefined;
 // stop 回调尚未到达时禁止开始下一段，避免把上一段音频归到新录音/新账号。
@@ -99,7 +101,7 @@ function clearPrivateState() {
   loading.value = false; loadFailed.value = false; sending.value = false;
   loadingHistory.value = false; historyLoadFailed.value = false; hasMoreHistory.value = false;
   realtimeState.value = 'idle'; currentOrderStatus.value = ''; scrollIntoView.value = '';
-  playingVoiceId.value = undefined; recallingId.value = ''; uncertainRecalls.value = [];
+  playingVoiceId.value = undefined; recallingId.value = ''; uncertainRecalls.value = []; recallReceiptFailed.value = false;
   atBottom.value = true; hasNewMessages.value = false; lastScrollTop = 0; historyPageNo = 2;
   acknowledgedReadId = undefined; queuedReadId = undefined; readTask = undefined;
   recoveryTask = undefined; refreshTask = undefined; recovering = false;
@@ -197,6 +199,7 @@ function applyRealtimeRecall(event: unknown) {
   const conversationId = recalled?.conversationId ?? payload.conversationId;
   const messageId = recalled?.id ?? payload.messageId ?? payload.id;
   if (!sessionCurrent() || !conversation.value || messageId == null || String(conversationId) !== String(conversation.value.id)) return;
+  try { reconcileImRecall(userStore.realUserId!, conversation.value.id, messageId); recallReceiptFailed.value = false; } catch { recallReceiptFailed.value = true; }
   uncertainRecalls.value = uncertainRecalls.value.filter(id => id !== String(messageId));
   stopRecalledVoice(messageId);
   const index = messages.value.findIndex(item => String(item.id) === String(messageId));
@@ -386,6 +389,9 @@ function mergeServerMessages(incoming: Api.RealNotify.Message[]) {
       stopRecalledVoice(message.id);
       if (previous) stopRecalledVoice(previous.id);
       uncertainRecalls.value = uncertainRecalls.value.filter(id => id !== String(message.id));
+      if (message.recalled && userStore.realUserId && conversation.value) {
+        try { reconcileImRecall(userStore.realUserId, conversation.value.id, message.id); recallReceiptFailed.value = false; } catch { recallReceiptFailed.value = true; }
+      }
     }
     messages.value = messages.value.filter(current => !matches(current));
     messages.value.push(merged);
@@ -659,7 +665,7 @@ function playVoice(message: Api.RealNotify.Message) {
 
 function canRecall(message: Api.RealNotify.Message) {
   return sessionCurrent() && pageVisible.value && !recallingId.value && !message.recalled && !message.pending && !message.failed
-    && !String(message.id).startsWith('local:') && !uncertainRecalls.value.includes(String(message.id))
+    && !recallReceiptFailed.value && !String(message.id).startsWith('local:') && !uncertainRecalls.value.includes(String(message.id))
     && ['TEXT', 'IMAGE', 'VOICE'].includes(message.msgType) && String(message.senderId) === String(userStore.realUserId)
     && String(message.conversationId) === String(conversation.value?.id);
 }
@@ -670,22 +676,28 @@ async function recallMessage(message: Api.RealNotify.Message) {
   const messageId = message.id;
   recallingId.value = String(messageId);
   let sent = false;
+  let receipt: ReturnType<typeof beginImRecall> | undefined;
   try {
     const result = await uni.showModal({ title: '撤回消息？' });
     if (!result.confirm || !scope.isCurrent()) return;
     const latest = messages.value.find(item => String(item.id) === String(messageId));
     if (!latest || latest.recalled || latest.pending || latest.failed || !['TEXT', 'IMAGE', 'VOICE'].includes(latest.msgType)
       || String(latest.senderId) !== String(userStore.realUserId) || String(latest.conversationId) !== String(scope.conversationId)) return;
+    receipt = beginImRecall(userStore.realUserId!, scope.conversationId!, messageId);
     sent = true;
     const accepted = await recallImMessage({ id: messageId });
     if (!scope.sameConversation()) return;
     if (accepted === false) throw new RequestError({ kind: 'business', message: '撤回未被受理，请核对消息状态' });
     if (accepted !== true) throw new Error('撤回回执缺失，请核对消息状态');
+    receipt = retainImRecall(userStore.realUserId!, { ...receipt, state: 'confirmed' });
     applyRealtimeRecall({ data: { conversationId: scope.conversationId, messageId } });
   } catch (error) {
     if (!scope.sameConversation()) return;
     const rejected = error instanceof RequestError && ['business', 'config'].includes(error.kind);
     const recalled = messages.value.some(item => String(item.id) === String(messageId) && item.recalled);
+    if (rejected && receipt && userStore.realUserId) {
+      try { removeRejectedImRecall(userStore.realUserId, receipt); } catch { recallReceiptFailed.value = true; }
+    }
     if (sent && !rejected && !recalled) uncertainRecalls.value = [...new Set([...uncertainRecalls.value, String(messageId)])];
     if (scope.isCurrent() && !recalled) uni.showToast({ title: uncertainRecalls.value.includes(String(messageId))
       ? '撤回结果待核对，请刷新消息，不要重复操作' : error instanceof Error ? error.message : '撤回失败', icon: 'none' });
@@ -742,6 +754,12 @@ async function initialize() {
     detachRealtime();
     owner = { userId: String(userStore.realUserId), operation };
     conversation.value = group;
+    try {
+      uncertainRecalls.value = readImRecallReceipts(owner.userId)
+        .filter(item => String(item.conversationId) === String(group.id) && item.state !== 'verified')
+        .map(item => String(item.messageId));
+      recallReceiptFailed.value = false;
+    } catch { recallReceiptFailed.value = true; }
     acknowledgedReadId = group.lastReadMessageId;
     const scope = captureConversation();
     unsubscribe = imSocket.subscribe(event => { if (scope.sameConversation()) handleRealtimeEvent(event); });

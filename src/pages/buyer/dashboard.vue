@@ -21,17 +21,19 @@ const requests = ref<Api.PurchaseRequest.PurchaseRequest[]>([]);
 const orderTotal = ref(0);
 const productTotal = ref(0);
 const requestTotal = ref(0);
-const depositBalance = ref<string | number>(0);
+const depositBalance = ref<string | number>();
 const loading = ref(false);
 const ordersLoadFailed = ref(false);
 const requestsLoadFailed = ref(false);
 const productsLoadFailed = ref(false);
 const depositLoadFailed = ref(false);
+let loadSequence = 0;
 
 const user = computed(() => userStore.currentUser);
 const userAvatar = computed(() => user.value?.avatar || (user.value ? avatarUrl(0) : ''));
 
 async function load() {
+  const sequence = ++loadSequence;
   loading.value = true;
   ordersLoadFailed.value = false;
   requestsLoadFailed.value = false;
@@ -39,7 +41,16 @@ async function load() {
   depositLoadFailed.value = false;
   try {
     await userStore.init();
-    if (!userStore.currentUser) return;
+    if (!userStore.currentUser) {
+      orders.value = [];
+      requests.value = [];
+      orderTotal.value = 0;
+      productTotal.value = 0;
+      requestTotal.value = 0;
+      depositBalance.value = undefined;
+      return;
+    }
+    const userId = userStore.realUserId;
     const results = await Promise.allSettled([
       fetchSoldOrders({ pageNo: 1, pageSize: 5 }),
       fetchHall({ current: 1, size: 5 }),
@@ -47,6 +58,7 @@ async function load() {
       fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 })
     ]);
     const [soldOrders, demandHall, products, deposits] = results;
+    if (sequence !== loadSequence || userId !== userStore.realUserId) return;
     ordersLoadFailed.value = soldOrders.status === 'rejected';
     requestsLoadFailed.value = demandHall.status === 'rejected';
     productsLoadFailed.value = products.status === 'rejected';
@@ -60,18 +72,19 @@ async function load() {
       requestTotal.value = demandHall.value.total;
     }
     if (products.status === 'fulfilled') productTotal.value = products.value.total;
-    if (deposits.status === 'fulfilled') depositBalance.value = deposits.value.records[0]?.balanceAfter ?? 0;
+    if (deposits.status === 'fulfilled') depositBalance.value = deposits.value.records[0]?.balanceAfter;
     if (results.some(result => result.status === 'rejected')) {
       uni.showToast({ title: '部分买手数据加载失败', icon: 'none' });
     }
   } catch (error) {
+    if (sequence !== loadSequence) return;
     ordersLoadFailed.value = true;
     requestsLoadFailed.value = true;
     productsLoadFailed.value = true;
     depositLoadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '买手数据加载失败', icon: 'none' });
   } finally {
-    loading.value = false;
+    if (sequence === loadSequence) loading.value = false;
   }
 }
 onShow(load);
@@ -81,7 +94,7 @@ const kpis = computed(() => {
     { label: '在售商品', value: productsLoadFailed.value ? '—' : productTotal.value, unit: '件', icon: 'goods', color: '#5B5CE7' },
     { label: '卖出订单', value: ordersLoadFailed.value ? '—' : orderTotal.value, unit: '单', icon: 'cart', color: '#B8935A' },
     { label: '可接求购', value: requestsLoadFailed.value ? '—' : requestTotal.value, unit: '单', icon: 'search', color: '#00A88A' },
-    { label: '保证金余额', value: depositLoadFailed.value ? '—' : formatAmount(depositBalance.value), unit: 'U', icon: 'shield', color: '#7C5CFC' }
+    { label: '保证金余额', value: depositLoadFailed.value || depositBalance.value == null ? '—' : formatAmount(depositBalance.value), unit: 'U', icon: 'shield', color: '#7C5CFC' }
   ];
 });
 
@@ -117,7 +130,7 @@ const kpis = computed(() => {
         </view>
         <view class="stat">
           <text class="stat-label">保证金</text>
-          <text class="stat-val">{{ depositLoadFailed ? '—' : formatAmount(depositBalance) }}</text>
+          <text class="stat-val">{{ depositLoadFailed || depositBalance == null ? '—' : formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>
@@ -175,7 +188,7 @@ const kpis = computed(() => {
         <text class="dep-label">当前保证金余额</text>
         <view class="dep-amount">
           <text class="unit">U</text>
-          <text class="num">{{ depositLoadFailed ? '—' : formatAmount(depositBalance) }}</text>
+          <text class="num">{{ depositLoadFailed || depositBalance == null ? '—' : formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>

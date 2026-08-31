@@ -1,5 +1,5 @@
 /**
- * 汇率与人民币显示 helper —— 全站价格双币显示 (CNY 主 · USDT 副)
+ * 汇率与人民币参考显示 helper —— 全站价格双币显示 (CNY 仅供参考 · USDT 副)
  *
  * 用法：
  *   import { formatCny, formatUsdt, priceSet, getUsdtCnyRate, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
@@ -71,7 +71,7 @@ export function priceSet(usdt: string | number | null | undefined) {
     usdt: formatUsdt(usdt),
     usdtRaw: String(usdt ?? ''),
     rate,
-    rateLabel: `1 USDT = ¥${rate.toFixed(2)}`
+    rateLabel: `参考汇率 1 USDT = ¥${rate.toFixed(2)}`
   };
 }
 
@@ -79,5 +79,5 @@ export function priceSet(usdt: string | number | null | undefined) {
 export const TAX_TOOLTIP_TEXT =
   '税费按发货地 → 收货地距离计算。中国大陆收货：多数商品无额外税费；非中国大陆收货（港澳台/海外）：可能产生清关税费，请以实际清关为准。';
 
-/** 汇率来源提示（可选显示） */
-export const RATE_SOURCE_TEXT = '汇率来源 OKX · 每 5 分钟刷新';
+/** 人民币换算基于本地配置，不代表实时成交或结算汇率。 */
+export const RATE_SOURCE_TEXT = '人民币金额仅供参考，请以实际结算为准';

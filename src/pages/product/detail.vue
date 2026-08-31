@@ -31,7 +31,7 @@ interface ProductView {
   images: string[];
   summary: string;
   description: string;
-  aftersaleType: Api.Product.AftersaleType;
+  aftersaleType: Api.Product.AftersaleType | 'unknown';
   overseasCustoms: boolean;
   status: Api.Product.ProductStatus;
   shelfStatus: Api.Product.ShelfStatus;
@@ -52,17 +52,21 @@ const isRealProduct = ref(false);
 const loading = ref(true);
 const loadFailed = ref(false);
 const buying = ref(false);
+const favoriting = ref(false);
+const detailId = ref('');
+const loadedOnce = ref(false);
 let pageActive = true;
 let pageVersion = 0;
-onShow(() => { pageActive = true; pageVersion++; buying.value = false; });
+onShow(() => { pageActive = true; buying.value = false; if (loadedOnce.value && detailId.value) void loadDetail(); });
 onHide(() => { pageActive = false; pageVersion++; });
 onUnload(() => { pageActive = false; pageVersion++; });
 
-function toAfterSaleType(value?: string): Api.Product.AftersaleType {
+function toAfterSaleType(value?: string): ProductView['aftersaleType'] {
   if (value === 'NONE') return 'none';
   if (value === 'SHOP_WARRANTY') return 'shop-warranty';
   if (value === 'NATIONAL_WARRANTY') return 'national-warranty';
-  return '7day-no-reason';
+  if (value === 'SEVEN_DAY_NO_REASON') return '7day-no-reason';
+  return 'unknown';
 }
 
 function categoryPathOf(nodes: CategoryNode[], id: string | number, parents: string[] = []): string | undefined {
@@ -104,7 +108,7 @@ function fromReal(record: Api.RealProduct.ProductDTO, categoryPath?: string): Pr
     id: record.id,
     title: record.title,
     sellerId: record.sellerId,
-    sellerName: record.sellerName || '认证买手',
+    sellerName: record.sellerName || '买手信息待完善',
     categoryPath: categoryPath || record.categoryName || `分类 ${record.categoryId}`,
     price: record.price,
     shippingFee: record.shippingFee || 0,
@@ -123,11 +127,12 @@ function fromReal(record: Api.RealProduct.ProductDTO, categoryPath?: string): Pr
 }
 
 const aftersaleLabel = computed(() => {
-  const labels: Record<Api.Product.AftersaleType, string> = {
+  const labels: Record<ProductView['aftersaleType'], string> = {
     none: '无售后',
     '7day-no-reason': '7天无理由',
     'shop-warranty': '店铺保修',
-    'national-warranty': '全国联保'
+    'national-warranty': '全国联保',
+    unknown: '售后规则以订单页为准'
   };
   return product.value ? labels[product.value.aftersaleType] : '';
 });
@@ -135,19 +140,22 @@ const canAdd = computed(() => (
   product.value?.status === 'NORMAL'
   && product.value.shelfStatus === 'on-shelf'
   && product.value.stock > 0
+  && product.value.aftersaleType !== 'unknown'
 ));
 const canBuy = computed(() => canAdd.value);
 const sellerAvatar = computed(() => (
   !isRealProduct.value && product.value?.legacyId ? avatarUrl(product.value.legacyId) : ''
 ));
 
-onLoad(async query => {
-  const rawId = String(query?.id || '');
+async function loadDetail() {
+  const rawId = detailId.value;
   if (!rawId) {
     loading.value = false;
     return;
   }
-  isRealProduct.value = query?.source === 'real';
+  const version = ++pageVersion;
+  const current = () => pageActive && version === pageVersion;
+  loading.value = true;
   loadFailed.value = false;
   try {
     if (isRealProduct.value) {
@@ -156,46 +164,59 @@ onLoad(async query => {
         fetchCategoryTree({ onlyEnabled: true })
       ]);
       if (recordResult.status === 'rejected') throw recordResult.reason;
+      if (!current()) return;
       const record = recordResult.value;
       const categoryPath = categoriesResult.status === 'fulfilled'
         ? categoryPathOf(categoriesResult.value, record.categoryId)
         : undefined;
       product.value = fromReal(record, categoryPath);
-      recordProductBrowse(rawId).catch(() => undefined);
+      qty.value = Math.max(1, Math.min(qty.value, Math.max(1, record.stock)));
+      if (!loadedOnce.value) recordProductBrowse(rawId).catch(() => undefined);
       const reviewResults = await Promise.allSettled([
         fetchStorefrontReviews({ productId: rawId, pageSize: 3 }),
         fetchReviewSummary(rawId),
         fetchSellerRating(record.sellerId)
       ]);
       const [reviewPage, summary, sellerRating] = reviewResults;
+      if (!current()) return;
       reviewLoadFailed.value = reviewResults.some(result => result.status === 'rejected');
-      if (reviewPage.status === 'fulfilled') realReviews.value = reviewPage.value.records;
-      if (summary.status === 'fulfilled') realReviewSummary.value = summary.value;
-      if (sellerRating.status === 'fulfilled') realSellerRating.value = sellerRating.value;
+      realReviews.value = reviewPage.status === 'fulfilled' ? reviewPage.value.records : [];
+      realReviewSummary.value = summary.status === 'fulfilled' ? summary.value : undefined;
+      realSellerRating.value = sellerRating.status === 'fulfilled' ? sellerRating.value : undefined;
       return;
     }
 
     const mockId = Number(rawId);
     if (!Number.isSafeInteger(mockId)) return;
     const record = await productApi.fetchProductDetail(mockId);
-    if (!record) return;
+    if (!record || !current()) return;
     product.value = fromMock(record);
+    qty.value = Math.max(1, Math.min(qty.value, Math.max(1, product.value.stock)));
     const [reviewPage, score] = await Promise.all([
       productApi.fetchProductReviews(record.id, 1, 5),
       reviewApi.fetchUserScoreSummary(record.sellerId)
     ]);
+    if (!current()) return;
     reviews.value = reviewPage.records;
     sellerScore.value = score;
   } catch (error) {
-    loadFailed.value = true;
-    uni.showToast({ title: error instanceof Error ? error.message : '商品详情加载失败', icon: 'none' });
+    if (current()) {
+      loadFailed.value = !product.value;
+      uni.showToast({ title: error instanceof Error ? error.message : '商品详情加载失败', icon: 'none' });
+    }
   } finally {
-    loading.value = false;
+    if (current()) { loading.value = false; loadedOnce.value = true; }
   }
+}
+
+onLoad(query => {
+  detailId.value = String(query?.id || '');
+  isRealProduct.value = query?.source === 'real';
+  void loadDetail();
 });
 
 function addToCart() {
-  if (!product.value) return;
+  if (!product.value || !canAdd.value) return showTradeUnavailable();
   if (isRealProduct.value) {
     if (!cart.addReal(realProductSnapshot(), qty.value)) return;
   } else if (product.value.legacyId) {
@@ -208,6 +229,7 @@ function addToCart() {
 
 function realProductSnapshot() {
   if (!product.value) throw new Error('商品不存在');
+  if (product.value.aftersaleType === 'unknown') throw new Error('商品售后规则暂不完整，暂不能结算');
   return {
     id: product.value.id,
     title: product.value.title,
@@ -225,7 +247,7 @@ function realProductSnapshot() {
 
 async function buyNow() {
   if (buying.value || !pageActive) return;
-  if (!product.value) return showTradeUnavailable();
+  if (!product.value || !canBuy.value) return showTradeUnavailable();
   if (!isRealProduct.value && !product.value.legacyId) return showTradeUnavailable();
   buying.value = true;
   const version = pageVersion;
@@ -251,21 +273,33 @@ function startPurchase() {
 }
 
 async function favorite() {
-  if (!product.value || !isRealProduct.value) {
+  if (favoriting.value || !pageActive || !product.value || !isRealProduct.value) {
     uni.showToast({ title: '该商品暂不支持收藏', icon: 'none' });
     return;
   }
+  const version = pageVersion;
   if (!await requireLogin(`/pages/product/detail?id=${encodeURIComponent(String(product.value.id))}&source=real`)) return;
+  if (!pageActive || version !== pageVersion || !product.value) return;
+  favoriting.value = true;
   try {
     await favoriteProduct(product.value.id);
-    uni.showToast({ title: '已收藏', icon: 'success' });
+    if (pageActive && version === pageVersion) uni.showToast({ title: '已收藏', icon: 'success' });
   } catch (error) {
-    uni.showToast({ title: error instanceof Error ? error.message : '收藏失败', icon: 'none' });
-  }
+    if (pageActive && version === pageVersion) uni.showToast({ title: error instanceof Error ? error.message : '收藏失败', icon: 'none' });
+  } finally { if (pageActive && version === pageVersion) favoriting.value = false; }
+}
+
+function increaseQty() {
+  if (!canAdd.value || !product.value) return;
+  qty.value = Math.max(1, Math.min(product.value.stock, qty.value + 1));
 }
 
 function goBack() {
-  uni.navigateBack();
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack();
+    return;
+  }
+  go(isRealProduct.value ? '/pages/product/list' : '/pages/index/index', true);
 }
 </script>
 
@@ -294,7 +328,7 @@ function goBack() {
 
       <view class="price-block">
         <text class="price-main">{{ priceSet(product.price).usdt }}</text>
-        <text class="price-sub">≈ {{ priceSet(product.price).cny }}</text>
+        <text class="price-sub">参考 ≈ {{ priceSet(product.price).cny }}</text>
         <view class="fee-row">
           <text>运费 {{ formatUsdt(product.shippingFee) }}</text>
           <view class="fee-with-tip"><text>税费 {{ formatUsdt(product.tax) }}</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></view>
@@ -314,8 +348,8 @@ function goBack() {
         <image v-if="sellerAvatar" :src="sellerAvatar" class="seller-avatar" />
         <image v-else :src="UI_ASSETS.placeholders.avatar" class="seller-avatar" mode="aspectFill" />
         <view class="seller-info">
-          <view class="seller-head"><text class="seller-name">{{ product.sellerName }}</text><VipBadge level="VIP1" size="sm" /></view>
-          <text class="seller-sub">平台认证买手</text>
+          <view class="seller-head"><text class="seller-name">{{ product.sellerName }}</text><VipBadge v-if="!isRealProduct" level="VIP1" size="sm" /></view>
+          <text class="seller-sub">{{ isRealProduct ? '买手信息以平台资料为准' : '平台认证买手' }}</text>
         </view>
       </view>
 
@@ -342,16 +376,16 @@ function goBack() {
     <view class="bottom-bar">
       <view class="tool yb-pressable" @click="startPurchase"><wd-icon name="search" size="20px" /><text>求购</text></view>
       <view class="tool yb-pressable" @click="go('/pages/cart/index')"><wd-icon name="cart" size="20px" /><text>购物车</text></view>
-      <view class="tool yb-pressable" @click="favorite"><wd-icon name="star" size="20px" /><text>收藏</text></view>
+      <view class="tool yb-pressable" :class="{ 'tool--disabled': favoriting }" @click="favorite"><wd-icon name="star" size="20px" /><text>{{ favoriting ? '收藏中' : '收藏' }}</text></view>
       <view class="quantity">
-        <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="qty = Math.min(product.stock, qty + 1)">+</text>
+        <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="increaseQty">+</text>
       </view>
       <wd-button plain :disabled="!canAdd" @click="canAdd ? addToCart() : showTradeUnavailable()">加购</wd-button>
       <wd-button type="primary" :disabled="!canBuy || buying" :loading="buying" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
     </view>
   </view>
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载商品详情</text></view>
-  <EmptyState v-else-if="loadFailed" title="商品详情加载失败" description="请稍后重试" />
+  <EmptyState v-else-if="loadFailed" title="商品详情加载失败" description="请稍后重试" action-text="重新加载" @action="loadDetail" />
   <EmptyState v-else title="商品不存在" description="商品可能已下架或链接参数不完整" action-text="返回首页" @action="go('/pages/index/index', true)" />
 </template>
 
@@ -391,6 +425,6 @@ function goBack() {
 .review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
 .review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
 .bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx calc(6rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
-.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 76rpx; min-height: 72rpx; color: #6b7385; font-size: 22rpx; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:72rpx; padding:0 8rpx; white-space:nowrap; }
+.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 76rpx; min-height: 72rpx; color: #6b7385; font-size: 22rpx; }.tool--disabled { opacity: .55; pointer-events: none; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:72rpx; padding:0 8rpx; white-space:nowrap; }
 .quantity { display: flex; flex-shrink:0; align-items: center; min-width:156rpx; padding: 0; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:52rpx; min-height:72rpx; }
 </style>

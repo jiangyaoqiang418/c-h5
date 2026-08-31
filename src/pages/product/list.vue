@@ -59,9 +59,13 @@ async function load(reset = false) {
       ...query
     });
     if (sequence !== loadSequence) return;
-    if (reset) list.value = r.records;
-    else list.value = list.value.concat(r.records);
-    total.value = r.total;
+    const count = Number(r.total);
+    if (!Array.isArray(r.records) || !Number.isSafeInteger(count) || count < 0
+      || (!r.records.length && (requestedPage - 1) * size < count)) throw new Error('商品分页数据不完整，请重试');
+    const merged = new Map((reset ? [] : list.value).map(item => [String(item.id), item]));
+    r.records.forEach(item => merged.set(String(item.id), item));
+    list.value = [...merged.values()];
+    total.value = count;
     current.value = requestedPage;
   } catch (error) {
     if (sequence === loadSequence) {

@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { formatAmount } from '@/utils/format-bridge';
 import { getUsdtCnyRate } from '@shared/utils/currency';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import { go } from '@/utils/navigate';
 
 interface Props {
   balance: string | number;
@@ -24,7 +25,11 @@ function handleWithdraw() {
 }
 
 function goBack() {
-  uni.navigateBack();
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack();
+    return;
+  }
+  go('/pages/my/index', true);
 }
 </script>
 
@@ -39,7 +44,7 @@ function goBack() {
       <text class="unit">U</text>
       <text class="num">{{ formatAmount(balance) }}</text>
     </view>
-    <text class="hero-sub">≈ ¥{{ cnyEquiv }}</text>
+    <text class="hero-sub">参考 ≈ ¥{{ cnyEquiv }}</text>
     <view v-if="bestApy > 0" class="apy-badge">
       <wd-icon name="chart" size="16px" color="#fff" />
       <text class="apy-num">{{ bestApy.toFixed(2) }}% APY</text>

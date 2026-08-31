@@ -106,9 +106,16 @@ async function load() {
     refreshReceipt();
     if (receiptFailed.value) throw new Error('本机认证提交记录读取失败，请先核对');
     if (receipt.value) {
-      await reconcileKycCreation(valid);
-      if (!valid()) return;
-      refreshReceipt();
+      try {
+        await reconcileKycCreation(valid);
+        if (!valid()) return;
+        refreshReceipt();
+      } catch (error) {
+        if (!valid()) return;
+        const currentStatus = userStore.currentUser?.kycStatus;
+        if (currentStatus !== 'approved' && currentStatus !== 'pending') throw error;
+        detailLoadFailed.value = true;
+      }
     }
     let record: Api.RealKyc.DetailVO | null = null;
     try {
