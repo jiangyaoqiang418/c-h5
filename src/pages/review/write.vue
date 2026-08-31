@@ -68,6 +68,10 @@ async function load(reset = true) {
     if (receipt.value) {
       await reconcileReviewCreation(orderId.value, recoveryScan, valid);
       if (valid()) refreshReceipt();
+      if (receipt.value?.state === 'verified') {
+        operation.schedule(viewReviews, 0);
+        return;
+      }
     } else {
       await scanReviewableOrder(orderId.value, qualificationScan, valid);
       if (!valid()) return;
@@ -143,7 +147,7 @@ async function submit(retryOriginal = false) {
 
 <template>
   <view class="review-write yb-page">
-    <view v-if="receipt" class="order-card receipt-panel">
+    <view v-if="receipt && receipt.state !== 'verified'" class="order-card receipt-panel">
       <text>{{ reviewCreateMessage(receipt) }}</text>
       <text>原订单：{{ receipt.request.orderId }}</text>
       <text>原评分：{{ receipt.request.productScore }} · {{ receipt.request.content || '未填写文字' }}</text>

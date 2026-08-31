@@ -194,6 +194,8 @@ page {
 }
 
 .wd-tag {
+  /* 纵向 flex 容器默认 stretch，标签应始终按内容宽度展示。 */
+  align-self: flex-start;
   min-height: 22px;
   padding: 4rpx 14rpx;
   border-radius: var(--yb-radius-pill);

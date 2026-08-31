@@ -866,8 +866,7 @@ function readText(message: Api.RealNotify.Message) {
       <view v-for="message in messages" :id="messageAnchor(message.id)" :key="message.id" class="row" :class="side(message)">
         <text v-if="side(message) === 'left'" class="sender">{{ message.senderName || '系统' }}</text>
         <view class="bubble" :class="side(message)"><image v-if="message.msgType === 'IMAGE' && message.mediaUrl && !message.recalled" :src="message.mediaUrl" mode="widthFix" class="message-image" /><text v-else-if="message.msgType === 'VOICE' && !message.recalled" class="voice-message" @click="playVoice(message)">{{ playingVoiceId === String(message.id) ? '播放中…' : '语音消息' }}{{ message.duration ? ` · ${message.duration} 秒` : '' }}</text><text v-else>{{ messageText(message) }}</text></view>
-        <text v-if="uncertainRecalls.includes(String(message.id))" class="delivery retry" @click="retryHistory">撤回结果待核对，点击刷新消息</text>
-        <text v-else-if="recallingId === String(message.id)" class="delivery">撤回处理中…</text>
+        <text v-if="recallingId === String(message.id)" class="delivery">撤回处理中…</text>
         <text v-else-if="canRecall(message)" class="recall" @click="recallMessage(message)">撤回</text>
         <text v-if="message.pending" class="delivery">发送中</text>
         <text v-else-if="message.failed" class="delivery retry" @click="retryMessage(message)">发送失败，点击重试</text>

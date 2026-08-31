@@ -123,9 +123,6 @@ async function cancel() {
       <text class="chain">{{ detail.chainLabel || `USDT-${detail.chain}` }}</text>
     </view>
     <view class="section">
-      <text v-if="receiptFailed" class="block">本机取消回执读取失败，已暂停取消操作，请重新读取并核对。</text>
-      <text v-if="cancelReceipt" class="block">{{ rechargeCancelMessage(cancelReceipt) }}</text>
-      <text v-if="cancelReceipt && detail.status === 'PENDING'" class="block">当前仍显示待到账，不代表上次取消失败，不会据此重发。</text>
       <text v-if="loadFailed" class="block">详情刷新失败，暂时保留上次信息；请重试后再操作。</text>
       <view class="row"><text class="label">充值单 ID</text><text>{{ detail.id }}</text></view>
       <view class="block"><text class="label">平台充值地址</text><text class="block-value">{{ detail.depositAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.depositAddress)">复制地址</wd-button></view>

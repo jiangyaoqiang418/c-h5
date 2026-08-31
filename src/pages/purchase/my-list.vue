@@ -48,7 +48,6 @@ const allLoaded = pager.list;
 const hasMore = pager.hasMore;
 const loading = computed(() => reading.value || pager.loading.value);
 const loadFailed = computed(() => initFailed.value || pager.loadFailed.value);
-const pendingReceipts = computed(() => receipts.value.filter(item => item.state !== 'verified'));
 const list = computed(() => {
   const statuses = TABS.find(tab => tab.key === activeKey.value)?.statuses;
   return statuses ? allLoaded.value.filter(item => statuses.includes(item.status)) : allLoaded.value;
@@ -112,22 +111,6 @@ function canCancel(request: Api.PurchaseRequest.PurchaseRequest) {
     && list.value.includes(request) && String(request.customerId) === userStore.realUserId
     && ['pending_audit', 'pushing'].includes(request.status) && !receiptFor(request);
 }
-async function checkReceipt(receipt: PurchaseCancelReceipt) {
-  if (!page.visible.value || operating.value || loading.value || receiptFailed.value || !userStore.realUserId
-    || !receipts.value.some(item => item.attempt === receipt.attempt && String(item.demandId) === String(receipt.demandId))) return;
-  const operation = page.capture(), filter = filterVersion;
-  const current = () => operation.isCurrent() && filter === filterVersion;
-  operating.value = true;
-  try {
-    const checked = await reconcilePurchaseCancel(userStore.realUserId, receipt.demandId, current);
-    if (operation.sameSession() && checked) retainReceipt(checked);
-    if (current() && checked) uni.showToast({ title: purchaseCancelMessage(receipts.value.find(item => item.attempt === checked.attempt) || checked), icon: 'none' });
-  } catch (error) {
-    if (current()) uni.showToast({ title: error instanceof Error ? error.message : '撤销结果核对失败', icon: 'none' });
-  } finally {
-    if (operation.sameSession()) { operating.value = false; if (page.visible.value) await loadFiltered(); }
-  }
-}
 async function onCancel(request: Api.PurchaseRequest.PurchaseRequest) {
   if (!canCancel(request)) return;
   const operation = page.capture(), filter = filterVersion;
@@ -172,15 +155,9 @@ watch(activeKey, changeFilter, { flush: 'sync' });
       </wd-tabs>
     </view>
     <view class="list">
-      <wd-button v-if="receiptFailed" block plain :disabled="operating" @click="retry">撤销回执读取失败，已暂停撤销，点击重试</wd-button>
-      <view v-for="receipt in pendingReceipts" :key="receipt.attempt" class="receipt">
-        <text>求购 {{ receipt.demandId }} · {{ purchaseCancelMessage(receipt) }}</text>
-        <wd-button size="small" plain :disabled="loading || operating || receiptFailed" @click="checkReceipt(receipt)">只读核对</wd-button>
-      </view>
       <view v-if="loading && !list.length" class="loading"><wd-loading size="44rpx" /><text>正在加载求购</text></view>
       <view v-else-if="list.length">
         <view v-for="r in list" :key="r.id">
-          <text v-if="receiptFor(r)" class="receipt">{{ purchaseCancelMessage(receiptFor(r)!) }}{{ ['pending_audit', 'pushing'].includes(r.status) ? '；下方仍为上次读取的状态。' : '' }}</text>
           <PurchaseRequestCard :request="r" mode="mine" :cancel-disabled="!canCancel(r)" :navigation-disabled="operating || loading" @cancel="onCancel" />
         </view>
       </view>
@@ -232,6 +209,5 @@ watch(activeKey, changeFilter, { flush: 'sync' });
   margin-top: 8rpx;
 }
 .list { padding:24rpx; }
-.receipt { display:flex; flex-direction:column; gap:12rpx; padding:20rpx; margin-bottom:16rpx; background:#fff6e8; color:#a85a00; border-radius:var(--yb-radius-md); font-size:24rpx; overflow-wrap:anywhere; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 </style>

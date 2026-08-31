@@ -392,16 +392,6 @@ async function resumePending(pending: PendingCheckout) {
 
 <template>
   <view class="checkout-page yb-page">
-    <wd-button v-if="paymentReceiptFailed" block plain :disabled="submitting" @click="loadCheckout">付款回执读取失败，已暂停付款，点击重新读取</wd-button>
-    <view v-if="pendingRecords.length" class="block">
-      <text class="block-title">未完成的结算</text>
-      <view v-for="pending in pendingRecords" :key="pending.idempotencyKey" class="pay-row">
-        <text>{{ pending.orderGroupNo ? `订单组 ${pending.orderGroupNo}` : '上次下单结果待确认' }}</text>
-        <text v-if="pendingPaymentMessage(pending)">{{ pendingPaymentMessage(pending) }}</text>
-        <wd-button size="small" plain :disabled="submitting" @click="resumePending(pending)">核对并继续</wd-button>
-      </view>
-      <wd-button size="small" plain @click="go('/pages/order/list')">查看订单</wd-button>
-    </view>
     <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载结算信息</text></view>
     <EmptyState v-else-if="loadFailed" title="结算信息加载失败" description="请稍后重试" action-text="重新加载" @action="loadCheckout" />
     <template v-else>

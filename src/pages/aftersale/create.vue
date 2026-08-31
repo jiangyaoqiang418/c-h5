@@ -81,6 +81,11 @@ async function load() {
     if (receipt.value && !receiptFailed.value) {
       await reconcileRefundCreation(orderId.value, userStore.realUserId!, valid);
       if (valid()) refreshReceipt();
+      if (receipt.value?.state === 'verified' && submittedId.value != null) {
+        const refundId = submittedId.value;
+        operation.schedule(() => go(`/pages/aftersale/detail?id=${encodeURIComponent(String(refundId))}`, true), 0);
+        return;
+      }
     }
   } catch (error) {
     if (!valid()) return;
@@ -128,7 +133,7 @@ async function submit() {
 
 <template>
   <view class="create-page yb-page">
-  <view v-if="receipt" class="step">
+  <view v-if="receipt && receipt.state !== 'verified'" class="step">
     <text>{{ refundCreateMessage(receipt) }}</text>
     <wd-button v-if="submittedId != null" block plain class="submit" @click="go(`/pages/aftersale/detail?id=${encodeURIComponent(String(submittedId))}`, true)">查看退款申请</wd-button>
     <wd-button block plain class="submit" :loading="loading" :disabled="submitting" @click="load">核对原申请状态</wd-button>

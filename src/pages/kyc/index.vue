@@ -211,12 +211,6 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
 
 <template>
   <view class="kyc-page">
-    <view v-if="receipt" class="record-card">
-      <text>{{ kycCreateMessage(receipt) }}</text>
-      <wd-button block plain :loading="loading" :disabled="submitting" @click="load">核对原认证与审核状态</wd-button>
-      <wd-button v-if="receipt.state === 'verified' && detail && kycCanApply(detail)" block plain :disabled="loading || submitting || receiptFailed" @click="startAnother">重新填写认证</wd-button>
-    </view>
-    <wd-button v-if="receiptFailed" block plain :disabled="submitting" @click="load">原认证记录读取失败，点击重试</wd-button>
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载认证状态</text></view>
     <view v-else-if="loadFailed" class="error-card"><text class="title">认证状态加载失败</text><text class="description">请检查网络后重新加载。</text><wd-button type="primary" block @click="load">重新加载</wd-button></view>
     <template v-else>

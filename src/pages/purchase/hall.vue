@@ -151,8 +151,6 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
     </view>
 
     <view class="list">
-      <view v-if="lastClaim?.orderId != null"><text>接单已成功，订单回执已保留。</text><wd-button plain @click="openProtected(`/pages/order/detail?id=${encodeURIComponent(String(lastClaim.orderId))}`)">查看本次订单</wd-button></view>
-      <view v-if="unknownCount || receiptFailed"><text>{{ receiptFailed ? '本机接单回执读取失败，暂不能接单' : '有接单结果待核对，请刷新求购和订单记录，不要重复提交' }}</text><wd-button plain :loading="reading" :disabled="claiming" @click="load()">刷新核对</wd-button></view>
       <view v-if="displayedRequests.length">
         <PurchaseRequestCard
           v-for="r in displayedRequests"

@@ -111,10 +111,6 @@ function openOrder() {
 
 <template>
   <view v-if="refund" class="as-detail yb-page">
-    <view v-if="cancelReceipt || receiptFailed" class="section">
-      <text>{{ receiptFailed ? '本机撤销回执读取失败，暂不能撤销；仍可刷新查看详情' : refundCancelMessage(cancelReceipt) }}</text>
-      <wd-button block plain :loading="loading" :disabled="operating" @click="reload">刷新核对</wd-button>
-    </view>
     <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="reload">详情刷新失败，点击重试（当前为上次记录）</wd-button>
     <view class="hero">
       <text class="status">{{ status }}</text>
@@ -151,7 +147,7 @@ function openOrder() {
 </template>
 
 <style lang="scss" scoped>
-.as-detail { min-height: 100%; padding:24rpx; }.hero, .section { background:#fff; padding:24rpx; border-radius:var(--yb-radius-lg); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.section { margin-top:20rpx; }
+.as-detail { min-height: 100%; padding:24rpx; }.hero, .section { background:#fff; padding:24rpx; border-radius:var(--yb-radius-lg); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.section { margin-top:20rpx; }.section + .hero { margin-top:20rpx; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .status { display: block; color: #ff7d00; font-size: 36rpx; font-weight: 700; }.type { display: block; margin-top: 8rpx; color: #1d2129; font-size: 28rpx; }.code { display: block; margin-top: 12rpx; color: #86909c; font-family: ui-monospace, monospace; font-size: 22rpx; }
 .section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: #86909c; font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: #f53f3f; font-family: ui-monospace, monospace; font-size: 28rpx; font-weight: 700; }

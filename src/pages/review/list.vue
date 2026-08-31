@@ -260,16 +260,6 @@ watch(activeKey, changeFilter, { flush: 'sync' });
       <wd-tabs v-model="activeKey"><wd-tab name="reviewable" title="待评价" /><wd-tab name="sent" title="我发出的" /><wd-tab name="received" title="我收到的" /></wd-tabs>
     </view>
     <view class="list">
-      <wd-button v-if="createReceiptFailed" block plain :disabled="operating || loading" @click="retry">原评价提交记录读取失败，点击重试</wd-button>
-      <view v-for="receipt in createReceipts" :key="receipt.attempt" class="receipt">
-        <text>订单 {{ receipt.request.orderId }} · {{ reviewCreateMessage(receipt) }}</text>
-        <wd-button size="small" plain :disabled="operating || loading || createReceiptFailed" @click="openReviewRecovery(receipt)">恢复原评价提交</wd-button>
-      </view>
-      <wd-button v-if="receiptFailed" block plain :disabled="operating" @click="retry">评价回执读取失败，已暂停写操作，点击重试</wd-button>
-      <view v-for="receipt in pendingReceipts" :key="receiptKey(receipt)" class="receipt">
-        <text>评价 {{ receipt.reviewId }} · {{ receiptMessage(receipt) }}</text>
-        <wd-button size="small" plain :disabled="operating || loading || receiptFailed" @click="checkReceipt(receipt)">只读核对</wd-button>
-      </view>
       <view v-if="loading && !records.length" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载评价</text></view>
       <template v-else>
         <EmptyState v-if="loadFailed && !records.length" title="评价加载失败" description="请稍后重试" />
@@ -293,6 +283,5 @@ watch(activeKey, changeFilter, { flush: 'sync' });
 
 <style lang="scss" scoped>
 .review-list { min-height:100%; }.list { padding:24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
-.receipt { display:flex; flex-direction:column; gap:12rpx; padding:20rpx; margin-bottom:20rpx; background:#fff6e8; color:#a85a00; border-radius:var(--yb-radius-md); font-size:24rpx; overflow-wrap:anywhere; }
 .reviewable-card { display:flex; gap:16rpx; align-items:center; background:#fff; padding:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); margin-bottom:16rpx; }.cover { width:96rpx; height:96rpx; border-radius:var(--yb-radius-md); background:#f2f3f5; }.reviewable-main { flex:1; min-width:0; }.title, .order-no { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.title { color:#1d2129; font-size:27rpx; font-weight:600; }.order-no { color:#86909c; font-size:22rpx; margin-top:8rpx; }
 </style>

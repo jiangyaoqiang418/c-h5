@@ -89,7 +89,9 @@ async function load() {
     if (receipt.value) {
       await reconcileProductCreation(userStore.realUserId!, valid);
       if (valid()) refreshReceipt();
-      return;
+      if (!receipt.value || receipt.value.state !== 'verified') return;
+      beginNextProduct(userStore.realUserId!, receipt.value.attempt);
+      refreshReceipt();
     }
     await userStore.refreshProfile();
     if (!valid() || !userStore.canSwitchToBuyer) return;
@@ -130,7 +132,11 @@ async function startNext() {
 }
 
 function viewOriginalProduct() {
-  if (page.visible.value && !submitting.value && !receiptFailed.value && receipt.value?.state === 'verified' && submittedId.value != null) go(`/pages/buyer/product-detail?id=${encodeURIComponent(String(submittedId.value))}`, true);
+  if (!page.visible.value || submitting.value || receiptFailed.value || receipt.value?.state !== 'verified' || submittedId.value == null || !userStore.realUserId) return;
+  const productId = submittedId.value;
+  beginNextProduct(userStore.realUserId, receipt.value.attempt);
+  refreshReceipt();
+  go(`/pages/buyer/product-detail?id=${encodeURIComponent(String(productId))}`, true);
 }
 
 function pickCategory() {
@@ -232,12 +238,11 @@ async function submit() {
 
 <template>
   <view class="publish-page">
-  <view v-if="receipt" class="receipt-panel">
+  <view v-if="receipt && receipt.state !== 'verified'" class="receipt-panel">
     <text>{{ productCreateMessage(receipt) }}</text>
     <text>原商品：{{ receipt.request.title }}</text>
     <wd-button block plain :loading="loading" :disabled="submitting || uploading" @click="load">核对原商品</wd-button>
     <wd-button v-if="submittedId != null" block type="primary" :disabled="submitting || receiptFailed" @click="viewOriginalProduct">查看提交结果</wd-button>
-    <wd-button v-if="receipt.state === 'verified'" block plain :disabled="loading || submitting || uploading || receiptFailed" @click="startNext">发布另一件商品</wd-button>
   </view>
   <wd-button v-if="receiptFailed" block plain :disabled="submitting" @click="load">发布记录读取失败，点击核对</wd-button>
   <view v-if="loading" class="create-page yb-page"><wd-loading size="44rpx" /><text>正在确认发布资格和商品分类</text></view>

@@ -248,8 +248,6 @@ function formatTime(value: string | number): string {
     </view>
 
     <view class="section">
-      <view v-if="pending"><text>上次{{ pending.action === 'pay' ? '缴纳' : '退还' }} U {{ pending.amount }} {{ pending.receiptId != null ? '已成功，正在等待对应流水回读。' : '结果待核对，恢复时复用原请求，不会创建新幂等键。' }}</text><wd-button v-if="pending.receiptId == null" plain :disabled="submitting" @click="pending.action === 'pay' ? openPay() : openRefund()">恢复原操作</wd-button></view>
-      <text v-if="pendingLoadFailed" class="empty-text">本机原请求读取失败，暂不能创建新操作；原记录未删除。</text>
       <text v-if="!userStore.currentUser" class="empty-text">请先登录查看保证金记录</text>
       <text v-else-if="!userStore.currentUser.isBuyer" class="empty-text">当前账号尚未成为买手</text>
       <wd-button block plain :loading="loading" :disabled="submitting" @click="loadPage">{{ userStore.currentUser ? '刷新并核对流水' : '登录或重试' }}</wd-button>

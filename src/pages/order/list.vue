@@ -6,7 +6,7 @@ import { usePageOperation } from '@/utils/page-operation';
 import { RequestError } from '@/service/request';
 import { getAccessToken } from '@/service/request/token';
 import { changeOrderWithReceipt, orderChangeBlocks, orderChangeMessage, readOrderChangeReceipts, reconcileOrderChange, type OrderChangeReceipt } from '@/utils/order-change';
-import { readRefundCreateReceipts, refundCreationBlocks, refundCreateMessage, type RefundCreateReceipt } from '@/utils/refund-create';
+import { readRefundCreateReceipts, refundCreationBlocks, type RefundCreateReceipt } from '@/utils/refund-create';
 import { confirmOrderGroupPayment, paymentReceiptMessage, readPaymentReceipts, reconcileOrderGroupPayment, type PaymentReceipt } from '@/utils/order-payment';
 import OrderCard from '@/components/order/order-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -54,13 +54,8 @@ const changeReceipts = ref<OrderChangeReceipt[]>([]);
 const changeReceiptFailed = ref(false);
 const refundReceipts = ref<RefundCreateReceipt[]>([]);
 const refundReceiptFailed = ref(false);
-const pendingRefunds = computed(() => refundReceipts.value.filter(receipt => refundCreationBlocks(receipt.orderId, [receipt])));
-const pendingChanges = computed(() => changeReceipts.value.filter(receipt => receipt.state !== 'verified'
-  || orders.value.some(order => String(order.id) === String(receipt.orderId) && orderChangeBlocks(order, [receipt]))));
 const paymentReceipts = ref<PaymentReceipt[]>([]);
 const paymentReceiptFailed = ref(false);
-const pendingPayments = computed(() => paymentReceipts.value.filter(receipt => receipt.state !== 'verified'
-  || orders.value.some(order => order.orderGroupNo === receipt.orderGroupNo && order.rawStatus === 'CREATED')));
 const uncertainShipping = ref(new Set<string>());
 const busy = computed(() => paying.value || shippingSubmitting.value || voucherUploading.value);
 const page = usePageOperation(() => {
@@ -101,10 +96,6 @@ function refreshChangeReceipts() {
     refundReceipts.value = userStore.realUserId ? readRefundCreateReceipts(userStore.realUserId) : [];
     refundReceiptFailed.value = false;
   } catch { refundReceiptFailed.value = true; }
-}
-
-function viewOriginalRefund(receipt: RefundCreateReceipt) {
-  if (page.visible.value && !busy.value && userStore.currentUser && refundReceipts.value.includes(receipt)) go(`/pages/aftersale/create?orderId=${encodeURIComponent(String(receipt.orderId))}`);
 }
 
 function paymentBlocked(order: Api.RealOrder.OrderView) {
@@ -212,27 +203,6 @@ async function pay(o: Api.RealOrder.OrderView) {
   }
 }
 
-async function checkPayment(receipt: PaymentReceipt) {
-  if (!page.visible.value || busy.value || loading.value || !userStore.realUserId
-    || !paymentReceipts.value.some(item => item.orderGroupNo === receipt.orderGroupNo && item.attempt === receipt.attempt)) return;
-  const operation = page.capture();
-  const filter = filterVersion;
-  const current = () => operation.isCurrent() && filter === filterVersion;
-  paying.value = true;
-  try {
-    const checked = await reconcileOrderGroupPayment(receipt.orderGroupNo, userStore.realUserId, current);
-    if (current() && checked) uni.showToast({ title: paymentReceiptMessage(checked), icon: 'none' });
-  } catch (error) {
-    if (current()) uni.showToast({ title: error instanceof Error ? error.message : '付款回执核对失败', icon: 'none' });
-  } finally {
-    if (operation.sameSession()) {
-      refreshPaymentReceipts();
-      if (page.visible.value) await load();
-      if (operation.sameSession()) paying.value = false;
-    }
-  }
-}
-
 async function changeOrder(o: Api.RealOrder.OrderView, action: 'cancel' | 'confirm') {
   const before = action === 'cancel' ? 'CREATED' : 'SHIPPED';
   if (!canOperate(o, 'customer', before)) return;
@@ -261,26 +231,6 @@ async function changeOrder(o: Api.RealOrder.OrderView, action: 'cancel' | 'confi
 }
 function cancel(o: Api.RealOrder.OrderView) { return changeOrder(o, 'cancel'); }
 function confirm(o: Api.RealOrder.OrderView) { return changeOrder(o, 'confirm'); }
-
-async function checkOrderChange(receipt: OrderChangeReceipt) {
-  if (!page.visible.value || busy.value || loading.value || !userStore.realUserId || changeReceiptFailed.value
-    || !changeReceipts.value.some(item => item.attempt === receipt.attempt && item.action === receipt.action && String(item.orderId) === String(receipt.orderId))) return;
-  const operation = page.capture(), filter = filterVersion;
-  const current = () => operation.isCurrent() && filter === filterVersion;
-  paying.value = true;
-  try {
-    const checked = await reconcileOrderChange(userStore.realUserId, receipt, current);
-    if (current() && checked) uni.showToast({ title: orderChangeMessage(checked), icon: 'none' });
-  } catch (error) {
-    if (current()) uni.showToast({ title: error instanceof Error ? error.message : '订单状态核对失败', icon: 'none' });
-  } finally {
-    if (operation.sameSession()) {
-      refreshChangeReceipts();
-      if (page.visible.value) await load();
-      if (operation.sameSession()) paying.value = false;
-    }
-  }
-}
 
 function review(o: Api.RealOrder.OrderView) {
   if (!canOperate(o, 'customer', 'COMPLETED')) return;
@@ -395,26 +345,6 @@ async function submitShipping() {
     </view>
 
     <view class="list">
-      <wd-button v-if="refundReceiptFailed" block plain :disabled="busy" :loading="loading" @click="retry">退款申请记录读取失败，已暂停顾客侧订单操作，点击重试</wd-button>
-      <view v-for="receipt in pendingRefunds" :key="receipt.attempt" class="payment-receipt">
-        <text>订单 ID {{ receipt.orderId }}</text>
-        <text>{{ refundCreateMessage(receipt) }}</text>
-        <wd-button size="small" plain :disabled="busy || loading" @click="viewOriginalRefund(receipt)">核对原退款申请</wd-button>
-      </view>
-      <wd-button v-if="changeReceiptFailed" block plain :disabled="busy" :loading="loading" @click="retry">订单操作回执读取失败，已暂停操作，点击重试</wd-button>
-      <view v-for="receipt in pendingChanges" :key="`${receipt.action}:${receipt.orderId}`" class="payment-receipt">
-        <text>订单 ID {{ receipt.orderId }}</text>
-        <text>{{ orderChangeMessage(receipt) }}</text>
-        <wd-button size="small" plain :disabled="busy || loading || changeReceiptFailed" @click="checkOrderChange(receipt)">只读核对订单状态</wd-button>
-      </view>
-      <wd-button v-if="paymentReceiptFailed" block plain :disabled="busy" :loading="loading" @click="retry">付款回执读取失败，已暂停待付款操作，点击重试</wd-button>
-      <view v-for="receipt in pendingPayments" :key="receipt.orderGroupNo" class="payment-receipt">
-        <text>订单组 {{ receipt.orderGroupNo }}</text>
-        <text>{{ paymentReceiptMessage(receipt) }}</text>
-        <wd-button size="small" plain :disabled="busy || loading" @click="checkPayment(receipt)">只读核对付款状态</wd-button>
-      </view>
-      <wd-button v-if="receipts.size" block plain :disabled="busy" :loading="loading" @click="retry">操作已提交，刷新核对订单状态</wd-button>
-      <wd-button v-if="uncertainShipping.size" block plain :disabled="busy" :loading="loading" @click="retry">发货结果待核对，点击刷新订单</wd-button>
       <view v-if="loading && !orders.length" class="loading"><wd-loading size="44rpx" /><text>正在加载订单</text></view>
       <view v-else-if="orders.length">
         <OrderCard
@@ -460,7 +390,6 @@ async function submitShipping() {
 .list {
   padding: 24rpx;
 }
-.payment-receipt { display:flex; flex-direction:column; gap:12rpx; padding:20rpx; margin-bottom:20rpx; background:#fff6e8; color:#a85a00; border-radius:var(--yb-radius-md); font-size:24rpx; overflow-wrap:anywhere; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .shipping-popup { padding: 32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background: #fff; }
 .shipping-title { display: block; font-size: 32rpx; font-weight: 700; color: #1d2129; }

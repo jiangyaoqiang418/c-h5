@@ -156,17 +156,7 @@ async function cancel() {
 
 <template>
   <view v-if="request" class="detail-page yb-page">
-    <view v-if="isMy && (cancelReceipt || cancelReceiptFailed)" class="section">
-      <text>{{ cancelReceiptFailed ? '本机撤销回执读取失败，已暂停撤销，请先核对记录。' : cancelReceipt ? purchaseCancelMessage(cancelReceipt) : '' }}</text>
-      <text v-if="cancelReceipt && ['pending_audit', 'pushing'].includes(request.status)">当前仍为上次读取的可撤销状态，不能据此重复提交。</text>
-      <wd-button plain :loading="loading" :disabled="operating" @click="reload">只读核对撤销结果</wd-button>
-    </view>
-    <view v-if="claimReceipt || claimReceiptFailed">
-      <text>{{ claimReceiptFailed ? '本机接单回执读取失败，暂不能接单' : claimReceipt?.state === 'confirmed' ? '接单已成功，订单回执已保留' : '接单结果尚未确认，请刷新核对，勿重复提交' }}</text>
-      <wd-button plain :loading="loading" :disabled="operating" @click="reload">刷新核对</wd-button>
-      <wd-button v-if="claimReceipt?.orderId != null" plain @click="go(`/pages/order/detail?id=${encodeURIComponent(String(claimReceipt.orderId))}`)">查看接单订单</wd-button>
-    </view>
-    <wd-button v-if="loadFailed || confirmedAction" block plain :loading="loading" :disabled="operating" @click="reload">{{ confirmedAction ? '操作已成功，点击刷新最新状态' : '状态刷新失败，点击重试' }}</wd-button>
+    <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="reload">状态刷新失败，点击重试</wd-button>
     <view class="hero">
       <wd-tag v-if="statusMeta" plain round size="medium">{{ statusMeta.label }}</wd-tag>
       <text class="code">{{ request.code }}</text>

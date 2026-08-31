@@ -290,22 +290,7 @@ function submitException() { return submitLogistics('exception'); }
 
 <template>
   <view v-if="order" class="detail-page yb-page">
-    <view v-if="isCustomer && refundBlocked" class="section">
-      <text>{{ refundReceiptFailed ? '本机退款申请记录读取失败，请先核对售后，暂不操作订单。' : refundReceipt ? refundCreateMessage(refundReceipt) : '' }}</text>
-      <wd-button block plain :disabled="busy || loading" @click="viewOriginalRefund">核对原退款申请</wd-button>
-    </view>
-    <view v-if="isCustomer && (paymentReceipt || paymentReceiptFailed)" class="section">
-      <text>{{ paymentReceiptFailed ? '本机付款回执读取失败，已暂停待付款操作，请先核对记录。' : paymentReceipt ? paymentReceiptMessage(paymentReceipt) : '' }}</text>
-      <text v-if="paymentReceipt && order.rawStatus === 'CREATED'">当前订单仍显示待付款；这不能证明上次没有付款。</text>
-      <wd-button block plain :disabled="busy" :loading="loading" @click="reload">只读核对付款状态</wd-button>
-    </view>
-    <view v-if="isCustomer && (changeReceiptFailed || currentChanges.length)" class="section">
-      <text v-if="changeReceiptFailed">订单操作回执读取失败，已暂停操作，请先核对记录。</text>
-      <text v-for="receipt in currentChanges" :key="receipt.action">{{ orderChangeMessage(receipt) }}</text>
-      <text v-if="orderChangeBlocks(order, currentChanges)">当前展示可能仍为上次读取的状态，不会据此重复操作。</text>
-      <wd-button block plain :disabled="busy" :loading="loading" @click="reload">只读核对订单状态</wd-button>
-    </view>
-    <wd-button v-if="loadFailed || logisticsLoadFailed || logisticsReceipt || logisticsReceiptFailed" block plain :disabled="busy" :loading="loading" @click="reload">{{ logisticsReceiptFailed ? '物流操作记录读取失败，请刷新核对' : logisticsReceipt?.state === 'unknown' ? '物流结果待核对，点击刷新' : logisticsReceipt ? '操作已提交，刷新核对最新状态' : '部分数据刷新失败，点击重试' }}</wd-button>
+    <wd-button v-if="loadFailed || logisticsLoadFailed" block plain :disabled="busy" :loading="loading" @click="reload">部分数据刷新失败，点击重试</wd-button>
     <view class="hero">
       <OrderStatusTag :status="order.status" />
       <text class="code">{{ order.code }}</text>
@@ -448,6 +433,7 @@ function submitException() { return submitLogistics('exception'); }
   gap: 12rpx;
   border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
+.section + .hero { margin-top: 20rpx; }
 .code {
   font-family: ui-monospace, monospace;
   font-size: 28rpx;

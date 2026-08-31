@@ -52,7 +52,6 @@ const list = pager.list;
 const hasMore = pager.hasMore;
 const loading = computed(() => reading.value || pager.loading.value);
 const loadFailed = computed(() => initFailed.value || pager.loadFailed.value);
-const pendingReceipts = computed(() => [...receipts.value.values()].filter(item => item.state !== 'verified'));
 function refreshReceipts() {
   if (!userStore.realUserId) return;
   try {
@@ -101,9 +100,6 @@ function canCancel(item: Api.RealOrder.OrderRefundDTO) {
 function openDetail(item: Api.RealOrder.OrderRefundDTO) {
   if (page.visible.value && userStore.currentUser && !operating.value && list.value.includes(item)) go(`/pages/aftersale/detail?id=${encodeURIComponent(String(item.refundId))}`);
 }
-function openReceipt(receipt: RefundCancelReceipt) {
-  if (page.visible.value && userStore.currentUser && !operating.value && receipts.value.get(String(receipt.refundId))?.attempt === receipt.attempt) go(`/pages/aftersale/detail?id=${encodeURIComponent(String(receipt.refundId))}`);
-}
 async function login() {
   const operation = page.capture();
   if (await requireLogin('/pages/aftersale/list') && operation.isCurrent()) await load();
@@ -151,14 +147,6 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
       </wd-tabs>
     </view>
     <view class="list">
-      <view v-if="receiptFailed || pendingReceipts.length" class="refund-card">
-        <text v-if="receiptFailed">本机撤销回执读取失败，暂不能撤销；仍可查看退款记录</text>
-        <view v-for="receipt in pendingReceipts" :key="String(receipt.refundId)">
-          <text>{{ refundCancelMessage(receipt) }}</text>
-          <wd-button plain size="small" :disabled="operating" @click="openReceipt(receipt)">查看退款单</wd-button>
-        </view>
-        <wd-button block plain :loading="loading" :disabled="operating" @click="load()">刷新核对</wd-button>
-      </view>
       <view v-if="loading && !list.length" class="loading"><wd-loading size="44rpx" /><text>正在加载仅退款记录</text></view>
       <view v-else-if="list.length">
         <view v-for="item in list" :key="item.refundId" class="refund-card" @click="openDetail(item)">
@@ -175,7 +163,6 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
             </view>
             <text class="amount">{{ item.amount == null ? '—' : formatUsdt(item.amount) }}</text>
           </view>
-          <text v-if="receipts.has(String(item.refundId))">{{ refundCancelMessage(receipts.get(String(item.refundId))) }}{{ item.status === 'APPLYING' && receipts.get(String(item.refundId))?.state !== 'unknown' ? '（上方为旧状态，等待同步）' : '' }}</text>
           <view v-if="!userStore.isBuyerActive && item.status === 'APPLYING'" class="actions" @click.stop>
             <wd-button plain size="small" :disabled="!canCancel(item)" @click="cancel(item)">撤销申请</wd-button>
           </view>

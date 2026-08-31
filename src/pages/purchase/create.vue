@@ -90,7 +90,9 @@ async function load() {
     if (receipt.value) {
       await reconcilePurchaseCreation(userStore.realUserId!, valid);
       if (valid()) refreshReceipt();
-      return;
+      if (!receipt.value || receipt.value.state !== 'verified') return;
+      beginNextPurchase(userStore.realUserId!, receipt.value.attempt);
+      refreshReceipt();
     }
     const [tree, addressList] = await Promise.all([fetchCategoryTree({ onlyEnabled: true }), fetchMyAddresses()]);
     if (!valid()) return;
@@ -121,7 +123,11 @@ function refreshReceipt() {
 }
 
 function viewOriginalPurchase() {
-  if (page.visible.value && !submitting.value && !receiptFailed.value && receipt.value?.state === 'verified' && submittedId.value != null) go(`/pages/purchase/detail?id=${encodeURIComponent(String(submittedId.value))}`, true);
+  if (!page.visible.value || submitting.value || receiptFailed.value || receipt.value?.state !== 'verified' || submittedId.value == null || !userStore.realUserId) return;
+  const demandId = submittedId.value;
+  beginNextPurchase(userStore.realUserId, receipt.value.attempt);
+  refreshReceipt();
+  go(`/pages/purchase/detail?id=${encodeURIComponent(String(demandId))}`, true);
 }
 
 async function startNext() {
@@ -238,12 +244,11 @@ async function submit() {
 
 <template>
   <view class="create-page yb-page">
-    <view v-if="receipt" class="receipt-panel">
+    <view v-if="receipt && receipt.state !== 'verified'" class="receipt-panel">
       <text>{{ purchaseCreateMessage(receipt) }}</text>
       <text>原求购：{{ receipt.request.productTitle }}</text>
       <wd-button block plain :loading="loading" :disabled="submitting || uploading" @click="load">核对原求购</wd-button>
       <wd-button v-if="submittedId != null" block type="primary" :disabled="submitting || receiptFailed" @click="viewOriginalPurchase">查看提交结果</wd-button>
-      <wd-button v-if="receipt.state === 'verified'" block plain :disabled="loading || submitting || uploading || receiptFailed" @click="startNext">发起另一笔求购</wd-button>
     </view>
     <wd-button v-if="receiptFailed" block plain :loading="loading" @click="load">本机提交记录读取失败，已暂停提交，点击重试</wd-button>
     <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">求购数据加载失败，点击重试</wd-button>

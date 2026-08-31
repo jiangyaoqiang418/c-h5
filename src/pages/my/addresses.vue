@@ -244,8 +244,7 @@ async function onLongPress(a: AddressRecord) {
 
 <template>
   <view class="addr-page">
-    <view v-if="receipt" class="loading">{{ addressReceiptMessage(receipt) }}</view>
-    <wd-button v-if="loadFailed || receiptFailed || receipt && receipt.state !== 'verified'" block plain :loading="loading" :disabled="saving || choosing" @click="load">{{ receiptFailed ? '操作记录读取失败，请重试核对' : '刷新并核对最新地址' }}</wd-button>
+    <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="saving || choosing" @click="load">地址加载失败，点击重试</wd-button>
     <view v-if="loading && !list.length" class="loading">地址加载中…</view>
     <view v-else-if="list.length" class="list">
       <view v-for="a in list" :key="a.id" class="card" @longpress="onLongPress(a)" @click="chooseAddress(a)">
@@ -269,9 +268,6 @@ async function onLongPress(a: AddressRecord) {
     <wd-popup v-model="popupOpen" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
         <text class="popup-title">新增收货地址</text>
-        <view v-if="receipt && receipt.state !== 'verified'" class="loading">{{ addressReceiptMessage(receipt) }}</view>
-        <wd-button v-if="receiptFailed || receipt && receipt.state !== 'verified'" block plain :loading="loading" :disabled="saving" @click="load">核对提交结果</wd-button>
-
         <!-- 智能识别 -->
         <view class="smart-fill">
           <view class="smart-head">
