@@ -50,7 +50,7 @@ async function getCategoryPath(id: string | number): Promise<string> {
     }).catch(error => { categoryPathPromise = undefined; throw error; });
   }
   const categoryPathCache = await categoryPathPromise;
-  return categoryPathCache.get(key) || `分类已失效 · ${key}`;
+  return categoryPathCache.get(key) || '分类暂不可用';
 }
 
 async function toPurchaseRequest(
@@ -99,6 +99,10 @@ export async function fetchHall(query: {
   size?: number;
   categoryId?: string | number;
   keyword?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  minDeliveryDays?: number;
+  maxDeliveryDays?: number;
 } = {}) {
   const page = await realOrderRequest<Api.RealPurchase.PurchaseDemandPage, Api.RealPurchase.PurchaseDemandPageQuery>({
     url: '/demands/hall/page',
@@ -107,7 +111,9 @@ export async function fetchHall(query: {
       pageNo: query.current || 1,
       pageSize: query.size || 20,
       categoryId: query.categoryId,
-      keyword: query.keyword
+      keyword: query.keyword,
+      minBudget: query.minBudget, maxBudget: query.maxBudget,
+      minDeliveryDays: query.minDeliveryDays, maxDeliveryDays: query.maxDeliveryDays
     }
   });
   return mapPage(page);
@@ -116,12 +122,17 @@ export async function fetchHall(query: {
 export async function fetchMyPurchases(
   customerId: string,
   statuses?: Api.PurchaseRequest.RequestStatus[],
-  query: { current?: number; size?: number } = {}
+  query: { current?: number; size?: number } & Pick<Api.RealPurchase.PurchaseDemandPageQuery, 'minBudget' | 'maxBudget' | 'minDeliveryDays' | 'maxDeliveryDays'> = {}
 ) {
-  const page = await fetchMyPurchaseRecords({ pageNo: query.current || 1, pageSize: query.size || 30 });
-  const mapped = await mapPage(page, customerId);
-  if (statuses?.length) mapped.records = mapped.records.filter(record => statuses.includes(record.status));
-  return mapped;
+  const statusMap: Record<Api.PurchaseRequest.RequestStatus, string[]> = {
+    pending_audit: ['PENDING_REVIEW'], pushing: ['OPEN'], claimed: ['TAKEN'],
+    cancelled: ['CANCELED', 'VOID'], rejected: ['REJECTED']
+  };
+  const page = await fetchMyPurchaseRecords({ pageNo: query.current || 1, pageSize: query.size || 30,
+    statuses: statuses?.length ? statuses.flatMap(status => statusMap[status]) : undefined,
+    minBudget: query.minBudget, maxBudget: query.maxBudget,
+    minDeliveryDays: query.minDeliveryDays, maxDeliveryDays: query.maxDeliveryDays });
+  return mapPage(page, customerId);
 }
 
 /** 原请求恢复使用完整记录，不用展示 adapter 的默认值推断原地址或归属。 */
@@ -133,7 +144,10 @@ export function fetchMyPurchaseRecords(query: Api.RealPurchase.PurchaseDemandPag
       pageNo: query.pageNo || 1,
       pageSize: query.pageSize || 30,
       categoryId: query.categoryId,
-      keyword: query.keyword
+      keyword: query.keyword,
+      statuses: query.statuses,
+      minBudget: query.minBudget, maxBudget: query.maxBudget,
+      minDeliveryDays: query.minDeliveryDays, maxDeliveryDays: query.maxDeliveryDays
     }
   });
 }
@@ -149,8 +163,29 @@ export async function fetchPurchaseDetail(id: string | number, _viewerId?: strin
   const dto = await fetchPurchaseRecord(id);
   return {
     request: await toPurchaseRequest(dto),
-    pushLogs: [] as Api.PurchaseRequest.PushLog[],
     rawStatus: dto.status
+  };
+}
+
+function progressTimestamp(value: unknown): number {
+  // int64 时间戳可能以十进制字符串返回；仅转换时间，不转换业务 ID。
+  const timestamp = typeof value === 'number' ? value
+    : typeof value === 'string' && /^-?\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(timestamp) || Number.isNaN(new Date(timestamp).getTime())) throw new Error('求购进度时间格式无效');
+  return timestamp;
+}
+
+export async function fetchPurchaseProgress(id: string | number) {
+  const result = await realOrderRequest<Api.RealPurchase.DemandProgress>({ url: '/demands/my/progress', params: { id } });
+  if (!result || String(result.demandId) !== String(id) || !Array.isArray(result.timeline)
+    || !Number.isSafeInteger(result.pushBatchCount) || !Number.isSafeInteger(result.reachedBuyerCount)) throw new Error('求购进度响应不完整');
+  return {
+    ...result,
+    reviewedAt: result.reviewedAt == null ? undefined : progressTimestamp(result.reviewedAt),
+    lastPushedAt: result.lastPushedAt == null ? undefined : progressTimestamp(result.lastPushedAt),
+    expireAt: result.expireAt == null ? undefined : progressTimestamp(result.expireAt),
+    takenAt: result.takenAt == null ? undefined : progressTimestamp(result.takenAt),
+    timeline: result.timeline.map(node => ({ ...node, occurredAt: progressTimestamp(node.occurredAt) }))
   };
 }
 

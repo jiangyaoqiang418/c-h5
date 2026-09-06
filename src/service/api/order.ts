@@ -28,6 +28,7 @@ export function toOrderView(
 ): Api.RealOrder.OrderView {
   return {
     id: order.orderId,
+    reviewEligibility: scope === 'bought' ? order.reviewEligibility : null,
     code: order.orderNo || order.orderGroupNo || String(order.orderId),
     orderNo: order.orderNo,
     orderGroupNo: order.orderGroupNo,
@@ -172,12 +173,16 @@ export function createBatchOrder(params: Api.RealOrder.OrderCreateBatchParams) {
   });
 }
 
-export function payRealOrderGroup(params: Api.RealOrder.OrderGroupPayParams): Promise<number> {
-  return realOrderRequest<number, Api.RealOrder.OrderGroupPayParams>({
+export function payRealOrderGroup(params: Api.RealOrder.OrderGroupPayParams) {
+  return realOrderRequest<Api.RealOrder.OrderGroupPayResult, Api.RealOrder.OrderGroupPayParams>({
     url: '/orders/group/pay',
     method: 'POST',
     data: params
   });
+}
+
+export function fetchOrderGroupPayResult(orderGroupNo: string) {
+  return realOrderRequest<Api.RealOrder.OrderGroupPayResult>({ url: '/orders/group/pay-result', params: { orderGroupNo } });
 }
 
 export function shipRealOrder(params: Api.RealOrder.OrderShipParams): Promise<Api.RealOrder.LongId> {
@@ -186,6 +191,13 @@ export function shipRealOrder(params: Api.RealOrder.OrderShipParams): Promise<Ap
     method: 'POST',
     data: params
   });
+}
+
+export async function fetchOrderCarriers() {
+  const carriers = await realOrderRequest<Api.RealOrder.LogisticsCarrierDTO[]>({ url: '/orders/carriers' });
+  if (!Array.isArray(carriers) || carriers.some(item => !item || !item.code || !item.name
+    || typeof item.enabled !== 'boolean' || typeof item.customNameRequired !== 'boolean')) throw new Error('承运商字典不完整，请重试');
+  return carriers.filter(item => item.enabled).sort((a, b) => (a.sortNo ?? 0) - (b.sortNo ?? 0));
 }
 
 export function uploadOrderVoucher(filePath: string, orderId: Api.RealOrder.LongId) {
@@ -219,6 +231,12 @@ export function markOrderLogisticsException(params: Api.RealOrder.LogisticsExcep
 
 export function createRealRefund(params: Api.RealOrder.OrderRefundApplyParams): Promise<Api.RealOrder.LongId> {
   return realOrderRequest<Api.RealOrder.LongId, Api.RealOrder.OrderRefundApplyParams>({ url: '/orders/refunds/create', method: 'POST', data: params });
+}
+
+export function fetchRefundByKey(idempotencyKey: string) {
+  return realOrderRequest<Api.RealOrder.OrderRefundDTO | null>({
+    url: '/orders/refunds/by-key', params: { idempotencyKey }, requireDataEnvelope: true
+  });
 }
 
 export function cancelRealRefund(refundId: Api.RealOrder.LongId): Promise<Api.RealOrder.LongId> {

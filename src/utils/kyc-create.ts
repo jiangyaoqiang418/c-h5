@@ -1,10 +1,11 @@
-import { fetchKycDetail, submitKyc } from '@/service/api/kyc';
+import { fetchKycDetail, fetchKycSchema, submitKyc } from '@/service/api/kyc';
 import { useUserStore } from '@/stores';
 import { getAccessToken } from '@/service/request/token';
 import { RequestError } from '@/service/request';
 
 type Snapshot = Omit<Api.RealKyc.SubmitParams, 'idNo'> & { maskedIdNo: string };
 export interface KycCreateReceipt {
+  schemaVersion?: number;
   attempt: string;
   snapshot: Snapshot;
   before: { id: Api.RealKyc.Id; submittedAt?: Api.RealKyc.Id } | null;
@@ -24,13 +25,28 @@ const origin = (r: KycCreateReceipt) => JSON.stringify([r.snapshot, r.before]);
 export function kycVersion(record: Api.RealKyc.DetailVO | null) {
   return record ? JSON.stringify([String(record.id), record.status, record.submittedAt ?? null, record.reviewedAt ?? null, record.expireAt ?? null]) : 'none';
 }
-export function kycCanApply(record: Api.RealKyc.DetailVO | null) {
+export function kycCanApply(record: Api.RealKyc.DetailVO | null, schema?: Api.RealKyc.Schema) {
   if (!record) return true;
   if (!validId(record.id)) return false;
-  if (record.status === 'REJECTED') return true;
+  if (record.status === 'REJECTED') return schema?.resubmitAfterRejectAllowed !== false;
   const expiry = Number(record.expireAt);
   return record.status === 'PASSED' && record.expireAt != null && String(record.expireAt).trim() !== ''
     && Number.isSafeInteger(expiry) && expiry > 0 && expiry <= Date.now();
+}
+export function kycSchemaVersion(schema: Api.RealKyc.Schema) {
+  return JSON.stringify([schema.version, schema.allowedIdTypes, schema.nationalityRequired, schema.idCardBackRequired, schema.holdingPhotoRequired, schema.resubmitAfterRejectAllowed, schema.noticeText]);
+}
+/** 页面、分步按钮和提交共用配置；护照不再跳过配置要求的背面。 */
+export function kycValidation(request: Partial<Api.RealKyc.SubmitParams>, schema?: Api.RealKyc.Schema, rejected = false) {
+  const text = (value?: string) => typeof value === 'string' && !!value.trim() && value.length <= 64;
+  const allowed = !!schema && (!rejected || schema.resubmitAfterRejectAllowed);
+  const identity = allowed && !!request.idType && schema.allowedIdTypes.includes(request.idType)
+    && text(request.realName) && text(request.idNo) && (!schema.nationalityRequired || text(request.nationality))
+    && (request.nationality == null || request.nationality.length <= 64);
+  const images = allowed && validId(request.idCardFrontFileId) && (!schema.idCardBackRequired || validId(request.idCardBackFileId))
+    && (!schema.holdingPhotoRequired || validId(request.holdingPhotoFileId))
+    && (request.idCardBackFileId == null || validId(request.idCardBackFileId)) && (request.holdingPhotoFileId == null || validId(request.holdingPhotoFileId));
+  return { allowed, identity, images };
 }
 function snapshotOf(request: Api.RealKyc.SubmitParams): Snapshot {
   // 证件号仅保存契约定义的脱敏形式；不保存原号码或任何临时签名地址。
@@ -41,8 +57,8 @@ function snapshotOf(request: Api.RealKyc.SubmitParams): Snapshot {
 function validateSnapshot(s: Snapshot) {
   if (!s || typeof s.realName !== 'string' || !s.realName.trim() || s.realName.length > 64
     || !['ID_CARD', 'PASSPORT'].includes(s.idType) || typeof s.maskedIdNo !== 'string' || !s.maskedIdNo.includes('***')
-    || !validId(s.idCardFrontFileId) || (s.idType === 'ID_CARD' && !validId(s.idCardBackFileId))
-    || (s.idCardBackFileId != null && !validId(s.idCardBackFileId)) || (s.idType === 'PASSPORT' && s.idCardBackFileId != null)
+    || !validId(s.idCardFrontFileId)
+    || (s.idCardBackFileId != null && !validId(s.idCardBackFileId))
     || (s.holdingPhotoFileId != null && !validId(s.holdingPhotoFileId))
     || (s.nationality != null && (typeof s.nationality !== 'string' || s.nationality.length > 64))) throw new Error('认证原提交资料不完整，请先核对');
 }
@@ -108,7 +124,7 @@ export async function reconcileKycCreation(stillActive: () => boolean) {
   return save(userId, { ...receipt, recordId: record.id, submittedAt: record.submittedAt, state: 'verified', observed: receipt.observed || receipt.state === 'unknown' });
 }
 
-export async function submitKycWithReceipt(params: Api.RealKyc.SubmitParams, expectedVersion: string, stillActive: () => boolean) {
+export async function submitKycWithReceipt(params: Api.RealKyc.SubmitParams, expectedVersion: string, expectedSchema: Api.RealKyc.Schema, stillActive: () => boolean) {
   const request = clone(params);
   if (typeof request.idNo !== 'string' || !request.idNo.trim() || request.idNo.length > 64) throw new Error('请填写 64 字以内证件号码');
   const snapshot = snapshotOf(request); validateSnapshot(snapshot);
@@ -125,9 +141,14 @@ export async function submitKycWithReceipt(params: Api.RealKyc.SubmitParams, exp
     if (!current()) return;
     const before = await fetchKycDetail();
     if (!current()) return;
-    if (kycVersion(before) !== expectedVersion || !kycCanApply(before)
+    const schema = await fetchKycSchema();
+    if (!current()) return;
+    if (kycSchemaVersion(schema) !== kycSchemaVersion(expectedSchema)) throw new Error('认证规则已更新，请按新要求核对已填写资料后重新提交');
+    const validation = kycValidation(request, schema, before?.status === 'REJECTED');
+    if (!validation.allowed || !validation.identity || !validation.images) throw new Error('认证资料不符合当前规则，请补全必填信息和影像');
+    if (kycVersion(before) !== expectedVersion || !kycCanApply(before, schema)
       || (!before && ['approved', 'pending'].includes(useUserStore().currentUser?.kycStatus || ''))) throw new Error('认证状态已变化，请刷新后操作');
-    marker = { attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, snapshot,
+    marker = { attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, snapshot, schemaVersion: schema.version,
       before: before ? { id: before.id, submittedAt: before.submittedAt } : null, state: 'unknown' };
     save(userId, marker, true);
     sent = true;
@@ -160,8 +181,10 @@ export async function startNextKyc(attempt: string, stillActive: () => boolean) 
     if (!receipt || receipt.attempt !== attempt || receipt.state !== 'verified') return false;
     const record = await fetchKycDetail();
     if (!current()) return false;
+    const schema = await fetchKycSchema();
+    if (!current()) return false;
     if (!record || String(record.id) !== String(receipt.recordId) || !matches(record, receipt)
-      || String(record.submittedAt ?? '') !== String(receipt.submittedAt ?? '') || !kycCanApply(record)) throw new Error('原认证尚未驳回或过期，请刷新核对');
+      || String(record.submittedAt ?? '') !== String(receipt.submittedAt ?? '') || !kycCanApply(record, schema)) throw new Error('当前认证状态或规则不允许重新申请，请刷新核对');
     const latest = readKycCreateReceipt(userId);
     if (!latest || latest.attempt !== receipt.attempt || latest.state !== 'verified') return false;
     uni.removeStorageSync(keyFor(userId));

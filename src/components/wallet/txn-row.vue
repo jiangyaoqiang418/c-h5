@@ -11,27 +11,28 @@ const props = defineProps<Props>();
 defineEmits<{ (e: 'detail', t: WalletTxnView): void }>();
 
 const meta = computed(() => enums.TXN_TYPE_META[props.txn.type]);
-const sign = computed(() => (props.txn.direction === 'in' ? '+' : '-'));
-const amountColor = computed(() => (props.txn.direction === 'in' ? '#00b42a' : '#f53f3f'));
-const desc = computed(() => props.txn.remark || `${props.txn.refType || ''} ${props.txn.refId || ''}`.trim() || meta.value.label);
+const sign = computed(() => (props.txn.direction === 'transfer' ? '' : props.txn.direction === 'in' ? '+' : '-'));
+const amountColor = computed(() => (props.txn.direction === 'transfer' ? '#4e5969' : props.txn.direction === 'in' ? '#00b42a' : '#f53f3f'));
+const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关联单号 ${props.txn.refId}` : '') || meta.value.label);
 </script>
 
 <template>
   <view class="txn-row" @click="$emit('detail', txn)">
     <view class="left">
-      <text class="type">{{ meta.label }}</text>
+      <text class="type">{{ txn.typeText || meta.label }}</text>
       <text class="desc">{{ desc }}</text>
       <text class="time">{{ new Date(txn.createdAt).toLocaleString() }}</text>
     </view>
     <view class="right">
       <text class="amount" :style="{ color: amountColor }">{{ sign }}{{ formatAmount(txn.amount) }} U</text>
-      <text class="balance">余 {{ formatAmount(txn.balanceAfter) }}</text>
+      <text class="balance">{{ txn.direction === 'transfer' ? '转入后余额' : '余' }} {{ formatAmount(txn.balanceAfter) }}</text>
     </view>
   </view>
 </template>
 
 <style lang="scss" scoped>
 .txn-row {
+  gap: 16rpx;
   display: flex;
   justify-content: space-between;
   padding: 24rpx;
@@ -68,9 +69,12 @@ const desc = computed(() => props.txn.remark || `${props.txn.refType || ''} ${pr
 }
 .right {
   text-align: right;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .amount {
+  display: block;
   font-size: 28rpx;
   font-weight: 700;
   font-family: ui-monospace, monospace;

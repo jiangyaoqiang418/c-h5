@@ -5,7 +5,7 @@ import { usePageOperation } from '@/utils/page-operation';
 import { getAccessToken } from '@/service/request/token';
 import { useSubmissionGuard } from '@/utils/submission-guard';
 import SubmissionWarning from '@/components/common/submission-warning.vue';
-import { fetchFinanceProductDetail, subscribeFinance } from '@/service/api/finance';
+import { fetchFinanceProductDetail } from '@/service/api/finance';
 import { formatAmount, formatRate } from '@/utils/format-bridge';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -17,7 +17,6 @@ const { requireLogin } = useNavigationGuards();
 const walletStore = useWalletStore();
 const userStore = useUserStore();
 const product = ref<Api.RealFinance.ProductVO>(); const amount = ref(''); const submitting = ref(false);
-const submittedId = ref<Api.RealFinance.Id>();
 const productId = ref('');
 let loadSequence = 0;
 const page = usePageOperation(() => {
@@ -26,7 +25,7 @@ const page = usePageOperation(() => {
   submitting.value = false; loading.value = false; loadFailed.value = false;
 });
 const guard = useSubmissionGuard('finance', '/pages/finance/my-lockups');
-const { uncertain, running } = guard;
+const { uncertain, running, submittedId, message, actionLabel } = guard;
 const loading = ref(true); const loadFailed = ref(false);
 async function load() {
   if (!page.visible.value || submitting.value) return;
@@ -80,7 +79,7 @@ const canSubmit = computed(() => {
     && (product.value?.remainingQuota == null || (quota != null && value <= quota)) && available.value != null && value <= available.value && product.value?.status === 'ON_SALE';
 });
 function terms(value: Api.RealFinance.ProductVO) { return JSON.stringify([String(value.id), value.name, String(value.annualRate), value.lockDays, String(value.minAmount), value.maxAmount == null ? null : String(value.maxAmount), value.status]); }
-function viewHolding() { if (page.visible.value && submittedId.value != null) go('/pages/finance/my-lockups', true); }
+function viewHolding() { if (page.visible.value && submittedId.value != null) go(`/pages/finance/my-lockups?id=${encodeURIComponent(String(submittedId.value))}`, true); }
 async function subscribe() {
   if (!product.value || !canSubmit.value || submitting.value) return;
   const request = { productId: product.value.id, amount: amount.value };
@@ -90,7 +89,7 @@ async function subscribe() {
   try {
     const result = await uni.showModal({
       title: '确认申购',
-      content: `确认使用 U ${request.amount} 申购“${product.value.name}”吗？资金将锁定 ${product.value.lockDays} 天，实际收益以后端结算结果为准。`,
+      content: `确认使用 U ${request.amount} 申购“${product.value.name}”吗？资金将锁定 ${product.value.lockDays} 天，实际收益以实际结算结果为准。`,
       confirmText: '确认申购'
     });
     if (!result.confirm || !operation.isCurrent() || request.amount !== amount.value || !canSubmit.value) return;
@@ -108,7 +107,7 @@ async function subscribe() {
     product.value = latest;
     if (snapshot !== terms(latest) || request.amount !== amount.value) throw new Error('申购条件已变化，请核对后重新确认');
     if (!canSubmit.value) throw new Error('当前余额、额度或申购条件不满足，请刷新后确认');
-    const receipt = await guard.run(() => subscribeFinance(request));
+    const receipt = await guard.run(request);
     if (!operation.sameSession()) return;
     submittedId.value = receipt;
     if (operation.isCurrent()) {
@@ -126,10 +125,10 @@ async function subscribe() {
 
 <template>
   <view>
-  <SubmissionWarning :pending="uncertain" :running="running" @review="guard.review" @acknowledge="guard.acknowledge" />
+  <SubmissionWarning :pending="uncertain || submittedId != null" :running="running" :message="message" :action-label="actionLabel" @review="guard.review" @acknowledge="guard.acknowledge" />
   <wd-button v-if="submittedId != null" block plain @click="viewHolding">申购已成功，查看持仓记录</wd-button>
   <wd-button v-if="product && loadFailed" block plain :loading="loading" :disabled="submitting" @click="load">产品或余额读取失败，点击重试</wd-button>
-  <view v-if="product" class="detail-page yb-page"><view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.finance})` }"><text class="name">{{ product.name }}</text><text class="rate">{{ numeric(product.annualRate) == null ? '—' : formatRate(Number(product.annualRate)) }}</text><text class="rate-meta">年化收益率 · 锁仓 {{ product.lockDays }} 天</text></view><view class="info"><view class="info-row"><text class="lbl">起投</text><text>U {{ formatAmount(product.minAmount) }}</text></view><view v-if="product.maxAmount" class="info-row"><text class="lbl">单笔上限</text><text>U {{ formatAmount(product.maxAmount) }}</text></view><view class="info-row"><text class="lbl">可用余额</text><text>{{ available == null ? '—' : `U ${formatAmount(available)}` }}</text></view></view><view class="calc"><text class="calc-title">申购金额</text><wd-input v-model="amount" label="投入金额" type="digit" placeholder="USDT" /><view class="calc-row"><text class="lbl">预计到期收益</text><text class="val accent">{{ expectedInterest == null ? '—' : `U ${formatAmount(expectedInterest)}` }}</text></view></view><view class="rules"><text class="title">产品说明</text><text class="desc">{{ product.description || '以订单快照及后端实际结算结果为准。' }}</text><text v-if="product.earlyRedeemEnabled" class="warn">提前赎回可用性与可得收益以订单详情返回值为准。</text></view><view class="bottom-bar"><wd-button type="primary" block :disabled="!canSubmit" :loading="submitting" @click="subscribe">立即申购 U {{ amount }}</wd-button></view></view><view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载小金库产品</text></view><EmptyState v-else-if="loadFailed" title="小金库产品加载失败" description="请检查网络后重试" action-text="重新加载" @action="load" /><EmptyState v-else-if="productId && !userStore.currentUser" title="请先登录查看理财产品" action-text="登录或重试" @action="load" /><EmptyState v-else title="小金库产品不存在" />
+  <view v-if="product" class="detail-page yb-page"><view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.finance})` }"><text class="name">{{ product.name }}</text><text class="rate">{{ numeric(product.annualRate) == null ? '—' : formatRate(Number(product.annualRate)) }}</text><text class="rate-meta">年化收益率 · 锁仓 {{ product.lockDays }} 天</text></view><view class="info"><view class="info-row"><text class="lbl">起投</text><text>U {{ formatAmount(product.minAmount) }}</text></view><view v-if="product.maxAmount" class="info-row"><text class="lbl">单笔上限</text><text>U {{ formatAmount(product.maxAmount) }}</text></view><view class="info-row"><text class="lbl">可用余额</text><text>{{ available == null ? '—' : `U ${formatAmount(available)}` }}</text></view></view><view class="calc"><text class="calc-title">申购金额</text><wd-input v-model="amount" label="投入金额" type="digit" placeholder="USDT" /><view class="calc-row"><text class="lbl">预计到期收益</text><text class="val accent">{{ expectedInterest == null ? '—' : `U ${formatAmount(expectedInterest)}` }}</text></view></view><view class="rules"><text class="title">产品说明</text><text class="desc">{{ product.description || '以订单快照及实际结算结果为准。' }}</text><text v-if="product.earlyRedeemEnabled" class="warn">提前赎回可用性与可得收益以订单详情为准。</text></view><view class="bottom-bar"><wd-button type="primary" block :disabled="!canSubmit" :loading="submitting" @click="subscribe">立即申购 U {{ amount }}</wd-button></view></view><view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载小金库产品</text></view><EmptyState v-else-if="loadFailed" title="小金库产品加载失败" description="请检查网络后重试" action-text="重新加载" @action="load" /><EmptyState v-else-if="productId && !userStore.currentUser" title="请先登录查看理财产品" action-text="登录或重试" @action="load" /><EmptyState v-else title="小金库产品不存在" />
   </view>
 </template>
 

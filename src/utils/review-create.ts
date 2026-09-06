@@ -1,4 +1,4 @@
-import { createReview, fetchMyReviews, fetchReviewableOrders, fetchReviewDetail } from '@/service/api/review';
+import { createReview, fetchMyReviews, fetchReviewEligibility, fetchReviewDetail } from '@/service/api/review';
 import { fetchOrderDetail, orderRole } from '@/service/api/order';
 import { getAccessToken } from '@/service/request/token';
 import { RequestError } from '@/service/request';
@@ -13,7 +13,7 @@ export interface ReviewCreateReceipt {
   reviewId?: Api.RealReview.Id;
   observed?: boolean;
 }
-export interface ReviewScan<T> { nextPage: number; total?: number; ids: string[]; done: boolean; matches: T[]; matchPage?: number; }
+export interface ReviewScan<T> { nextPage: number; total?: number; ids: string[]; done: boolean; matches: T[]; matchPage?: number; eligibility?: Api.RealReview.OrderReviewEligibility; }
 export const newReviewScan = <T>(): ReviewScan<T> => ({ nextPage: 1, total: undefined, ids: [], done: false, matches: [], matchPage: undefined });
 const validId = (id: unknown) => typeof id === 'string' ? !!id.trim() : typeof id === 'number' && Number.isSafeInteger(id);
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -103,9 +103,20 @@ async function scanPages<T>(scan: ReviewScan<T>, fetchPage: (page: number) => Pr
   }
 }
 
-export function scanReviewableOrder(orderId: Api.RealReview.Id, scan: ReviewScan<Api.RealReview.ReviewableOrderVO>, current: () => boolean) {
-  return scanPages(scan, pageNo => fetchReviewableOrders({ pageNo, pageSize: 50 }), item => item.orderId,
-    item => String(item.orderId) === String(orderId), current, true);
+export async function scanReviewableOrder(orderId: Api.RealReview.Id, scan: ReviewScan<Api.RealReview.ReviewableOrderVO>, current: () => boolean) {
+  const userId = useUserStore().realUserId;
+  const eligibility = (await fetchReviewEligibility([orderId])).get(String(orderId))!;
+  if (!current()) return;
+  scan.matches = [];
+  if (eligibility.reviewable) {
+    const order = await fetchOrderDetail(orderId, 'bought', userId);
+    if (!current()) return;
+    if (String(order.id) !== String(orderId) || orderRole(order, userId) !== 'customer' || order.rawStatus !== 'COMPLETED') throw new Error('评价订单状态或归属已变化');
+    scan.matches = [{ orderId: order.id, orderNo: order.orderNo, productId: order.productId, productTitle: order.productTitle,
+      productImage: order.productCover, sellerId: order.sellerId, quantity: order.quantity, totalAmount: order.totalAmount,
+      completedAt: order.completedAt, reviewDeadline: eligibility.deadline }];
+  }
+  scan.eligibility = eligibility; scan.done = true; scan.matchPage = 1;
 }
 
 function matchesReview(record: Api.RealReview.ReviewDTO, receipt: ReviewCreateReceipt, userId: string) {
@@ -141,7 +152,7 @@ export async function reconcileReviewCreation(orderId: Api.RealReview.Id, scan: 
   return save(userId, { ...receipt, reviewId, state: 'verified', observed: receipt.observed || receipt.state === 'unknown' });
 }
 
-/** 新提交先重读原资格页；结果未知时只能按服务端订单幂等语义重试原请求。 */
+/** 新提交重读权威资格；结果未知时只能按服务端订单幂等语义重试原请求。 */
 export async function submitReviewWithReceipt(params: Api.RealReview.ReviewSubmitParams, expected: Api.RealReview.ReviewableOrderVO | undefined,
   qualificationPage: number | undefined, stillActive: () => boolean, retryAttempt?: string) {
   const request = clone({ ...params, content: params.content || '', images: params.images || [], anonymous: params.anonymous ?? false });
@@ -169,13 +180,11 @@ export async function submitReviewWithReceipt(params: Api.RealReview.ReviewSubmi
       marker = previous;
     } else {
       if (!expected || String(expected.orderId) !== String(request.orderId) || !Number.isSafeInteger(qualificationPage) || qualificationPage! < 1) throw new Error('请先查询原订单的评价资格');
-      const page = await fetchReviewableOrders({ pageNo: qualificationPage, pageSize: 50 });
+      const eligibility = (await fetchReviewEligibility([request.orderId])).get(String(request.orderId))!;
       if (!current()) return;
-      if (!Array.isArray(page.records) || !['number', 'string'].includes(typeof page.total) || !String(page.total).trim()
-        || !Number.isSafeInteger(Number(page.total)) || Number(page.total) < page.records.length) throw new Error('评价资格响应不完整，请重新查询');
-      const found = page.records.filter(item => String(item.orderId) === String(request.orderId));
-      if (found.length !== 1 || String(found[0].sellerId) !== String(order.sellerId) || String(expected.sellerId) !== String(order.sellerId)
-        || String(found[0].productId ?? '') !== String(order.productId ?? '') || String(expected.productId ?? '') !== String(order.productId ?? '')) throw new Error('评价资格或对象已变化，请重新查询后提交');
+      if (!eligibility.reviewable) throw new Error(eligibility.reasonText || '当前订单不可评价，请刷新核对');
+      if (String(expected.sellerId) !== String(order.sellerId)
+        || String(expected.productId ?? '') !== String(order.productId ?? '')) throw new Error('评价对象已变化，请重新查询后提交');
       marker = { attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, request, sellerId: order.sellerId!, productId: order.productId, state: 'unknown' };
     }
     // 每次发送前都验证持久快照；不会用当前表单覆盖原内容。

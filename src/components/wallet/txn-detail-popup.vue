@@ -12,7 +12,7 @@ const props = defineProps<Props>();
 defineEmits<{ (e: 'update:visible', v: boolean): void }>();
 
 const meta = computed(() => (props.txn ? enums.TXN_TYPE_META[props.txn.type] : undefined));
-const sign = computed(() => (props.txn?.direction === 'in' ? '+' : '-'));
+const sign = computed(() => (props.txn?.direction === 'transfer' ? '' : props.txn?.direction === 'in' ? '+' : '-'));
 
 function copy(text?: string) {
   if (!text) return;
@@ -30,17 +30,17 @@ function copy(text?: string) {
   >
     <view v-if="txn && meta" class="detail-popup">
       <view class="head">
-        <text class="type-tag">{{ meta.label }}</text>
+        <text class="type-tag">{{ txn.typeText || meta.label }}</text>
         <text class="amount" :class="txn.direction">{{ sign }}{{ formatAmount(txn.amount) }} U</text>
-        <text class="balance">余额 U {{ formatAmount(txn.balanceAfter) }}</text>
+        <text class="balance">{{ txn.direction === 'transfer' ? '转入后余额' : '余额' }} U {{ formatAmount(txn.balanceAfter) }}</text>
       </view>
       <view class="rows">
         <view class="row"><text class="lbl">流水编号</text><text>#{{ txn.id }}</text></view>
-        <view class="row"><text class="lbl">类型</text><text>{{ txn.type }}</text></view>
-        <view class="row"><text class="lbl">方向</text><text>{{ txn.direction === 'in' ? '收入' : '支出' }}</text></view>
-        <view v-if="txn.bucketFrom" class="row"><text class="lbl">出账桶</text><text>{{ txn.bucketFrom }}</text></view>
-        <view v-if="txn.bucketTo" class="row"><text class="lbl">入账桶</text><text>{{ txn.bucketTo }}</text></view>
-        <view v-if="txn.refType || txn.refId" class="row"><text class="lbl">关联引用</text><text>{{ txn.refType || '' }} · {{ txn.refId || '' }}</text></view>
+        <view class="row"><text class="lbl">类型</text><text>{{ txn.typeText || meta.label }}</text></view>
+        <view class="row"><text class="lbl">方向</text><text>{{ txn.direction === 'transfer' ? '账户间划转' : txn.direction === 'in' ? '收入' : '支出' }}</text></view>
+        <view v-if="txn.bucketFrom" class="row"><text class="lbl">出账账户</text><text>{{ enums.BUCKET_META[txn.bucketFrom]?.label || '其他账户' }}</text></view>
+        <view v-if="txn.bucketTo" class="row"><text class="lbl">入账账户</text><text>{{ enums.BUCKET_META[txn.bucketTo]?.label || '其他账户' }}</text></view>
+        <view v-if="txn.refId" class="row"><text class="lbl">关联单号</text><text>{{ txn.refId }}</text></view>
         <view v-if="txn.remark" class="row"><text class="lbl">备注</text><text>{{ txn.remark }}</text></view>
         <view v-if="txn.chainTxHash" class="row" @click="copy(txn.chainTxHash)">
           <text class="lbl">交易哈希</text>
@@ -81,6 +81,7 @@ function copy(text?: string) {
   font-size: 22rpx;
 }
 .amount {
+  overflow-wrap: anywhere;
   display: block;
   font-size: 56rpx;
   font-weight: 700;
@@ -90,6 +91,7 @@ function copy(text?: string) {
 .amount.in { color: #00b42a; }
 .amount.out { color: #f53f3f; }
 .balance {
+  overflow-wrap: anywhere;
   font-size: 22rpx;
   color: #86909c;
 }
@@ -97,6 +99,7 @@ function copy(text?: string) {
   padding-top: 16rpx;
 }
 .row {
+  gap: 20rpx;
   display: flex;
   justify-content: space-between;
   padding: 16rpx 0;
@@ -105,10 +108,12 @@ function copy(text?: string) {
   border-bottom: 1rpx solid var(--yb-border);
 }
 .lbl {
+  flex-shrink: 0;
   color: #86909c;
 }
 .mono {
   font-family: ui-monospace, monospace;
 }
+.row > text:last-child { min-width:0; text-align:right; overflow-wrap:anywhere; }
 .copy-value { display:flex; align-items:center; gap:8rpx; min-width:0; }
 </style>

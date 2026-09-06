@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { onHide, onReachBottom, onShow } from '@dcloudio/uni-app';
+import { onHide, onLoad, onReachBottom, onShow } from '@dcloudio/uni-app';
 import { usePagedList } from '@/utils/paged-list';
 import { fetchFinanceOrderDetail, fetchFinanceOrders, redeemFinanceOrder } from '@/service/api/finance';
 import LockupCard from '@/components/finance/lockup-card.vue';
@@ -14,6 +14,10 @@ const walletStore = useWalletStore();
 const userStore = useUserStore();
 const { requireLogin } = useNavigationGuards();
 const activeKey = ref<Api.RealFinance.OrderStatus>('HOLDING');
+const originalId = ref('');
+const originalOrder = ref<Api.RealFinance.OrderVO>();
+const originalFailed = ref(false);
+onLoad(query => { originalId.value = String(query?.id || ''); });
 const redeemingId = ref<Api.RealFinance.Id>();
 type RedemptionReceipt = { id: Api.RealFinance.Id; attempt: string; state: 'unknown' | 'confirmed' | 'verified' };
 const receipts = ref(new Map<string, RedemptionReceipt>());
@@ -26,6 +30,7 @@ let readVersion = 0;
 const page = usePageOperation(() => {
   readVersion++;
   reading.value = false;
+  originalId.value = ''; originalOrder.value = undefined; originalFailed.value = false;
   redeemingId.value = undefined;
   receipts.value = new Map();
   recoveryFailed.value = false;
@@ -111,12 +116,22 @@ async function load(reset = true) {
   reading.value = true;
   retryReset = reset;
   try {
-    if (!await requireLogin('/pages/finance/my-lockups') || !current()) return;
+    if (!await requireLogin(`/pages/finance/my-lockups${originalId.value ? `?id=${encodeURIComponent(originalId.value)}` : ''}`) || !current()) return;
     try { readReceipts(); } catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '回执读取失败', icon: 'none' }); }
-    await loadPage(reset);
+    await Promise.all([loadPage(reset), reset ? loadOriginal(current) : Promise.resolve()]);
     if (current() && redeemingId.value === undefined && !recoveryFailed.value) await reconcileReceipts(current);
   } catch (error) { if (current()) uni.showToast({ title: error instanceof Error ? error.message : '持仓读取失败', icon: 'none' }); }
   finally { if (sequence === readVersion) reading.value = false; }
+}
+async function loadOriginal(current: () => boolean) {
+  const id = originalId.value;
+  if (!id) return;
+  try {
+    const order = await fetchFinanceOrderDetail(id);
+    if (!current() || originalId.value !== id) return;
+    if (!order || String(order.id) !== id || !['HOLDING', 'SETTLED', 'REDEEMED', 'CANCELED'].includes(order.status)) throw new Error('原持仓回读不匹配');
+    originalOrder.value = order; originalFailed.value = false;
+  } catch { if (current() && originalId.value === id) originalFailed.value = true; }
 }
 onShow(() => load());
 function invalidateRead() { readVersion++; reading.value = false; invalidate(); }
@@ -154,7 +169,7 @@ async function onRedeem(order: Api.RealFinance.OrderVO) {
     const interest = latest.redeemableInterest;
     const result = await uni.showModal({
       title: '提前赎回？',
-      content: `赎回「${latest.productName}」本金 U ${latest.principal}，预计可得收益 U ${interest}。提前赎回可能影响实际收益，实际金额以后端处理结果为准。确认后将立即提交。`,
+      content: `赎回「${latest.productName}」本金 U ${latest.principal}，预计可得收益 U ${interest}。提前赎回可能影响实际收益，实际金额以实际处理结果为准。确认后将立即提交。`,
       confirmText: '确认赎回'
     });
     if (!result.confirm || !current()) return;
@@ -200,5 +215,5 @@ async function onRedeem(order: Api.RealFinance.OrderVO) {
 }
 </script>
 
-<template><view class="my-lockup-page yb-page yb-page--full-bleed"><view class="yb-sticky-tabs-frame"><wd-tabs v-model="activeKey"><wd-tab v-for="tab in tabs" :key="tab.key" :name="tab.key" :title="tab.label" /></wd-tabs></view><view class="list"><wd-button v-if="awaitingReadback || recoveryFailed" block plain :loading="loading" :disabled="redeemingId !== undefined" @click="load()">赎回回执待核对，点击刷新记录</wd-button><view v-if="loading && !list.length" class="loading"><wd-loading size="44rpx" /><text>正在加载持仓</text></view><view v-else-if="list.length"><LockupCard v-for="order in list" :key="order.id" :order="order" :redeeming="redeemingId === order.id" :redeem-disabled="redeemingId !== undefined || loading || loadFailed || recoveryFailed || receipts.has(String(order.id))" @redeem="onRedeem" /></view><EmptyState v-else-if="loadFailed" title="持仓记录加载失败" description="请稍后重试" /><EmptyState v-else-if="!userStore.currentUser" title="请先登录查看持仓" action-text="登录或重试" @action="load()" /><EmptyState v-else title="暂无持仓" /><wd-button v-if="userStore.currentUser && (hasMore || loadFailed)" block plain :loading="loading" :disabled="redeemingId !== undefined" @click="load(loadFailed ? retryReset : false)">{{ loadFailed ? '加载失败，点击重试' : '加载更多' }}</wd-button></view></view></template>
-<style lang="scss" scoped>.my-lockup-page { min-height:100%; }.list { padding:24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }</style>
+<template><view class="my-lockup-page yb-page yb-page--full-bleed"><view class="yb-sticky-tabs-frame"><wd-tabs v-model="activeKey"><wd-tab v-for="tab in tabs" :key="tab.key" :name="tab.key" :title="tab.label" /></wd-tabs></view><view class="list"><view v-if="originalId" class="original-receipt"><text>原申购记录 #{{ originalId }}</text><text v-if="originalOrder">{{ originalOrder.productName }} · U {{ originalOrder.principal }} · {{ originalOrder.statusText || originalOrder.status }}</text><text v-if="originalFailed">原记录读取失败，已有回执保留。</text><wd-button v-if="originalFailed" plain size="small" :disabled="reading || loading" @click="load()">重新核对</wd-button></view><wd-button v-if="awaitingReadback || recoveryFailed" block plain :loading="loading" :disabled="redeemingId !== undefined" @click="load()">赎回回执待核对，点击刷新记录</wd-button><view v-if="loading && !list.length" class="loading"><wd-loading size="44rpx" /><text>正在加载持仓</text></view><view v-else-if="list.length"><LockupCard v-for="order in list" :key="order.id" :order="order" :redeeming="redeemingId === order.id" :redeem-disabled="redeemingId !== undefined || loading || loadFailed || recoveryFailed || receipts.has(String(order.id))" @redeem="onRedeem" /></view><EmptyState v-else-if="loadFailed" title="持仓记录加载失败" description="请稍后重试" /><EmptyState v-else-if="!userStore.currentUser" title="请先登录查看持仓" action-text="登录或重试" @action="load()" /><EmptyState v-else title="暂无持仓" /><wd-button v-if="userStore.currentUser && (hasMore || loadFailed)" block plain :loading="loading" :disabled="redeemingId !== undefined" @click="load(loadFailed ? retryReset : false)">{{ loadFailed ? '加载失败，点击重试' : '加载更多' }}</wd-button></view></view></template>
+<style lang="scss" scoped>.my-lockup-page { min-height:100%; }.list { padding:24rpx; }.original-receipt { display:flex; flex-direction:column; gap:12rpx; padding:24rpx; margin-bottom:20rpx; background:#fff; border-radius:16rpx; font-size:24rpx; word-break:break-all; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }</style>

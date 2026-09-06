@@ -1,5 +1,13 @@
 declare namespace Api.RealReview {
   type Id = string | number;
+  interface OrderReviewEligibility {
+    orderId: Id;
+    reviewable: boolean;
+    reason?: 'NOT_BUYER' | 'ORDER_NOT_COMPLETED' | 'WINDOW_EXPIRED' | 'ALREADY_REVIEWED';
+    reasonText?: string;
+    deadline?: Id;
+    reviewId?: Id;
+  }
   type ReviewStatus = 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'HIDDEN';
 
   interface Page<T> { pageNo?: number; pageSize?: number; current?: number; size?: number; total: number; records: T[]; }

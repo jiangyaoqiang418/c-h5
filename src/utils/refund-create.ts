@@ -1,4 +1,4 @@
-import { createRealRefund, fetchBoughtRefunds, fetchOrderDetail, orderRole } from '@/service/api/order';
+import { createRealRefund, fetchRefundByKey, fetchBoughtRefunds, fetchOrderDetail, orderRole } from '@/service/api/order';
 import { getAccessToken } from '@/service/request/token';
 import { RequestError } from '@/service/request';
 import { useUserStore } from '@/stores';
@@ -19,6 +19,8 @@ export interface RefundCreateReceipt {
   refundId?: Api.RealOrder.LongId;
   refundStatus?: Api.RealOrder.RefundStatus;
   observed?: boolean;
+  idempotencyKey?: string;
+  retryable?: boolean;
 }
 const memory = new Map<string, RefundCreateReceipt[]>();
 const keyFor = (userId: string) => `bw_h5_refund_create_v1:${encodeURIComponent(userId)}`;
@@ -31,7 +33,7 @@ function refundAmount(value: Api.RealOrder.OrderRefundDTO['amount']) {
   return normalizeAmount(value);
 }
 const origin = (receipt: RefundCreateReceipt) => JSON.stringify([String(receipt.orderId), receipt.orderNo, receipt.orderGroupNo,
-  String(receipt.sellerId), receipt.amount, receipt.reason, receipt.beforeIds]);
+  String(receipt.sellerId), receipt.amount, receipt.reason, receipt.beforeIds, receipt.idempotencyKey]);
 
 export function refundCreationBlocks(orderId: Api.RealOrder.LongId, receipts: RefundCreateReceipt[]) {
   return receipts.some(item => String(item.orderId) === String(orderId)
@@ -44,6 +46,8 @@ function readStored(userId: string): RefundCreateReceipt[] {
   if (records == null || records === '') return [];
   if (!Array.isArray(records) || records.some(item => !item || !validId(item.orderId) || !validId(item.sellerId)
     || typeof item.attempt !== 'string' || !item.attempt || !['unknown', 'confirmed', 'verified'].includes(item.state)
+    || (item.idempotencyKey != null && (typeof item.idempotencyKey !== 'string' || !item.idempotencyKey.trim() || item.idempotencyKey.length > 64))
+    || (item.retryable && (!item.idempotencyKey || item.state !== 'unknown'))
     || typeof item.reason !== 'string' || !item.reason.trim() || item.reason.length > 512
     || typeof item.amount !== 'string' || normalizeAmount(item.amount) !== item.amount
     || (item.orderNo != null && (typeof item.orderNo !== 'string' || !item.orderNo.trim()))
@@ -64,7 +68,7 @@ export function readRefundCreateReceipts(userId: string): RefundCreateReceipt[] 
     if (stored?.attempt === cached.attempt && (origin(stored) !== origin(cached)
       || (stored.refundId != null && cached.refundId != null && String(stored.refundId) !== String(cached.refundId))
       || (terminal(stored.refundStatus) && terminal(cached.refundStatus) && stored.refundStatus !== cached.refundStatus))) throw new Error('原退款申请快照冲突，请先核对');
-    if (!stored || (stored.attempt === cached.attempt && (rank[cached.state] > rank[stored.state]
+    if (!stored || (stored.attempt === cached.attempt && (rank[cached.state] >= rank[stored.state]
       || (terminal(cached.refundStatus) && !terminal(stored.refundStatus))))) all.set(String(cached.orderId), cached);
   }
   return JSON.parse(JSON.stringify([...all.values()]));
@@ -144,6 +148,18 @@ export async function reconcileRefundCreation(orderId: Api.RealOrder.LongId, use
   const receipt = readRefundCreateReceipts(userId).find(item => String(item.orderId) === String(orderId));
   if (!receipt || !current()) return receipt;
   let refundId = receipt.refundId;
+  if (receipt.idempotencyKey) {
+    const result = await fetchRefundByKey(receipt.idempotencyKey);
+    if (!current()) return receipt;
+    if (result === null) {
+      if (receipt.state !== 'unknown' || refundId != null) throw new Error('原退款已受理，但回查返回空，请稍后核对');
+      return retain(userId, { ...receipt, retryable: true });
+    }
+    if (!result || !validId(result.refundId) || String(result.orderId) !== String(orderId)
+      || String(result.buyerId) !== userId || result.reason !== receipt.reason || refundAmount(result.amount) !== receipt.amount
+      || (refundId != null && String(refundId) !== String(result.refundId))) throw new Error('原退款回查与原请求不一致');
+    refundId = result.refundId;
+  }
   if (refundId == null) {
     const records = await findOrderRefunds(orderId, receipt.orderNo, current);
     const matches = records.filter(item => !receipt.beforeIds.includes(String(item.refundId)) && item.reason === receipt.reason
@@ -159,7 +175,7 @@ export async function reconcileRefundCreation(orderId: Api.RealOrder.LongId, use
     || String(context.order.sellerId) !== String(receipt.sellerId) || refundAmount(refund.amount) !== receipt.amount
     || refund.reason !== receipt.reason || refund.refundType !== 'REFUND_ONLY') throw new Error('退款申请与原订单、金额或原因不符，请核对');
   if (terminal(receipt.refundStatus) && refund.status !== receipt.refundStatus) throw new Error('退款终态与之前核对结果冲突，请稍后重试');
-  return retain(userId, { ...receipt, refundId, state: 'verified', refundStatus: refund.status, observed: receipt.observed || receipt.state === 'unknown' });
+  return retain(userId, { ...receipt, refundId, state: 'verified', retryable: false, refundStatus: refund.status, observed: receipt.observed || receipt.state === 'unknown' });
 }
 
 export async function createRefundWithReceipt(expected: Api.RealOrder.OrderView, reason: string, stillActive: () => boolean) {
@@ -190,10 +206,10 @@ export async function createRefundWithReceipt(expected: Api.RealOrder.OrderView,
       || normalizeAmount(latest.totalAmount) !== normalizeAmount(expected.totalAmount) || orderChangeBlocks(latest, readOrderChangeReceipts(userId))) throw new Error('订单状态、归属或金额已变化，请刷新后重新确认');
     marker = { orderId: expected.id, orderNo: expected.orderNo, orderGroupNo: expected.orderGroupNo, sellerId: expected.sellerId!,
       amount: normalizeAmount(expected.totalAmount), reason, beforeIds: records.map(item => String(item.refundId)),
-      attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, state: 'unknown' };
+      attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, idempotencyKey: `rfd-${Date.now()}-${Math.random().toString(36).slice(2)}`, state: 'unknown' };
     save(userId, marker, true);
     sent = true;
-    const refundId = await createRealRefund({ orderId: expected.id, reason });
+    const refundId = await createRealRefund({ orderId: expected.id, reason, idempotencyKey: marker.idempotencyKey });
     if (!validId(refundId) || marker.beforeIds.includes(String(refundId))) throw new Error('退款创建回执缺失或指向旧申请，请先核对');
     return retain(userId, { ...marker, refundId, state: 'confirmed' });
   } catch (error) {
@@ -210,8 +226,32 @@ export async function createRefundWithReceipt(expected: Api.RealOrder.OrderView,
 }
 
 export function refundCreateMessage(receipt: RefundCreateReceipt) {
+  if (receipt.retryable) return '已回查：原申请尚未落地，可按原内容重试';
   if (receipt.state === 'unknown') return '退款申请结果未知，请核对原订单申请，本机已阻止重复提交';
   if (receipt.state === 'confirmed') return '退款申请请求已成功，原申请详情待核对';
   const status = { APPLYING: '待审核', CANCELED: '已撤销', REJECTED: '已驳回', AGREED: '已同意' }[receipt.refundStatus!];
   return `${receipt.observed ? '已找到与原请求一致的新申请' : '已核对原退款申请'}：${status}`;
+}
+
+export async function retryRefundCreation(orderId: Api.RealOrder.LongId, userId: string, stillActive: () => boolean) {
+  const token = getAccessToken();
+  const current = () => stillActive() && !!token && token === getAccessToken() && userId === useUserStore().realUserId;
+  if (!current()) return;
+  const release = acquireOrderOperation(userId, orderId);
+  try {
+    const receipt = await reconcileRefundCreation(orderId, userId, current);
+    if (!current() || !receipt?.retryable || !receipt.idempotencyKey) return;
+    const answer = await uni.showModal({ title: '按原内容重试申请？', content: '使用原订单、退款原因和同一个请求编号，不创建另一份申请。' });
+    if (!answer.confirm || !current()) return;
+    const order = await fetchOrderDetail(orderId);
+    if (!current()) return;
+    if (String(order.id) !== String(orderId) || orderRole(order, userId) !== 'customer' || !['PAID', 'SHIPPED'].includes(order.rawStatus)
+      || order.orderGroupNo !== receipt.orderGroupNo || String(order.sellerId) !== String(receipt.sellerId)
+      || normalizeAmount(order.totalAmount) !== receipt.amount) throw new Error('原退款订单已变化，请核对后处理');
+    const marker = { ...receipt, retryable: false };
+    save(userId, marker, true);
+    const refundId = await createRealRefund({ orderId: receipt.orderId, reason: receipt.reason, idempotencyKey: receipt.idempotencyKey });
+    if (!validId(refundId) || receipt.beforeIds.includes(String(refundId))) throw new Error('退款回执异常，请重新核对');
+    return retain(userId, { ...marker, refundId, state: 'confirmed' });
+  } finally { release(); }
 }

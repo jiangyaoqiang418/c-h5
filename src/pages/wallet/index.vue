@@ -408,6 +408,8 @@ function bucketLabel(key: string): string {
   color: #0F111A;
 }
 .row-right {
+  min-width: 0;
+  max-width: 60%;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -426,6 +428,8 @@ function bucketLabel(key: string): string {
   color: #6B7385;
 }
 .amt-num {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-family: ui-monospace, monospace;
   font-size: 30rpx;
   font-weight: 700;

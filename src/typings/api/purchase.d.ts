@@ -7,6 +7,26 @@ declare namespace Api {
       pageSize?: number;
       categoryId?: string | number;
       keyword?: string;
+      statuses?: string[];
+      minBudget?: number;
+      maxBudget?: number;
+      minDeliveryDays?: number;
+      maxDeliveryDays?: number;
+    }
+
+    interface DemandProgress {
+      demandId: string | number;
+      status: string;
+      statusText?: string;
+      reviewComment?: string;
+      reviewedAt?: number;
+      pushBatchCount: number;
+      reachedBuyerCount: number;
+      lastPushedAt?: number;
+      expireAt?: number;
+      takenAt?: number;
+      orderId?: string | number;
+      timeline: Array<{ code: string; name: string; description?: string; occurredAt: number }>;
     }
 
     interface PurchaseDemandVO {

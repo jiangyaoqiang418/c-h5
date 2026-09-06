@@ -1,6 +1,17 @@
 declare namespace Api.RealKyc {
   type Id = string | number;
   type Status = 'PENDING' | 'PASSED' | 'REJECTED';
+  interface Schema {
+    version: number;
+    allowedIdTypes: Array<'ID_CARD' | 'PASSPORT'>;
+    nationalityRequired: boolean;
+    idCardBackRequired: boolean;
+    holdingPhotoRequired: boolean;
+    resubmitAfterRejectAllowed: boolean;
+    noticeText?: string | null;
+    updatedAt?: Id;
+    updatedBy?: Id | null;
+  }
 
   interface DetailVO {
     id: Id;

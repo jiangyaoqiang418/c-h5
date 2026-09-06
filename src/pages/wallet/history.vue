@@ -4,18 +4,26 @@ import { usePrivatePagedList } from '@/utils/private-paged-list';
 import TxnRow from '@/components/wallet/txn-row.vue';
 import TxnDetailPopup from '@/components/wallet/txn-detail-popup.vue';
 import EmptyState from '@/components/common/empty-state.vue';
+import LedgerFilters from '@/components/common/ledger-filters.vue';
 import { useUserStore } from '@/stores';
 import { fetchWalletLedger, type WalletTxnView } from '@/service/api/wallet';
 
 const userStore = useUserStore();
 const popupOpen = ref(false);
 const drawerTxn = ref<WalletTxnView>();
-const { list, loading, loadFailed, hasMore, load, retry, login, canOpen } = usePrivatePagedList<WalletTxnView>({
+const filters = ref<Api.RealWallet.WalletLedgerPageQuery>({});
+const { list, loading, loadFailed, hasMore, load, retry, login, canOpen, resetQuery } = usePrivatePagedList<WalletTxnView>({
   url: '/pages/wallet/history',
   key: item => item.id,
-  fetch: (current, size) => fetchWalletLedger({ current, size }),
+  fetch: (current, size) => fetchWalletLedger({ ...filters.value, current, size }),
+  resetFilters: () => { filters.value = {}; },
   resetView: () => { popupOpen.value = false; drawerTxn.value = undefined; }
 });
+function applyFilters(value: Api.RealWallet.WalletLedgerPageQuery) {
+  if (loading.value || !userStore.currentUser) return;
+  filters.value = value;
+  void resetQuery();
+}
 
 function openTxn(t: WalletTxnView) {
   if (!canOpen(t)) return;
@@ -26,6 +34,7 @@ function openTxn(t: WalletTxnView) {
 
 <template>
   <view class="history-page yb-page">
+    <LedgerFilters :key="userStore.realUserId || 'guest'" mode="wallet" :disabled="loading || !userStore.currentUser" @apply="applyFilters" />
     <view v-if="list.length" class="list">
       <TxnRow v-for="t in list" :key="t.id" :txn="t" @detail="openTxn" />
     </view>

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { fetchKycDetail, fetchKycFileAccess, uploadKycFile } from '@/service/api/kyc';
+import { fetchKycDetail, fetchKycFileAccess, fetchKycSchema, uploadKycFile } from '@/service/api/kyc';
 import KycStatusTag from '@/components/common/kyc-status-tag.vue';
 import { useUserStore } from '@/stores';
 import { useNavigationGuards } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
 import { usePageOperation } from '@/utils/page-operation';
-import { kycCanApply, kycCreateMessage, kycVersion, readKycCreateReceipt, reconcileKycCreation, startNextKyc, submitKycWithReceipt, type KycCreateReceipt } from '@/utils/kyc-create';
+import { kycCanApply, kycCreateMessage, kycValidation, kycVersion, readKycCreateReceipt, reconcileKycCreation, startNextKyc, submitKycWithReceipt, type KycCreateReceipt } from '@/utils/kyc-create';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -23,6 +23,7 @@ const uploading = ref<UploadField>();
 const receipt = ref<KycCreateReceipt>();
 const receiptFailed = ref(false);
 const detail = ref<Api.RealKyc.DetailVO | null>(null);
+const schema = ref<Api.RealKyc.Schema>();
 const step = ref(0);
 const form = reactive({
   realName: '',
@@ -44,6 +45,7 @@ watch(() => form.idType, () => {
 const page = usePageOperation(() => {
   loadSequence++;
   detail.value = null;
+  schema.value = undefined;
   step.value = 0;
   uploading.value = undefined;
   submitting.value = false;
@@ -61,8 +63,10 @@ const status = computed<Api.User.KycStatus>(() => {
   if (detail.value?.status === 'REJECTED') return 'rejected';
   return userStore.currentUser?.kycStatus || 'none';
 });
-const canSubmit = computed(() => !!userStore.currentUser && !formLocked.value && status.value !== 'approved' && status.value !== 'pending' && form.realName.trim().length > 0 && form.idNo.trim().length > 0 && !!form.idCardFront && (form.idType === 'PASSPORT' || !!form.idCardBack));
-const formLocked = computed(() => loading.value || loadFailed.value || !!uploading.value || submitting.value || !!receipt.value || receiptFailed.value);
+const requestSnapshot = computed(() => ({ realName: form.realName.trim(), idType: form.idType, idNo: form.idNo.trim(), nationality: form.nationality.trim() || undefined, idCardFrontFileId: form.idCardFront?.id, idCardBackFileId: form.idCardBack?.id, holdingPhotoFileId: form.holdingPhoto?.id }));
+const validation = computed(() => kycValidation(requestSnapshot.value, schema.value, status.value === 'rejected'));
+const canSubmit = computed(() => !!userStore.currentUser && !formLocked.value && status.value !== 'approved' && status.value !== 'pending' && validation.value.identity && validation.value.images);
+const formLocked = computed(() => loading.value || loadFailed.value || !validation.value.allowed || !!uploading.value || submitting.value || !!receipt.value || receiptFailed.value);
 const statusTitle = computed(() => status.value === 'approved' ? '您已完成 KYC 实名认证' : status.value === 'pending' ? '实名认证审核中' : status.value === 'rejected' ? '实名认证未通过' : '实名认证');
 
 function formatTime(value?: Api.RealKyc.Id): string {
@@ -103,6 +107,10 @@ async function load() {
     if (!valid() || !userStore.currentUser) return;
     await userStore.refreshProfile();
     if (!valid()) return;
+    const latestSchema = await fetchKycSchema();
+    if (!valid()) return;
+    schema.value = latestSchema;
+    if (!form.realName && !form.idNo && !form.idCardFront && !form.idCardBack && !form.holdingPhoto && !latestSchema.allowedIdTypes.includes(form.idType)) form.idType = latestSchema.allowedIdTypes[0];
     refreshReceipt();
     if (receiptFailed.value) throw new Error('本机认证提交记录读取失败，请先核对');
     if (receipt.value) {
@@ -149,8 +157,7 @@ async function load() {
 }
 
 async function chooseAndUpload(field: UploadField) {
-  if (!page.visible.value || !userStore.currentUser || formLocked.value || status.value === 'approved' || status.value === 'pending'
-    || (field === 'idCardBack' && form.idType !== 'ID_CARD')) return;
+  if (!page.visible.value || !userStore.currentUser || formLocked.value || !schema.value?.allowedIdTypes.includes(form.idType) || status.value === 'approved' || status.value === 'pending') return;
   const operation = page.capture();
   const idType = form.idType;
   const version = documentVersion;
@@ -175,13 +182,13 @@ async function chooseAndUpload(field: UploadField) {
 }
 
 async function submit() {
-  if (!page.visible.value || !canSubmit.value || !form.idCardFront) return;
+  if (!page.visible.value || !canSubmit.value || !form.idCardFront || !schema.value) return;
   const operation = page.capture();
   const expectedVersion = kycVersion(detail.value);
-  const request = { realName: form.realName.trim(), idType: form.idType, idNo: form.idNo.trim(), nationality: form.nationality.trim() || undefined, idCardFrontFileId: form.idCardFront.id, idCardBackFileId: form.idType === 'ID_CARD' ? form.idCardBack?.id : undefined, holdingPhotoFileId: form.holdingPhoto?.id };
+  const request = { ...requestSnapshot.value, idCardFrontFileId: form.idCardFront.id };
   submitting.value = true;
   try {
-    const result = await submitKycWithReceipt(request, expectedVersion, operation.isCurrent);
+    const result = await submitKycWithReceipt(request, expectedVersion, schema.value, operation.isCurrent);
     if (!operation.sameSession()) return;
     refreshReceipt();
     if (result && operation.isCurrent()) uni.showToast({ title: kycCreateMessage(result), icon: 'none' });
@@ -219,12 +226,14 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
         <view class="record-row"><text class="label">姓名</text><text>{{ detail.realName || '-' }}</text></view><view class="record-row"><text class="label">证件类型</text><text>{{ detail.idType === 'PASSPORT' ? '护照' : '身份证' }}</text></view><view class="record-row"><text class="label">证件号码</text><text>{{ detail.idNo || '-' }}</text></view><view class="record-row"><text class="label">提交时间</text><text>{{ formatTime(detail.submittedAt) }}</text></view><view v-if="detail.expireAt" class="record-row"><text class="label">有效期至</text><text>{{ formatTime(detail.expireAt) }}</text></view>
         <view v-if="detail.idCardFront || detail.idCardBack || detail.holdingPhoto" class="image-row"><image v-if="detail.idCardFront" :src="detail.idCardFront" mode="aspectFill" /><image v-if="detail.idCardBack" :src="detail.idCardBack" mode="aspectFill" /><image v-if="detail.holdingPhoto" :src="detail.holdingPhoto" mode="aspectFill" /></view>
       </view>
-      <view v-if="status !== 'approved' && status !== 'pending'" class="form-card">
+      <view v-if="schema?.noticeText" class="record-card">{{ schema.noticeText }}</view>
+      <view v-if="status === 'rejected' && schema?.resubmitAfterRejectAllowed === false" class="record-card">当前认证规则暂不允许驳回后重新提交，请联系平台。</view>
+      <view v-if="status !== 'approved' && status !== 'pending' && validation.allowed" class="form-card">
         <text class="document-hint">切换证件类型后，需重新上传全部证件影像。</text><wd-steps :active="step"><wd-step title="身份信息" /><wd-step title="证件影像" /><wd-step title="确认提交" /></wd-steps>
-        <view v-if="step === 0"><wd-input :disabled="formLocked" v-model="form.realName" label="真实姓名" placeholder="请输入" /><wd-cell title="证件类型"><wd-radio-group :disabled="formLocked" v-model="form.idType" inline><wd-radio value="ID_CARD">身份证</wd-radio><wd-radio value="PASSPORT">护照</wd-radio></wd-radio-group></wd-cell><wd-input :disabled="formLocked" v-model="form.idNo" label="证件号码" placeholder="请输入" /><wd-input :disabled="formLocked" v-model="form.nationality" label="国籍" placeholder="请输入" /></view>
-        <view v-else-if="step === 1" class="upload-list"><view class="upload-card" @click="chooseAndUpload('idCardFront')"><text>证件正面</text><image :src="form.idCardFront?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'idCardFront' ? '上传中…' : '点击选择图片' }}</text></view><view v-if="form.idType === 'ID_CARD'" class="upload-card" @click="chooseAndUpload('idCardBack')"><text>证件反面</text><image :src="form.idCardBack?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'idCardBack' ? '上传中…' : '点击选择图片' }}</text></view><view class="upload-card" @click="chooseAndUpload('holdingPhoto')"><text>手持证件照（可选）</text><image :src="form.holdingPhoto?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'holdingPhoto' ? '上传中…' : '点击选择图片' }}</text></view></view>
+        <view v-if="step === 0"><wd-input :disabled="formLocked" v-model="form.realName" label="真实姓名" placeholder="请输入" /><wd-cell title="证件类型"><wd-radio-group :disabled="formLocked" v-model="form.idType" inline><wd-radio v-for="idType in schema?.allowedIdTypes" :key="idType" :value="idType">{{ idType === 'ID_CARD' ? '身份证' : '护照' }}</wd-radio></wd-radio-group></wd-cell><text v-if="!schema?.allowedIdTypes.includes(form.idType)" class="document-hint">原证件类型已停用，请重新选择。</text><wd-input :disabled="formLocked" v-model="form.idNo" label="证件号码" placeholder="请输入" /><wd-input :disabled="formLocked" v-model="form.nationality" :label="schema?.nationalityRequired ? '国籍（必填）' : '国籍（选填）'" placeholder="请输入" /></view>
+        <view v-else-if="step === 1" class="upload-list"><view class="upload-card" @click="chooseAndUpload('idCardFront')"><text>证件正面（必填）</text><image :src="form.idCardFront?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'idCardFront' ? '上传中…' : '点击选择图片' }}</text></view><view class="upload-card" @click="chooseAndUpload('idCardBack')"><text>证件反面（{{ schema?.idCardBackRequired ? '必填' : '选填' }}）</text><image :src="form.idCardBack?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'idCardBack' ? '上传中…' : '点击选择图片' }}</text></view><view class="upload-card" @click="chooseAndUpload('holdingPhoto')"><text>手持证件照（{{ schema?.holdingPhotoRequired ? '必填' : '选填' }}）</text><image :src="form.holdingPhoto?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'holdingPhoto' ? '上传中…' : '点击选择图片' }}</text></view></view>
         <view v-else class="summary"><text>姓名：{{ form.realName }}</text><text>证件号：{{ form.idNo }}</text><text>已上传：{{ (form.idCardFront ? 1 : 0) + (form.idCardBack ? 1 : 0) + (form.holdingPhoto ? 1 : 0) }} 张</text></view>
-        <view class="nav-bar"><wd-button v-if="step > 0" :disabled="formLocked" plain @click="step--">上一步</wd-button><wd-button v-if="step < 2" type="primary" :disabled="formLocked || (step === 0 ? !form.realName.trim() || !form.idNo.trim() : !form.idCardFront || (form.idType === 'ID_CARD' && !form.idCardBack))" @click="step++">下一步</wd-button><wd-button v-else type="primary" :disabled="!canSubmit" :loading="submitting" @click="submit">提交认证</wd-button></view>
+        <view class="nav-bar"><wd-button v-if="step > 0" :disabled="formLocked" plain @click="step--">上一步</wd-button><wd-button v-if="step < 2" type="primary" :disabled="formLocked || (step === 0 ? !validation.identity : !validation.identity || !validation.images)" @click="step++">下一步</wd-button><wd-button v-else type="primary" :disabled="!canSubmit" :loading="submitting" @click="submit">提交认证</wd-button></view>
       </view>
     </template>
   </view>

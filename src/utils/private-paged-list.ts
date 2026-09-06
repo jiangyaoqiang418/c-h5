@@ -12,6 +12,7 @@ export function usePrivatePagedList<T>(options: {
   fetch: (pageNo: number, pageSize: number) => Promise<{ records: T[]; total: number }>;
   key: (item: T) => string | number;
   resetView?: () => void;
+  resetFilters?: () => void;
 }) {
   const userStore = useUserStore();
   const { requireLogin } = useNavigationGuards();
@@ -25,6 +26,7 @@ export function usePrivatePagedList<T>(options: {
     initFailed.value = false;
     retryReset = true;
     options.resetView?.();
+    options.resetFilters?.();
   });
   const pager = usePagedList<T>({ fetch: options.fetch, key: options.key, pageSize: 50, preserveOnReset: true });
   const loading = computed(() => reading.value || pager.loading.value);
@@ -73,5 +75,11 @@ export function usePrivatePagedList<T>(options: {
     pager.invalidate();
     options.resetView?.();
   });
-  return { list: pager.list, hasMore: pager.hasMore, loading, loadFailed, load, retry, login, canOpen };
+  function resetQuery() {
+    if (!page.visible.value || loading.value) return;
+    pager.clear();
+    options.resetView?.();
+    return load();
+  }
+  return { list: pager.list, hasMore: pager.hasMore, loading, loadFailed, load, retry, login, canOpen, resetQuery };
 }

@@ -20,6 +20,7 @@ const LOGIN_RETURN_PARAMS: Record<string, readonly string[]> = {
   '/pages/aftersale/detail': ['id'],
   '/pages/review/write': ['orderId'],
   '/pages/finance/detail': ['id'],
+  '/pages/finance/my-lockups': ['id'],
   '/pages/wallet/recharge-detail': ['id'],
   '/pages/wallet/withdraw-detail': ['id'],
   '/pages/my/addresses': ['mode', 'selectedId'],
@@ -78,6 +79,7 @@ export function notifyLoginExpired(token: string): void {
 function throwBusinessError(body: ServiceEnvelope<unknown>, token: string): never {
   const code = body.code === undefined || body.code === null ? '' : String(body.code);
   const message = body.message || body.msg || '业务请求失败';
+  if (code === '-311' || code === '-312') throw new RequestError({ kind: 'business', message, code: body.code });
   if (realServiceConfig.logoutCodes.includes(code) || realServiceConfig.modalLogoutCodes.includes(code)) {
     notifyLoginExpired(token);
     throw new RequestError({ kind: 'unauthorized', message, code: body.code });
@@ -85,7 +87,12 @@ function throwBusinessError(body: ServiceEnvelope<unknown>, token: string): neve
   throw new RequestError({ kind: 'business', message, code: body.code });
 }
 
-function unwrapBody<T>(body: unknown, token: string): T {
+function unwrapBody<T>(body: unknown, token: string, requireDataEnvelope = false): T {
+  if (requireDataEnvelope && (!isEnvelope(body) || !Object.prototype.hasOwnProperty.call(body, 'data')
+    || body.data === undefined || String(body.code) !== realServiceConfig.successCode)) {
+    if (isEnvelope(body) && (body.success === false || (body.code != null && String(body.code) !== realServiceConfig.successCode))) throwBusinessError(body, token);
+    throw new RequestError({ kind: 'business', message: '原单回查响应不完整，不能据此重试' });
+  }
   if (!isEnvelope(body)) return body as T;
   const code = body.code === undefined || body.code === null ? '' : String(body.code);
   if ((code && code !== realServiceConfig.successCode) || body.success === false) {
@@ -134,7 +141,7 @@ export function createRequest(baseURL: string) {
       throw new RequestError({ kind: 'http', message: `请求失败（${response.statusCode}）`, statusCode: response.statusCode });
     }
 
-    return unwrapBody<T>(response.data, token);
+    return unwrapBody<T>(response.data, token, options.requireDataEnvelope);
   };
 }
 

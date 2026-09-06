@@ -255,10 +255,10 @@ async function submit() {
     <view v-if="loading && !receipt" class="notice">正在加载求购信息…</view>
     <EmptyState v-else-if="!userStore.currentUser && !loadFailed" title="请先登录" description="登录后发起求购或核对提交结果" action-text="去登录" @action="requireLogin('/pages/purchase/create')" />
     <template v-else-if="userStore.currentUser && !receipt && !receiptFailed">
-    <view v-if="!loading && !loadFailed && !categoryIds.length" class="notice">暂无可用的三级商品分类，暂不能提交求购。<wd-button block plain @click="load">重新加载分类</wd-button></view>
     <view class="form-card">
       <wd-input v-model="form.productTitle" :disabled="formDisabled" label="商品标题" placeholder="如 iPhone 16 Pro Max 256GB" />
-      <wd-cell title="商品分类" :value="form.categoryName || '请选择'" is-link @click="selectCategory" />
+      <wd-cell title="商品分类" :value="categoryIds.length ? form.categoryName || '请选择' : '暂不可选'" :is-link="!formDisabled && !!categoryIds.length" @click="selectCategory" />
+      <view v-if="!loading && !loadFailed && !categoryIds.length" class="category-hint">分类暂不可用，选择后才可提交。<wd-button plain size="small" @click="load">重试</wd-button></view>
       <wd-cell title="收货地址" :value="addresses.find(address => String(address.id) === form.addressId)?.detail || '请选择'" is-link @click="selectAddress" />
       <wd-input v-model="form.budgetAmount" :disabled="formDisabled" label="预算 (USDT)" type="digit" />
       <wd-input v-model="form.expectedDays" :disabled="formDisabled" label="期望天数" type="number" />
@@ -305,6 +305,7 @@ async function submit() {
 }
 .receipt-panel { display: flex; flex-direction: column; gap: 16rpx; margin-bottom: 20rpx; padding: 24rpx; border-radius: var(--yb-radius-lg); background: #fff6e8; color: #83510b; font-size: 26rpx; }
 .notice { padding: 24rpx 0; color: var(--yb-muted); font-size: 24rpx; }
+.category-hint { padding:12rpx 32rpx; display:flex; align-items:center; justify-content:space-between; gap:12rpx; color:var(--yb-muted); font-size:24rpx; }
 .image-field { padding: 24rpx 32rpx; }
 .image-label { display: block; margin-bottom: 16rpx; color: #4e5969; font-size: 26rpx; }
 .image-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }

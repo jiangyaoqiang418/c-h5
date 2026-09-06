@@ -43,7 +43,7 @@ function goDetail() {
       <view class="ef-right">
         <view class="ef-apy-row">
           <text class="ef-apy-label">APY</text>
-          <InfoTooltip text="APY = 年化收益率，实际收益以锁仓订单快照与后端结算为准" :size="18" />
+          <InfoTooltip text="APY = 年化收益率，实际收益以锁仓订单快照与实际结算为准" :size="18" />
         </view>
         <text class="ef-apy">{{ effectiveRate }}%</text>
       </view>

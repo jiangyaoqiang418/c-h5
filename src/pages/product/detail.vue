@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
-import { productApi, reviewApi } from '@shared';
-import { avatarUrl } from '@shared/utils/image';
 import { formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { favoriteProduct, fetchStorefrontProductDetail, recordProductBrowse } from '@/service/api/product';
 import { fetchReviewSummary, fetchSellerRating, fetchStorefrontReviews } from '@/service/api/review';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { useCartStore } from '@/stores';
-import VipBadge from '@/components/common/vip-badge.vue';
 import ReviewStars from '@/components/common/review-stars.vue';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -19,7 +16,6 @@ const { requireLogin } = useNavigationGuards();
 
 interface ProductView {
   id: string | number;
-  legacyId?: number;
   title: string;
   sellerId: string | number;
   sellerName: string;
@@ -41,8 +37,6 @@ interface ProductView {
 
 const cart = useCartStore();
 const product = ref<ProductView>();
-const reviews = ref<Api.Review.ReviewRecord[]>([]);
-const sellerScore = ref<Api.Review.UserScoreSummary>();
 const realReviews = ref<Api.RealReview.ReviewDTO[]>([]);
 const realReviewSummary = ref<Api.RealReview.ReviewSummaryDTO>();
 const realSellerRating = ref<Api.RealReview.SellerRatingDTO>();
@@ -79,30 +73,6 @@ function categoryPathOf(nodes: CategoryNode[], id: string | number, parents: str
   return undefined;
 }
 
-function fromMock(record: Api.Product.ProductRecord): ProductView {
-  return {
-    id: record.id,
-    legacyId: record.id,
-    title: record.title,
-    sellerId: record.sellerId,
-    sellerName: record.sellerName,
-    categoryPath: record.categoryPath,
-    price: record.price,
-    shippingFee: record.shippingFee,
-    tax: record.tax,
-    stock: record.stock,
-    images: record.images.map(item => item.url),
-    summary: record.summary,
-    description: record.description,
-    aftersaleType: record.aftersaleType,
-    overseasCustoms: !!record.overseasCustoms,
-    status: record.status,
-    shelfStatus: record.shelfStatus,
-    salesCount: record.salesCount,
-    favoriteCount: record.favoriteCount
-  };
-}
-
 function fromReal(record: Api.RealProduct.ProductDTO, categoryPath?: string): ProductView {
   return {
     id: record.id,
@@ -137,19 +107,17 @@ const aftersaleLabel = computed(() => {
   return product.value ? labels[product.value.aftersaleType] : '';
 });
 const canAdd = computed(() => (
-  product.value?.status === 'NORMAL'
+  isRealProduct.value
+  && product.value?.status === 'NORMAL'
   && product.value.shelfStatus === 'on-shelf'
   && product.value.stock > 0
   && product.value.aftersaleType !== 'unknown'
 ));
 const canBuy = computed(() => canAdd.value);
-const sellerAvatar = computed(() => (
-  !isRealProduct.value && product.value?.legacyId ? avatarUrl(product.value.legacyId) : ''
-));
 
 async function loadDetail() {
   const rawId = detailId.value;
-  if (!rawId) {
+  if (!isRealProduct.value || !rawId) {
     loading.value = false;
     return;
   }
@@ -185,20 +153,6 @@ async function loadDetail() {
       realSellerRating.value = sellerRating.status === 'fulfilled' ? sellerRating.value : undefined;
       return;
     }
-
-    const mockId = Number(rawId);
-    if (!Number.isSafeInteger(mockId)) return;
-    const record = await productApi.fetchProductDetail(mockId);
-    if (!record || !current()) return;
-    product.value = fromMock(record);
-    qty.value = Math.max(1, Math.min(qty.value, Math.max(1, product.value.stock)));
-    const [reviewPage, score] = await Promise.all([
-      productApi.fetchProductReviews(record.id, 1, 5),
-      reviewApi.fetchUserScoreSummary(record.sellerId)
-    ]);
-    if (!current()) return;
-    reviews.value = reviewPage.records;
-    sellerScore.value = score;
   } catch (error) {
     if (current()) {
       loadFailed.value = !product.value;
@@ -217,13 +171,7 @@ onLoad(query => {
 
 function addToCart() {
   if (!product.value || !canAdd.value) return showTradeUnavailable();
-  if (isRealProduct.value) {
-    if (!cart.addReal(realProductSnapshot(), qty.value)) return;
-  } else if (product.value.legacyId) {
-    if (!cart.add(product.value.legacyId, qty.value)) return;
-  } else {
-    return;
-  }
+  if (!cart.addReal(realProductSnapshot(), qty.value)) return;
   uni.showToast({ title: '已加入购物车', icon: 'success' });
 }
 
@@ -248,13 +196,10 @@ function realProductSnapshot() {
 async function buyNow() {
   if (buying.value || !pageActive) return;
   if (!product.value || !canBuy.value) return showTradeUnavailable();
-  if (!isRealProduct.value && !product.value.legacyId) return showTradeUnavailable();
   buying.value = true;
   const version = pageVersion;
   try {
-    const contextId = isRealProduct.value
-      ? cart.setBuyNowReal(realProductSnapshot(), qty.value)
-      : cart.setBuyNow(product.value.legacyId!, qty.value);
+    const contextId = cart.setBuyNowReal(realProductSnapshot(), qty.value);
     const checkoutUrl = `/pages/checkout/index?mode=buy-now&contextId=${encodeURIComponent(contextId)}`;
     if (await requireLogin(checkoutUrl) && pageActive && version === pageVersion) await uni.navigateTo({ url: checkoutUrl });
   } catch (error) {
@@ -321,9 +266,9 @@ function goBack() {
       <text class="title">{{ product.title }}</text>
       <text v-if="product.summary" class="summary">{{ product.summary }}</text>
 
-      <view v-if="sellerScore || realSellerRating" class="rating-summary">
-        <ReviewStars :score="Number(realSellerRating?.averageScore ?? realSellerRating?.avgScore ?? sellerScore?.avgScore ?? 0)" size="sm" show-score />
-        <text>· {{ realSellerRating?.total ?? realSellerRating?.totalCount ?? sellerScore?.receivedTotal ?? 0 }} 评价</text>
+      <view v-if="realSellerRating" class="rating-summary">
+        <ReviewStars :score="Number(realSellerRating.averageScore ?? realSellerRating.avgScore ?? 0)" size="sm" show-score />
+        <text>· {{ realSellerRating.total ?? realSellerRating.totalCount ?? 0 }} 评价</text>
       </view>
 
       <view class="price-block">
@@ -345,21 +290,16 @@ function goBack() {
       </view>
 
       <view class="seller-section">
-        <image v-if="sellerAvatar" :src="sellerAvatar" class="seller-avatar" />
-        <image v-else :src="UI_ASSETS.placeholders.avatar" class="seller-avatar" mode="aspectFill" />
+        <image :src="UI_ASSETS.placeholders.avatar" class="seller-avatar" mode="aspectFill" />
         <view class="seller-info">
-          <view class="seller-head"><text class="seller-name">{{ product.sellerName }}</text><VipBadge v-if="!isRealProduct" level="VIP1" size="sm" /></view>
-          <text class="seller-sub">{{ isRealProduct ? '买手信息以平台资料为准' : '平台认证买手' }}</text>
+          <view class="seller-head"><text class="seller-name">{{ product.sellerName }}</text></view>
+          <text class="seller-sub">买手信息以平台资料为准</text>
         </view>
       </view>
 
-      <view v-if="reviews.length || realReviews.length || reviewLoadFailed" class="section">
+      <view v-if="realReviews.length || reviewLoadFailed" class="section">
         <text class="section-title">用户评价</text>
         <text v-if="reviewLoadFailed" class="section-notice">部分评价信息加载失败，请稍后重试。</text>
-        <view v-for="review in reviews.slice(0, 3)" :key="review.id" class="review-row">
-          <view class="review-head"><text>{{ review.fromUserName }}</text><ReviewStars :score="review.score" size="sm" /></view>
-          <text class="review-text">{{ review.content }}</text>
-        </view>
         <view v-for="review in realReviews" :key="review.reviewId" class="review-row">
           <view class="review-head"><text>{{ review.userName || '匿名用户' }}</text><ReviewStars :score="review.productScore" size="sm" /></view>
           <text class="review-text">{{ review.content || '用户未填写文字评价' }}</text>
@@ -384,6 +324,7 @@ function goBack() {
       <wd-button type="primary" :disabled="!canBuy || buying" :loading="buying" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
     </view>
   </view>
+  <EmptyState v-else-if="!isRealProduct" title="商品链接已失效" description="此商品链接已不可用，请从首页或分类重新选择商品。" action-text="返回" @action="goBack" />
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载商品详情</text></view>
   <EmptyState v-else-if="loadFailed" title="商品详情加载失败" description="请稍后重试" action-text="重新加载" @action="loadDetail" />
   <EmptyState v-else title="商品不存在" description="商品可能已下架或链接参数不完整" action-text="返回首页" @action="go('/pages/index/index', true)" />

@@ -88,9 +88,9 @@ function goDetail() {
         plain
         size="small"
         @click="$emit('review', order)"
-        :disabled="actionsDisabled"
+        :disabled="actionsDisabled || order.reviewEligibility?.reviewable === false"
       >
-        写评价
+        {{ order.reviewEligibility?.reviewable === false ? (order.reviewEligibility.reasonText || '不可评价') : order.reviewEligibility?.reviewable ? '写评价' : '核对评价资格' }}
       </wd-button>
       <wd-button
         v-if="!props.sellerMode && ['PAID', 'SHIPPED'].includes(order.rawStatus)"

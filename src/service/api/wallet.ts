@@ -14,22 +14,29 @@ interface WalletOverviewResponse {
 }
 
 export interface WithdrawParams {
+  idempotencyKey?: string;
   chain: 'TRON' | 'ETH' | 'BSC';
   toAddress: string;
   amount: number;
 }
 
 export interface RechargeParams {
+  idempotencyKey?: string;
   chain: string;
   amount: number;
 }
 
-export interface WalletTxnView extends Omit<Api.Wallet.Txn, 'id' | 'userId'> {
+export interface WalletTxnView extends Omit<Api.Wallet.Txn, 'id' | 'userId' | 'direction'> {
   id: string | number;
   userId: string | number;
+  direction: 'in' | 'out' | 'transfer';
+  typeText?: string;
 }
 
 const bucketMap: Record<string, keyof Api.Wallet.InternalAccount> = {
+  FINANCE_LOCKED: 'lockedFinance',
+  ORDER_FROZEN: 'frozenOrder',
+  RISK_FROZEN: 'frozenRisk',
   AVAILABLE: 'available',
   NON_WITHDRAWABLE: 'nonWithdrawable',
   LOCKED_FINANCE: 'lockedFinance',
@@ -40,6 +47,9 @@ const bucketMap: Record<string, keyof Api.Wallet.InternalAccount> = {
 };
 
 const bucketMapReverse: Record<string, Api.Wallet.Bucket> = {
+  FINANCE_LOCKED: 'lockedFinance',
+  ORDER_FROZEN: 'frozenOrder',
+  RISK_FROZEN: 'frozenRisk',
   AVAILABLE: 'available',
   NON_WITHDRAWABLE: 'nonWithdrawable',
   LOCKED_FINANCE: 'lockedFinance',
@@ -125,7 +135,7 @@ function toIso(value: string | number): string {
 function toTxn(dto: Api.RealWallet.WalletLedgerDTO): WalletTxnView {
   const bucketFrom = dto.fromType ? bucketMapReverse[dto.fromType] : undefined;
   const bucketTo = dto.toType ? bucketMapReverse[dto.toType] : undefined;
-  const direction: WalletTxnView['direction'] = bucketTo && !bucketFrom ? 'in' : 'out';
+  const direction: WalletTxnView['direction'] = dto.fromType && dto.toType ? 'transfer' : dto.toType ? 'in' : 'out';
   const type = txnTypeMap[dto.bizType] || txnTypeMap[dto.bizGroup || ''] || (direction === 'in' ? 'ADJUST_PLUS' : 'ADJUST_MINUS');
 
   return {
@@ -133,6 +143,7 @@ function toTxn(dto: Api.RealWallet.WalletLedgerDTO): WalletTxnView {
     userId: dto.userId,
     userName: '',
     type,
+    typeText: dto.bizTypeText || dto.bizGroupText,
     direction,
     amount: String(dto.amount ?? 0),
     balanceAfter: String(dto.toBalanceAfter ?? dto.fromBalanceAfter ?? 0),
@@ -143,11 +154,17 @@ function toTxn(dto: Api.RealWallet.WalletLedgerDTO): WalletTxnView {
   };
 }
 
-export async function fetchWalletLedger(query: { current?: number; size?: number } = {}) {
+export async function fetchWalletLedger(query: Omit<Api.RealWallet.WalletLedgerPageQuery, 'pageNo' | 'pageSize'> & { current?: number; size?: number } = {}) {
   const page = await realUserRequest<Api.RealWallet.WalletLedgerPage, Api.RealWallet.WalletLedgerPageQuery>({
     url: '/wallet/ledger/page',
     method: 'POST',
     data: {
+      bizGroup: query.bizGroup,
+      bizType: query.bizType,
+      balanceType: query.balanceType,
+      keyword: query.keyword,
+      startAt: query.startAt,
+      endAt: query.endAt,
       pageNo: query.current || 1,
       pageSize: query.size || 20
     }
@@ -166,6 +183,14 @@ export function createWithdraw(params: WithdrawParams): Promise<string | number>
 
 export function createRecharge(params: RechargeParams): Promise<string | number> {
   return realUserRequest<string | number, RechargeParams>({ url: '/recharge/create', method: 'POST', data: params });
+}
+
+export function fetchWithdrawByKey(idempotencyKey: string) {
+  return realUserRequest<Api.RealWallet.WithdrawVO | null>({ url: '/withdraw/by-key', params: { idempotencyKey }, requireDataEnvelope: true });
+}
+
+export function fetchRechargeByKey(idempotencyKey: string) {
+  return realUserRequest<Api.RealWallet.RechargeVO | null>({ url: '/recharge/by-key', params: { idempotencyKey }, requireDataEnvelope: true });
 }
 
 export function fetchRechargeAddress(chain: string) {

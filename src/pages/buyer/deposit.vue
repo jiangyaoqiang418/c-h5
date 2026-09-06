@@ -225,7 +225,7 @@ function formatTime(value: string | number): string {
 
       <view class="meter">
         <view class="meter-info">
-          <text>以最新真实保证金流水余额为准</text>
+          <text>余额以最新流水为准</text>
           <text>已加载 {{ ledgers.length }} / {{ total }} 条记录</text>
         </view>
       </view>
@@ -283,7 +283,7 @@ function formatTime(value: string | number): string {
     <wd-popup v-model="refundPopup" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
         <text class="popup-title">退还保证金</text>
-        <text class="popup-hint">仅可退未被在途订单冻结的部分，实际可退金额以后端校验为准。</text>
+        <text class="popup-hint">仅可退未被在途订单冻结的部分，实际可退金额以申请时核实结果为准。</text>
         <wd-input v-model="amountInput" label="金额 (USDT)" type="digit" :disabled="submitting || !!pending" />
         <wd-button type="primary" block class="popup-btn" :loading="submitting" @click="submitRefund">确认退还</wd-button>
       </view>

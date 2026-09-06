@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { onHide, onReachBottom, onShow } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
+import LedgerFilters from '@/components/common/ledger-filters.vue';
 import { useUserStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
 import { usePageOperation } from '@/utils/page-operation';
@@ -26,6 +27,8 @@ const logTotal = ref(0);
 const appealPageNo = ref(1);
 const appealTotal = ref(0);
 const pageSize = 50;
+const filters = ref<Api.Point.RealLedgerQuery>({});
+const filterRulesFailed = ref(false);
 let loadToken = 0;
 
 const appealPopup = ref(false);
@@ -50,6 +53,9 @@ const page = usePageOperation(() => {
   appealOperation = undefined;
   submitting.value = false;
   pendingAppeals.value = {};
+  filters.value = {};
+  rules.value = [];
+  filterRulesFailed.value = false;
 });
 onHide(() => { appealPopup.value = false; appealOperation = undefined; });
 
@@ -69,7 +75,7 @@ async function load(reset = true) {
     if (!userStore.currentUser && tab !== 'rule') return;
     if (tab === 'log') {
       const targetPage = reset ? 1 : logPageNo.value + 1;
-      const r = await fetchPointLedger({ pageNo: targetPage, pageSize });
+      const r = await fetchPointLedger({ ...filters.value, pageNo: targetPage, pageSize });
       if (!valid()) return;
       const total = Number(r.total);
       if (!Array.isArray(r.records) || !Number.isSafeInteger(total) || total < 0
@@ -114,10 +120,25 @@ async function load(reset = true) {
   }
 }
 onShow(async () => {
+  void loadFilterRules();
   const operation = page.capture();
   try { await userStore.refreshProfile(); } catch { /* 仍读取流水；失败不改写已有资料。 */ }
   if (operation.isCurrent()) await load();
 });
+async function loadFilterRules() {
+  const operation = page.capture();
+  try {
+    const result = await fetchPointRules();
+    if (operation.isCurrent()) { rules.value = result; filterRulesFailed.value = false; }
+  } catch { if (operation.isCurrent()) filterRulesFailed.value = true; }
+}
+function applyFilters(value: Api.Point.RealLedgerQuery) {
+  if (loading.value || !page.visible.value || !userStore.currentUser) return;
+  filters.value = value;
+  logs.value = []; logPageNo.value = 1; logTotal.value = 0;
+  appealPopup.value = false; appealOperation = undefined;
+  void load();
+}
 watch(activeKey, () => load());
 onReachBottom(() => {
   if (activeKey.value === 'log' && logs.value.length < logTotal.value) load(false);
@@ -191,6 +212,10 @@ function formatDate(value?: string | number): string {
     </view>
 
     <wd-button v-if="Object.keys(pendingAppeals).length" block plain @click="viewAppeals">申诉已提交，查看记录</wd-button>
+    <template v-if="activeKey === 'log'">
+      <LedgerFilters :key="userStore.realUserId || 'guest'" mode="points" :disabled="loading || !userStore.currentUser" :behaviors="rules.map(item => ({ value: item.code, label: item.label }))" @apply="applyFilters" />
+      <wd-button v-if="filterRulesFailed" plain block @click="loadFilterRules">行为选项加载失败，点击重试</wd-button>
+    </template>
     <EmptyState v-if="loadFailed" title="积分数据加载失败" description="请重新加载后继续" action-text="重新加载" @action="load()" />
 
     <view v-else-if="activeKey === 'log'" class="list">

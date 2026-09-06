@@ -181,7 +181,7 @@ function removeImage(index: number) {
 }
 
 function canNext(): boolean {
-  if (step.value === 0) return form.title.trim().length > 0 && !!form.categoryId && form.brief.trim().length > 0;
+  if (step.value === 0) return form.title.trim().length > 0 && categories.value.some(item => item.id === form.categoryId) && form.brief.trim().length > 0;
   if (step.value === 1) {
     return [form.price, form.shippingFee, form.taxFee].every(value => Number.isFinite(Number(value)))
       && Number.isSafeInteger(Number(form.stock)) && Number(form.price) > 0
@@ -253,7 +253,6 @@ async function submit() {
     <EmptyState title="暂不具备商品发布资格" description="请先完成买手资格和实名认证" :action-text="userStore.currentUser?.isBuyer ? '前往实名认证' : '前往买手申请'" @action="go(userStore.currentUser?.isBuyer ? '/pages/kyc/index' : '/pages/buyer/apply')" />
     <wd-button block plain @click="load">刷新资格</wd-button>
   </view>
-  <EmptyState v-else-if="!categories.length" title="暂无可用商品分类" description="当前无法发布，请稍后重新加载" action-text="重新加载" @action="load" />
   <view v-else class="create-page yb-page">
     <wd-steps :active="step">
       <wd-step title="基本信息" />
@@ -265,7 +264,8 @@ async function submit() {
     <view class="content">
       <view v-if="step === 0" class="form">
         <wd-input v-model="form.title" label="商品标题" placeholder="请输入商品标题" :maxlength="128" />
-        <wd-cell title="分类" :value="categoryName" is-link @click="pickCategory" />
+        <wd-cell title="分类" :value="categories.length ? categoryName : '暂不可选'" :is-link="!!categories.length" @click="pickCategory" />
+        <view v-if="!categories.length" class="category-hint">分类暂不可用，选择后才可继续。<wd-button plain size="small" @click="load">重试</wd-button></view>
         <wd-textarea v-model="form.brief" label="商品简介" placeholder="30 字以内" :max-length="30" show-word-limit />
         <wd-textarea v-model="form.description" label="详细描述" placeholder="可选，500 字以内" :max-length="500" show-word-limit />
       </view>
@@ -320,6 +320,7 @@ async function submit() {
 </template>
 
 <style lang="scss" scoped>
+.category-hint { padding:12rpx 24rpx; display:flex; align-items:center; justify-content:space-between; gap:12rpx; color:var(--yb-muted); font-size:24rpx; }
 .publish-page { min-height:100%; }
 .receipt-panel { display:flex; flex-direction:column; gap:16rpx; margin:24rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); font-size:26rpx; }
 .create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx 200rpx; }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }

@@ -39,7 +39,7 @@ export function fetchConversationByOrder(orderId: Api.RealNotify.Id) {
 
 export function fetchMessages(query: Api.RealNotify.MessagePageQuery) {
   return realNotifyRequest<Api.RealNotify.Page<Api.RealNotify.Message>, Api.RealNotify.MessagePageQuery>({
-    url: '/im/messages/page', method: 'POST', data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 30, conversationId: query.conversationId }
+    url: '/im/messages/page', method: 'POST', data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 30, conversationId: query.conversationId, markRead: query.markRead ?? false }
   });
 }
 

@@ -5,7 +5,6 @@ import { useSubmissionGuard } from '@/utils/submission-guard';
 import SubmissionWarning from '@/components/common/submission-warning.vue';
 import { formatAmount } from '@/utils/format-bridge';
 import { useUserStore, useWalletStore } from '@/stores';
-import { createWithdraw } from '@/service/api/wallet';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
 
@@ -20,9 +19,8 @@ const form = reactive<{
   agreed: boolean;
 }>({ chain: 'TRON', toAddress: '', amount: 0, agreed: false });
 const submitting = ref(false);
-const submittedId = ref<string | number>();
 const guard = useSubmissionGuard('withdraw', '/pages/wallet/withdraw-list');
-const { uncertain, running } = guard;
+const { uncertain, running, submittedId, message, actionLabel } = guard;
 const loading = ref(true);
 const loadFailed = ref(false);
 let loadSequence = 0;
@@ -77,7 +75,7 @@ async function confirmWithdraw() {
   try {
     const result = await uni.showModal({
       title: '确认转出',
-      content: `链：${request.chain}\n收款地址：${request.toAddress}\n金额：${request.amount} U\n实际手续费及到账金额以后端处理结果为准。`,
+      content: `链：${request.chain}\n收款地址：${request.toAddress}\n金额：${request.amount} U\n实际手续费及到账金额以实际处理结果为准。`,
       confirmText: '确认转出'
     });
     if (!result.confirm || !operation.isCurrent()) return;
@@ -85,7 +83,7 @@ async function confirmWithdraw() {
       uni.showToast({ title: '转出信息或余额已变化，请重新确认', icon: 'none' });
       return;
     }
-    const id = await guard.run(() => createWithdraw(request));
+    const id = await guard.run(request);
     if (!operation.sameSession()) return;
     submittedId.value = id;
     if (!operation.isCurrent()) return;
@@ -102,7 +100,7 @@ async function confirmWithdraw() {
 
 <template>
   <view class="withdraw-page yb-page">
-    <SubmissionWarning :pending="uncertain" :running="running" @review="guard.review" @acknowledge="guard.acknowledge" />
+    <SubmissionWarning :pending="uncertain || submittedId != null" :running="running" :message="message" :action-label="actionLabel" @review="guard.review" @acknowledge="guard.acknowledge" />
     <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">钱包数据加载失败，点击重试</wd-button>
     <wd-button v-if="submittedId != null" block plain @click="go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(submittedId))}`, true)">申请已提交，查看详情</wd-button>
     <view class="balance-card">

@@ -166,17 +166,17 @@ async function submit(retryOriginal = false) {
     </view>
     <template v-else-if="!receipt && !receiptFailed">
       <template v-if="order">
-        <view class="order-card"><text class="ord-code">订单 {{ order.orderNo || order.orderId }}</text><text class="ord-target">评价对象：{{ order.sellerName || '买手' }}</text></view>
+        <view class="order-card"><text class="ord-code">订单 {{ order.orderNo || order.orderId }}</text><text class="ord-target">评价对象：{{ order.sellerName || '买手' }}</text><text v-if="order.reviewDeadline != null" class="ord-target">评价截止：{{ new Date(Number(order.reviewDeadline)).toLocaleString() }}</text></view>
         <view class="step"><text class="step-title">评分</text><view class="stars-row"><ReviewStars v-model:score="form.score" :mode="formDisabled ? 'readonly' : 'input'" size="lg" /><text class="score-text">{{ form.score }}.0</text></view></view>
         <view class="step"><text class="step-title">评价内容（可选）</text><wd-textarea v-model="form.content" :disabled="formDisabled" placeholder="分享本次购物体验" :max-length="1000" show-word-limit /></view>
         <view class="step"><text class="step-title">配图（可选，最多 9 张）</text><view class="img-grid"><view v-for="(url, index) in form.photoUrls" :key="url + index" class="img-cell"><image :src="url" mode="aspectFill" class="img" /><view class="del" @click="removePhoto(index)"><wd-icon name="close" size="12px" color="#fff" /></view></view><view v-if="form.photoUrls.length < 9" class="add" @click="addPhoto"><wd-icon name="add" size="18px" /><text>添加</text></view></view></view>
         <wd-button type="primary" block class="submit" :loading="submitting" :disabled="formDisabled" @click="submit()">{{ uploading ? '图片上传中' : '提交评价' }}</wd-button>
       </template>
       <view v-else-if="!qualification.done" class="order-card">
-        <text>已查询 {{ qualification.nextPage - 1 }} 页，尚未完成资格查询。</text>
+        <text>评价资格尚未确认，请重新查询。</text>
         <wd-button block plain @click="load(false)">继续查询</wd-button>
       </view>
-      <EmptyState v-else title="当前订单暂不可评价" description="仅支持已完成且仍在评价时限内、未评价过的订单；删除评价后不能重评。" action-text="重新查询" @action="load()" />
+      <EmptyState v-else title="当前订单暂不可评价" :description="qualification.eligibility?.reasonText || '仅支持已完成且仍在评价时限内、未评价过的订单；删除评价后不能重评。'" action-text="重新查询" @action="load()" />
     </template>
   </view>
 </template>

@@ -51,9 +51,9 @@ declare namespace Api {
       senderName?: string;
       senderAvatar?: string;
       msgType: ImMessageType;
-      content?: string;
-      mediaUrl?: string;
-      duration?: number;
+      content?: string | null;
+      mediaUrl?: string | null;
+      duration?: number | null;
       eventType?: string;
       params?: Record<string, unknown>;
       clientMsgId?: string;
@@ -65,7 +65,7 @@ declare namespace Api {
 
     interface NotificationPageQuery { pageNo?: number; pageSize?: number; unreadOnly?: boolean; }
     interface ConversationPageQuery { pageNo?: number; pageSize?: number; }
-    interface MessagePageQuery { pageNo?: number; pageSize?: number; conversationId: Id; }
+    interface MessagePageQuery { pageNo?: number; pageSize?: number; conversationId: Id; markRead?: boolean; }
     interface IncrementalMessageQuery { conversationId: Id; sinceId?: Id; limit?: number; }
     interface ImReadParams { conversationId: Id; lastReadMessageId: Id; }
     interface ImReadEvent {

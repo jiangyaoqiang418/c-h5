@@ -3,10 +3,9 @@ import { computed, ref } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { enums } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
-import PushTierBadge from '@/components/purchase/push-tier-badge.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { fetchPurchaseDetail } from '@/service/api/purchase';
+import { fetchPurchaseDetail, fetchPurchaseProgress } from '@/service/api/purchase';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
 import { claimPurchase, readClaimReceipts, reconcileClaimReceipts, type ClaimReceipt } from '@/utils/purchase-claim';
@@ -18,7 +17,8 @@ const { requireLogin } = useNavigationGuards();
 const userStore = useUserStore();
 const request = ref<Api.PurchaseRequest.PurchaseRequest>();
 const id = ref<string>();
-const logs = ref<Api.PurchaseRequest.PushLog[]>([]);
+const progress = ref<Api.RealPurchase.DemandProgress>();
+const progressFailed = ref(false);
 const loading = ref(true);
 const loadFailed = ref(false);
 const operating = ref(false);
@@ -31,7 +31,7 @@ let loadSequence = 0;
 const page = usePageOperation(() => {
   loadSequence++;
   request.value = undefined;
-  logs.value = [];
+  progress.value = undefined; progressFailed.value = false;
   loading.value = false;
   loadFailed.value = true;
   operating.value = false;
@@ -74,7 +74,15 @@ async function reload() {
     if (!valid()) return;
     if (String(r.request.id) !== id.value) throw new Error('求购详情与请求 ID 不匹配');
     request.value = r.request;
-    logs.value = r.pushLogs;
+    progress.value = undefined; progressFailed.value = false;
+    if (isMy.value) {
+      try {
+        const result = await fetchPurchaseProgress(id.value);
+        if (!valid()) return;
+        progress.value = result;
+      } catch { if (valid()) progressFailed.value = true; }
+    }
+    if (!valid()) return;
     if (confirmedAction.value === 'claim' && r.request.status !== 'pushing') {
       confirmedAction.value = undefined;
     }
@@ -189,20 +197,18 @@ async function cancel() {
       <text class="appeal">{{ request.auditNote }}</text>
     </view>
 
-    <view v-if="request.status === 'pushing' && (request.currentPushLevel || request.pushedToBuyerIds.length)" class="section">
-      <text class="section-title">推送轨迹</text>
-      <view class="push-row">
-        <PushTierBadge v-if="request.currentPushLevel" :level="request.currentPushLevel" />
-        <text class="push-hint">已推送 {{ request.pushedToBuyerIds?.length || 0 }} 位买手</text>
-      </view>
-    </view>
-
-    <view v-if="logs.length" class="section">
-      <text class="section-title">推送日志</text>
-      <view v-for="log in logs" :key="log.id" class="log-row">
-        <PushTierBadge :level="log.pushLevel" />
-        <text class="log-text">{{ log.buyerIds.length }} 位 · {{ new Date(log.pushedAt).toLocaleString() }}</text>
-      </view>
+    <view v-if="isMy" class="section">
+      <text class="section-title">处理进度</text>
+      <wd-button v-if="progressFailed" plain size="small" @click="reload">进度加载失败，重试</wd-button>
+      <template v-else-if="progress">
+        <text class="push-hint">{{ progress.statusText || progress.status }} · 推送 {{ progress.pushBatchCount }} 批，触达 {{ progress.reachedBuyerCount }} 位买手</text>
+        <text v-if="progress.lastPushedAt" class="log-text">最近推送：{{ new Date(progress.lastPushedAt).toLocaleString() }}</text>
+        <view v-for="(node, index) in progress.timeline" :key="`${node.code}-${index}`" class="log-row">
+          <text>{{ node.name }}</text><text class="log-text">{{ node.description }} · {{ new Date(node.occurredAt).toLocaleString() }}</text>
+        </view>
+        <text v-if="!progress.timeline.length" class="log-text">暂无处理记录</text>
+      </template>
+      <view v-else class="log-text">进度尚未加载</view>
     </view>
 
     <view class="bottom-bar">

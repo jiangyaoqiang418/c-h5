@@ -8,7 +8,7 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { usePageOperation } from '@/utils/page-operation';
 import { getAccessToken } from '@/service/request/token';
-import { createRefundWithReceipt, readRefundCreateReceipts, reconcileRefundCreation, refundCreateMessage, type RefundCreateReceipt } from '@/utils/refund-create';
+import { createRefundWithReceipt, readRefundCreateReceipts, reconcileRefundCreation, retryRefundCreation, refundCreateMessage, type RefundCreateReceipt } from '@/utils/refund-create';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -44,6 +44,14 @@ const page = usePageOperation(() => {
 });
 
 onLoad(query => { orderId.value = typeof query?.orderId === 'string' ? query.orderId : ''; });
+async function retryOriginal() {
+  if (submitting.value || loading.value || !receipt.value?.retryable || !userStore.realUserId) return;
+  const operation = page.capture();
+  submitting.value = true;
+  try { await retryRefundCreation(orderId.value, userStore.realUserId, operation.isCurrent); }
+  catch (error) { if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '原申请重试失败', icon: 'none' }); }
+  finally { if (operation.sameSession()) { submitting.value = false; refreshReceipt(); if (operation.isCurrent()) await load(); } }
+}
 function refreshReceipt() {
   try {
     const next = userStore.realUserId ? readRefundCreateReceipts(userStore.realUserId).find(item => String(item.orderId) === orderId.value) : undefined;
@@ -135,6 +143,7 @@ async function submit() {
   <view class="create-page yb-page">
   <view v-if="receipt && receipt.state !== 'verified'" class="step">
     <text>{{ refundCreateMessage(receipt) }}</text>
+    <wd-button v-if="receipt.retryable" block plain :loading="submitting" :disabled="loading || loadFailed || receiptFailed" @click="retryOriginal">按原内容重试</wd-button>
     <wd-button v-if="submittedId != null" block plain class="submit" @click="go(`/pages/aftersale/detail?id=${encodeURIComponent(String(submittedId))}`, true)">查看退款申请</wd-button>
     <wd-button block plain class="submit" :loading="loading" :disabled="submitting" @click="load">核对原申请状态</wd-button>
     <wd-button v-if="canReapply && !reapplying" block plain class="submit" @click="startAgain">重新填写申请</wd-button>

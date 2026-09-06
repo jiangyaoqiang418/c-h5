@@ -1,4 +1,5 @@
-import { fetchOrderDetail, fetchPendingOrderGroup, orderRole, payRealOrderGroup } from '@/service/api/order';
+import { fetchOrderDetail, fetchOrderGroupPayResult, fetchPendingOrderGroup, orderRole, payRealOrderGroup } from '@/service/api/order';
+import { RequestError } from '@/service/request';
 import { getAccessToken } from '@/service/request/token';
 import { useUserStore } from '@/stores';
 import { normalizeAmount, sumAmounts } from './amount';
@@ -10,6 +11,11 @@ export interface PaymentReceipt {
   orders: Array<{ id: string; amount: string }>;
   state: 'unknown' | 'confirmed' | 'verified';
   paidCount?: number;
+  result?: Api.RealOrder.OrderGroupPayResult;
+  currentResult?: Api.RealOrder.OrderGroupPayResult;
+  retryable?: boolean;
+  amountChanged?: boolean;
+  history?: Array<Pick<PaymentReceipt, 'attempt' | 'orders' | 'paidCount' | 'result'>>;
 }
 
 const memory = new Map<string, PaymentReceipt[]>();
@@ -27,11 +33,18 @@ function readStored(userId: string): PaymentReceipt[] {
       || typeof item.attempt !== 'string' || !item.attempt || !['unknown', 'confirmed', 'verified'].includes(item.state)
       || (item.paidCount != null && (typeof item.paidCount !== 'number' || !Number.isSafeInteger(item.paidCount) || item.paidCount < 0))
       || (item.state === 'confirmed' && item.paidCount == null)
+      || (item.retryable != null && typeof item.retryable !== 'boolean')
+      || (item.retryable && !item.currentResult)
       || !Array.isArray(item.orders) || !item.orders.length
       || item.orders.some((order: PaymentReceipt['orders'][number]) => !order || typeof order.id !== 'string' || !order.id.trim()
         || typeof order.amount !== 'string' || normalizeAmount(order.amount) !== order.amount)
       || new Set(item.orders.map((order: PaymentReceipt['orders'][number]) => order.id)).size !== item.orders.length)
       || new Set(stored.map(item => item.orderGroupNo)).size !== stored.length) throw new Error();
+    stored.forEach(item => {
+      if (item.result) validatePayResult(item.result, item.orderGroupNo);
+      if (item.currentResult) validatePayResult(item.currentResult, item.orderGroupNo);
+      if (item.history != null && !Array.isArray(item.history)) throw new Error();
+    });
     return stored;
   } catch { throw new Error('本机付款回执损坏，请先核对订单，不要重复付款'); }
 }
@@ -42,23 +55,24 @@ export function readPaymentReceipts(userId: string): PaymentReceipt[] {
   for (const receipt of memory.get(userId) || []) {
     const saved = all.get(receipt.orderGroupNo);
     if (saved && (saved.attempt !== receipt.attempt || snapshot(saved) !== snapshot(receipt))) throw new Error('本机付款回执冲突，请先核对订单');
-    if (!saved || ranks[receipt.state] > ranks[saved.state]) all.set(receipt.orderGroupNo, receipt);
+    if (!saved || ranks[receipt.state] >= ranks[saved.state]) all.set(receipt.orderGroupNo, receipt);
   }
-  return [...all.values()].map(item => ({ ...item, orders: item.orders.map(order => ({ ...order })) }));
+  return JSON.parse(JSON.stringify([...all.values()]));
 }
 
 function saveReceipt(userId: string, receipt: PaymentReceipt, beforeSend = false) {
   const all = readPaymentReceipts(userId);
   const previous = all.find(item => item.orderGroupNo === receipt.orderGroupNo);
-  if (previous && (previous.attempt !== receipt.attempt || snapshot(previous) !== snapshot(receipt))) throw new Error('已有其他付款记录，请先核对');
-  if (previous && ranks[previous.state] > ranks[receipt.state]) return previous;
+  if (!beforeSend && previous && previous.attempt !== receipt.attempt) return previous;
+  const replacing = beforeSend && previous?.retryable && previous.attempt !== receipt.attempt;
+  if (previous && !replacing && (previous.attempt !== receipt.attempt || snapshot(previous) !== snapshot(receipt))) throw new Error('已有其他付款记录，请先核对');
+  if (previous && !replacing && ranks[previous.state] > ranks[receipt.state]) return previous;
   const next = [...all.filter(item => item.orderGroupNo !== receipt.orderGroupNo), receipt];
   if (!beforeSend) memory.set(userId, next);
   try {
     uni.setStorageSync(keyFor(userId), next);
     const saved = readStored(userId).find(item => item.orderGroupNo === receipt.orderGroupNo);
-    if (!saved || saved.attempt !== receipt.attempt || saved.state !== receipt.state || snapshot(saved) !== snapshot(receipt)
-      || saved.paidCount !== receipt.paidCount) throw new Error('付款回执未保存');
+    if (!saved || JSON.stringify(saved) !== JSON.stringify(receipt)) throw new Error('付款回执未保存');
     memory.set(userId, next);
   } catch {
     if (beforeSend) throw new Error('无法保存付款进度，已停止提交，请检查本机存储');
@@ -71,6 +85,7 @@ function saveKnownReceipt(userId: string, receipt: PaymentReceipt) {
   try { return saveReceipt(userId, receipt); } catch {
     const all = memory.get(userId) || [];
     const previous = all.find(item => item.orderGroupNo === receipt.orderGroupNo);
+    if (previous && previous.attempt !== receipt.attempt) return previous;
     if (previous && ranks[previous.state] > ranks[receipt.state]) return previous;
     memory.set(userId, [...all.filter(item => item.orderGroupNo !== receipt.orderGroupNo), receipt]);
     return receipt;
@@ -78,9 +93,26 @@ function saveKnownReceipt(userId: string, receipt: PaymentReceipt) {
 }
 
 export function paymentReceiptMessage(receipt: PaymentReceipt) {
+  if (receipt.amountChanged) return '订单金额已变化，请刷新并重新确认剩余付款金额';
+  const result = receipt.result || receipt.currentResult;
+  if (result) return `${receipt.result ? '本次付款' : '当前组状态'}：成功 ${result.paidCount} 笔，失败/未付 ${result.failedCount} 笔；剩余 U ${result.unpaidAmount}${receipt.retryable ? '，可重新确认剩余订单付款' : ''}`;
   if (receipt.state === 'verified') return '已核对：本次确认的订单均已付款';
   if (receipt.state === 'unknown') return '付款结果尚未确认，请核对订单，不要重复付款';
   return `付款请求已返回，本次付款 ${receipt.paidCount} 笔；订单状态待核对，请勿重复付款`;
+}
+
+function validatePayResult(result: Api.RealOrder.OrderGroupPayResult, group: string) {
+  if (!result || result.orderGroupNo !== group || !Array.isArray(result.items)
+    || [result.totalCount, result.paidCount, result.failedCount].some(count => !Number.isSafeInteger(count) || count < 0)
+    || result.totalCount !== result.items.length || result.paidCount + result.failedCount !== result.totalCount
+    || new Set(result.items.map(item => String(item.orderId))).size !== result.items.length
+    || result.items.some(item => !validId(item.orderId) || typeof item.success !== 'boolean' || !item.status)) throw new Error('付款结果响应不完整，请核对订单');
+  normalizeAmount(result.paidAmount); normalizeAmount(result.unpaidAmount);
+  result.items.forEach(item => normalizeAmount(item.amount));
+  if (result.items.filter(item => item.success).length !== result.paidCount) throw new Error('付款结果笔数不一致');
+  if (sumAmounts(result.items.filter(item => item.success).map(item => item.amount)) !== normalizeAmount(result.paidAmount)
+    || result.items.some(item => item.success !== ['PAID', 'SHIPPED', 'COMPLETED', 'REFUND_REVIEW', 'REFUNDED'].includes(item.status))) throw new Error('付款金额或成功状态不一致');
+  return result;
 }
 
 export function paymentFingerprint(orders: Api.RealOrder.OrderView[]) {
@@ -97,7 +129,7 @@ export async function confirmOrderGroupPayment(orderGroupNo: string, customerId:
   const current = () => stillActive() && !!token && token === getAccessToken() && customerId === useUserStore().realUserId;
   if (!customerId || !orderGroupNo || !current()) throw new Error('付款页面或账号已变化');
   const previous = readPaymentReceipts(customerId).find(item => item.orderGroupNo === orderGroupNo);
-  if (previous) return previous;
+  if (previous && !previous.retryable) return previous;
   const release = acquireOrderOperation(customerId, undefined, orderGroupNo);
   let marker: PaymentReceipt | undefined;
   const validate = (orders: Api.RealOrder.OrderView[]) => {
@@ -125,13 +157,16 @@ export async function confirmOrderGroupPayment(orderGroupNo: string, customerId:
     if (!current()) return;
     validate(latest);
     if (paymentFingerprint(latest) !== fingerprint) throw new Error('订单金额或状态已变化，请重新确认付款');
-    marker = { orderGroupNo, attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, orders: confirmedOrders, state: 'unknown' };
+    marker = { orderGroupNo, attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, orders: confirmedOrders, state: 'unknown',
+      history: previous ? [...(previous.history || []), { attempt: previous.attempt, orders: previous.orders, paidCount: previous.paidCount, result: previous.result }] : undefined };
     saveReceipt(customerId, marker, true);
     try {
-      const paidCount = await payRealOrderGroup({ orderGroupNo });
-      if (typeof paidCount !== 'number' || !Number.isSafeInteger(paidCount) || paidCount < 0) return marker;
-      return saveKnownReceipt(customerId, { ...marker, state: 'confirmed', paidCount });
-    } catch {
+      const result = validatePayResult(await payRealOrderGroup({ orderGroupNo, confirmedAmount: total }), orderGroupNo);
+      if (result.items.length !== marker.orders.length || result.items.some(item => !marker!.orders.some(order => order.id === String(item.orderId)
+        && order.amount === normalizeAmount(item.amount)))) return marker;
+      return saveKnownReceipt(customerId, { ...marker, state: 'confirmed', paidCount: result.paidCount, result });
+    } catch (error) {
+      if (error instanceof RequestError && String(error.code) === '-312') return saveKnownReceipt(customerId, { ...marker, amountChanged: true });
       // 逐单付款没有声明原子性；包括业务错误在内，发出后的异常不能证明没有付款。
       return marker;
     }
@@ -144,14 +179,24 @@ export async function reconcileOrderGroupPayment(orderGroupNo: string, customerI
   const current = () => stillActive() && !!token && token === getAccessToken() && customerId === useUserStore().realUserId;
   if (!current()) return;
   const receipt = readPaymentReceipts(customerId).find(item => item.orderGroupNo === orderGroupNo);
-  if (!receipt || receipt.state === 'verified') return receipt;
+  if (!receipt) return receipt;
   try {
-    const orders = await Promise.all(receipt.orders.map(order => fetchOrderDetail(order.id)));
+    const result = validatePayResult(await fetchOrderGroupPayResult(orderGroupNo), orderGroupNo);
     if (!current()) return receipt;
-    if (receipt.paidCount != null && receipt.paidCount > receipt.orders.length) return receipt;
-    if (orders.every((order, index) => String(order.id) === receipt.orders[index].id && order.orderGroupNo === orderGroupNo
-      && orderRole(order, customerId) === 'customer' && isOrderPaid(order)
-      && normalizeAmount(order.totalAmount) === receipt.orders[index].amount)) return saveKnownReceipt(customerId, { ...receipt, state: 'verified' });
+    const orders = await Promise.all(result.items.map(item => fetchOrderDetail(item.orderId)));
+    if (!current()) return receipt;
+    if (orders.some((order, index) => String(order.id) !== String(result.items[index].orderId) || order.orderGroupNo !== orderGroupNo
+      || orderRole(order, customerId) !== 'customer' || order.rawStatus !== result.items[index].status
+      || normalizeAmount(order.totalAmount) !== normalizeAmount(result.items[index].amount)
+      || isOrderPaid(order) !== result.items[index].success)) return receipt;
+    const original = receipt.orders.map(saved => orders.find(order => String(order.id) === saved.id));
+    if (original.some(order => !order) || (receipt.paidCount != null && original.filter(order => isOrderPaid(order!)).length < receipt.paidCount)) return receipt;
+    if (receipt.result?.items.some(item => item.success && !orders.some(order => String(order.id) === String(item.orderId) && isOrderPaid(order)))) return receipt;
+    const pending = orders.filter(order => order.rawStatus === 'CREATED');
+    if (sumAmounts(pending.map(order => order.totalAmount)) !== normalizeAmount(result.unpaidAmount)) return receipt;
+    const verified = original.every((order, index) => isOrderPaid(order!) && normalizeAmount(order!.totalAmount) === receipt.orders[index].amount);
+    return saveKnownReceipt(customerId, { ...receipt, currentResult: result, retryable: pending.length > 0,
+      state: verified ? 'verified' : receipt.state });
   } catch { /* 回读失败不改变已知的提交结果。 */ }
   return receipt;
 }

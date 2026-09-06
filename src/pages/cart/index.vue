@@ -58,7 +58,7 @@ async function goCheckout() {
     return;
   }
   if (selected.some(item => item.source !== 'real')) {
-    uni.showToast({ title: '请仅选择真实商品后结算', icon: 'none' });
+    uni.showToast({ title: '部分商品已失效，请重新选择后结算', icon: 'none' });
     return;
   }
   openingCheckout.value = true;

@@ -22,6 +22,10 @@ declare namespace Api {
       pageNo?: number;
       pageSize?: number;
       behaviorCode?: string;
+      behaviorCodes?: string[];
+      earned?: boolean;
+      startAt?: number;
+      endAt?: number;
     }
 
     interface RealLedgerDTO {

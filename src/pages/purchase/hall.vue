@@ -7,6 +7,7 @@ import { usePageOperation } from '@/utils/page-operation';
 import { claimPurchase, readClaimReceipts, reconcileClaimReceipts, type ClaimReceipt } from '@/utils/purchase-claim';
 import { getAccessToken } from '@/service/request/token';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
+import PurchaseFilters from '@/components/purchase/purchase-filters.vue';
 import AudienceSegment from '@/components/common/audience-segment.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
@@ -16,6 +17,11 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
+const filters = ref<Pick<Api.RealPurchase.PurchaseDemandPageQuery, 'minBudget' | 'maxBudget' | 'minDeliveryDays' | 'maxDeliveryDays'>>({});
+function applyFilters(value: typeof filters.value) {
+  if (reading.value || claiming.value) return;
+  filters.value = value; clear(); void load();
+}
 const claiming = ref(false);
 const opening = ref(false);
 const reading = ref(false);
@@ -26,6 +32,7 @@ let readVersion = 0;
 let retryReset = true;
 const page = usePageOperation(() => {
   readVersion++;
+  filters.value = {};
   claiming.value = false;
   opening.value = false;
   reading.value = false;
@@ -43,7 +50,7 @@ const { list, loading, loadFailed, hasMore, load: loadPage, invalidate, clear } 
   preserveOnReset: true,
   fetch: async (pageNo, pageSize) => {
     if (!page.visible.value || !userStore.currentUser) throw new Error('请先登录查看求购任务');
-    return fetchHall({ current: pageNo, size: pageSize });
+    return fetchHall({ current: pageNo, size: pageSize, ...filters.value });
   }
 });
 const displayedRequests = computed(() => list.value.filter(item => receipts.value.get(String(item.id))?.state !== 'confirmed'));
@@ -151,6 +158,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
     </view>
 
     <view class="list">
+      <PurchaseFilters :key="userStore.realUserId || 'guest'" :disabled="reading || claiming" @apply="applyFilters" />
       <view v-if="displayedRequests.length">
         <PurchaseRequestCard
           v-for="r in displayedRequests"

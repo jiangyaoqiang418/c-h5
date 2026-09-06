@@ -54,6 +54,8 @@ const colorHex = computed(() => {
   margin-right: 4rpx;
 }
 .amount {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 36rpx;
   font-weight: 700;
   font-family: ui-monospace, monospace;

@@ -65,7 +65,7 @@ const page = usePageOperation(() => {
 });
 const actionsDisabled = computed(() => !page.visible.value || busy.value || loading.value || loadFailed.value
   || (isCustomer.value && (refundBlocked.value || changeReceiptFailed.value || (!!order.value && orderChangeBlocks(order.value, currentChanges.value))))
-  || (isCustomer.value && order.value?.rawStatus === 'CREATED' && (paymentReceiptFailed.value || !!paymentReceipt.value)));
+  || (isCustomer.value && order.value?.rawStatus === 'CREATED' && (paymentReceiptFailed.value || (!!paymentReceipt.value && !paymentReceipt.value.retryable))));
 const logisticsDisabled = computed(() => actionsDisabled.value || logisticsLoadFailed.value || logisticsReceiptFailed.value || !!logisticsReceipt.value && logisticsReceipt.value.state !== 'verified');
 function closePopups() {
   trackPopupVisible.value = false; exceptionPopupVisible.value = false;
@@ -231,7 +231,7 @@ function goAftersale() {
 }
 
 function goReview() {
-  if (!actionsDisabled.value && isCustomer.value && order.value?.rawStatus === 'COMPLETED') go(`/pages/review/write?orderId=${encodeURIComponent(String(order.value.id))}`);
+  if (!actionsDisabled.value && isCustomer.value && order.value?.rawStatus === 'COMPLETED' && order.value.reviewEligibility?.reviewable !== false) go(`/pages/review/write?orderId=${encodeURIComponent(String(order.value.id))}`);
 }
 
 function openTrackPopup() {
@@ -291,6 +291,14 @@ function submitException() { return submitLogistics('exception'); }
 <template>
   <view v-if="order" class="detail-page yb-page">
     <wd-button v-if="loadFailed || logisticsLoadFailed" block plain :disabled="busy" :loading="loading" @click="reload">部分数据刷新失败，点击重试</wd-button>
+    <view v-if="isCustomer && paymentReceipt" class="section">
+      <text class="section-title">付款结果</text>
+      <text>{{ paymentReceiptMessage(paymentReceipt) }}</text>
+      <view v-for="item in (paymentReceipt.result || paymentReceipt.currentResult)?.items || []" :key="item.orderId">
+        <text>{{ item.orderNo || item.orderId }} · U {{ item.amount }} · {{ item.success ? '已付款' : item.status === 'CANCELED' ? '已取消' : '未付款' }}{{ item.message ? `：${item.message}` : '' }}</text>
+      </view>
+      <wd-button plain size="small" :disabled="busy" :loading="loading" @click="reload">刷新付款状态</wd-button>
+    </view>
     <view class="hero">
       <OrderStatusTag :status="order.status" />
       <text class="code">{{ order.code }}</text>
@@ -413,7 +421,7 @@ function submitException() { return submitLogistics('exception'); }
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" type="primary" @click="pay">立即付款</wd-button>
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" plain @click="cancel">取消订单</wd-button>
       <wd-button v-if="order.status === 'IN_TRANSIT'" :disabled="actionsDisabled" type="primary" @click="confirm">确认收货</wd-button>
-      <wd-button v-if="order.status === 'COMPLETED'" :disabled="actionsDisabled" plain @click="goReview">写评价</wd-button>
+      <wd-button v-if="isCustomer && order.status === 'COMPLETED'" :disabled="actionsDisabled || order.reviewEligibility?.reviewable === false" plain @click="goReview">{{ order.reviewEligibility?.reviewable === false ? (order.reviewEligibility.reasonText || '不可评价') : order.reviewEligibility?.reviewable ? '写评价' : '核对评价资格' }}</wd-button>
       <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" :disabled="actionsDisabled" plain @click="goAftersale">申请仅退款</wd-button>
     </view>
   </view>

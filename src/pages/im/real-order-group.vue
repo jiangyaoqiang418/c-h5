@@ -115,7 +115,7 @@ interface OrderCardContent {
   amount?: string | number;
 }
 
-function parseOrderCard(content?: string): OrderCardContent | undefined {
+function parseOrderCard(content?: string | null): OrderCardContent | undefined {
   try {
     const parsed = JSON.parse(content || '{}') as OrderCardContent;
     return Object.keys(parsed).length ? parsed : undefined;
@@ -212,7 +212,8 @@ function applyRealtimeRecall(event: unknown) {
     ...recalled,
     recalled: true,
     content: undefined,
-    mediaUrl: undefined
+    mediaUrl: undefined,
+    duration: undefined
   } as Api.RealNotify.Message;
 }
 
@@ -385,7 +386,7 @@ function mergeServerMessages(incoming: Api.RealNotify.Message[]) {
     const previous = messages.value.find(matches);
     const merged = { ...previous, ...message, pending: false, failed: false };
     if (previous?.recalled || message.recalled) {
-      Object.assign(merged, { recalled: true, content: undefined, mediaUrl: undefined });
+      Object.assign(merged, { recalled: true, content: undefined, mediaUrl: undefined, duration: undefined });
       stopRecalledVoice(message.id);
       if (previous) stopRecalledVoice(previous.id);
       uncertainRecalls.value = uncertainRecalls.value.filter(id => id !== String(message.id));

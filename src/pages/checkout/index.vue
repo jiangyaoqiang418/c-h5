@@ -58,6 +58,8 @@ const grandTotal = computed(() => (
 const pendingRecords = ref<PendingCheckout[]>([]);
 const paymentReceipts = ref<PaymentReceipt[]>([]);
 const paymentReceiptFailed = ref(false);
+const currentPending = computed(() => pendingRecords.value.find(item => item.userId === userStore.realUserId && item.fingerprint === checkoutFingerprint()));
+const currentPaymentReceipt = computed(() => paymentReceipts.value.find(item => item.orderGroupNo === currentPending.value?.orderGroupNo));
 const page = usePageOperation(() => {
   addressSelectionVersion++;
   submitting.value = false;
@@ -210,7 +212,7 @@ async function submit() {
     return;
   }
   if (!hasOnlyRealItems.value) {
-    uni.showToast({ title: '请仅选择真实商品后结算', icon: 'none' });
+    uni.showToast({ title: '部分商品已失效，请重新选择后结算', icon: 'none' });
     return;
   }
   const operation = page.capture();
@@ -290,7 +292,7 @@ async function executePending(pending: PendingCheckout, operation = page.capture
   const existing = readPaymentReceipts(userId).find(item => item.orderGroupNo === pending.orderGroupNo);
   if (existing || !orders.every(isOrderPaid)) {
     if (orders.some(order => order.rawStatus === 'CANCELED')) throw new Error('本批存在已取消订单，请到订单列表处理剩余订单');
-    const receipt = existing || await confirmOrderGroupPayment(pending.orderGroupNo, userId, operation.isCurrent);
+    const receipt = existing && !existing.retryable ? existing : await confirmOrderGroupPayment(pending.orderGroupNo, userId, operation.isCurrent);
     if (!receipt || !operation.sameSession()) return;
     paymentReceipts.value = [...paymentReceipts.value.filter(item => item.orderGroupNo !== receipt.orderGroupNo), receipt];
     refreshPaymentReceipts();
@@ -395,6 +397,15 @@ async function resumePending(pending: PendingCheckout) {
     <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载结算信息</text></view>
     <EmptyState v-else-if="loadFailed" title="结算信息加载失败" description="请稍后重试" action-text="重新加载" @action="loadCheckout" />
     <template v-else>
+    <view v-if="currentPending && currentPaymentReceipt" class="block">
+      <text class="block-title">本次付款结果</text>
+      <text>{{ paymentReceiptMessage(currentPaymentReceipt) }}</text>
+      <view v-for="item in (currentPaymentReceipt.result || currentPaymentReceipt.currentResult)?.items || []" :key="item.orderId">
+        <text>{{ item.orderNo || item.orderId }} · U {{ item.amount }} · {{ item.success ? '已付款' : item.status === 'CANCELED' ? '已取消' : '未付款' }}{{ item.message ? `：${item.message}` : '' }}</text>
+      </view>
+      <wd-button plain size="small" :disabled="submitting || paymentReceiptFailed" @click="resumePending(currentPending)">{{ currentPaymentReceipt.retryable ? '确认剩余付款' : '刷新付款状态' }}</wd-button>
+      <wd-button plain size="small" :disabled="submitting" @click="go('/pages/order/list')">查看订单</wd-button>
+    </view>
     <view class="block">
       <text class="block-title">1. 收货地址</text>
       <view v-if="selectedAddr" class="addr">

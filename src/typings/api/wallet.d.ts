@@ -8,6 +8,10 @@ declare namespace Api {
       pageSize?: number;
       bizGroup?: string;
       bizType?: string;
+      balanceType?: 'AVAILABLE' | 'NON_WITHDRAWABLE' | 'FINANCE_LOCKED' | 'ORDER_FROZEN' | 'RISK_FROZEN' | 'DEPOSIT_AVAILABLE';
+      keyword?: string;
+      startAt?: number;
+      endAt?: number;
     }
 
     interface WalletLedgerDTO {

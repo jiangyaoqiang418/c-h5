@@ -318,11 +318,6 @@ function goBanner(path?: string) {
       </view>
     </view>
 
-    <view class="ai-entry yb-pressable" @click="go('/pages/ai/index')">
-      <view class="ai-copy"><text>AI 智能导购</text><text>告诉我你想要的商品，帮你快速匹配全球买手</text></view>
-      <image :src="UI_ASSETS.illustrations.ai" mode="aspectFit" />
-      <wd-icon name="arrow-right" size="32rpx" />
-    </view>
   </view>
 </template>
 
@@ -398,11 +393,6 @@ function goBanner(path?: string) {
   to { background-position-x: -200%; }
 }
 
-.ai-entry { display: flex; align-items: center; min-height: 116rpx; margin: 24rpx 20rpx 32rpx; padding: 16rpx 18rpx 16rpx 24rpx; overflow: hidden; border: 1rpx solid #d9d9ff; border-radius: 20rpx; background: #f4f3ff; color: var(--yb-primary); gap: 12rpx; }
-.ai-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 8rpx; }
-.ai-copy text:first-child { font-size: var(--yb-fs-title-sm); font-weight: 700; }
-.ai-copy text:last-child { color: var(--yb-muted); font-size: var(--yb-fs-body-sm); line-height: 34rpx; }
-.ai-entry image { width: 126rpx; height: 92rpx; }
 
 @media (max-width: 340px) {
   .hero-title { font-size: 38rpx; }

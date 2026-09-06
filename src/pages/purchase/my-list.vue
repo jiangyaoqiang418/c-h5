@@ -6,6 +6,7 @@ import { usePageOperation } from '@/utils/page-operation';
 import { getAccessToken } from '@/service/request/token';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
+import PurchaseFilters from '@/components/purchase/purchase-filters.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { fetchMyPurchases } from '@/service/api/purchase';
@@ -15,19 +16,24 @@ import { UI_ASSETS } from '@/constants/ui-assets';
 const userStore = useUserStore();
 const { requireLogin } = useNavigationGuards();
 const activeKey = ref('all');
+const filters = ref<Pick<Api.RealPurchase.PurchaseDemandPageQuery, 'minBudget' | 'maxBudget' | 'minDeliveryDays' | 'maxDeliveryDays'>>({});
+function applyFilters(value: typeof filters.value) {
+  if (loading.value || operating.value) return;
+  filters.value = value; changeFilter();
+}
 const operating = ref(false);
 const reading = ref(false);
 const initFailed = ref(false);
 const receiptFailed = ref(false);
 const receipts = ref<PurchaseCancelReceipt[]>([]);
-const scanPaused = ref(false);
 let readVersion = 0;
 let filterVersion = 0;
 let retryReset = true;
 const page = usePageOperation(() => {
   readVersion++; filterVersion++;
+  filters.value = {};
   operating.value = false; reading.value = false; initFailed.value = false;
-  receiptFailed.value = false; receipts.value = []; scanPaused.value = false;
+  receiptFailed.value = false; receipts.value = [];
 });
 
 const TABS: { key: string; label: string; statuses?: Api.PurchaseRequest.RequestStatus[] }[] = [
@@ -42,16 +48,13 @@ const TABS: { key: string; label: string; statuses?: Api.PurchaseRequest.Request
 const pager = usePagedList<Api.PurchaseRequest.PurchaseRequest>({
   key: item => item.id,
   preserveOnReset: true,
-  fetch: (pageNo, pageSize) => fetchMyPurchases(userStore.realUserId!, undefined, { current: pageNo, size: pageSize })
+  fetch: (pageNo, pageSize) => fetchMyPurchases(userStore.realUserId!, TABS.find(tab => tab.key === activeKey.value)?.statuses, { current: pageNo, size: pageSize, ...filters.value })
 });
 const allLoaded = pager.list;
 const hasMore = pager.hasMore;
 const loading = computed(() => reading.value || pager.loading.value);
 const loadFailed = computed(() => initFailed.value || pager.loadFailed.value);
-const list = computed(() => {
-  const statuses = TABS.find(tab => tab.key === activeKey.value)?.statuses;
-  return statuses ? allLoaded.value.filter(item => statuses.includes(item.status)) : allLoaded.value;
-});
+const list = allLoaded;
 function refreshReceipts() {
   if (!userStore.realUserId) return;
   try {
@@ -74,7 +77,7 @@ async function loadFiltered(reset = true) {
   if (!page.visible.value || reading.value || operating.value) return;
   const operation = page.capture(), version = ++readVersion;
   const current = () => operation.isCurrent() && version === readVersion;
-  reading.value = true; initFailed.value = false; scanPaused.value = false; retryReset = reset;
+  reading.value = true; initFailed.value = false; retryReset = reset;
   try {
     await userStore.init();
     if (!current()) return;
@@ -83,15 +86,7 @@ async function loadFiltered(reset = true) {
       pager.clear(); return;
     }
     refreshReceipts();
-    // 契约没有 status 条件；每轮至多 5 页，可继续扫描，不把未扫完误报为真实空态。
-    let nextReset = reset;
-    for (let scanned = 0; scanned < 5; scanned++) {
-      retryReset = nextReset;
-      if (!current() || !await pager.load(nextReset) || !current()) return;
-      nextReset = false;
-      if (activeKey.value === 'all' || list.value.length || !hasMore.value) break;
-    }
-    scanPaused.value = activeKey.value !== 'all' && !list.value.length && hasMore.value;
+    await pager.load(reset);
   } catch (error) {
     if (current()) {
       initFailed.value = true;
@@ -132,13 +127,13 @@ async function onCancel(request: Api.PurchaseRequest.PurchaseRequest) {
   }
 }
 function changeFilter() {
-  filterVersion++; readVersion++; reading.value = false; initFailed.value = false; scanPaused.value = false; retryReset = true;
+  filterVersion++; readVersion++; reading.value = false; initFailed.value = false; retryReset = true;
   pager.clear(); loadFiltered();
 }
 onShow(() => loadFiltered());
 onHide(() => { readVersion++; reading.value = false; pager.invalidate(); });
 onPullDownRefresh(() => { if (!operating.value) return loadFiltered(); uni.stopPullDownRefresh(); });
-onReachBottom(() => { if (!scanPaused.value) return loadFailed.value ? retry() : loadFiltered(false); });
+onReachBottom(() => loadFailed.value ? retry() : loadFiltered(false));
 watch(activeKey, changeFilter, { flush: 'sync' });
 </script>
 
@@ -155,6 +150,7 @@ watch(activeKey, changeFilter, { flush: 'sync' });
       </wd-tabs>
     </view>
     <view class="list">
+      <PurchaseFilters :key="userStore.realUserId || 'guest'" :disabled="loading || operating" @apply="applyFilters" />
       <view v-if="loading && !list.length" class="loading"><wd-loading size="44rpx" /><text>正在加载求购</text></view>
       <view v-else-if="list.length">
         <view v-for="r in list" :key="r.id">
@@ -163,7 +159,6 @@ watch(activeKey, changeFilter, { flush: 'sync' });
       </view>
       <EmptyState v-else-if="loadFailed" title="求购列表加载失败" description="请稍后重试" />
       <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看求购" description="尚未读取账号求购" action-text="登录或重试" @action="login" />
-      <EmptyState v-else-if="scanPaused" title="已读取的记录中暂无匹配项" :description="`已读取 ${allLoaded.length} 条记录，尚未完成全部筛选，请继续加载。`" />
       <EmptyState
         v-else
         title="暂无求购"
@@ -173,7 +168,7 @@ watch(activeKey, changeFilter, { flush: 'sync' });
       />
       <text v-if="loadFailed && list.length">刷新失败，当前显示上次数据，撤销操作已暂停。</text>
       <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="retry">加载失败，点击重试</wd-button>
-      <wd-button v-else-if="userStore.currentUser && hasMore" block plain :loading="loading" :disabled="operating" @click="loadFiltered(false)">{{ scanPaused ? '继续筛选剩余记录' : '加载更多' }}</wd-button>
+      <wd-button v-else-if="userStore.currentUser && hasMore" block plain :loading="loading" :disabled="operating" @click="loadFiltered(false)">加载更多</wd-button>
     </view>
   </view>
 </template>

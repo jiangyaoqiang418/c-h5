@@ -1,5 +1,24 @@
 import { realOrderRequest, realOrderUpload } from '../request';
 
+/** 按 ID 关联结果，不能依赖服务端数组顺序；大集合按契约分批。 */
+export async function fetchReviewEligibility(orderIds: Api.RealReview.Id[]) {
+  const ids = [...new Map(orderIds.map(id => [String(id), id])).values()];
+  const result = new Map<string, Api.RealReview.OrderReviewEligibility>();
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const batch = ids.slice(offset, offset + 200);
+    const records = await realOrderRequest<Api.RealReview.OrderReviewEligibility[], { orderIds: Api.RealReview.Id[] }>({
+      url: '/reviews/eligibility', method: 'POST', data: { orderIds: batch }
+    });
+    if (!Array.isArray(records) || records.length !== batch.length) throw new Error('评价资格响应不完整，请重试');
+    const wanted = new Set(batch.map(String));
+    for (const record of records) {
+      if (!record || !wanted.delete(String(record.orderId)) || typeof record.reviewable !== 'boolean') throw new Error('评价资格响应不匹配，请重试');
+      result.set(String(record.orderId), record);
+    }
+  }
+  return result;
+}
+
 export function fetchReviewableOrders(query: Api.RealReview.PageQuery = {}) {
   return realOrderRequest<Api.RealReview.Page<Api.RealReview.ReviewableOrderVO>, Api.RealReview.PageQuery>({ url: '/reviews/reviewable/page', method: 'POST', data: { pageNo: query.pageNo || 1, pageSize: query.pageSize || 20 } });
 }

@@ -145,9 +145,6 @@ function goMessages() {
   go('/pages/message/index');
 }
 
-function goAiChat() {
-  go('/pages/ai/index');
-}
 </script>
 
 <template>
@@ -203,19 +200,6 @@ function goAiChat() {
       </view>
     </view>
 
-    <!-- AI 导购 CTA 横条 -->
-    <view v-if="user" class="ai-cta" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.ai})` }" @click="goAiChat">
-      <view class="ai-left">
-        <view class="ai-icon-wrap">
-          <wd-icon name="star-on" size="22px" />
-        </view>
-        <view class="ai-copy">
-          <text class="ai-title">AI 智能导购</text>
-          <text class="ai-sub">告诉我你要什么 · 全球买手 24h 应答</text>
-        </view>
-      </view>
-      <wd-icon name="arrow-right" size="18px" />
-    </view>
 
     <!-- 订单概况 -->
     <view v-if="user" class="section">
@@ -410,56 +394,6 @@ function goAiChat() {
   line-height: 1.3;
 }
 
-/* AI CTA */
-.ai-cta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20rpx;
-  background-color: #20146a;
-  background-size: cover;
-  background-position: center;
-  color: #fff;
-  border-radius: var(--yb-radius-lg);
-  margin: 24rpx 24rpx 0;
-  padding: 28rpx;
-}
-.ai-left {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  min-width: 0;
-}
-.ai-icon-wrap {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.20);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  flex-shrink: 0;
-}
-.ai-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-}
-.ai-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  letter-spacing: -0.5rpx;
-}
-.ai-sub {
-  font-size: 22rpx;
-  opacity: 0.85;
-}
-.ai-arrow {
-  font-size: 40rpx;
-  color: rgba(255, 255, 255, 0.75);
-  line-height: 1;
-}
 
 /* Sections */
 .section {

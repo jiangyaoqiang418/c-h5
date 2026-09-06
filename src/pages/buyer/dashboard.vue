@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { onShow } from '@dcloudio/uni-app';
+import { onHide, onShow } from '@dcloudio/uni-app';
+import { getAccessToken } from '@/service/request/token';
 import { avatarUrl } from '@shared/utils/image';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
-import { fetchBuyerDepositLedger } from '@/service/api/buyer';
+import { fetchBuyerDepositLedger, fetchBuyerBusinessStats } from '@/service/api/buyer';
 import { fetchSoldOrders } from '@/service/api/order';
 import { fetchMyProducts } from '@/service/api/product';
 import { fetchHall } from '@/service/api/purchase';
@@ -27,6 +28,8 @@ const ordersLoadFailed = ref(false);
 const requestsLoadFailed = ref(false);
 const productsLoadFailed = ref(false);
 const depositLoadFailed = ref(false);
+const businessStats = ref<Api.RealOrder.BusinessStats>();
+const statsFailed = ref(false);
 let loadSequence = 0;
 
 const user = computed(() => userStore.currentUser);
@@ -39,6 +42,7 @@ async function load() {
   requestsLoadFailed.value = false;
   productsLoadFailed.value = false;
   depositLoadFailed.value = false;
+  businessStats.value = undefined; statsFailed.value = false;
   try {
     await userStore.init();
     if (!userStore.currentUser) {
@@ -51,18 +55,25 @@ async function load() {
       return;
     }
     const userId = userStore.realUserId;
+    const sessionToken = getAccessToken();
     const results = await Promise.allSettled([
       fetchSoldOrders({ pageNo: 1, pageSize: 5 }),
       fetchHall({ current: 1, size: 5 }),
       fetchMyProducts({ pageNo: 1, pageSize: 1, status: 'ON_SALE' }),
-      fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 })
+      fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 }),
+      userStore.currentUser.isBuyer ? fetchBuyerBusinessStats() : Promise.resolve(undefined)
     ]);
-    const [soldOrders, demandHall, products, deposits] = results;
-    if (sequence !== loadSequence || userId !== userStore.realUserId) return;
+    const [soldOrders, demandHall, products, deposits, stats] = results;
+    if (sequence !== loadSequence || userId !== userStore.realUserId || sessionToken !== getAccessToken()) return;
     ordersLoadFailed.value = soldOrders.status === 'rejected';
     requestsLoadFailed.value = demandHall.status === 'rejected';
     productsLoadFailed.value = products.status === 'rejected';
     depositLoadFailed.value = deposits.status === 'rejected';
+    statsFailed.value = stats.status === 'rejected';
+    if (stats.status === 'fulfilled' && stats.value) {
+      if (String(stats.value.sellerId) === userId) businessStats.value = stats.value;
+      else statsFailed.value = true;
+    }
     if (soldOrders.status === 'fulfilled') {
       orders.value = soldOrders.value.records;
       orderTotal.value = soldOrders.value.total;
@@ -82,12 +93,14 @@ async function load() {
     requestsLoadFailed.value = true;
     productsLoadFailed.value = true;
     depositLoadFailed.value = true;
+    statsFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '买手数据加载失败', icon: 'none' });
   } finally {
     if (sequence === loadSequence) loading.value = false;
   }
 }
 onShow(load);
+onHide(() => { loadSequence++; loading.value = false; businessStats.value = undefined; });
 
 const kpis = computed(() => {
   return [
@@ -112,7 +125,6 @@ const kpis = computed(() => {
           <view class="hero-name-row">
             <text class="hero-name">{{ user?.nickname || '买手' }}</text>
           </view>
-          <view class="hero-sub"><wd-icon name="check" size="13px" /> 已读取真实买手数据</view>
         </view>
       </view>
       <view class="hero-stats">
@@ -141,6 +153,17 @@ const kpis = computed(() => {
     </view>
 
     <!-- 进行中订单 -->
+    <view v-if="user?.isBuyer" class="section business-stats">
+      <view class="section-bar"><text class="section-title">经营数据</text><text class="stats-note">全部时间</text></view>
+      <view v-if="businessStats">
+        <view>评价率 {{ businessStats.reviewRate }}%（有效评价 {{ businessStats.reviewedOrderCount }} / 完成订单 {{ businessStats.completedOrderCount }}）</view>
+        <view>客诉率 {{ businessStats.complaintRate }}%（售后 {{ businessStats.refundCount }} / 下单 {{ businessStats.orderCount }}）</view>
+        <view>平均发货 {{ businessStats.avgShipDurationHours }} 小时（{{ businessStats.shippedOrderCount }} 笔有效样本）</view>
+        <text class="stats-note">评价按评价时间、完成订单按完成时间统计。</text>
+      </view>
+      <wd-button v-else-if="statsFailed" plain size="small" :loading="loading" @click="load">经营数据加载失败，重试</wd-button>
+      <text v-else>经营数据加载中…</text>
+    </view>
     <view class="section">
       <view class="section-bar">
         <view class="title-group">
@@ -183,7 +206,6 @@ const kpis = computed(() => {
         </view>
         <view class="more"><text>押金管理</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
-      <view class="deposit-progress"><text class="progress-label">以最新真实保证金流水余额为准</text></view>
       <view class="deposit-total">
         <text class="dep-label">当前保证金余额</text>
         <view class="dep-amount">
@@ -198,6 +220,8 @@ const kpis = computed(() => {
 </template>
 
 <style lang="scss" scoped>
+.business-stats { font-size:26rpx; line-height:1.8; }
+.stats-note { font-size:22rpx; color:var(--yb-muted); }
 .dash-page {
   min-height: 100%;
   background: #FAFAF7;
@@ -257,14 +281,6 @@ const kpis = computed(() => {
   font-size: 40rpx;
   font-weight: 700;
   letter-spacing: -1rpx;
-}
-.hero-sub {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.72);
-  margin-top: 6rpx;
 }
 .strong { color: #FFFFFF; font-weight: 700; }
 .hero-stats {

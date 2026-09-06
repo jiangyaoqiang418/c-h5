@@ -1,9 +1,27 @@
 declare namespace Api {
   namespace RealOrder {
+    interface LogisticsCarrierDTO {
+      id: LongId;
+      code: string;
+      name: string;
+      enabled: boolean;
+      defaultCarrier: boolean;
+      customNameRequired: boolean;
+      sortNo?: number;
+      trackingUrlTemplate?: string;
+      remark?: string;
+    }
+    interface BusinessStats {
+      sellerId?: LongId;
+      startTime?: number; endTime?: number;
+      completedOrderCount: number; reviewedOrderCount: number; reviewRate: number;
+      orderCount: number; refundCount: number; complaintRate: number;
+      shippedOrderCount: number; avgShipDurationMs: number; avgShipDurationHours: number;
+    }
     type LongId = string | number;
     type OrderType = 'DIRECT_PURCHASE' | 'PROXY_PURCHASE' | 'DEMAND_FULFILL';
     type OrderStatus = 'CREATED' | 'PAID' | 'SHIPPED' | 'REFUND_REVIEW' | 'REFUNDED' | 'COMPLETED' | 'CANCELED';
-    type CarrierType = 'SF' | 'JD' | 'EMS' | 'YTO' | 'ZTO' | 'STO' | 'YUNDA' | 'JITU' | 'DHL' | 'UPS' | 'FEDEX' | 'USPS' | 'YAMATO' | 'SAGAWA' | 'JAPAN_POST' | 'OTHER';
+    type CarrierType = string;
     type LogisticsStatus = 'PENDING_SHIPMENT' | 'SHIPPED' | 'IN_TRANSIT' | 'DELIVERING' | 'SIGNED' | 'EXCEPTION' | 'RETURNED';
     type RefundStatus = 'APPLYING' | 'AGREED' | 'REJECTED' | 'CANCELED';
 
@@ -14,6 +32,7 @@ declare namespace Api {
     }
 
     interface OrderDTO {
+      reviewEligibility?: Api.RealReview.OrderReviewEligibility | null;
       orderId: LongId;
       orderNo?: string;
       orderGroupNo?: string;
@@ -84,6 +103,7 @@ declare namespace Api {
      * `status` 仅用于复用当前 C 端状态标签，`rawStatus` 保留后端真实状态。
      */
     interface OrderView {
+      reviewEligibility?: Api.RealReview.OrderReviewEligibility | null;
       id: LongId;
       code: string;
       /** 真实订单号；code 可能回退为组号，不能作为精确查询条件。 */
@@ -138,6 +158,14 @@ declare namespace Api {
 
     interface OrderGroupPayParams {
       orderGroupNo: string;
+      confirmedAmount: string | number;
+    }
+    interface OrderGroupPayItem {
+      orderId: LongId; orderNo?: string; amount: string | number; success: boolean; status: OrderStatus; message?: string;
+    }
+    interface OrderGroupPayResult {
+      orderGroupNo: string; totalCount: number; paidCount: number; failedCount: number;
+      paidAmount: string | number; unpaidAmount: string | number; items: OrderGroupPayItem[];
     }
 
     interface OrderShipParams {
@@ -158,6 +186,7 @@ declare namespace Api {
     interface LogisticsExceptionMarkParams { orderId: LongId; exception: string; location?: string; }
 
     interface OrderRefundApplyParams {
+      idempotencyKey?: string;
       orderId: LongId;
       reason: string;
       evidenceImages?: string[];

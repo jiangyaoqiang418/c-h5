@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { onHide, onLoad, onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-app';
-import { fetchBoughtOrders, fetchSoldOrders, fetchOrderDetail, shipRealOrder, uploadOrderVoucher, orderRole } from '@/service/api/order';
+import { fetchBoughtOrders, fetchSoldOrders, fetchOrderDetail, fetchOrderCarriers, shipRealOrder, uploadOrderVoucher, orderRole } from '@/service/api/order';
 import { usePageOperation } from '@/utils/page-operation';
 import { RequestError } from '@/service/request';
+import { fetchReviewEligibility } from '@/service/api/review';
 import { getAccessToken } from '@/service/request/token';
 import { changeOrderWithReceipt, orderChangeBlocks, orderChangeMessage, readOrderChangeReceipts, reconcileOrderChange, type OrderChangeReceipt } from '@/utils/order-change';
 import { readRefundCreateReceipts, refundCreationBlocks, type RefundCreateReceipt } from '@/utils/refund-create';
@@ -39,7 +40,11 @@ const paying = ref(false);
 const shippingOrder = ref<Api.RealOrder.OrderView>();
 const shippingPopupVisible = ref(false);
 const shippingSubmitting = ref(false);
-const shippingForm = ref<{ carrier: Api.RealOrder.CarrierType; carrierName: string; trackingNo: string; purchaseNo: string; remark: string }>({ carrier: 'SF', carrierName: '', trackingNo: '', purchaseNo: '', remark: '' });
+const shippingForm = ref({ carrier: '', carrierName: '', trackingNo: '', purchaseNo: '', remark: '' });
+const carriers = ref<Api.RealOrder.LogisticsCarrierDTO[]>([]);
+const carriersLoading = ref(false);
+const carriersFailed = ref(false);
+const selectedCarrier = computed(() => carriers.value.find(item => item.code === shippingForm.value.carrier));
 const purchaseVouchers = ref<string[]>([]);
 const shipVouchers = ref<string[]>([]);
 const voucherUploading = ref(false);
@@ -74,7 +79,8 @@ function closeShipping() {
   shippingPopupVisible.value = false;
   shippingOrder.value = undefined;
   purchaseVouchers.value = []; shipVouchers.value = [];
-  shippingForm.value = { carrier: 'SF', carrierName: '', trackingNo: '', purchaseNo: '', remark: '' };
+  shippingForm.value = { carrier: '', carrierName: '', trackingNo: '', purchaseNo: '', remark: '' };
+  carriers.value = []; carriersLoading.value = false; carriersFailed.value = false;
 }
 watch(shippingPopupVisible, visible => { if (!visible) shippingVersion++; }, { flush: 'sync' });
 function canOperate(o: Api.RealOrder.OrderView, role: 'customer' | 'seller', status: Api.RealOrder.OrderStatus) {
@@ -100,7 +106,7 @@ function refreshChangeReceipts() {
 
 function paymentBlocked(order: Api.RealOrder.OrderView) {
   return orderRole(order, userStore.realUserId) === 'customer' && order.rawStatus === 'CREATED'
-    && (paymentReceiptFailed.value || paymentReceipts.value.some(receipt => receipt.orderGroupNo === order.orderGroupNo));
+    && (paymentReceiptFailed.value || paymentReceipts.value.some(receipt => receipt.orderGroupNo === order.orderGroupNo && !receipt.retryable));
 }
 function refreshPaymentReceipts() {
   try {
@@ -132,6 +138,20 @@ async function load(reset = true) {
     refreshChangeReceipts();
     const query = { pageNo: targetPage, pageSize: 30, status: tab?.status };
     const r = seller ? await fetchSoldOrders(query) : await fetchBoughtOrders(query);
+    if (!seller && operation.isCurrent() && token === loadToken) {
+      const completed = r.records.filter(order => order.rawStatus === 'COMPLETED');
+      try {
+        const eligibility = await fetchReviewEligibility(completed.map(order => order.id));
+        completed.forEach(order => { order.reviewEligibility = eligibility.get(String(order.id)); });
+      } catch { completed.forEach(order => { order.reviewEligibility = undefined; }); }
+    }
+    if (!seller && !paymentReceiptFailed.value && operation.isCurrent() && token === loadToken) {
+      const groups = new Set(r.records.map(order => order.orderGroupNo));
+      for (const receipt of paymentReceipts.value.filter(item => groups.has(item.orderGroupNo))) {
+        await reconcileOrderGroupPayment(receipt.orderGroupNo, userStore.realUserId!, () => operation.isCurrent() && token === loadToken);
+      }
+      if (operation.isCurrent() && token === loadToken) refreshPaymentReceipts();
+    }
     if (token === loadToken && operation.isCurrent() && filter === filterVersion) {
       const count = Number(r.total);
       if (!Number.isFinite(count) || count < 0 || (!r.records.length && (targetPage - 1) * 30 < count)) throw new Error('订单分页数据不完整，请重试');
@@ -233,7 +253,7 @@ function cancel(o: Api.RealOrder.OrderView) { return changeOrder(o, 'cancel'); }
 function confirm(o: Api.RealOrder.OrderView) { return changeOrder(o, 'confirm'); }
 
 function review(o: Api.RealOrder.OrderView) {
-  if (!canOperate(o, 'customer', 'COMPLETED')) return;
+  if (!canOperate(o, 'customer', 'COMPLETED') || o.reviewEligibility?.reviewable === false) return;
   go(`/pages/review/write?orderId=${encodeURIComponent(String(o.id))}`);
 }
 
@@ -246,10 +266,26 @@ function openShipping(o: Api.RealOrder.OrderView) {
   if (!canOperate(o, 'seller', 'PAID') || uncertainShipping.value.has(String(o.id))) return;
   shippingVersion++;
   shippingOrder.value = o;
-  shippingForm.value = { carrier: 'SF', carrierName: '', trackingNo: '', purchaseNo: '', remark: '' };
+  shippingForm.value = { carrier: '', carrierName: '', trackingNo: '', purchaseNo: '', remark: '' };
   purchaseVouchers.value = [];
   shipVouchers.value = [];
   shippingPopupVisible.value = true;
+  void loadCarriers();
+}
+
+async function loadCarriers() {
+  if (carriersLoading.value || !shippingPopupVisible.value) return;
+  const operation = page.capture(), version = shippingVersion;
+  const current = () => operation.isCurrent() && version === shippingVersion && shippingPopupVisible.value;
+  carriersLoading.value = true; carriersFailed.value = false;
+  try {
+    const result = await fetchOrderCarriers();
+    if (!current()) return;
+    carriers.value = result;
+    if (!shippingForm.value.carrier) shippingForm.value.carrier = result.find(item => item.defaultCarrier)?.code || '';
+  } catch {
+    if (current()) { carriers.value = []; carriersFailed.value = true; }
+  } finally { if (current()) carriersLoading.value = false; }
 }
 
 async function chooseVouchers(kind: 'purchase' | 'ship') {
@@ -291,8 +327,11 @@ async function submitShipping() {
     || shippingOrder.value.rawStatus !== 'PAID' || orderRole(shippingOrder.value, userStore.realUserId) !== 'seller'
     || receipts.value.get(String(shippingOrder.value.id)) === 'PAID') return;
   if (uncertainShipping.value.has(String(shippingOrder.value.id))) return;
-  if (!shippingOrder.value || !shippingForm.value.trackingNo.trim() || (shippingForm.value.carrier === 'OTHER' && !shippingForm.value.carrierName.trim())) {
-    uni.showToast({ title: shippingForm.value.carrier === 'OTHER' ? '请填写承运商名称和运单号' : '请填写运单号', icon: 'none' });
+  if (carriersLoading.value || carriersFailed.value || !selectedCarrier.value) {
+    uni.showToast({ title: '请加载并选择有效承运商', icon: 'none' }); return;
+  }
+  if (!shippingOrder.value || !shippingForm.value.trackingNo.trim() || (selectedCarrier.value.customNameRequired && !shippingForm.value.carrierName.trim())) {
+    uni.showToast({ title: selectedCarrier.value.customNameRequired ? '请填写承运商名称和运单号' : '请填写运单号', icon: 'none' });
     return;
   }
   shippingSubmitting.value = true;
@@ -303,7 +342,7 @@ async function submitShipping() {
   const request = {
     id: orderId,
     carrier: shippingForm.value.carrier,
-    carrierName: shippingForm.value.carrier === 'OTHER' ? shippingForm.value.carrierName.trim() : undefined,
+    carrierName: selectedCarrier.value.customNameRequired ? shippingForm.value.carrierName.trim() : undefined,
     trackingNo: shippingForm.value.trackingNo.trim(),
     purchaseNo: shippingForm.value.purchaseNo.trim() || undefined,
     purchaseVouchers: [...purchaseVouchers.value],
@@ -372,8 +411,9 @@ async function submitShipping() {
       <view class="shipping-popup">
         <text class="shipping-title">填写发货信息</text>
         <text v-if="shippingOrder" class="shipping-order">订单 {{ shippingOrder.code }}</text>
-        <wd-cell title="承运商"><wd-radio-group v-model="shippingForm.carrier" inline><wd-radio value="SF">顺丰</wd-radio><wd-radio value="JD">京东</wd-radio><wd-radio value="EMS">EMS</wd-radio><wd-radio value="YTO">圆通</wd-radio><wd-radio value="ZTO">中通</wd-radio><wd-radio value="OTHER">其他</wd-radio></wd-radio-group></wd-cell>
-        <wd-input v-if="shippingForm.carrier === 'OTHER'" v-model="shippingForm.carrierName" label="承运商名称" placeholder="请输入" />
+        <wd-cell title="承运商"><wd-radio-group v-model="shippingForm.carrier" inline><wd-radio v-for="carrier in carriers" :key="carrier.code" :value="carrier.code">{{ carrier.name }}</wd-radio></wd-radio-group></wd-cell>
+        <wd-button v-if="carriersFailed || !carriers.length" plain :loading="carriersLoading" @click="loadCarriers">{{ carriersFailed ? '承运商加载失败，重试' : '暂无可用承运商，刷新' }}</wd-button>
+        <wd-input v-if="selectedCarrier?.customNameRequired" v-model="shippingForm.carrierName" label="承运商名称" placeholder="请输入" />
         <wd-input v-model="shippingForm.trackingNo" label="运单号" placeholder="请输入真实运单号" />
         <wd-input v-model="shippingForm.purchaseNo" label="采购单号" placeholder="可选，海外采购单号" />
         <view class="voucher-field"><text class="voucher-label">采购凭证（可选，最多 6 张）</text><view class="voucher-grid"><view v-for="(url, index) in purchaseVouchers" :key="url" class="voucher-cell"><image :src="url" mode="aspectFill" class="voucher-image" /><view class="voucher-remove" @click="removeVoucher('purchase', index)"><wd-icon name="close" size="12px" color="#fff" /></view></view><view v-if="purchaseVouchers.length < 6" class="voucher-add" @click="chooseVouchers('purchase')"><wd-icon name="add" size="20px" /><text>{{ voucherUploading ? '上传中' : '添加' }}</text></view></view></view>

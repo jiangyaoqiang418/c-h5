@@ -5,7 +5,7 @@ import { usePageOperation } from '@/utils/page-operation';
 import { getAccessToken } from '@/service/request/token';
 import { useSubmissionGuard } from '@/utils/submission-guard';
 import SubmissionWarning from '@/components/common/submission-warning.vue';
-import { createRecharge, fetchRechargeAddress, fetchRechargeChains, fetchRechargeDetail } from '@/service/api/wallet';
+import { fetchRechargeAddress, fetchRechargeChains, fetchRechargeDetail } from '@/service/api/wallet';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 
@@ -15,9 +15,8 @@ const form = reactive<{ chain: string; amount: number }>({ chain: '', amount: 10
 const submitting = ref(false);
 const userStore = useUserStore();
 const detail = ref<Api.RealWallet.RechargeVO>();
-const submittedId = ref<string | number>();
 const guard = useSubmissionGuard('recharge', '/pages/wallet/recharge-list');
-const { uncertain, running } = guard;
+const { uncertain, running, submittedId, message, actionLabel } = guard;
 const rechargeAddress = ref<Api.RealWallet.RechargeAddressVO>();
 const addressLoading = ref(false);
 const chains = ref<Api.RealWallet.RechargeChainVO[]>([]);
@@ -213,7 +212,7 @@ async function submit() {
       uni.showToast({ title: '充值条件已变化，请核对后重新确认', icon: 'none' });
       return;
     }
-    const id = await guard.run(() => createRecharge(request));
+    const id = await guard.run(request);
     if (!operation.sameSession()) return;
     submittedId.value = id;
     if (!operation.isCurrent()) return;
@@ -253,11 +252,12 @@ async function loadPage() {
 onHide(invalidateReads);
 onShow(loadPage);
 watch(() => form.chain, loadRechargeAddress);
+watch(submittedId, () => { stopPolling(); detail.value = undefined; detailLoadToken++; detailLoading.value = false; });
 </script>
 
 <template>
   <view class="deposit-page yb-page">
-    <SubmissionWarning :pending="uncertain" :running="running" @review="guard.review" @acknowledge="guard.acknowledge" />
+    <SubmissionWarning :pending="uncertain || submittedId != null" :running="running" :message="message" :action-label="actionLabel" @review="guard.review" @acknowledge="guard.acknowledge" />
     <view v-if="submittedId != null" class="detail-card">
       <text class="tip">充值申报单已创建，请查看本次记录，不要重复创建。</text>
       <text v-if="detailLoadFailed" class="warning">到账状态暂未更新，创建回执仍保留。请刷新或进入详情核对。</text>

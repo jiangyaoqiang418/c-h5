@@ -8,6 +8,8 @@ export interface RequestOptions<TData = unknown> {
   header?: Record<string, string>;
   requireToken?: boolean;
   timeout?: number;
+  /** 幂等回查必须区分真实 data:null 与缺失/损坏响应。 */
+  requireDataEnvelope?: boolean;
 }
 
 export interface UploadOptions {
@@ -42,7 +44,10 @@ export class RequestError extends Error {
     statusCode?: number;
     code?: number | string;
   }) {
-    super(options.message);
+    // 仅收敛明确的部署诊断，不改变错误种类、状态码和业务码。
+    super(options.kind === 'config' || /chain\.callback\.base_url|swagger|nacos|(?:java|org\.springframework)\.|SQLSyntax|127\.0\.0\.1|localhost|未接入.*接口|缺少.*配置/i.test(options.message)
+      ? '服务暂不可用，请稍后重试'
+      : options.message);
     this.name = 'RequestError';
     this.kind = options.kind;
     this.statusCode = options.statusCode;
