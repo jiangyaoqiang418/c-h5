@@ -3,6 +3,7 @@ import { RequestError } from '@/service/request';
 import { getAccessToken } from '@/service/request/token';
 import { useUserStore } from '@/stores';
 import { normalizeAmount, sumAmounts } from './amount';
+import { isMissingOperationRecord } from './storage';
 import { acquireOrderOperation, orderChangeBlocks, readOrderChangeReceipts } from './order-operation-state';
 
 export interface PaymentReceipt {
@@ -27,7 +28,7 @@ const snapshot = (receipt: PaymentReceipt) => JSON.stringify(receipt.orders);
 function readStored(userId: string): PaymentReceipt[] {
   if (!userId) throw new Error('请先登录并加载账户资料');
   const stored = uni.getStorageSync(keyFor(userId));
-  if (stored == null || stored === '') return [];
+  if (isMissingOperationRecord(keyFor(userId), stored)) return [];
   try {
     if (!Array.isArray(stored) || stored.some(item => !item || typeof item.orderGroupNo !== 'string' || !item.orderGroupNo.trim()
       || typeof item.attempt !== 'string' || !item.attempt || !['unknown', 'confirmed', 'verified'].includes(item.state)

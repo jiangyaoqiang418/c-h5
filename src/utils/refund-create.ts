@@ -3,6 +3,7 @@ import { getAccessToken } from '@/service/request/token';
 import { RequestError } from '@/service/request';
 import { useUserStore } from '@/stores';
 import { normalizeAmount } from './amount';
+import { isMissingOperationRecord } from './storage';
 import { acquireOrderOperation, orderChangeBlocks, readOrderChangeReceipts } from './order-operation-state';
 import { fetchRefundContext, readRefundCancelReceipts, reconcileRefundCancels } from './refund-cancel';
 
@@ -43,7 +44,7 @@ export function refundCreationBlocks(orderId: Api.RealOrder.LongId, receipts: Re
 function readStored(userId: string): RefundCreateReceipt[] {
   if (!userId) throw new Error('请先登录并读取账户资料');
   const records = uni.getStorageSync(keyFor(userId));
-  if (records == null || records === '') return [];
+  if (isMissingOperationRecord(keyFor(userId), records)) return [];
   if (!Array.isArray(records) || records.some(item => !item || !validId(item.orderId) || !validId(item.sellerId)
     || typeof item.attempt !== 'string' || !item.attempt || !['unknown', 'confirmed', 'verified'].includes(item.state)
     || (item.idempotencyKey != null && (typeof item.idempotencyKey !== 'string' || !item.idempotencyKey.trim() || item.idempotencyKey.length > 64))
@@ -237,7 +238,9 @@ export async function retryRefundCreation(orderId: Api.RealOrder.LongId, userId:
   const token = getAccessToken();
   const current = () => stillActive() && !!token && token === getAccessToken() && userId === useUserStore().realUserId;
   if (!current()) return;
-  const release = acquireOrderOperation(userId, orderId);
+  const previous = readRefundCreateReceipts(userId).find(item => String(item.orderId) === String(orderId));
+  if (!previous) return;
+  const release = acquireOrderOperation(userId, orderId, previous.orderGroupNo);
   try {
     const receipt = await reconcileRefundCreation(orderId, userId, current);
     if (!current() || !receipt?.retryable || !receipt.idempotencyKey) return;
@@ -247,7 +250,8 @@ export async function retryRefundCreation(orderId: Api.RealOrder.LongId, userId:
     if (!current()) return;
     if (String(order.id) !== String(orderId) || orderRole(order, userId) !== 'customer' || !['PAID', 'SHIPPED'].includes(order.rawStatus)
       || order.orderGroupNo !== receipt.orderGroupNo || String(order.sellerId) !== String(receipt.sellerId)
-      || normalizeAmount(order.totalAmount) !== receipt.amount) throw new Error('原退款订单已变化，请核对后处理');
+      || normalizeAmount(order.totalAmount) !== receipt.amount
+      || orderChangeBlocks(order, readOrderChangeReceipts(userId))) throw new Error('原退款订单状态、金额或待核对操作已变化，请核对后处理');
     const marker = { ...receipt, retryable: false };
     save(userId, marker, true);
     const refundId = await createRealRefund({ orderId: receipt.orderId, reason: receipt.reason, idempotencyKey: receipt.idempotencyKey });

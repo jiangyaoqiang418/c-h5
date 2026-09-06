@@ -90,6 +90,7 @@ export async function fetchSoldOrders(query: Api.RealOrder.OrderPageQuery = {}) 
 export async function fetchPendingOrderGroup(orderGroupNo: string, customerId: string, stillActive: () => boolean = () => true) {
   const orders: Api.RealOrder.OrderView[] = [];
   const seen = new Set<string>();
+  let expectedTotal: number | undefined;
   for (let pageNo = 1; ; pageNo++) {
     if (!stillActive()) throw new Error('付款页面或账号已变化');
     const page = await fetchBoughtOrders({ pageNo, pageSize: 50, status: 'CREATED' });
@@ -97,6 +98,8 @@ export async function fetchPendingOrderGroup(orderGroupNo: string, customerId: s
     const total = Number(page.total);
     if (!Array.isArray(page.records) || !['number', 'string'].includes(typeof page.total) || String(page.total).trim() === ''
       || !Number.isSafeInteger(total) || total < 0) throw new Error('订单总数缺失，暂不能确认付款范围');
+    if (expectedTotal != null && expectedTotal !== total) throw new Error('订单列表范围已变化，请重新确认付款');
+    expectedTotal = total;
     for (const order of page.records) {
       if (!(typeof order.id === 'string' ? !!order.id.trim() : typeof order.id === 'number' && Number.isSafeInteger(order.id))) throw new Error('订单 ID 无效，暂不能确认付款范围');
       const id = String(order.id);
@@ -107,7 +110,8 @@ export async function fetchPendingOrderGroup(orderGroupNo: string, customerId: s
         orders.push(order);
       }
     }
-    if (seen.size >= total) return orders;
+    if (seen.size > total) throw new Error('订单分页总数不一致，请重新确认付款');
+    if (seen.size === total) return orders;
     if (!page.records.length) throw new Error('订单列表不完整，请刷新后重试');
   }
 }

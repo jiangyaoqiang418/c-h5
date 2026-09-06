@@ -1,3 +1,5 @@
+import { isMissingOperationRecord } from './storage';
+
 export interface OrderChangeReceipt {
   orderId: string | number;
   orderGroupNo?: string;
@@ -19,7 +21,7 @@ export const orderChangeBefore = (action: OrderChangeReceipt['action']) => actio
 function readStored(userId: string): OrderChangeReceipt[] {
   if (!userId) throw new Error('请先登录并加载账号资料');
   const value = uni.getStorageSync(keyFor(userId));
-  if (value == null || value === '') return [];
+  if (isMissingOperationRecord(keyFor(userId), value)) return [];
   const statuses = ['CREATED', 'PAID', 'SHIPPED', 'REFUND_REVIEW', 'REFUNDED', 'COMPLETED', 'CANCELED'];
   if (!Array.isArray(value) || value.some(item => !item || !validOrderId(item.orderId) || !['cancel', 'confirm'].includes(item.action)
     || typeof item.attempt !== 'string' || !item.attempt || !['unknown', 'confirmed', 'verified'].includes(item.state)

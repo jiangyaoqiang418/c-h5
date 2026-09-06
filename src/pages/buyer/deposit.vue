@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { onHide, onReachBottom, onShow } from '@dcloudio/uni-app';
 import { usePagedList } from '@/utils/paged-list';
 import { usePageOperation } from '@/utils/page-operation';
+import { isMissingOperationRecord } from '@/utils/storage';
 import { useNavigationGuards } from '@/utils/navigate';
 import { RequestError } from '@/service/request';
 import { formatAmount } from '@/utils/format-bridge';
@@ -40,7 +41,7 @@ function readPending() {
   try {
     if (!userStore.realUserId) { pending.value = undefined; return; }
     const saved = uni.getStorageSync(pendingKey());
-    if (!saved) { if (pending.value?.receiptId == null) pending.value = undefined; return; }
+    if (isMissingOperationRecord(pendingKey(), saved)) { if (pending.value?.receiptId == null) pending.value = undefined; return; }
     if ((saved.action !== 'pay' && saved.action !== 'refund') || typeof saved.amount !== 'number'
       || !Number.isFinite(saved.amount) || saved.amount <= 0 || typeof saved.idempotencyKey !== 'string'
       || !saved.idempotencyKey.trim() || saved.idempotencyKey.length > 36

@@ -5,6 +5,7 @@ import { createRecharge, createWithdraw, fetchRechargeByKey, fetchWithdrawByKey,
 import { fetchFinanceOrderByKey, fetchFinanceProductDetail, subscribeFinance } from '@/service/api/finance';
 import { formatRate } from './format-bridge';
 import { normalizeAmount } from './amount';
+import { isMissingOperationRecord } from './storage';
 import { go } from '@/utils/navigate';
 import { usePageOperation } from './page-operation';
 
@@ -38,7 +39,7 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
   }
   function read(recordKey: string): Receipt | 'legacy' | undefined {
     const stored = uni.getStorageSync(recordKey), cached = memory.get(recordKey);
-    if (stored == null || stored === '') return cached ? clone(cached) : undefined;
+    if (isMissingOperationRecord(recordKey, stored)) return cached ? clone(cached) : undefined;
     if (typeof stored === 'string') return 'legacy';
     const r = stored as Receipt;
     if (r.version !== 2 || r.kind !== kind || `bw_h5_submission_guard_v1:${r.userId}:${kind}` !== recordKey
@@ -174,7 +175,7 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
         const latest = read(recordKey);
         if (!latest || latest === 'legacy' || latest.request.idempotencyKey !== r.request.idempotencyKey) return;
         uni.removeStorageSync(recordKey);
-        if (uni.getStorageSync(recordKey)) throw new Error('本机申请记录未能清理');
+        if (!isMissingOperationRecord(recordKey, uni.getStorageSync(recordKey))) throw new Error('本机申请记录未能清理');
         memory.delete(recordKey);
       } else if (continueOperation) {
         const terms = await retryTerms(r, operation.isCurrent);

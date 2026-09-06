@@ -7,6 +7,7 @@ import LockupCard from '@/components/finance/lockup-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore, useWalletStore } from '@/stores';
 import { usePageOperation } from '@/utils/page-operation';
+import { isMissingOperationRecord } from '@/utils/storage';
 import { useNavigationGuards } from '@/utils/navigate';
 import { RequestError } from '@/service/request';
 
@@ -44,7 +45,7 @@ function storageKey() {
 
 function storedReceipts(key: string): RedemptionReceipt[] {
   const stored = uni.getStorageSync(key);
-  if (!stored) return [];
+  if (isMissingOperationRecord(key, stored)) return [];
   if (!Array.isArray(stored) || stored.some(item => !item || !['string', 'number'].includes(typeof item.id)
     || !String(item.id).trim() || (typeof item.id === 'number' && !Number.isFinite(item.id))
     || typeof item.attempt !== 'string' || !item.attempt || !['unknown', 'confirmed', 'verified'].includes(item.state))) {
