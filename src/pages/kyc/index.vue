@@ -67,6 +67,10 @@ const requestSnapshot = computed(() => ({ realName: form.realName.trim(), idType
 const validation = computed(() => kycValidation(requestSnapshot.value, schema.value, status.value === 'rejected'));
 const canSubmit = computed(() => !!userStore.currentUser && !formLocked.value && status.value !== 'approved' && status.value !== 'pending' && validation.value.identity && validation.value.images);
 const formLocked = computed(() => loading.value || loadFailed.value || !validation.value.allowed || !!uploading.value || submitting.value || !!receipt.value || receiptFailed.value);
+const canStartAnother = computed(() => page.visible.value && !loading.value && !loadFailed.value && !detailLoadFailed.value
+  && !submitting.value && !uploading.value && !receiptFailed.value && receipt.value?.state === 'verified'
+  && !!schema.value && !!detail.value && String(detail.value.id) === String(receipt.value.recordId)
+  && kycCanApply(detail.value, schema.value));
 const statusTitle = computed(() => status.value === 'approved' ? '您已完成 KYC 实名认证' : status.value === 'pending' ? '实名认证审核中' : status.value === 'rejected' ? '实名认证未通过' : '实名认证');
 
 function formatTime(value?: Api.RealKyc.Id): string {
@@ -200,7 +204,7 @@ async function submit() {
   }
 }
 async function startAnother() {
-  if (!page.visible.value || loading.value || submitting.value || receiptFailed.value || receipt.value?.state !== 'verified') return;
+  if (!canStartAnother.value || !receipt.value) return;
   const operation = page.capture();
   submitting.value = true;
   try {
@@ -227,6 +231,7 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
         <view v-if="detail.idCardFront || detail.idCardBack || detail.holdingPhoto" class="image-row"><image v-if="detail.idCardFront" :src="detail.idCardFront" mode="aspectFill" /><image v-if="detail.idCardBack" :src="detail.idCardBack" mode="aspectFill" /><image v-if="detail.holdingPhoto" :src="detail.holdingPhoto" mode="aspectFill" /></view>
       </view>
       <view v-if="schema?.noticeText" class="record-card">{{ schema.noticeText }}</view>
+      <wd-button v-if="canStartAnother" block plain @click="startAnother">重新申请</wd-button>
       <view v-if="status === 'rejected' && schema?.resubmitAfterRejectAllowed === false" class="record-card">当前认证规则暂不允许驳回后重新提交，请联系平台。</view>
       <view v-if="status !== 'approved' && status !== 'pending' && validation.allowed" class="form-card">
         <text class="document-hint">切换证件类型后，需重新上传全部证件影像。</text><wd-steps :active="step"><wd-step title="身份信息" /><wd-step title="证件影像" /><wd-step title="确认提交" /></wd-steps>
