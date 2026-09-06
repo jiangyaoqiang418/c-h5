@@ -212,10 +212,8 @@ function formatDate(value?: string | number): string {
     </view>
 
     <wd-button v-if="Object.keys(pendingAppeals).length" block plain @click="viewAppeals">申诉已提交，查看记录</wd-button>
-    <template v-if="activeKey === 'log'">
-      <LedgerFilters :key="userStore.realUserId || 'guest'" mode="points" :disabled="loading || !userStore.currentUser" :behaviors="rules.map(item => ({ value: item.code, label: item.label }))" @apply="applyFilters" />
-      <wd-button v-if="filterRulesFailed" plain block @click="loadFilterRules">行为选项加载失败，点击重试</wd-button>
-    </template>
+    <LedgerFilters v-show="activeKey === 'log'" :key="userStore.realUserId || 'guest'" mode="points" :disabled="loading || !userStore.currentUser" :behaviors="rules.map(item => ({ value: item.code, label: item.label }))" @apply="applyFilters" />
+    <wd-button v-if="activeKey === 'log' && filterRulesFailed" plain block @click="loadFilterRules">行为选项加载失败，点击重试</wd-button>
     <EmptyState v-if="loadFailed" title="积分数据加载失败" description="请重新加载后继续" action-text="重新加载" @action="load()" />
 
     <view v-else-if="activeKey === 'log'" class="list">

@@ -141,7 +141,7 @@ function bucketLabel(key: string): string {
       <text class="hero-eyebrow">TOTAL ASSETS · USDT</text>
       <view class="hero-total">
         <text class="unit">U</text>
-        <text class="num">{{ formatAmount(walletStore.totalAssets) }}</text>
+        <text class="num" :class="{ 'num-long': formatAmount(walletStore.totalAssets).length > 12 }">{{ formatAmount(walletStore.totalAssets) }}</text>
       </view>
       <text class="hero-sub">
         参考 ≈ <text class="cny-num">¥{{ cnyEquiv }}</text>  · 参考汇率 1 USDT = ¥{{ cnyRate.toFixed(2) }}
@@ -286,18 +286,25 @@ function bucketLabel(key: string): string {
   margin-bottom: 12rpx;
 }
 .hero-total .unit {
+  flex-shrink: 0;
   font-family: ui-monospace, monospace;
   font-size: 36rpx;
   font-weight: 600;
   color: rgba(255,255,255,.76);
 }
 .hero-total .num {
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
   font-family: ui-monospace, monospace;
   font-size: 88rpx;
   font-weight: 700;
   color: #fff;
   letter-spacing: -3rpx;
-  line-height: 1;
+  line-height: 1.15;
+}
+.hero-total .num-long {
+  font-size: 60rpx;
 }
 .hero-sub {
   display: block;
