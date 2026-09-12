@@ -213,6 +213,8 @@ function applyRealtimeRecall(event: unknown) {
     recalled: true,
     content: undefined,
     mediaUrl: undefined,
+    mediaFileId: undefined,
+    params: undefined,
     duration: undefined
   } as Api.RealNotify.Message;
 }
@@ -386,7 +388,7 @@ function mergeServerMessages(incoming: Api.RealNotify.Message[]) {
     const previous = messages.value.find(matches);
     const merged = { ...previous, ...message, pending: false, failed: false };
     if (previous?.recalled || message.recalled) {
-      Object.assign(merged, { recalled: true, content: undefined, mediaUrl: undefined, duration: undefined });
+      Object.assign(merged, { recalled: true, content: undefined, mediaUrl: undefined, mediaFileId: undefined, duration: undefined, params: undefined });
       stopRecalledVoice(message.id);
       if (previous) stopRecalledVoice(previous.id);
       uncertainRecalls.value = uncertainRecalls.value.filter(id => id !== String(message.id));

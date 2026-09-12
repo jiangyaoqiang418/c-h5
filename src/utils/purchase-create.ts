@@ -1,6 +1,6 @@
 import { createPurchase, fetchMyPurchaseRecords, fetchPurchaseRecord, type PurchaseCreateParams } from '@/service/api/purchase';
 import { fetchAddressDetail, fetchMyAddresses, type AddressRecord } from '@/service/api/address';
-import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
+import { fetchCategoryTree, enabledThirdLevelCategories } from '@/service/api/category';
 import { getAccessToken } from '@/service/request/token';
 import { RequestError } from '@/service/request';
 import { useUserStore } from '@/stores';
@@ -28,14 +28,7 @@ const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const origin = (receipt: PurchaseCreateReceipt) => JSON.stringify([receipt.request, receipt.imagePaths, receipt.beforeIds]);
 
 /** 只允许启用的三级节点，祖先被禁用时不开放其后代。 */
-export function purchaseCategoryOptions(nodes: CategoryNode[], parents: string[] = []): { id: string; name: string }[] {
-  return nodes.flatMap(node => {
-    if (node.enabled === false) return [];
-    const path = [...parents, node.name];
-    return node.level === 3 ? [{ id: String(node.id), name: path.join(' / ') }]
-      : purchaseCategoryOptions(node.children || [], path);
-  });
-}
+export const purchaseCategoryOptions = enabledThirdLevelCategories;
 
 function imagePath(url: string) {
   const match = typeof url === 'string' && /^https?:\/\/[^/?#]+(\/[^?#]+)/i.exec(url);

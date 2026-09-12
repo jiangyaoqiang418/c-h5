@@ -3,6 +3,7 @@ import { getAccessToken } from '@/service/request/token';
 import { RequestError } from '@/service/request';
 import { useUserStore } from '@/stores';
 import { normalizeAmount } from './amount';
+import { fetchCategoryTree, enabledThirdLevelCategories } from '@/service/api/category';
 
 export interface ProductCreateReceipt {
   attempt: string;
@@ -164,6 +165,9 @@ export async function createProductWithReceipt(params: Api.RealProduct.ProductCr
     await user.refreshProfile();
     if (!current()) return;
     if (!user.canSwitchToBuyer) throw new Error('商品发布资格已变化，请重新确认');
+    const categories = enabledThirdLevelCategories(await fetchCategoryTree({ onlyEnabled: true }));
+    if (!current()) return;
+    if (!categories.some(item => item.id === String(request.categoryId))) throw new Error('所选分类已不可用，请重新选择三级分类');
     marker = { attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, request, imagePaths, beforeIds: products.map(item => String(item.id)), state: 'unknown' };
     save(userId, marker, true);
     sent = true;

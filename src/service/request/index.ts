@@ -76,27 +76,34 @@ export function notifyLoginExpired(token: string): void {
   }, 300);
 }
 
-function throwBusinessError(body: ServiceEnvelope<unknown>, token: string): never {
-  const code = body.code === undefined || body.code === null ? '' : String(body.code);
-  const message = body.message || body.msg || '业务请求失败';
-  if (code === '-311' || code === '-312') throw new RequestError({ kind: 'business', message, code: body.code });
-  if (realServiceConfig.logoutCodes.includes(code) || realServiceConfig.modalLogoutCodes.includes(code)) {
-    notifyLoginExpired(token);
-    throw new RequestError({ kind: 'unauthorized', message, code: body.code });
-  }
-  throw new RequestError({ kind: 'business', message, code: body.code });
+export function responseTraceId(headers?: Record<string, unknown>): string | undefined {
+  const value = Object.entries(headers || {}).find(([key]) => key.toLowerCase() === 'x-trace-id')?.[1];
+  if (typeof value !== 'string') return;
+  const values = [...new Set(value.split(',').map(item => item.trim()).filter(Boolean))];
+  return values.length ? values.join(', ') : undefined;
 }
 
-function unwrapBody<T>(body: unknown, token: string, requireDataEnvelope = false): T {
+function throwBusinessError(body: ServiceEnvelope<unknown>, token: string, traceId?: string): never {
+  const code = body.code === undefined || body.code === null ? '' : String(body.code);
+  const message = body.message || body.msg || '业务请求失败';
+  if (code === '-311' || code === '-312') throw new RequestError({ kind: 'business', message, code: body.code, traceId });
+  if (realServiceConfig.logoutCodes.includes(code) || realServiceConfig.modalLogoutCodes.includes(code)) {
+    notifyLoginExpired(token);
+    throw new RequestError({ kind: 'unauthorized', message, code: body.code, traceId });
+  }
+  throw new RequestError({ kind: 'business', message, code: body.code, traceId });
+}
+
+function unwrapBody<T>(body: unknown, token: string, requireDataEnvelope = false, traceId?: string): T {
   if (requireDataEnvelope && (!isEnvelope(body) || !Object.prototype.hasOwnProperty.call(body, 'data')
     || body.data === undefined || String(body.code) !== realServiceConfig.successCode)) {
-    if (isEnvelope(body) && (body.success === false || (body.code != null && String(body.code) !== realServiceConfig.successCode))) throwBusinessError(body, token);
-    throw new RequestError({ kind: 'business', message: '原单回查响应不完整，不能据此重试' });
+    if (isEnvelope(body) && (body.success === false || (body.code != null && String(body.code) !== realServiceConfig.successCode))) throwBusinessError(body, token, traceId);
+    throw new RequestError({ kind: 'business', message: '原单回查响应不完整，不能据此重试', traceId });
   }
   if (!isEnvelope(body)) return body as T;
   const code = body.code === undefined || body.code === null ? '' : String(body.code);
   if ((code && code !== realServiceConfig.successCode) || body.success === false) {
-    throwBusinessError(body, token);
+    throwBusinessError(body, token, traceId);
   }
   return body.data as T;
 }
@@ -130,18 +137,19 @@ export function createRequest(baseURL: string) {
       });
     }
 
+    const traceId = responseTraceId(response.header);
     if (token && token !== getAccessToken()) {
-      throw new RequestError({ kind: 'unauthorized', message: '会话已切换，本次响应已忽略' });
+      throw new RequestError({ kind: 'unauthorized', message: '会话已切换，本次响应已忽略', traceId });
     }
     if (response.statusCode === 401) {
       notifyLoginExpired(token);
-      throw new RequestError({ kind: 'unauthorized', message: '登录已失效', statusCode: response.statusCode });
+      throw new RequestError({ kind: 'unauthorized', message: '登录已失效', statusCode: response.statusCode, traceId });
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new RequestError({ kind: 'http', message: `请求失败（${response.statusCode}）`, statusCode: response.statusCode });
+      throw new RequestError({ kind: 'http', message: `请求失败（${response.statusCode}）`, statusCode: response.statusCode, traceId });
     }
 
-    return unwrapBody<T>(response.data, token, options.requireDataEnvelope);
+    return unwrapBody<T>(response.data, token, options.requireDataEnvelope, traceId);
   };
 }
 
@@ -155,7 +163,7 @@ export function createUpload(baseURL: string) {
     const header: Record<string, string> = { ...options.header };
     if (token) header['X-Access-Token'] = token;
 
-    let response: { statusCode: number; data: string };
+    let response: { statusCode: number; data: string; header?: Record<string, unknown> };
     try {
       response = await new Promise((resolve, reject) => {
         uni.uploadFile({
@@ -176,15 +184,16 @@ export function createUpload(baseURL: string) {
       });
     }
 
+    const traceId = responseTraceId(response.header);
     if (token && token !== getAccessToken()) {
-      throw new RequestError({ kind: 'unauthorized', message: '会话已切换，本次上传响应已忽略' });
+      throw new RequestError({ kind: 'unauthorized', message: '会话已切换，本次上传响应已忽略', traceId });
     }
     if (response.statusCode === 401) {
       notifyLoginExpired(token);
-      throw new RequestError({ kind: 'unauthorized', message: '登录已失效', statusCode: response.statusCode });
+      throw new RequestError({ kind: 'unauthorized', message: '登录已失效', statusCode: response.statusCode, traceId });
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new RequestError({ kind: 'http', message: `上传失败（${response.statusCode}）`, statusCode: response.statusCode });
+      throw new RequestError({ kind: 'http', message: `上传失败（${response.statusCode}）`, statusCode: response.statusCode, traceId });
     }
 
     let body: unknown;
@@ -193,7 +202,7 @@ export function createUpload(baseURL: string) {
     } catch {
       body = response.data;
     }
-    return unwrapBody<T>(body, token);
+    return unwrapBody<T>(body, token, false, traceId);
   };
 }
 

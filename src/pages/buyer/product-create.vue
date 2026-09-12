@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
-import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
+import { fetchCategoryTree, enabledThirdLevelCategories } from '@/service/api/category';
 import { uploadProductImage } from '@/service/api/product';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
@@ -61,14 +61,6 @@ const canPublish = computed(() => page.visible.value && !loading.value && !loadF
 
 const categoryName = computed(() => categories.value.find(item => item.id === form.categoryId)?.name || '请选择');
 
-function flattenCategories(nodes: CategoryNode[], parents: string[] = []): CategoryOption[] {
-  return nodes.flatMap(node => {
-    const path = [...parents, node.name];
-    const current = { id: String(node.id), name: path.join(' / ') };
-    return [current, ...flattenCategories(node.children || [], path)];
-  });
-}
-
 async function load() {
   if (!page.visible.value || uploading.value || submitting.value) return;
   const operation = page.capture();
@@ -96,7 +88,7 @@ async function load() {
     await userStore.refreshProfile();
     if (!valid() || !userStore.canSwitchToBuyer) return;
     const tree = await fetchCategoryTree({ onlyEnabled: true });
-    if (valid()) categories.value = flattenCategories(tree);
+    if (valid()) categories.value = enabledThirdLevelCategories(tree);
   } catch (error) {
     if (!valid()) return;
     loadFailed.value = true;

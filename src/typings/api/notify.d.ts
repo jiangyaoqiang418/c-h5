@@ -55,7 +55,8 @@ declare namespace Api {
       mediaUrl?: string | null;
       duration?: number | null;
       eventType?: string;
-      params?: Record<string, unknown>;
+      params?: Record<string, unknown> | null;
+      mediaFileId?: Id | null;
       clientMsgId?: string;
       recalled?: boolean;
       createdAt?: string | number;

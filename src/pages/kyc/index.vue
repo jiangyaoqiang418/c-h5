@@ -24,6 +24,15 @@ const receipt = ref<KycCreateReceipt>();
 const receiptFailed = ref(false);
 const detail = ref<Api.RealKyc.DetailVO | null>(null);
 const schema = ref<Api.RealKyc.Schema>();
+const detailPhotos = computed(() => {
+  const record = detail.value;
+  if (!record) return [];
+  return [
+    { label: '证件正面', url: record.idCardFront, visible: true },
+    { label: '证件反面', url: record.idCardBack, visible: !!record.idCardBack || record.idCardBackFileId != null || schema.value?.idCardBackRequired === true },
+    { label: '手持证件照', url: record.holdingPhoto, visible: !!record.holdingPhoto || record.holdingPhotoFileId != null || schema.value?.holdingPhotoRequired === true }
+  ].filter(photo => photo.visible);
+});
 const step = ref(0);
 const form = reactive({
   realName: '',
@@ -79,7 +88,7 @@ function formatTime(value?: Api.RealKyc.Id): string {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
-async function resolvePrivateFile(fileId?: Api.RealKyc.Id, fallback?: string): Promise<string | undefined> {
+async function resolvePrivateFile(fileId?: Api.RealKyc.Id, fallback?: string | null): Promise<string | null | undefined> {
   if (fileId !== undefined && fileId !== null) {
     try {
       return (await fetchKycFileAccess(fileId)).url;
@@ -228,7 +237,12 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
       <view class="status-card" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.account})` }"><KycStatusTag :status="status" /><text class="title">{{ statusTitle }}</text><text v-if="detail?.reviewRemark" class="review-remark">审核意见：{{ detail.reviewRemark }}</text><text v-else-if="detailLoadFailed" class="review-remark">历史认证资料暂不可查看，请联系平台处理。</text></view>
       <view v-if="detail" class="record-card">
         <view class="record-row"><text class="label">姓名</text><text>{{ detail.realName || '-' }}</text></view><view class="record-row"><text class="label">证件类型</text><text>{{ detail.idType === 'PASSPORT' ? '护照' : '身份证' }}</text></view><view class="record-row"><text class="label">证件号码</text><text>{{ detail.idNo || '-' }}</text></view><view class="record-row"><text class="label">提交时间</text><text>{{ formatTime(detail.submittedAt) }}</text></view><view v-if="detail.expireAt" class="record-row"><text class="label">有效期至</text><text>{{ formatTime(detail.expireAt) }}</text></view>
-        <view v-if="detail.idCardFront || detail.idCardBack || detail.holdingPhoto" class="image-row"><image v-if="detail.idCardFront" :src="detail.idCardFront" mode="aspectFill" /><image v-if="detail.idCardBack" :src="detail.idCardBack" mode="aspectFill" /><image v-if="detail.holdingPhoto" :src="detail.holdingPhoto" mode="aspectFill" /></view>
+        <view class="image-row">
+          <view v-for="photo in detailPhotos" :key="photo.label" class="record-photo">
+            <image v-if="photo.url" :src="photo.url" mode="aspectFill" />
+            <view v-else class="photo-empty"><text>{{ photo.label }}</text><text>暂无图片</text></view>
+          </view>
+        </view>
       </view>
       <view v-if="schema?.noticeText" class="record-card">{{ schema.noticeText }}</view>
       <wd-button v-if="canStartAnother" block plain @click="startAnother">重新申请</wd-button>
@@ -245,6 +259,7 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
 </template>
 
 <style lang="scss" scoped>
+.record-photo { width:31%; min-width:0; }.image-row .record-photo image { width:100%; }.photo-empty { height:160rpx; border-radius:8rpx; background:var(--yb-bg); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:8rpx; color:#86909c; font-size:22rpx; }
 .document-hint { display:block; margin-bottom:20rpx; color:#86909c; font-size:24rpx; }
 .kyc-page { min-height: 100%; box-sizing: border-box; padding: 24rpx 24rpx 180rpx; background: var(--yb-bg); }.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:#86909c; }.status-card,.record-card,.form-card,.error-card { margin-bottom:20rpx; padding:24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.status-card { background-color:#10131f; background-size:cover; background-position:center; color:#fff; }.status-card .title { color:#fff; }.title { display:block; margin-top:12rpx; font-size:28rpx; font-weight:600; color:#1d2129; }.review-remark { display:block; margin-top:16rpx; color:#f53f3f; font-size:24rpx; }.record-row { display:flex; justify-content:space-between; gap:24rpx; padding:18rpx 0; border-bottom:1rpx solid #f2f3f5; font-size:24rpx; }.label { color:#86909c; }.image-row { display:flex; gap:12rpx; margin-top:20rpx; }.image-row image { width:31%; height:160rpx; border-radius:8rpx; }.upload-list { display:flex; flex-direction:column; gap:16rpx; margin-top:24rpx; }.upload-card { min-height:150rpx; padding:16rpx; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); display:flex; flex-direction:column; gap:12rpx; color:#86909c; font-size:24rpx; }.upload-card image { width:100%; height:220rpx; border-radius:var(--yb-radius-md); }.summary { display:flex; flex-direction:column; gap:16rpx; padding-top:24rpx; font-size:24rpx; }.nav-bar { display:flex; gap:12rpx; margin-top:24rpx; }.nav-bar > * { flex:1; }
 </style>
