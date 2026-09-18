@@ -17,8 +17,10 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 
 const { requireLogin } = useNavigationGuards();
+const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
@@ -180,7 +182,9 @@ async function pay() {
   const userId = userStore.realUserId!;
   const operation = page.capture();
   try {
-    const receipt = await confirmOrderGroupPayment(order.value.orderGroupNo, userId, operation.isCurrent);
+    const payPassword = await payPasswordPopup.value?.request(`/pages/order/detail?id=${encodeURIComponent(String(order.value.id))}`);
+    if (!payPassword || !operation.isCurrent()) return;
+    const receipt = await confirmOrderGroupPayment(order.value.orderGroupNo, userId, payPassword, operation.isCurrent);
     if (receipt && operation.sameSession()) {
       paymentReceipts.value = [...paymentReceipts.value.filter(item => item.orderGroupNo !== receipt.orderGroupNo), receipt];
       refreshPaymentReceipts();
@@ -289,6 +293,7 @@ function submitException() { return submitLogistics('exception'); }
 </script>
 
 <template>
+  <PayPasswordPopup ref="payPasswordPopup" />
   <view v-if="order" class="detail-page yb-page">
     <wd-button v-if="loadFailed || logisticsLoadFailed" block plain :disabled="busy" :loading="loading" @click="reload">部分数据刷新失败，点击重试</wd-button>
     <view v-if="isCustomer && paymentReceipt" class="section">

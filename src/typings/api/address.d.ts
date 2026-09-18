@@ -6,7 +6,10 @@ declare namespace Api {
       id?: LongId;
       receiverName: string;
       receiverPhone: string;
-      country: string;
+      countryCode: string;
+      provinceCode?: string;
+      cityCode?: string;
+      districtCode?: string;
       province?: string;
       city?: string;
       district?: string;
@@ -22,9 +25,13 @@ declare namespace Api {
       receiverName?: string;
       receiverPhone?: string;
       country?: string;
+      countryCode?: string;
       province?: string;
+      provinceCode?: string;
       city?: string;
+      cityCode?: string;
       district?: string;
+      districtCode?: string;
       detailAddress?: string;
       postalCode?: string;
       idCardNo?: string;
@@ -47,5 +54,7 @@ declare namespace Api {
       total: number;
       records: UserAddressVO[];
     }
+    interface CountryVO { code: string; name: string; enName?: string; phoneCode?: string; hasRegion: boolean }
+    interface RegionVO { code: string; name: string; level: number; parentCode?: string | null; leaf: boolean }
   }
 }

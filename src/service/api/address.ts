@@ -5,9 +5,13 @@ export interface AddressRecord {
   receiverName: string;
   receiverPhone: string;
   country: string;
+  countryCode: string;
   province: string;
+  provinceCode?: string;
   city: string;
+  cityCode?: string;
   district: string;
+  districtCode?: string;
   detail: string;
   postalCode?: string;
   idCardNo?: string;
@@ -18,6 +22,10 @@ export interface AddressRecord {
 export interface AddressForm {
   receiverName: string;
   receiverPhone: string;
+  countryCode: string;
+  provinceCode?: string;
+  cityCode?: string;
+  districtCode?: string;
   province: string;
   city: string;
   district: string;
@@ -31,9 +39,13 @@ function toAddressRecord(address: Api.RealAddress.UserAddressVO): AddressRecord 
     receiverName: address.receiverName || '',
     receiverPhone: address.receiverPhone || '',
     country: address.country || '',
+    countryCode: address.countryCode || '',
     province: address.province || '',
+    provinceCode: address.provinceCode,
     city: address.city || '',
+    cityCode: address.cityCode,
     district: address.district || '',
+    districtCode: address.districtCode,
     detail: address.detailAddress || '',
     postalCode: address.postalCode,
     idCardNo: address.idCardNo,
@@ -47,13 +59,24 @@ function toSaveQO(form: AddressForm, id?: Api.RealAddress.LongId): Api.RealAddre
     id,
     receiverName: form.receiverName,
     receiverPhone: form.receiverPhone,
-    country: '中国',
+    countryCode: form.countryCode,
+    provinceCode: form.provinceCode,
+    cityCode: form.cityCode,
+    districtCode: form.districtCode,
     province: form.province,
     city: form.city,
     district: form.district,
     detailAddress: form.detail,
     defaultFlag: form.isDefault
   };
+}
+
+export function fetchCountries() {
+  return realUserRequest<Api.RealAddress.CountryVO[]>({ url: '/regions/countries' });
+}
+
+export function fetchRegionChildren(countryCode: string, parentCode?: string) {
+  return realUserRequest<Api.RealAddress.RegionVO[]>({ url: '/regions/children', params: { countryCode, parentCode: parentCode || undefined } });
 }
 
 export async function fetchMyAddresses(): Promise<AddressRecord[]> {

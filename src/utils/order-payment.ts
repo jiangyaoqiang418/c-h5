@@ -125,7 +125,7 @@ export function isOrderPaid(order: Api.RealOrder.OrderView) {
 }
 
 /** 只负责确认和提交；已有回执时绝不再次付款，调用方单独核对详情。 */
-export async function confirmOrderGroupPayment(orderGroupNo: string, customerId: string, stillActive: () => boolean): Promise<PaymentReceipt | undefined> {
+export async function confirmOrderGroupPayment(orderGroupNo: string, customerId: string, payPassword: string, stillActive: () => boolean): Promise<PaymentReceipt | undefined> {
   const token = getAccessToken();
   const current = () => stillActive() && !!token && token === getAccessToken() && customerId === useUserStore().realUserId;
   if (!customerId || !orderGroupNo || !current()) throw new Error('付款页面或账号已变化');
@@ -162,7 +162,7 @@ export async function confirmOrderGroupPayment(orderGroupNo: string, customerId:
       history: previous ? [...(previous.history || []), { attempt: previous.attempt, orders: previous.orders, paidCount: previous.paidCount, result: previous.result }] : undefined };
     saveReceipt(customerId, marker, true);
     try {
-      const result = validatePayResult(await payRealOrderGroup({ orderGroupNo, confirmedAmount: total }), orderGroupNo);
+      const result = validatePayResult(await payRealOrderGroup({ orderGroupNo, confirmedAmount: total, payPassword }), orderGroupNo);
       if (result.items.length !== marker.orders.length || result.items.some(item => !marker!.orders.some(order => order.id === String(item.orderId)
         && order.amount === normalizeAmount(item.amount)))) return marker;
       return saveKnownReceipt(customerId, { ...marker, state: 'confirmed', paidCount: result.paidCount, result });

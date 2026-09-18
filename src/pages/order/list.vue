@@ -13,10 +13,12 @@ import OrderCard from '@/components/order/order-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
+import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 
 const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
+const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 
 interface TabDef {
   key: string;
@@ -203,7 +205,9 @@ async function pay(o: Api.RealOrder.OrderView) {
   const filter = filterVersion;
   try {
     const current = () => operation.isCurrent() && filter === filterVersion;
-    const receipt = await confirmOrderGroupPayment(o.orderGroupNo, userId, current);
+    const payPassword = await payPasswordPopup.value?.request('/pages/order/list');
+    if (!payPassword || !current()) return;
+    const receipt = await confirmOrderGroupPayment(o.orderGroupNo, userId, payPassword, current);
     if (receipt && operation.sameSession()) {
       paymentReceipts.value = [...paymentReceipts.value.filter(item => item.orderGroupNo !== receipt.orderGroupNo), receipt];
       refreshPaymentReceipts();
@@ -377,6 +381,7 @@ async function submitShipping() {
 
 <template>
   <view class="order-list-page yb-page yb-page--full-bleed">
+    <PayPasswordPopup ref="payPasswordPopup" />
     <view class="yb-sticky-tabs-frame">
       <wd-tabs v-model="activeKey">
         <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />

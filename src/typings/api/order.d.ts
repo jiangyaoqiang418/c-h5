@@ -159,6 +159,7 @@ declare namespace Api {
     interface OrderGroupPayParams {
       orderGroupNo: string;
       confirmedAmount: string | number;
+      payPassword: string;
     }
     interface OrderGroupPayItem {
       orderId: LongId; orderNo?: string; amount: string | number; success: boolean; status: OrderStatus; message?: string;

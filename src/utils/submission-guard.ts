@@ -73,15 +73,17 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
     } catch { uncertain.value = true; }
   }
   onShow(refresh);
-  async function send(recordKey: string, r: Receipt) {
+  async function send(recordKey: string, r: Receipt, payPassword?: string) {
     const request = clone(r.request);
-    const id = kind === 'withdraw' ? await createWithdraw(request as WithdrawParams)
-      : kind === 'recharge' ? await createRecharge(request as RechargeParams) : await subscribeFinance(request as Api.RealFinance.SubscribeParams);
+    const protectedRequest = kind === 'recharge' ? request : { ...request, payPassword };
+    if (kind !== 'recharge' && !/^\d{6}$/.test(payPassword || '')) throw new Error('请重新输入6位支付密码');
+    const id = kind === 'withdraw' ? await createWithdraw(protectedRequest as WithdrawParams)
+      : kind === 'recharge' ? await createRecharge(request as RechargeParams) : await subscribeFinance(protectedRequest as Api.RealFinance.SubscribeParams);
     if (!validId(id)) throw new Error('提交回执缺失，请核对原申请');
     save(recordKey, { ...r, recordId: id });
     return id;
   }
-  async function run(request: Requests[K]): Promise<string | number> {
+  async function run(request: Requests[K], payPassword?: string): Promise<string | number> {
     const operation = page.capture();
     if (!operation.isCurrent()) throw new Error('请返回操作页面后重新确认');
     const recordKey = key();
@@ -92,7 +94,7 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
       request: { ...original, idempotencyKey: `${kind}-${Date.now()}-${Math.random().toString(36).slice(2)}` } };
     save(recordKey, r, true);
     active.add(recordKey); running.value = true; refresh();
-    try { return await send(recordKey, r); }
+    try { return await send(recordKey, r, payPassword); }
     finally { active.delete(recordKey); if (operation.sameSession()) { running.value = false; refresh(); } }
   }
   async function lookup(recordKey: string, r: Receipt, current: () => boolean) {
@@ -153,7 +155,7 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
     }
     return { fingerprint: JSON.stringify(terms), summary };
   }
-  async function recover(continueOperation: boolean) {
+  async function recover(continueOperation: boolean, payPassword?: string) {
     if (!page.visible.value || !userStore.realUserId || running.value) return;
     const operation = page.capture(), recordKey = key();
     if (active.has(recordKey)) return;
@@ -185,12 +187,12 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
         if (latestTerms.fingerprint !== terms.fingerprint) throw new Error('原申请条件再次变化，请重新核对后确认');
         const latest = read(recordKey);
         if (!latest || latest === 'legacy' || latest.request.idempotencyKey !== r.request.idempotencyKey || latest.recordId != null) return;
-        const originalId = await send(recordKey, r);
+        const originalId = await send(recordKey, r, payPassword);
         if (operation.isCurrent()) navigate(originalId);
       } else uni.showToast({ title: '尚未查到原申请，可通过“核对并继续”确认后重试', icon: 'none' });
     } catch (error) {
       if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '原申请核对失败，请稍后重试', icon: 'none' });
     } finally { active.delete(recordKey); if (operation.sameSession()) { running.value = false; refresh(); } }
   }
-  return { uncertain, running, submittedId, message, actionLabel, refresh, run, review: () => recover(false), acknowledge: () => recover(true) };
+  return { uncertain, running, submittedId, message, actionLabel, refresh, run, review: () => recover(false), acknowledge: (payPassword?: string) => recover(true, payPassword) };
 }

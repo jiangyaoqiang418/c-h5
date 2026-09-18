@@ -118,6 +118,7 @@ const cells = computed(() => {
     { label: '我的评价', icon: 'chat1', go: () => go('/pages/review/list') },
     { label: '我的积分', icon: 'flag', go: () => go('/pages/my/points') },
     { label: '地址管理', icon: 'location', go: () => go('/pages/my/addresses') },
+    { label: '支付密码', icon: 'lock-on', go: () => go('/pages/my/pay-password') },
     { label: 'KYC 认证', icon: 'secured', go: () => go('/pages/kyc/index') },
     { label: 'VIP 特权', icon: 'gift', go: () => go('/pages/vip/index') },
     { label: '帮助中心', icon: 'service', go: () => go('/pages/help/index') }

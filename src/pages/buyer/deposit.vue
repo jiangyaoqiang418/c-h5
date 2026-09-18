@@ -10,10 +10,12 @@ import { formatAmount } from '@/utils/format-bridge';
 import { fetchBuyerDepositLedger, payBuyerDeposit, refundBuyerDeposit } from '@/service/api/buyer';
 import { useUserStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 
 const userStore = useUserStore();
 const { requireLogin } = useNavigationGuards();
 const submitting = ref(false);
+const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 
 const payPopup = ref(false);
 const refundPopup = ref(false);
@@ -171,7 +173,9 @@ async function submitDeposit(action: PendingDeposit['action']) {
     uni.setStorageSync(key, request);
     if (!sameRequest(uni.getStorageSync(key), request)) throw new Error('无法保存幂等请求，本次未提交');
     pending.value = request;
-    const params = { amount: request.amount, idempotencyKey: request.idempotencyKey };
+    const payPassword = action === 'pay' ? await payPasswordPopup.value?.request('/pages/buyer/deposit') : undefined;
+    if ((action === 'pay' && !payPassword) || !current()) return;
+    const params = { amount: request.amount, idempotencyKey: request.idempotencyKey, ...(action === 'pay' ? { payPassword } : {}) };
     sent = true;
     const id = await (action === 'pay' ? payBuyerDeposit(params) : refundBuyerDeposit(params));
     if (id === undefined || id === null || id === '') throw new Error('缺少成功回执，请恢复原操作核对');
@@ -220,6 +224,7 @@ function formatTime(value: string | number): string {
 
 <template>
   <view class="dep-page yb-page">
+    <PayPasswordPopup ref="payPasswordPopup" />
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.buyer})` }">
       <text class="hero-label">最近流水保证金余额 (USDT)</text>
       <text class="hero-amount">U {{ currentBalance == null ? '—' : formatAmount(currentBalance) }}</text>

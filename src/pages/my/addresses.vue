@@ -3,6 +3,9 @@ import { computed, getCurrentInstance, reactive, ref, watch } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import {
   fetchMyAddresses,
+  fetchCountries,
+  fetchRegionChildren,
+  updateAddress,
   type AddressRecord
 } from '@/service/api/address';
 import { parseAddress } from '@/utils/address-parser';
@@ -30,6 +33,11 @@ let loadSequence = 0;
 let formVersion = 0;
 let sheetVersion = 0;
 const choosing = ref(false);
+const editingId = ref<Api.RealAddress.LongId>();
+const countries = ref<Api.RealAddress.CountryVO[]>([]);
+const provinces = ref<Api.RealAddress.RegionVO[]>([]);
+const cities = ref<Api.RealAddress.RegionVO[]>([]);
+const districts = ref<Api.RealAddress.RegionVO[]>([]);
 const blocked = computed(() => saving.value || choosing.value || loading.value || loadFailed.value || receiptFailed.value
   || !!receipt.value && receipt.value.state !== 'verified');
 onLoad(query => {
@@ -49,6 +57,10 @@ function chooseAddress(address: AddressRecord) {
 const form = reactive({
   receiverName: '',
   receiverPhone: '',
+  countryCode: '',
+  provinceCode: '',
+  cityCode: '',
+  districtCode: '',
   province: '',
   city: '',
   district: '',
@@ -69,7 +81,8 @@ const page = usePageOperation(() => {
   choosing.value = false;
   loading.value = false;
   loadFailed.value = false;
-  Object.assign(form, { receiverName: '', receiverPhone: '', province: '', city: '', district: '', detail: '', isDefault: false });
+  Object.assign(form, { receiverName: '', receiverPhone: '', countryCode: '', provinceCode: '', cityCode: '', districtCode: '', province: '', city: '', district: '', detail: '', isDefault: false });
+  editingId.value = undefined;
 });
 watch(popupOpen, () => { formVersion++; }, { flush: 'sync' });
 
@@ -129,10 +142,76 @@ async function openNew() {
   if (!page.visible.value || blocked.value) return;
   if (!userStore.currentUser) { await login(); return; }
   formVersion++;
-  Object.assign(form, { receiverName: '', receiverPhone: '', province: '', city: '', district: '', detail: '', isDefault: false });
+  editingId.value = undefined;
+  Object.assign(form, { receiverName: '', receiverPhone: '', countryCode: '', provinceCode: '', cityCode: '', districtCode: '', province: '', city: '', district: '', detail: '', isDefault: false });
   smartText.value = '';
   popupOpen.value = true;
+  try {
+    countries.value = await fetchCountries();
+    if (!page.visible.value || !popupOpen.value) return;
+    form.countryCode = countries.value.find(item => item.code === 'CN')?.code || countries.value[0]?.code || '';
+    if (selectedCountry.value?.hasRegion) provinces.value = await fetchRegionChildren(form.countryCode);
+  } catch { uni.showToast({ title: '国家/地区加载失败，请重试', icon: 'none' }); }
 }
+
+async function openEdit(address: AddressRecord) {
+  if (!page.visible.value || blocked.value) return;
+  formVersion++;
+  editingId.value = address.id;
+  Object.assign(form, {
+    receiverName: address.receiverName, receiverPhone: address.receiverPhone,
+    countryCode: address.countryCode, provinceCode: address.provinceCode || '', cityCode: address.cityCode || '', districtCode: address.districtCode || '',
+    province: address.province, city: address.city, district: address.district, detail: address.detail, isDefault: address.isDefault
+  });
+  smartText.value = '';
+  popupOpen.value = true;
+  try {
+    countries.value = await fetchCountries();
+    if (!address.countryCode) {
+      Object.assign(form, { countryCode: '', provinceCode: '', cityCode: '', districtCode: '' });
+      uni.showToast({ title: '历史地址需重新选择国家和地区', icon: 'none', duration: 2500 });
+      return;
+    }
+    const country = countries.value.find(item => item.code === address.countryCode);
+    if (!country?.hasRegion) return;
+    provinces.value = await fetchRegionChildren(address.countryCode);
+    if (address.provinceCode && provinces.value.find(item => item.code === address.provinceCode)?.leaf === false) {
+      cities.value = await fetchRegionChildren(address.countryCode, address.provinceCode);
+      if (address.cityCode && cities.value.find(item => item.code === address.cityCode)?.leaf === false) {
+        districts.value = await fetchRegionChildren(address.countryCode, address.cityCode);
+      }
+    }
+  } catch { uni.showToast({ title: '地址地区加载失败，请重新选择', icon: 'none' }); }
+}
+
+const selectedCountry = computed(() => countries.value.find(item => item.code === form.countryCode));
+const selectedProvince = computed(() => provinces.value.find(item => item.code === form.provinceCode));
+const selectedCity = computed(() => cities.value.find(item => item.code === form.cityCode));
+const hasRegion = computed(() => selectedCountry.value?.hasRegion === true);
+const needCity = computed(() => hasRegion.value && selectedProvince.value?.leaf === false);
+const needDistrict = computed(() => needCity.value && selectedCity.value?.leaf === false);
+async function chooseFrom<T extends { name: string }>(items: T[], title: string): Promise<T | undefined> {
+  if (!items.length) { uni.showToast({ title: `${title}暂无可选数据`, icon: 'none' }); return; }
+  try { const result = await uni.showActionSheet({ itemList: items.map(item => item.name) }); return items[result.tapIndex]; } catch { return; }
+}
+async function chooseCountry() {
+  const item = await chooseFrom(countries.value, '国家/地区'); if (!item) return;
+  Object.assign(form, { countryCode: item.code, provinceCode: '', cityCode: '', districtCode: '', province: '', city: '', district: '' });
+  provinces.value = []; cities.value = []; districts.value = [];
+  if (item.hasRegion) provinces.value = await fetchRegionChildren(item.code);
+}
+async function chooseProvince() {
+  const item = await chooseFrom(provinces.value, '省/州'); if (!item) return;
+  Object.assign(form, { provinceCode: item.code, province: item.name, cityCode: '', city: '', districtCode: '', district: '' }); cities.value = []; districts.value = [];
+  if (!item.leaf) cities.value = await fetchRegionChildren(form.countryCode, item.code);
+}
+async function chooseCity() {
+  const item = await chooseFrom(cities.value, '城市'); if (!item) return;
+  Object.assign(form, { cityCode: item.code, city: item.name, districtCode: '', district: '' }); districts.value = [];
+  if (!item.leaf) districts.value = await fetchRegionChildren(form.countryCode, item.code);
+}
+async function chooseDistrict() { const item = await chooseFrom(districts.value, '区/县'); if (item) Object.assign(form, { districtCode: item.code, district: item.name }); }
+const regionName = (items: Api.RealAddress.RegionVO[], code?: string) => items.find(item => item.code === code)?.name || '请选择';
 
 function applyParsed() {
   if (!page.visible.value || blocked.value || !popupOpen.value) return;
@@ -174,12 +253,13 @@ async function save() {
   if (!page.visible.value || !popupOpen.value || !userStore.currentUser || blocked.value) return;
   const request = {
     receiverName: form.receiverName.trim(), receiverPhone: form.receiverPhone.trim(),
+    countryCode: form.countryCode, provinceCode: form.provinceCode || undefined, cityCode: form.cityCode || undefined, districtCode: form.districtCode || undefined,
     province: form.province.trim(), city: form.city.trim(), district: form.district.trim(), detail: form.detail.trim(), isDefault: form.isDefault
   };
-  if (!request.receiverName || !/^1\d{10}$/.test(request.receiverPhone)) {
+  if (!request.receiverName || !request.receiverPhone || request.receiverPhone.length > 32) {
     return uni.showToast({ title: '请检查姓名和手机号', icon: 'none' });
   }
-  if (!request.province || !request.city || !request.detail) {
+  if (!request.countryCode || !request.detail || (hasRegion.value && (!request.provinceCode || (needCity.value && !request.cityCode) || (needDistrict.value && !request.districtCode))) || (!hasRegion.value && (!request.province || !request.city))) {
     return uni.showToast({ title: '请填写完整地址', icon: 'none' });
   }
   if ([request.receiverName, request.province, request.city, request.district].some(value => value.length > 64) || request.detail.length > 255) {
@@ -189,15 +269,17 @@ async function save() {
   const version = formVersion;
   saving.value = true;
   try {
-    const result = await runAddressOperation('create', request, operation.isCurrent);
+    const result = editingId.value
+      ? await updateAddress(editingId.value, request).then(id => ({ id, action: 'create', state: 'verified' as const }))
+      : await runAddressOperation('create', request, operation.isCurrent);
     if (!operation.sameSession()) return;
     refreshReceipt();
     if (!operation.isCurrent() || version !== formVersion || !result) return;
-    uni.showToast({ title: addressReceiptMessage(result), icon: 'none' });
+    uni.showToast({ title: editingId.value ? '地址已更新' : addressReceiptMessage(result), icon: editingId.value ? 'success' : 'none' });
     popupOpen.value = false;
   } catch (error) {
     if (operation.sameSession()) refreshReceipt();
-    if (operation.isCurrent()) uni.showToast({ title: receipt.value && receipt.value.state !== 'verified' ? addressReceiptMessage(receipt.value) : error instanceof Error ? error.message : '地址添加失败', icon: 'none' });
+    if (operation.isCurrent()) uni.showToast({ title: receipt.value && receipt.value.state !== 'verified' ? addressReceiptMessage(receipt.value) : error instanceof Error ? error.message : editingId.value ? '地址更新失败' : '地址添加失败', icon: 'none' });
   } finally {
     if (operation.sameSession()) { saving.value = false; if (page.visible.value) await load(); }
   }
@@ -231,10 +313,11 @@ async function onLongPress(a: AddressRecord) {
   const expected = { ...a };
   choosing.value = true;
   try {
-    const result = await uni.showActionSheet({ itemList: ['设为默认', '删除'] });
+    const result = await uni.showActionSheet({ itemList: ['编辑', '设为默认', '删除'] });
     if (!operation.isCurrent() || version !== sheetVersion) return;
     choosing.value = false;
-    if (result.tapIndex === 0 || result.tapIndex === 1) await changeAddress(result.tapIndex === 0 ? 'default' : 'delete', expected);
+    if (result.tapIndex === 0) await openEdit(expected);
+    else if (result.tapIndex === 1 || result.tapIndex === 2) await changeAddress(result.tapIndex === 1 ? 'default' : 'delete', expected);
   } catch (error) {
     const message = error instanceof Error ? error.message : String((error as { errMsg?: string })?.errMsg || '地址操作未完成');
     if (operation.isCurrent() && version === sheetVersion && !message.includes('cancel')) uni.showToast({ title: message, icon: 'none' });
@@ -267,7 +350,7 @@ async function onLongPress(a: AddressRecord) {
 
     <wd-popup v-model="popupOpen" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
-        <text class="popup-title">新增收货地址</text>
+        <text class="popup-title">{{ editingId ? '编辑收货地址' : '新增收货地址' }}</text>
         <!-- 智能识别 -->
         <view class="smart-fill">
           <view class="smart-head">
@@ -294,9 +377,17 @@ async function onLongPress(a: AddressRecord) {
 
         <wd-input v-model="form.receiverName" :disabled="blocked" label="收件人" placeholder="姓名" />
         <wd-input v-model="form.receiverPhone" :disabled="blocked" label="手机号" placeholder="11 位" />
-        <wd-input v-model="form.province" :disabled="blocked" label="省" placeholder="如 上海市" />
-        <wd-input v-model="form.city" :disabled="blocked" label="市" placeholder="如 上海市" />
-        <wd-input v-model="form.district" :disabled="blocked" label="区" placeholder="如 浦东新区" />
+        <wd-cell title="国家/地区" :value="selectedCountry?.name || '请选择'" is-link @click="chooseCountry" />
+        <template v-if="hasRegion">
+          <wd-cell title="省/州" :value="regionName(provinces, form.provinceCode)" is-link @click="chooseProvince" />
+          <wd-cell v-if="needCity" title="城市" :value="regionName(cities, form.cityCode)" is-link @click="chooseCity" />
+          <wd-cell v-if="needDistrict" title="区/县" :value="regionName(districts, form.districtCode)" is-link @click="chooseDistrict" />
+        </template>
+        <template v-else>
+          <wd-input v-model="form.province" :disabled="blocked" label="省/州" />
+          <wd-input v-model="form.city" :disabled="blocked" label="城市" />
+          <wd-input v-model="form.district" :disabled="blocked" label="区/县" />
+        </template>
         <wd-textarea v-model="form.detail" :disabled="blocked" placeholder="详细地址" :max-length="80" />
         <wd-cell title="设为默认">
           <wd-switch v-model="form.isDefault" :disabled="blocked" />

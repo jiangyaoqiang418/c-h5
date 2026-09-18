@@ -19,7 +19,9 @@ const rank = { unknown: 0, confirmed: 1, verified: 2 };
 const keyFor = (userId: string) => `bw_h5_address_operation_v1:${encodeURIComponent(userId)}`;
 const validId = (id: unknown) => typeof id === 'string' ? !!id.trim() : typeof id === 'number' && Number.isSafeInteger(id);
 const formKeys = ['receiverName', 'receiverPhone', 'province', 'city', 'district', 'detail'] as const;
-const sameForm = (a: AddressForm, b: AddressRecord) => b.country === '中国' && formKeys.every(key => a[key] === b[key]);
+const sameForm = (a: AddressForm, b: AddressRecord) => a.countryCode === b.countryCode
+  && a.provinceCode === b.provinceCode && a.cityCode === b.cityCode && a.districtCode === b.districtCode
+  && formKeys.every(key => a[key] === b[key]);
 const sameAddress = (a: AddressRecord, b: AddressRecord) => String(a.id) === String(b.id) && a.country === b.country
   && formKeys.every(key => a[key] === b[key]) && a.isDefault === b.isDefault;
 

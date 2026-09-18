@@ -16,10 +16,12 @@ import { useCartStore, useUserStore, useWalletStore } from '@/stores';
 import { assertPendingCheckout, readPendingCheckouts, removePendingCheckout, savePendingCheckout, type PendingCheckout } from '@/utils/checkout-progress';
 import { acquireOrderOperation } from '@/utils/order-operation-state';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 
 const userStore = useUserStore();
 const cart = useCartStore();
 const walletStore = useWalletStore();
+const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 
 const addresses = ref<AddressRecord[]>([]);
 const selectedAddrId = ref<Api.RealAddress.LongId>();
@@ -292,7 +294,12 @@ async function executePending(pending: PendingCheckout, operation = page.capture
   const existing = readPaymentReceipts(userId).find(item => item.orderGroupNo === pending.orderGroupNo);
   if (existing || !orders.every(isOrderPaid)) {
     if (orders.some(order => order.rawStatus === 'CANCELED')) throw new Error('本批存在已取消订单，请到订单列表处理剩余订单');
-    const receipt = existing && !existing.retryable ? existing : await confirmOrderGroupPayment(pending.orderGroupNo, userId, operation.isCurrent);
+    let receipt = existing && !existing.retryable ? existing : undefined;
+    if (!receipt) {
+      const payPassword = await payPasswordPopup.value?.request('/pages/checkout/index');
+      if (!payPassword || !operation.isCurrent()) return;
+      receipt = await confirmOrderGroupPayment(pending.orderGroupNo, userId, payPassword, operation.isCurrent);
+    }
     if (!receipt || !operation.sameSession()) return;
     paymentReceipts.value = [...paymentReceipts.value.filter(item => item.orderGroupNo !== receipt.orderGroupNo), receipt];
     refreshPaymentReceipts();
@@ -394,6 +401,7 @@ async function resumePending(pending: PendingCheckout) {
 
 <template>
   <view class="checkout-page yb-page">
+    <PayPasswordPopup ref="payPasswordPopup" />
     <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载结算信息</text></view>
     <EmptyState v-else-if="loadFailed" title="结算信息加载失败" description="请稍后重试" action-text="重新加载" @action="loadCheckout" />
     <template v-else>

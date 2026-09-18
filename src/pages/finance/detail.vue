@@ -9,6 +9,7 @@ import { fetchFinanceProductDetail } from '@/service/api/finance';
 import { formatAmount, formatRate } from '@/utils/format-bridge';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
+import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 import { useUserStore, useWalletStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
@@ -25,6 +26,8 @@ const page = usePageOperation(() => {
   submitting.value = false; loading.value = false; loadFailed.value = false;
 });
 const guard = useSubmissionGuard('finance', '/pages/finance/my-lockups');
+const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
+async function continuePending() { const password = await payPasswordPopup.value?.request(`/pages/finance/detail?id=${encodeURIComponent(productId.value)}`); if (password) await guard.acknowledge(password); }
 const { uncertain, running, submittedId, message, actionLabel } = guard;
 const loading = ref(true); const loadFailed = ref(false);
 async function load() {
@@ -107,7 +110,9 @@ async function subscribe() {
     product.value = latest;
     if (snapshot !== terms(latest) || request.amount !== amount.value) throw new Error('申购条件已变化，请核对后重新确认');
     if (!canSubmit.value) throw new Error('当前余额、额度或申购条件不满足，请刷新后确认');
-    const receipt = await guard.run(request);
+    const payPassword = await payPasswordPopup.value?.request(`/pages/finance/detail?id=${encodeURIComponent(productId.value)}`);
+    if (!payPassword || !operation.isCurrent()) return;
+    const receipt = await guard.run(request, payPassword);
     if (!operation.sameSession()) return;
     submittedId.value = receipt;
     if (operation.isCurrent()) {
@@ -125,7 +130,8 @@ async function subscribe() {
 
 <template>
   <view>
-  <SubmissionWarning :pending="uncertain || submittedId != null" :running="running" :message="message" :action-label="actionLabel" @review="guard.review" @acknowledge="guard.acknowledge" />
+  <SubmissionWarning :pending="uncertain || submittedId != null" :running="running" :message="message" :action-label="actionLabel" @review="guard.review" @acknowledge="continuePending" />
+  <PayPasswordPopup ref="payPasswordPopup" />
   <wd-button v-if="submittedId != null" block plain @click="viewHolding">申购已成功，查看持仓记录</wd-button>
   <wd-button v-if="product && loadFailed" block plain :loading="loading" :disabled="submitting" @click="load">产品或余额读取失败，点击重试</wd-button>
   <view v-if="product" class="detail-page yb-page"><view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.finance})` }"><text class="name">{{ product.name }}</text><text class="rate">{{ numeric(product.annualRate) == null ? '—' : formatRate(Number(product.annualRate)) }}</text><text class="rate-meta">年化收益率 · 锁仓 {{ product.lockDays }} 天</text></view><view class="info"><view class="info-row"><text class="lbl">起投</text><text>U {{ formatAmount(product.minAmount) }}</text></view><view v-if="product.maxAmount" class="info-row"><text class="lbl">单笔上限</text><text>U {{ formatAmount(product.maxAmount) }}</text></view><view class="info-row"><text class="lbl">可用余额</text><text>{{ available == null ? '—' : `U ${formatAmount(available)}` }}</text></view></view><view class="calc"><text class="calc-title">申购金额</text><wd-input v-model="amount" label="投入金额" type="digit" placeholder="USDT" /><view class="calc-row"><text class="lbl">预计到期收益</text><text class="val accent">{{ expectedInterest == null ? '—' : `U ${formatAmount(expectedInterest)}` }}</text></view></view><view class="rules"><text class="title">产品说明</text><text class="desc">{{ product.description || '以订单快照及实际结算结果为准。' }}</text><text v-if="product.earlyRedeemEnabled" class="warn">提前赎回可用性与可得收益以订单详情为准。</text></view><view class="bottom-bar"><wd-button type="primary" block :disabled="!canSubmit" :loading="submitting" @click="subscribe">立即申购 U {{ amount }}</wd-button></view></view><view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载小金库产品</text></view><EmptyState v-else-if="loadFailed" title="小金库产品加载失败" description="请检查网络后重试" action-text="重新加载" @action="load" /><EmptyState v-else-if="productId && !userStore.currentUser" title="请先登录查看理财产品" action-text="登录或重试" @action="load" /><EmptyState v-else title="小金库产品不存在" />

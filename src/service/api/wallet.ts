@@ -18,6 +18,7 @@ export interface WithdrawParams {
   chain: 'TRON' | 'ETH' | 'BSC';
   toAddress: string;
   amount: number;
+  payPassword?: string;
 }
 
 export interface RechargeParams {

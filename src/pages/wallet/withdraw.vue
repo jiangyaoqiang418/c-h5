@@ -7,6 +7,7 @@ import { formatAmount } from '@/utils/format-bridge';
 import { useUserStore, useWalletStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
+import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -32,6 +33,8 @@ const page = usePageOperation(() => {
   loadFailed.value = true;
   Object.assign(form, { chain: 'TRON', toAddress: '', amount: 0, agreed: false });
 });
+const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
+async function continuePending() { const password = await payPasswordPopup.value?.request('/pages/wallet/withdraw'); if (password) await guard.acknowledge(password); }
 
 const available = computed(() => {
   if (!userStore.currentUser || walletStore.account?.available == null) return undefined;
@@ -83,7 +86,9 @@ async function confirmWithdraw() {
       uni.showToast({ title: '转出信息或余额已变化，请重新确认', icon: 'none' });
       return;
     }
-    const id = await guard.run(request);
+    const payPassword = await payPasswordPopup.value?.request('/pages/wallet/withdraw');
+    if (!payPassword || !operation.isCurrent()) return;
+    const id = await guard.run(request, payPassword);
     if (!operation.sameSession()) return;
     submittedId.value = id;
     if (!operation.isCurrent()) return;
@@ -100,7 +105,8 @@ async function confirmWithdraw() {
 
 <template>
   <view class="withdraw-page yb-page">
-    <SubmissionWarning :pending="uncertain || submittedId != null" :running="running" :message="message" :action-label="actionLabel" @review="guard.review" @acknowledge="guard.acknowledge" />
+    <SubmissionWarning :pending="uncertain || submittedId != null" :running="running" :message="message" :action-label="actionLabel" @review="guard.review" @acknowledge="continuePending" />
+    <PayPasswordPopup ref="payPasswordPopup" />
     <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">钱包数据加载失败，点击重试</wd-button>
     <wd-button v-if="submittedId != null" block plain @click="go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(submittedId))}`, true)">申请已提交，查看详情</wd-button>
     <view class="balance-card">
