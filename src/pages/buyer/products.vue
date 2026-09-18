@@ -77,7 +77,7 @@ async function load(reset = true) {
     if (!userStore.currentUser) { await requireLogin('/pages/buyer/products'); return; }
     if (!Object.keys(categoryNames.value).length) {
       try {
-        const tree = await fetchCategoryTree({ onlyEnabled: true });
+        const tree = await fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: false });
         if (!valid()) return;
         collectCategoryNames(tree);
       } catch (error) {

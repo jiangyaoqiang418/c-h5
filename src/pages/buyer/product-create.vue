@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
-import { fetchCategoryTree, enabledThirdLevelCategories } from '@/service/api/category';
+import { fetchCategoryTree, enabledThirdLevelCategories, type CategoryNode } from '@/service/api/category';
 import { uploadProductImage } from '@/service/api/product';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
@@ -9,6 +9,7 @@ import { usePageOperation } from '@/utils/page-operation';
 import { getAccessToken } from '@/service/request/token';
 import { beginNextProduct, createProductWithReceipt, productCreateMessage, readProductCreateReceipt, reconcileProductCreation, type ProductCreateReceipt } from '@/utils/product-create';
 import EmptyState from '@/components/common/empty-state.vue';
+import CategoryPicker from '@/components/common/category-picker.vue';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -26,6 +27,8 @@ const submittedId = ref<string | number>();
 const receipt = ref<ProductCreateReceipt>();
 const receiptFailed = ref(false);
 const categories = ref<CategoryOption[]>([]);
+const categoryTree = ref<CategoryNode[]>([]);
+const categoryPickerOpen = ref(false);
 const loading = ref(true);
 const loadFailed = ref(false);
 let loadSequence = 0;
@@ -55,6 +58,8 @@ const page = usePageOperation(() => {
   receipt.value = undefined;
   receiptFailed.value = false;
   categories.value = [];
+  categoryTree.value = [];
+  categoryPickerOpen.value = false;
   Object.assign(form, { title: '', brief: '', description: '', categoryId: '', price: '99', shippingFee: '0', taxFee: '0', stock: 10, afterSaleType: 'SEVEN_DAY_NO_REASON', overseasClearance: false, images: [] });
 });
 const canPublish = computed(() => page.visible.value && !loading.value && !loadFailed.value && !receiptFailed.value && !receipt.value && userStore.canSwitchToBuyer);
@@ -87,8 +92,11 @@ async function load() {
     }
     await userStore.refreshProfile();
     if (!valid() || !userStore.canSwitchToBuyer) return;
-    const tree = await fetchCategoryTree({ onlyEnabled: true });
-    if (valid()) categories.value = enabledThirdLevelCategories(tree);
+    const tree = await fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: false });
+    if (valid()) {
+      categoryTree.value = tree;
+      categories.value = enabledThirdLevelCategories(tree);
+    }
   } catch (error) {
     if (!valid()) return;
     loadFailed.value = true;
@@ -133,15 +141,10 @@ function viewOriginalProduct() {
 
 function pickCategory() {
   if (!page.visible.value || !canPublish.value || submitting.value || uploading.value || submitted.value || !categories.value.length) return;
-  const operation = page.capture();
-  const options = [...categories.value];
-  uni.showActionSheet({
-    itemList: options.map(item => item.name),
-    success: result => {
-      if (operation.isCurrent() && options[result.tapIndex]) form.categoryId = options[result.tapIndex].id;
-    }
-  });
+  categoryPickerOpen.value = true;
 }
+
+function selectCategory(item: CategoryOption) { form.categoryId = item.id; }
 
 async function chooseImages() {
   const count = 6 - form.images.length;
@@ -308,6 +311,7 @@ async function submit() {
       <wd-button v-else type="primary" :loading="submitting" :disabled="submitted || uploading" @click="submit">{{ submitted ? '已提交' : '提交审核' }}</wd-button>
     </view>
   </view>
+  <CategoryPicker v-model="categoryPickerOpen" :tree="categoryTree" :selected-id="form.categoryId" @select="selectCategory" />
   </view>
 </template>
 

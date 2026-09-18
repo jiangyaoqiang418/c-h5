@@ -36,7 +36,7 @@ function toIso(value?: string | number): string {
 async function getCategoryPath(id: string | number): Promise<string> {
   const key = String(id);
   if (!categoryPathPromise) {
-    categoryPathPromise = fetchCategoryTree({ onlyEnabled: true }).then(nodes => {
+    categoryPathPromise = fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: false }).then(nodes => {
       const cache = new Map<string, string>();
       const walk = (items: CategoryNode[], parents: string[] = []) => {
         items.forEach(node => {

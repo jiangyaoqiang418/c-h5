@@ -12,19 +12,21 @@ export interface CategoryNode {
   children?: CategoryNode[];
 }
 
-export function fetchCategoryTree(params: { keyword?: string; onlyEnabled?: boolean } = {}): Promise<CategoryNode[]> {
+export function fetchCategoryTree(params: { keyword?: string; onlyEnabled?: boolean; onlyWithProduct?: boolean } = {}): Promise<CategoryNode[]> {
   return realOrderRequest<CategoryNode[]>({ url: '/categories/tree', params });
 }
 
-/** 发布只接受完整、逐级启用的三级路径；一级或二级叶子不可提交。 */
-export function enabledThirdLevelCategories(nodes: CategoryNode[], parents: string[] = [], parentId?: string): { id: string; name: string }[] {
+/** 发布和求购允许选择任一启用层级，最多五级。 */
+export function enabledCategoryOptions(nodes: CategoryNode[], parents: string[] = [], parentId?: string): { id: string; name: string }[] {
   return nodes.flatMap(node => {
     const level = parents.length + 1;
-    if (node.enabled !== true || node.level !== level || level > 3) return [];
+    if (node.enabled !== true || node.level !== level || level > 5) return [];
     if (!(typeof node.id === 'string' ? !!node.id.trim() : typeof node.id === 'number' && Number.isSafeInteger(node.id))) return [];
     if (parentId !== undefined && node.parentId != null && String(node.parentId) !== parentId) return [];
     const path = [...parents, node.name];
-    return level === 3 ? [{ id: String(node.id), name: path.join(' / ') }]
-      : enabledThirdLevelCategories(node.children || [], path, String(node.id));
+    return [{ id: String(node.id), name: path.join(' / ') }, ...enabledCategoryOptions(node.children || [], path, String(node.id))];
   });
 }
+
+/** 兼容已有调用名，语义已升级为一至五级任意启用分类。 */
+export const enabledThirdLevelCategories = enabledCategoryOptions;

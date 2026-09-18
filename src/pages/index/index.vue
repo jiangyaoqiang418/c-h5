@@ -96,7 +96,7 @@ async function load(keys?: string[]) {
   loading.value = true;
   const valid = () => sequence === loadSequence && operation.isCurrent();
   const modules: Record<string, () => Promise<() => void>> = {
-    categories: async () => { const value = await fetchCategoryTree({ onlyEnabled: true }); return () => { categoryRoots.value = value; }; },
+    categories: async () => { const value = await fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: true }); return () => { categoryRoots.value = value; }; },
     recommended: async () => { const value = await fetchStorefrontRecommend(6); return () => { recommended.value = value; }; },
     hot: async () => { const value = await fetchBestSellers(1, 6); return () => { hot.value = value.records || []; }; },
     newest: async () => { const value = await fetchNewArrivals(1, 6); return () => { newest.value = value.records || []; }; },

@@ -27,7 +27,7 @@ const afterSaleTypes: Record<Api.Product.AftersaleType, Api.RealPurchase.AfterSa
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const origin = (receipt: PurchaseCreateReceipt) => JSON.stringify([receipt.request, receipt.imagePaths, receipt.beforeIds]);
 
-/** 只允许启用的三级节点，祖先被禁用时不开放其后代。 */
+/** 允许一至五级任意启用节点，祖先被禁用时不开放其后代。 */
 export const purchaseCategoryOptions = enabledThirdLevelCategories;
 
 function imagePath(url: string) {
@@ -169,9 +169,9 @@ export async function createPurchaseWithReceipt(params: PurchaseCreateParams, im
     const result = await uni.showModal({ title: '确认发起求购？', content: `预算 U ${request.budgetAmount} · 期望 ${request.expectedDays} 天内\n收货地址：${originalAddress.detail}` });
     if (!result.confirm || !current()) return;
     const records = await readAllPurchases(userId, current);
-    const [tree, addresses, latestAddress] = await Promise.all([fetchCategoryTree({ onlyEnabled: true }), fetchMyAddresses(), fetchAddressDetail(request.addressId)]);
+    const [tree, addresses, latestAddress] = await Promise.all([fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: false }), fetchMyAddresses(), fetchAddressDetail(request.addressId)]);
     if (!current()) return;
-    if (!purchaseCategoryOptions(tree).some(item => item.id === String(request.categoryId))) throw new Error('三级分类已失效，请重新选择');
+    if (!purchaseCategoryOptions(tree).some(item => item.id === String(request.categoryId))) throw new Error('分类已失效，请重新选择');
     if (!addresses.some(item => String(item.id) === String(request.addressId)) || addressSignature(latestAddress) !== addressSignature(originalAddress)) throw new Error('收货地址已变化，请刷新后重新确认');
     marker = { attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, request, imagePaths, beforeIds: records.map(item => String(item.id)), state: 'unknown' };
     save(userId, marker, true);

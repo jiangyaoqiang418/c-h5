@@ -28,7 +28,9 @@ onHide(() => { loadSequence++; treeSequence++; loading.value = false; treeLoadin
 
 const activeRootNode = computed(() => roots.value.find(item => item.id === activeRoot.value));
 const activeCategory = computed(() => findCategory(roots.value, activeCategoryId.value));
-const activePath = computed(() => findCategoryPath(roots.value, activeCategoryId.value)?.map(item => item.name) || []);
+const activePathNodes = computed(() => findCategoryPath(roots.value, activeCategoryId.value) || []);
+const activePath = computed(() => activePathNodes.value.map(item => item.name));
+const visibleCategories = computed(() => activeCategory.value?.children || activeRootNode.value?.children || []);
 const heroImage = computed(() => products.value[0]?.coverImage || UI_ASSETS.placeholders.product);
 
 function findCategory(nodes: CategoryNode[], id?: string): CategoryNode | undefined {
@@ -112,7 +114,7 @@ async function loadTree() {
   treeLoading.value = true;
   treeLoadFailed.value = false;
   try {
-    const result = await fetchCategoryTree({ onlyEnabled: true });
+    const result = await fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: true });
     if (sequence !== treeSequence || !operation.isCurrent()) return;
     roots.value = result;
     const root = roots.value.find(item => item.id === activeRoot.value) || roots.value[0];
@@ -172,24 +174,22 @@ watch(activeCategoryId, id => load(id, true));
               @click="activateCategory(activeRootNode.id)"
             >全部{{ activeRootNode.name }}</view>
           </view>
-          <view v-for="group in activeRootNode.children" :key="group.id" class="category-group">
+          <view v-if="activePathNodes.length > 1" class="category-path">
+            <text
+              v-for="node in activePathNodes"
+              :key="node.id"
+              class="crumb yb-pressable"
+              @click="activateCategory(node.id)"
+            >{{ node.name }}</text>
+          </view>
+          <view class="category-leaves">
             <view
-              class="category-group-title yb-pressable"
-              :class="{ active: activeCategoryId === group.id }"
-              @click="activateCategory(group.id)"
-            >
-              <text>{{ group.name }}</text>
-              <text v-if="group.children?.length">{{ group.children.length }} 个分类</text>
-            </view>
-            <view v-if="group.children?.length" class="category-leaves">
-              <view
-                v-for="leaf in group.children"
-                :key="leaf.id"
-                class="category-leaf yb-pressable"
-                :class="{ active: activeCategoryId === leaf.id }"
-                @click="activateCategory(leaf.id)"
-              >{{ leaf.name }}</view>
-            </view>
+              v-for="item in visibleCategories"
+              :key="item.id"
+              class="category-leaf yb-pressable"
+              :class="{ active: activeCategoryId === item.id }"
+              @click="activateCategory(item.id)"
+            >{{ item.name }}<text v-if="item.children?.length"> ›</text></view>
           </view>
         </view>
         <view v-if="products.length" class="product-grid">
@@ -220,6 +220,9 @@ watch(activeCategoryId, id => load(id, true));
 .category-hero image { position: relative; z-index: 1; width: 180rpx; height: 166rpx; }
 .category-tree-panel { margin-top: 20rpx; padding: 20rpx; border: 1rpx solid var(--yb-hairline); border-radius: 20rpx; background: var(--yb-surface); }
 .category-tree-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.category-path { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 18rpx; }
+.crumb { color: var(--yb-brand); font-size: 22rpx; }
+.crumb + .crumb::before { margin-right: 10rpx; color: #c9cdd4; content: '/'; }
 .category-tree-title { color: var(--yb-ink); font-size: var(--yb-fs-title-sm); font-weight: 700; }
 .category-all { display: flex; align-items: center; min-height: 40px; padding: 0 20rpx; border-radius: var(--yb-radius-pill); background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
 .category-all.active { background: var(--yb-brand); color: var(--yb-surface); }

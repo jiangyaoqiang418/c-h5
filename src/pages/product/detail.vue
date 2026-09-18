@@ -129,7 +129,7 @@ async function loadDetail() {
     if (isRealProduct.value) {
       const [recordResult, categoriesResult] = await Promise.allSettled([
         fetchStorefrontProductDetail(rawId),
-        fetchCategoryTree({ onlyEnabled: true })
+        fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: true })
       ]);
       if (recordResult.status === 'rejected') throw recordResult.reason;
       if (!current()) return;

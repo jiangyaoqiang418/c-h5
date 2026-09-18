@@ -3,13 +3,14 @@ import { computed, reactive, ref } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
-import { fetchCategoryTree } from '@/service/api/category';
+import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
 import { uploadPurchaseImage } from '@/service/api/purchase';
 import { usePageOperation } from '@/utils/page-operation';
 import { getAccessToken } from '@/service/request/token';
 import { beginNextPurchase, createPurchaseWithReceipt, purchaseCategoryOptions, purchaseCreateMessage, readPurchaseCreateReceipt, reconcilePurchaseCreation, type PurchaseCreateReceipt } from '@/utils/purchase-create';
 import EmptyState from '@/components/common/empty-state.vue';
+import CategoryPicker from '@/components/common/category-picker.vue';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -24,6 +25,8 @@ let loadSequence = 0;
 
 const categoryNames = ref<string[]>([]);
 const categoryIds = ref<string[]>([]);
+const categoryTree = ref<CategoryNode[]>([]);
+const categoryPickerOpen = ref(false);
 const addresses = ref<AddressRecord[]>([]);
 const images = ref<Api.RealProduct.FileUploadResult[]>([]);
 const uploading = ref(false);
@@ -56,6 +59,8 @@ const page = usePageOperation(() => {
   addresses.value = [];
   categoryNames.value = [];
   categoryIds.value = [];
+  categoryTree.value = [];
+  categoryPickerOpen.value = false;
   resetForm();
 });
 const canCreate = computed(() => page.visible.value && !!userStore.currentUser && !!userStore.realUserId
@@ -94,9 +99,10 @@ async function load() {
       beginNextPurchase(userStore.realUserId!, receipt.value.attempt);
       refreshReceipt();
     }
-    const [tree, addressList] = await Promise.all([fetchCategoryTree({ onlyEnabled: true }), fetchMyAddresses()]);
+    const [tree, addressList] = await Promise.all([fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: false }), fetchMyAddresses()]);
     if (!valid()) return;
     const leaves = purchaseCategoryOptions(tree);
+    categoryTree.value = tree;
     categoryNames.value = leaves.map(l => l.name);
     categoryIds.value = leaves.map(l => l.id);
     addresses.value = addressList;
@@ -145,17 +151,12 @@ async function startNext() {
 
 function selectCategory() {
   if (formDisabled.value || !categoryIds.value.length) return;
-  const operation = page.capture();
-  const ids = [...categoryIds.value];
-  const names = [...categoryNames.value];
-  uni.showActionSheet({
-    itemList: names,
-    success: r => {
-      if (!operation.isCurrent() || !ids[r.tapIndex]) return;
-      form.categoryName = names[r.tapIndex];
-      form.categoryId = ids[r.tapIndex];
-    }
-  });
+  categoryPickerOpen.value = true;
+}
+
+function onCategorySelected(item: { id: string; name: string }) {
+  form.categoryId = item.id;
+  form.categoryName = item.name;
 }
 
 function selectAddress() {
@@ -288,6 +289,7 @@ async function submit() {
     </view>
     <wd-button type="primary" block class="submit-btn" :loading="submitting" :disabled="formDisabled || !categoryIds.length" @click="submit">{{ uploading ? '图片上传中' : '提交求购' }}</wd-button>
     </template>
+    <CategoryPicker v-model="categoryPickerOpen" :tree="categoryTree" :selected-id="form.categoryId" @select="onCategorySelected" />
   </view>
 </template>
 
