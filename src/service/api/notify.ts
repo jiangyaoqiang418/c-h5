@@ -71,3 +71,7 @@ export function uploadImImage(filePath: string, conversationId?: Api.RealNotify.
 export function uploadImVoice(filePath: string, duration: number, conversationId?: Api.RealNotify.Id) {
   return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_VOICE', duration, conversationId } });
 }
+
+export function uploadImVideo(filePath: string, duration: number, conversationId?: Api.RealNotify.Id) {
+  return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_VIDEO', duration, conversationId } });
+}

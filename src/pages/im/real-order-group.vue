@@ -3,7 +3,7 @@ import { computed, nextTick, ref } from 'vue';
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { fetchConversationByOrder, fetchIncrementalMessages, fetchMessages, markImMessagesRead, recallImMessage, sendMessage, uploadImImage, uploadImVoice } from '@/service/api/notify';
+import { fetchConversationByOrder, fetchIncrementalMessages, fetchMessages, markImMessagesRead, recallImMessage, sendMessage, uploadImImage, uploadImVideo, uploadImVoice } from '@/service/api/notify';
 import { fetchOrderDetail } from '@/service/api/order';
 import { imSocket, type ImSocketState } from '@/service/im-socket';
 import { useNavigationGuards } from '@/utils/navigate';
@@ -202,6 +202,7 @@ function applyRealtimeRecall(event: unknown) {
   try { reconcileImRecall(userStore.realUserId!, conversation.value.id, messageId); recallReceiptFailed.value = false; } catch { recallReceiptFailed.value = true; }
   uncertainRecalls.value = uncertainRecalls.value.filter(id => id !== String(messageId));
   stopRecalledVoice(messageId);
+  stopVideo(messageId);
   const index = messages.value.findIndex(item => String(item.id) === String(messageId));
   if (index < 0) {
     if (pageVisible.value) retryHistory();
@@ -214,6 +215,8 @@ function applyRealtimeRecall(event: unknown) {
     content: undefined,
     mediaUrl: undefined,
     mediaFileId: undefined,
+    coverUrl: undefined,
+    coverFileId: undefined,
     params: undefined,
     duration: undefined
   } as Api.RealNotify.Message;
@@ -388,7 +391,7 @@ function mergeServerMessages(incoming: Api.RealNotify.Message[]) {
     const previous = messages.value.find(matches);
     const merged = { ...previous, ...message, pending: false, failed: false };
     if (previous?.recalled || message.recalled) {
-      Object.assign(merged, { recalled: true, content: undefined, mediaUrl: undefined, mediaFileId: undefined, duration: undefined, params: undefined });
+      Object.assign(merged, { recalled: true, content: undefined, mediaUrl: undefined, mediaFileId: undefined, coverUrl: undefined, coverFileId: undefined, duration: undefined, params: undefined });
       stopRecalledVoice(message.id);
       if (previous) stopRecalledVoice(previous.id);
       uncertainRecalls.value = uncertainRecalls.value.filter(id => id !== String(message.id));
@@ -537,14 +540,47 @@ async function deliverMedia(request: Api.RealNotify.SendMessageParams, localMess
   }
 }
 
-function mediaDraft(conversationId: Api.RealNotify.Id, type: 'IMAGE' | 'VOICE', uploaded: Api.RealNotify.MediaUploadResult, duration?: number) {
+function mediaDraft(conversationId: Api.RealNotify.Id, type: 'IMAGE' | 'VOICE' | 'VIDEO', uploaded: Api.RealNotify.MediaUploadResult, duration?: number, cover?: Api.RealNotify.MediaUploadResult) {
   const clientMsgId = createClientMessageId();
-  const request: Api.RealNotify.SendMessageParams = { conversationId, msgType: type, mediaFileId: uploaded.id, clientMsgId };
+  const request: Api.RealNotify.SendMessageParams = { conversationId, msgType: type, mediaFileId: uploaded.id, coverFileId: cover?.id, clientMsgId };
   const message: Api.RealNotify.Message = {
     id: `local:${clientMsgId}`, conversationId, senderId: userStore.realUserId, senderName: '我', msgType: type,
-    clientMsgId, mediaUrl: uploaded.url, duration: uploaded.duration ?? duration, createdAt: String(Date.now()), pending: true
+    clientMsgId, mediaUrl: uploaded.url, coverFileId: cover?.id, coverUrl: cover?.url, duration: uploaded.duration ?? duration, createdAt: String(Date.now()), pending: true
   };
   return { request, message };
+}
+
+function videoDomId(id: Api.RealNotify.Id) { return `im-video-${String(id).replace(/[^a-zA-Z0-9_-]/g, '-')}`; }
+function stopVideo(id: Api.RealNotify.Id) { try { uni.createVideoContext(videoDomId(id)).stop(); } catch { /* 页面切换时组件可能已销毁。 */ } }
+function stopAllVideos() { messages.value.filter(item => item.msgType === 'VIDEO').forEach(item => stopVideo(item.id)); }
+
+async function sendVideo() {
+  if (!sessionCurrent() || !conversation.value || sending.value || voiceRecording.value || !pageVisible.value) return;
+  const scope = captureConversation();
+  const conversationId = scope.conversationId!;
+  sending.value = true;
+  try {
+    const picked = await uni.chooseVideo({ sourceType: ['album', 'camera'], compressed: true, maxDuration: 60, camera: 'back' });
+    if (!picked.tempFilePath || !scope.sameConversation() || !scope.operation.afterPicker()) return;
+    const duration = Math.ceil(Number(picked.duration));
+    if (!Number.isFinite(duration) || duration <= 0 || duration > 60) throw new Error('视频时长须在 60 秒以内');
+    if (Number(picked.size) > 50 * 1024 * 1024) throw new Error('视频不能超过 50MB');
+    const uploaded = await uploadImVideo(picked.tempFilePath, duration, conversationId);
+    let cover: Api.RealNotify.MediaUploadResult | undefined;
+    const coverPath = (picked as typeof picked & { thumbTempFilePath?: string }).thumbTempFilePath;
+    if (coverPath) {
+      try { cover = await uploadImImage(coverPath, conversationId); } catch { /* 封面失败不阻断发送。 */ }
+    }
+    if (!scope.isCurrent()) return;
+    const draft = mediaDraft(conversationId, 'VIDEO', uploaded, duration, cover);
+    await deliverMedia(draft.request, draft.message, scope);
+  } catch (error) {
+    if (!scope.isCurrent()) return;
+    const message = error instanceof Error ? error.message : String((error as { errMsg?: string })?.errMsg || '视频发送失败');
+    if (!message.includes('cancel')) uni.showToast({ title: message, icon: 'none' });
+  } finally {
+    if (scope.sameConversation()) sending.value = false;
+  }
 }
 
 async function sendImage() {
@@ -669,7 +705,7 @@ function playVoice(message: Api.RealNotify.Message) {
 function canRecall(message: Api.RealNotify.Message) {
   return sessionCurrent() && pageVisible.value && !recallingId.value && !message.recalled && !message.pending && !message.failed
     && !recallReceiptFailed.value && !String(message.id).startsWith('local:') && !uncertainRecalls.value.includes(String(message.id))
-    && ['TEXT', 'IMAGE', 'VOICE'].includes(message.msgType) && String(message.senderId) === String(userStore.realUserId)
+    && ['TEXT', 'IMAGE', 'VOICE', 'VIDEO'].includes(message.msgType) && String(message.senderId) === String(userStore.realUserId)
     && String(message.conversationId) === String(conversation.value?.id);
 }
 
@@ -684,7 +720,7 @@ async function recallMessage(message: Api.RealNotify.Message) {
     const result = await uni.showModal({ title: '撤回消息？' });
     if (!result.confirm || !scope.isCurrent()) return;
     const latest = messages.value.find(item => String(item.id) === String(messageId));
-    if (!latest || latest.recalled || latest.pending || latest.failed || !['TEXT', 'IMAGE', 'VOICE'].includes(latest.msgType)
+    if (!latest || latest.recalled || latest.pending || latest.failed || !['TEXT', 'IMAGE', 'VOICE', 'VIDEO'].includes(latest.msgType)
       || String(latest.senderId) !== String(userStore.realUserId) || String(latest.conversationId) !== String(scope.conversationId)) return;
     receipt = beginImRecall(userStore.realUserId!, scope.conversationId!, messageId);
     sent = true;
@@ -815,6 +851,7 @@ onHide(() => {
   refreshTask = undefined; recoveryTask = undefined; recovering = false; readTask = undefined;
   discardVoice();
   voicePlayer?.stop();
+  stopAllVideos();
 });
 
 onUnload(() => {
@@ -826,6 +863,10 @@ onUnload(() => {
 function side(message: Api.RealNotify.Message) {
   if (message.msgType === 'SYSTEM' || message.msgType === 'ORDER_CARD') return 'center';
   return String(message.senderId) === String(userStore.realUserId) ? 'right' : 'left';
+}
+
+function roleText(role?: Api.RealNotify.Message['senderRole']) {
+  return role ? ({ CUSTOMER: '顾客', SELLER: '买手', ADMIN: '平台' } as const)[role] : '';
 }
 
 function messageText(message: Api.RealNotify.Message) {
@@ -867,8 +908,8 @@ function readText(message: Api.RealNotify.Message) {
     <scroll-view scroll-y class="messages" :scroll-into-view="scrollIntoView" @scroll="scrollChanged" @scrolltolower="reachedBottom" @scrolltoupper="loadOlderMessages">
       <view v-if="hasMoreHistory" class="empty" @click="loadOlderMessages">{{ loadingHistory ? '历史消息加载中…' : '加载更早消息' }}</view>
       <view v-for="message in messages" :id="messageAnchor(message.id)" :key="message.id" class="row" :class="side(message)">
-        <text v-if="side(message) === 'left'" class="sender">{{ message.senderName || '系统' }}</text>
-        <view class="bubble" :class="side(message)"><image v-if="message.msgType === 'IMAGE' && message.mediaUrl && !message.recalled" :src="message.mediaUrl" mode="widthFix" class="message-image" /><text v-else-if="message.msgType === 'VOICE' && !message.recalled" class="voice-message" @click="playVoice(message)">{{ playingVoiceId === String(message.id) ? '播放中…' : '语音消息' }}{{ message.duration ? ` · ${message.duration} 秒` : '' }}</text><text v-else>{{ messageText(message) }}</text></view>
+        <view v-if="side(message) !== 'center'" class="sender"><text>{{ message.senderName || (isMine(message) ? '我' : '成员') }}</text><text v-if="message.senderRole" class="role-tag" :class="String(message.senderRole).toLowerCase()">{{ roleText(message.senderRole) }}</text></view>
+        <view class="bubble" :class="side(message)"><image v-if="message.msgType === 'IMAGE' && message.mediaUrl && !message.recalled" :src="message.mediaUrl" mode="widthFix" class="message-image" /><video v-else-if="message.msgType === 'VIDEO' && message.mediaUrl && !message.recalled" :id="videoDomId(message.id)" :src="message.mediaUrl" :poster="message.coverUrl || undefined" controls :show-center-play-btn="true" class="message-video" /><text v-else-if="message.msgType === 'VOICE' && !message.recalled" class="voice-message" @click="playVoice(message)">{{ playingVoiceId === String(message.id) ? '播放中…' : '语音消息' }}{{ message.duration ? ` · ${message.duration} 秒` : '' }}</text><text v-else>{{ messageText(message) }}</text></view>
         <text v-if="recallingId === String(message.id)" class="delivery">撤回处理中…</text>
         <text v-else-if="canRecall(message)" class="recall" @click="recallMessage(message)">撤回</text>
         <text v-if="message.pending" class="delivery">发送中</text>
@@ -880,6 +921,7 @@ function readText(message: Api.RealNotify.Message) {
     <view v-if="hasNewMessages" class="realtime-notice" @click="showLatestMessages">有新消息，点击查看</view>
     <view class="composer">
       <view class="image-picker" :class="{ disabled: sending }" @click="sendImage">图片</view>
+      <view class="image-picker" :class="{ disabled: sending }" @click="sendVideo">视频</view>
       <view class="voice-picker" :class="{ recording: voiceRecording, disabled: sending }" @touchstart="startVoice" @touchend="stopVoice" @touchcancel="discardVoice">{{ voiceRecording ? '松开发送' : '按住说话' }}</view>
       <input v-model="inputText" class="input" placeholder="输入消息" :disabled="sending" confirm-type="send" @confirm="sendText()" />
       <view class="send" :class="{ disabled: !inputText.trim() || sending }" @click="sendText()">{{ sending ? '发送中' : '发送' }}</view>
@@ -895,5 +937,5 @@ function readText(message: Api.RealNotify.Message) {
 .page { height: 100%; display: flex; flex-direction: column; background: var(--yb-bg); }
 .state-loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 .header { padding: 20rpx 32rpx; background: #fff; border-bottom: 1rpx solid var(--yb-border); }.title,.meta,.sender { display:block; }.title{font-size:30rpx;font-weight:600}.meta,.sender{font-size:22rpx;color:#86909c;margin-top:4rpx}.messages{flex:1;width:100%;min-width:0;min-height:0;padding:20rpx 24rpx;box-sizing:border-box;overflow-x:hidden}.row{display:flex;width:100%;min-width:0;flex-direction:column;margin-bottom:20rpx}.row.right{align-items:flex-end}.row.center{align-items:center}.bubble{max-width:75%;padding:16rpx 20rpx;box-sizing:border-box;border-radius:var(--yb-radius-md);background:#fff;color:#1d2129;font-size:26rpx;overflow-wrap:anywhere;word-break:break-word;border:1rpx solid var(--yb-border)}.bubble.right{background:var(--yb-brand);border-color:var(--yb-brand);color:#fff}.bubble.center{background:#f1f1ee;color:#717784;font-size:22rpx}.empty{text-align:center;color:#86909c;padding:60rpx 0}
-.realtime-notice{display:flex;align-items:center;justify-content:space-between;gap:16rpx;padding:12rpx 32rpx;background:#fff6e8;color:#a85a00;font-size:22rpx}.retry{color:var(--yb-brand)}.delivery,.recall{font-size:20rpx;color:#86909c;margin-top:4rpx}.recall{color:var(--yb-brand)}.message-image{display:block;max-width:100%;border-radius:12rpx}.voice-message{display:block;min-width:150rpx}.composer{display:flex;width:100%;min-width:0;align-items:center;gap:12rpx;padding:16rpx 24rpx;padding-bottom:calc(16rpx + env(safe-area-inset-bottom));box-sizing:border-box;background:#fff;border-top:1rpx solid var(--yb-border)}.image-picker,.voice-picker{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-width:80rpx;min-height:80rpx;color:var(--yb-brand);font-size:24rpx}.image-picker.disabled,.voice-picker.disabled{color:#c9cdd4}.voice-picker.recording{color:#d4380d}.input{flex:1;min-width:0;height:80rpx;padding:0 24rpx;box-sizing:border-box;border-radius:40rpx;background:#f2f2ef;font-size:26rpx}.send{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-height:80rpx;padding:0 28rpx;border-radius:40rpx;background:var(--yb-brand);color:#fff;font-size:26rpx;font-weight:600}.send.disabled{background:#c9cdd4}
+.realtime-notice{display:flex;align-items:center;justify-content:space-between;gap:16rpx;padding:12rpx 32rpx;background:#fff6e8;color:#a85a00;font-size:22rpx}.retry{color:var(--yb-brand)}.delivery,.recall{font-size:20rpx;color:#86909c;margin-top:4rpx}.recall{color:var(--yb-brand)}.sender{display:flex;align-items:center;gap:8rpx}.role-tag{padding:1rpx 8rpx;border-radius:12rpx;font-size:18rpx}.role-tag.customer{background:#e8f3ff;color:#165dff}.role-tag.seller{background:#f5e8ff;color:#722ed1}.role-tag.admin{background:#fff3e8;color:#d46b08}.message-image{display:block;max-width:100%;border-radius:12rpx}.message-video{display:block;width:480rpx;max-width:68vw;height:270rpx;border-radius:12rpx;background:#151922}.voice-message{display:block;min-width:150rpx}.composer{display:flex;width:100%;min-width:0;align-items:center;gap:12rpx;padding:16rpx 24rpx;padding-bottom:calc(16rpx + env(safe-area-inset-bottom));box-sizing:border-box;background:#fff;border-top:1rpx solid var(--yb-border)}.image-picker,.voice-picker{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-width:72rpx;min-height:80rpx;color:var(--yb-brand);font-size:22rpx}.image-picker.disabled,.voice-picker.disabled{color:#c9cdd4}.voice-picker.recording{color:#d4380d}.input{flex:1;min-width:0;height:80rpx;padding:0 24rpx;box-sizing:border-box;border-radius:40rpx;background:#f2f2ef;font-size:26rpx}.send{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-height:80rpx;padding:0 24rpx;border-radius:40rpx;background:var(--yb-brand);color:#fff;font-size:24rpx;font-weight:600}.send.disabled{background:#c9cdd4}
 </style>

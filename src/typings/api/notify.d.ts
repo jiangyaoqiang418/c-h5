@@ -1,7 +1,7 @@
 declare namespace Api {
   namespace RealNotify {
     type Id = string | number;
-    type ImMessageType = 'TEXT' | 'IMAGE' | 'VOICE' | 'ORDER_CARD' | 'SYSTEM';
+    type ImMessageType = 'TEXT' | 'IMAGE' | 'VOICE' | 'VIDEO' | 'ORDER_CARD' | 'SYSTEM';
 
     interface Page<T> {
       pageNo?: number;
@@ -57,6 +57,8 @@ declare namespace Api {
       eventType?: string;
       params?: Record<string, unknown> | null;
       mediaFileId?: Id | null;
+      coverFileId?: Id | null;
+      coverUrl?: string | null;
       clientMsgId?: string;
       recalled?: boolean;
       createdAt?: string | number;
@@ -76,8 +78,8 @@ declare namespace Api {
       userId?: Id;
     }
     interface ImRecallParams { id: Id; }
-    interface MediaUploadResult { id: Id; scene?: 'IM_IMAGE' | 'IM_VOICE' | string; url: string; duration?: number; privateAccess?: boolean; expireAt?: string | number; }
-    interface SendMessageParams { conversationId: Id; msgType: ImMessageType; content?: string; mediaFileId?: Id; clientMsgId?: string; }
+    interface MediaUploadResult { id: Id; scene?: 'IM_IMAGE' | 'IM_VOICE' | 'IM_VIDEO' | string; url: string; duration?: number; privateAccess?: boolean; expireAt?: string | number; }
+    interface SendMessageParams { conversationId: Id; msgType: ImMessageType; content?: string; mediaFileId?: Id; coverFileId?: Id; clientMsgId?: string; }
     type ImTokenSource = 'QUERY_TOKEN' | 'HEADER_X_ACCESS_TOKEN' | 'HEADER_AUTHORIZATION' | 'SUB_PROTOCOL' | string;
     interface ImLinkStatusVO {
       endpoint: string;

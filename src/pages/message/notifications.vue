@@ -7,6 +7,7 @@ import { getAccessToken, onSessionChanged } from '@/service/request/token';
 import { imSocket } from '@/service/im-socket';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
+import { fetchPurchaseProgress } from '@/service/api/purchase';
 
 const operating = ref(false);
 const userStore = useUserStore();
@@ -189,7 +190,7 @@ onUnload(() => {
   imSocket.stopIfUnused();
 });
 
-function target(notification: Api.RealNotify.Notification): string | undefined {
+async function target(notification: Api.RealNotify.Notification): Promise<string | undefined> {
   const id = notification.bizId;
   const type = notification.bizType?.toUpperCase();
   if (type === 'PRODUCT_REVIEW') return '/pages/review/list';
@@ -198,10 +199,25 @@ function target(notification: Api.RealNotify.Notification): string | undefined {
   if (type === 'BUYER_APPLICATION') return '/pages/buyer/apply';
   if (type === 'BUYER_DEPOSIT' && notification.templateCode === 'buyer_deposit_alert') return '/pages/buyer/deposit';
   if (id === undefined || id === null || id === '') return;
+  if (type === 'PRODUCT' && (notification.templateCode === 'product_approved' || notification.templateCode === 'product_rejected')) {
+    return `/pages/buyer/product-detail?id=${encodeURIComponent(String(id))}`;
+  }
   if (type === 'ORDER') return `/pages/order/detail?id=${encodeURIComponent(String(id))}`;
   if (type === 'RECHARGE') return `/pages/wallet/recharge-detail?id=${encodeURIComponent(String(id))}`;
   if (type === 'WITHDRAW') return `/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(id))}`;
-  if (type === 'PURCHASE_DEMAND') return `/pages/purchase/detail?id=${encodeURIComponent(String(id))}`;
+  if (type === 'PURCHASE_DEMAND') {
+    if (notification.templateCode === 'demand_taken') {
+      try {
+        const result = await fetchPurchaseProgress(id, { showError: false });
+        if (result.orderId != null) return `/pages/order/detail?id=${encodeURIComponent(String(result.orderId))}`;
+      } catch {
+        // 读取不到成交订单时仍进入求购详情，不把求购 ID 误当订单 ID。
+      }
+    }
+    if (['demand_approved', 'demand_rejected', 'demand_taken', 'demand_pushed'].includes(String(notification.templateCode))) {
+      return `/pages/purchase/detail?id=${encodeURIComponent(String(id))}`;
+    }
+  }
   return undefined;
 }
 async function open(notification: Api.RealNotify.Notification) {
@@ -222,7 +238,7 @@ async function open(notification: Api.RealNotify.Notification) {
         // 已读失败不阻断业务通知跳转，但旧页面不得继续导航。
       }
     }
-    const path = target(notification);
+    const path = await target(notification);
     if (operation.valid() && path) await uni.navigateTo({ url: path });
   } catch {
     if (operation.valid()) uni.showToast({ title: '业务页面打开失败，请重试', icon: 'none' });

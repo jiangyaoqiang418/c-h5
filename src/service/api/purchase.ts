@@ -175,8 +175,8 @@ function progressTimestamp(value: unknown): number {
   return timestamp;
 }
 
-export async function fetchPurchaseProgress(id: string | number) {
-  const result = await realOrderRequest<Api.RealPurchase.DemandProgress>({ url: '/demands/my/progress', params: { id } });
+export async function fetchPurchaseProgress(id: string | number, options: { showError?: boolean } = {}) {
+  const result = await realOrderRequest<Api.RealPurchase.DemandProgress>({ url: '/demands/my/progress', params: { id }, ...options });
   if (!result || String(result.demandId) !== String(id) || !Array.isArray(result.timeline)
     || !Number.isSafeInteger(result.pushBatchCount) || !Number.isSafeInteger(result.reachedBuyerCount)) throw new Error('求购进度响应不完整');
   return {

@@ -213,6 +213,7 @@ async function cancel() {
     </view>
 
     <view class="bottom-bar">
+      <wd-button v-if="isMy && request.relatedOrderId" type="primary" block :disabled="operating" @click="go(`/pages/order/detail?id=${encodeURIComponent(String(request.relatedOrderId))}`)">去付款</wd-button>
       <wd-button v-if="canClaim" type="primary" block :loading="operating" :disabled="operating || loading || loadFailed || !!confirmedAction" @click="claim">我接此单</wd-button>
       <wd-button v-if="isMy && ['pending_audit', 'pushing'].includes(request.status)" type="error" plain :disabled="!canCancel" @click="cancel">撤销</wd-button>
     </view>
