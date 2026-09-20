@@ -24,7 +24,7 @@ function emptyCategories(): Category[] {
   return [
     { key: 'system', icon: 'setting', title: '系统通知', path: '/pages/message/notifications?category=system', latestText: '点击查看系统通知', latestTime: '' },
     { key: 'txn', icon: 'wallet', title: '交易通知', path: '/pages/message/notifications?category=transaction', latestText: '点击查看交易通知', latestTime: '' },
-    { key: 'im', icon: 'chat', title: '订单群聊', path: '/pages/im/order-list', latestText: '点击查看订单群聊', latestTime: '' }
+    { key: 'im', icon: 'chat', title: '聊天与客服', path: '/pages/im/order-list', latestText: '点击查看订单群聊与平台客服', latestTime: '' }
   ];
 }
 const categories = ref<Category[]>(emptyCategories());

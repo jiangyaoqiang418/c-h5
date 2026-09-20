@@ -3,7 +3,7 @@ import { computed, nextTick, ref } from 'vue';
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
-import { fetchConversationByOrder, fetchIncrementalMessages, fetchMessages, markImMessagesRead, recallImMessage, sendMessage, uploadImImage, uploadImVideo, uploadImVoice } from '@/service/api/notify';
+import { fetchConversationByOrder, fetchConversationOrders, fetchIncrementalMessages, fetchMessages, fetchSupportConversation, markImMessagesRead, recallImMessage, requestConversationIntervention, sendMessage, uploadImImage, uploadImVideo, uploadImVoice } from '@/service/api/notify';
 import { fetchOrderDetail } from '@/service/api/order';
 import { imSocket, type ImSocketState } from '@/service/im-socket';
 import { useNavigationGuards } from '@/utils/navigate';
@@ -28,6 +28,11 @@ const voiceRecording = ref(false);
 const playingVoiceId = ref<string>();
 const readerWatermarks = ref<Record<string, Api.RealNotify.Id>>({});
 let currentOrderId = '';
+let supportMode = false;
+const relatedOrders = ref<Api.RealNotify.ConversationOrder[]>([]);
+const includeHistoryOrders = ref(false);
+const ordersLoading = ref(false);
+const interventionLoading = ref(false);
 let unsubscribe: (() => void) | undefined;
 let unsubscribeState: (() => void) | undefined;
 let recorder: ReturnType<typeof uni.getRecorderManager> | undefined;
@@ -96,6 +101,7 @@ function clearPrivateState() {
   recordingScope = undefined;
   voicePlayer?.stop(); voicePlayer?.destroy(); voicePlayer = undefined;
   conversation.value = undefined;
+  relatedOrders.value = []; includeHistoryOrders.value = false; ordersLoading.value = false; interventionLoading.value = false;
   messages.value = []; inputText.value = ''; readerWatermarks.value = {};
   pendingMediaRequests.clear();
   loading.value = false; loadFailed.value = false; sending.value = false;
@@ -128,12 +134,34 @@ const latestOrderCard = computed(() => {
   const message = [...messages.value].reverse().find(item => item.msgType === 'ORDER_CARD');
   return message ? parseOrderCard(message.content) : undefined;
 });
-const headerTitle = computed(() => latestOrderCard.value?.productTitle || conversation.value?.productTitle || conversation.value?.title || '订单群聊');
+const headerTitle = computed(() => conversation.value?.peerName || latestOrderCard.value?.productTitle || conversation.value?.productTitle || conversation.value?.title || (supportMode ? '平台客服' : '订单群聊'));
 const headerMeta = computed(() => {
-  const orderNo = latestOrderCard.value?.orderNo || conversation.value?.orderNo || conversation.value?.bizId;
+  if (conversation.value?.type === 'SUPPORT') return '平台客服';
+  const orderNo = latestOrderCard.value?.orderNo || conversation.value?.orderNo;
   const status = currentOrderStatus.value || latestOrderCard.value?.statusText || conversation.value?.orderStatusText || '—';
-  return `订单 ${orderNo || '—'} · ${status}`;
+  return `进行中订单 ${conversation.value?.activeOrderCount || 0} 笔 · 最近订单 ${orderNo || '—'} · ${status}`;
 });
+
+async function loadRelatedOrders() {
+  const scope = captureConversation();
+  if (!scope.sameConversation() || conversation.value?.type !== 'ORDER_GROUP') return;
+  ordersLoading.value = true;
+  try {
+    const rows = await fetchConversationOrders(conversation.value.id, includeHistoryOrders.value);
+    if (scope.sameConversation()) relatedOrders.value = rows;
+  } finally { if (scope.sameConversation()) ordersLoading.value = false; }
+}
+async function toggleHistoryOrders() { includeHistoryOrders.value = !includeHistoryOrders.value; await loadRelatedOrders(); }
+function openRelatedOrder(orderId: Api.RealNotify.Id) { uni.navigateTo({ url: `/pages/order/detail?id=${encodeURIComponent(String(orderId))}` }); }
+async function applyIntervention() {
+  const active = conversation.value;
+  if (!active || active.type !== 'ORDER_GROUP' || active.interveneStatus !== 'NONE' || interventionLoading.value) return;
+  interventionLoading.value = true;
+  try {
+    conversation.value = await requestConversationIntervention({ conversationId: active.id });
+    uni.showToast({ title: '已申请平台介入', icon: 'success' });
+  } finally { interventionLoading.value = false; }
+}
 
 const orderStatusText: Partial<Record<Api.Order.OrderStatus, string>> = {
   PENDING_PAYMENT: '待付款',
@@ -252,6 +280,13 @@ function handleRealtimeEvent(event: unknown) {
   }
   if (type === 'IM_READ') {
     applyRealtimeRead(event);
+    return;
+  }
+  if (type === 'IM_INTERVENE') {
+    const payload = eventPayload(event) as { action?: string; conversationId?: Api.RealNotify.Id; interveneStatus?: Api.RealNotify.Conversation['interveneStatus'] };
+    if (conversation.value && String(payload.conversationId) === String(conversation.value.id)) {
+      conversation.value.interveneStatus = payload.action === 'INTERVENE_CLOSED' ? 'NONE' : (payload.interveneStatus || conversation.value.interveneStatus);
+    }
   }
 }
 
@@ -760,11 +795,11 @@ function rememberRecoveryBoundary() {
   }
 }
 
-onLoad(query => { currentOrderId = String(query?.orderId || ''); });
+onLoad(query => { currentOrderId = String(query?.orderId || ''); supportMode = String(query?.support || '') === '1'; });
 
 async function initialize() {
   if (!pageVisible.value || destroyed || initializing) return;
-  if (!currentOrderId) {
+  if (!currentOrderId && !supportMode) {
     loading.value = false;
     return;
   }
@@ -780,19 +815,20 @@ async function initialize() {
     if (!current()) return;
     if (!userStore.currentUser) {
       if (getAccessToken()) throw new Error('账号资料加载失败，请重试');
-      await requireLogin(`/pages/im/real-order-group?orderId=${encodeURIComponent(currentOrderId)}`);
+      await requireLogin(supportMode ? '/pages/im/real-order-group?support=1' : `/pages/im/real-order-group?orderId=${encodeURIComponent(currentOrderId)}`);
       return;
     }
     if (!userStore.realUserId) throw new Error('账号标识缺失，请重试');
-    const group = await fetchConversationByOrder(currentOrderId);
+    const group = supportMode ? await fetchSupportConversation() : await fetchConversationByOrder(currentOrderId);
     if (!current()) return;
     if (!group || group.id == null || !String(group.id).trim() || (typeof group.id === 'number' && !Number.isSafeInteger(group.id))
-      || group.bizType !== 'ORDER' || String(group.bizId) !== currentOrderId || !['CUSTOMER', 'SELLER', 'ADMIN'].includes(group.myRole || '')) {
-      throw new Error('订单群会话或成员身份不匹配，请重新加载');
+      || (supportMode ? group.type !== 'SUPPORT' : group.type !== 'ORDER_GROUP') || !['CUSTOMER', 'SELLER', 'ADMIN'].includes(group.myRole || '')) {
+      throw new Error('会话或成员身份不匹配，请重新加载');
     }
     detachRealtime();
     owner = { userId: String(userStore.realUserId), operation };
     conversation.value = group;
+    if (group.type === 'ORDER_GROUP') void loadRelatedOrders();
     try {
       uncertainRecalls.value = readImRecallReceipts(owner.userId)
         .filter(item => String(item.conversationId) === String(group.id) && item.state !== 'verified')
@@ -811,7 +847,7 @@ async function initialize() {
       }
     });
     imSocket.start().catch(() => undefined);
-    refreshOrderStatus();
+    if (!supportMode) refreshOrderStatus();
     await refreshMessages();
   } catch (error) {
     if (!current()) return;
@@ -835,7 +871,7 @@ async function retryHistory() {
 onShow(() => {
   pageVisible.value = true;
   if (!conversation.value || !sessionCurrent()) return initialize();
-  refreshOrderStatus();
+  if (!supportMode) refreshOrderStatus();
   if (historyLoadFailed.value) return retryHistory();
   const scope = captureConversation();
   return recoverIncrementalMessages().then(() => { if (scope.isCurrent()) markVisibleRead(); }).catch(() => {
@@ -900,6 +936,9 @@ function readText(message: Api.RealNotify.Message) {
   <view v-if="loading" class="state-loading">订单群加载中…</view>
   <view v-else-if="conversation" class="page">
     <view class="header"><text class="title">{{ headerTitle }}</text><text class="meta">{{ headerMeta }}</text></view>
+    <scroll-view v-if="conversation.type === 'ORDER_GROUP'" scroll-x class="orders">
+      <view class="orders-inner"><view v-for="item in relatedOrders" :key="String(item.orderId)" class="order-chip" @click="openRelatedOrder(item.orderId)">{{ item.orderNo || item.orderId }} · {{ item.orderStatusText || item.orderStatus }}</view><view class="order-action" @click="toggleHistoryOrders">{{ ordersLoading ? '加载中…' : includeHistoryOrders ? '只看进行中' : '查看历史订单' }}</view><view class="order-action intervention" :class="{ disabled: conversation.interveneStatus !== 'NONE' || interventionLoading }" @click="applyIntervention">{{ conversation.interveneStatus === 'REQUESTED' ? '等待客服接入' : conversation.interveneStatus === 'HANDLING' ? '客服处理中' : '申请平台介入' }}</view></view>
+    </scroll-view>
     <view v-if="historyLoadFailed" class="realtime-notice" @click="retryHistory">消息加载失败，点击重新加载</view>
     <view v-if="realtimeState !== 'ready'" class="realtime-notice">
       <text>{{ realtimeState === 'connecting' ? '正在连接实时服务…' : '实时连接暂不可用，消息仍可发送并在刷新后同步。' }}</text>
@@ -928,14 +967,15 @@ function readText(message: Api.RealNotify.Message) {
     </view>
   </view>
   <EmptyState v-else-if="loadFailed" title="订单群加载失败" description="请重新加载会话与消息" action-text="重新加载" @action="initialize" />
-  <EmptyState v-else-if="currentOrderId && !userStore.currentUser" title="请先登录查看订单群" description="当前尚未读取账号消息" action-text="登录或重试" @action="initialize" />
-  <EmptyState v-else-if="currentOrderId" title="订单群尚未加载" action-text="重新加载" @action="initialize" />
+  <EmptyState v-else-if="(currentOrderId || supportMode) && !userStore.currentUser" title="请先登录查看会话" description="当前尚未读取账号消息" action-text="登录或重试" @action="initialize" />
+  <EmptyState v-else-if="currentOrderId || supportMode" title="会话尚未加载" action-text="重新加载" @action="initialize" />
   <EmptyState v-else title="缺少订单信息" description="请从订单或会话列表进入" />
 </template>
 
 <style lang="scss" scoped>
 .page { height: 100%; display: flex; flex-direction: column; background: var(--yb-bg); }
 .state-loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
+.orders{flex-shrink:0;width:100%;background:#fff;border-bottom:1rpx solid var(--yb-border)}.orders-inner{display:flex;gap:12rpx;padding:12rpx 24rpx;white-space:nowrap}.order-chip,.order-action{padding:10rpx 16rpx;border-radius:24rpx;background:#f2f3f5;color:#4e5969;font-size:22rpx}.order-action{color:var(--yb-brand)}.intervention{background:#e8f3ff}.order-action.disabled{color:#86909c;background:#f2f3f5}
 .header { padding: 20rpx 32rpx; background: #fff; border-bottom: 1rpx solid var(--yb-border); }.title,.meta,.sender { display:block; }.title{font-size:30rpx;font-weight:600}.meta,.sender{font-size:22rpx;color:#86909c;margin-top:4rpx}.messages{flex:1;width:100%;min-width:0;min-height:0;padding:20rpx 24rpx;box-sizing:border-box;overflow-x:hidden}.row{display:flex;width:100%;min-width:0;flex-direction:column;margin-bottom:20rpx}.row.right{align-items:flex-end}.row.center{align-items:center}.bubble{max-width:75%;padding:16rpx 20rpx;box-sizing:border-box;border-radius:var(--yb-radius-md);background:#fff;color:#1d2129;font-size:26rpx;overflow-wrap:anywhere;word-break:break-word;border:1rpx solid var(--yb-border)}.bubble.right{background:var(--yb-brand);border-color:var(--yb-brand);color:#fff}.bubble.center{background:#f1f1ee;color:#717784;font-size:22rpx}.empty{text-align:center;color:#86909c;padding:60rpx 0}
 .realtime-notice{display:flex;align-items:center;justify-content:space-between;gap:16rpx;padding:12rpx 32rpx;background:#fff6e8;color:#a85a00;font-size:22rpx}.retry{color:var(--yb-brand)}.delivery,.recall{font-size:20rpx;color:#86909c;margin-top:4rpx}.recall{color:var(--yb-brand)}.sender{display:flex;align-items:center;gap:8rpx}.role-tag{padding:1rpx 8rpx;border-radius:12rpx;font-size:18rpx}.role-tag.customer{background:#e8f3ff;color:#165dff}.role-tag.seller{background:#f5e8ff;color:#722ed1}.role-tag.admin{background:#fff3e8;color:#d46b08}.message-image{display:block;max-width:100%;border-radius:12rpx}.message-video{display:block;width:480rpx;max-width:68vw;height:270rpx;border-radius:12rpx;background:#151922}.voice-message{display:block;min-width:150rpx}.composer{display:flex;width:100%;min-width:0;align-items:center;gap:12rpx;padding:16rpx 24rpx;padding-bottom:calc(16rpx + env(safe-area-inset-bottom));box-sizing:border-box;background:#fff;border-top:1rpx solid var(--yb-border)}.image-picker,.voice-picker{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-width:72rpx;min-height:80rpx;color:var(--yb-brand);font-size:22rpx}.image-picker.disabled,.voice-picker.disabled{color:#c9cdd4}.voice-picker.recording{color:#d4380d}.input{flex:1;min-width:0;height:80rpx;padding:0 24rpx;box-sizing:border-box;border-radius:40rpx;background:#f2f2ef;font-size:26rpx}.send{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-height:80rpx;padding:0 24rpx;border-radius:40rpx;background:var(--yb-brand);color:#fff;font-size:24rpx;font-weight:600}.send.disabled{background:#c9cdd4}
 </style>

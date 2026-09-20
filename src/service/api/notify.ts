@@ -72,6 +72,18 @@ export function uploadImVoice(filePath: string, duration: number, conversationId
   return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_VOICE', duration, conversationId } });
 }
 
+export function fetchSupportConversation() {
+  return realNotifyRequest<Api.RealNotify.Conversation>({ url: '/im/conversations/support', method: 'POST' });
+}
+
+export function fetchConversationOrders(conversationId: Api.RealNotify.Id, includeHistory = false) {
+  return realNotifyRequest<Api.RealNotify.ConversationOrder[]>({ url: '/im/conversations/orders', params: { conversationId, includeHistory } });
+}
+
+export function requestConversationIntervention(params: Api.RealNotify.InterveneParams) {
+  return realNotifyRequest<Api.RealNotify.Conversation, Api.RealNotify.InterveneParams>({ url: '/im/conversations/intervene', method: 'POST', data: params });
+}
+
 export function uploadImVideo(filePath: string, duration: number, conversationId?: Api.RealNotify.Id) {
   return realNotifyUpload<Api.RealNotify.MediaUploadResult>({ url: '/im/files/upload', filePath, name: 'file', params: { scene: 'IM_VIDEO', duration, conversationId } });
 }

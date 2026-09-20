@@ -12,23 +12,26 @@ const { list, loading, loadFailed, hasMore, load, retry, login, canOpen } = useP
   key: item => item.id,
   fetch: (pageNo, pageSize) => fetchConversations({ pageNo, pageSize })
 });
-const groups = computed(() => list.value.filter(item => item.bizType === 'ORDER'));
+const groups = computed(() => list.value.filter(item => item.type === 'ORDER_GROUP' || item.type === 'SUPPORT'));
 
 function open(group: Api.RealNotify.Conversation) {
-  if (!canOpen(group) || group.bizId == null) return;
-  go(`/pages/im/real-order-group?orderId=${encodeURIComponent(String(group.bizId))}`);
+  if (!canOpen(group)) return;
+  if (group.type === 'SUPPORT') go('/pages/im/real-order-group?support=1');
+  else if (group.orderId != null) go(`/pages/im/real-order-group?orderId=${encodeURIComponent(String(group.orderId))}`);
 }
+function contactSupport() { go('/pages/im/real-order-group?support=1'); }
 </script>
 
 <template>
   <view class="list-page yb-page">
+    <wd-button block class="mb-16rpx" @click="contactSupport">联系平台客服</wd-button>
     <view v-if="groups.length" class="list">
       <view v-for="g in groups" :key="g.id" class="conversation" @click="open(g)">
         <view class="avatar">{{ (g.productTitle || g.title || '订').slice(0, 1) }}</view>
         <view class="info">
-          <text class="name">{{ g.productTitle || g.title || '订单群聊' }}</text>
+          <text class="name">{{ g.peerName || g.productTitle || g.title || (g.type === 'SUPPORT' ? '平台客服' : '订单群聊') }}</text>
           <text class="preview">{{ g.lastMessagePreview || '暂无消息' }}</text>
-          <text class="meta">{{ g.peerName || '平台客服' }} · {{ g.orderStatusText || '订单' }}</text>
+          <text class="meta">{{ g.type === 'SUPPORT' ? '独立客服会话' : `进行中订单 ${g.activeOrderCount || 0} 笔 · ${g.orderStatusText || '订单'}` }}</text>
         </view>
         <view class="right"><wd-badge v-if="(g.unreadCount || 0) > 0" :value="g.unreadCount" /></view>
       </view>

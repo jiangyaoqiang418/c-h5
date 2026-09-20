@@ -26,8 +26,9 @@ declare namespace Api {
     interface Conversation {
       id: Id;
       title?: string;
-      bizType?: string;
-      bizId?: Id;
+      type?: 'ORDER_GROUP' | 'SUPPORT' | string;
+      customerId?: Id;
+      sellerId?: Id;
       myRole?: 'CUSTOMER' | 'SELLER' | 'ADMIN';
       lastMessageAt?: string | number;
       lastMessagePreview?: string;
@@ -35,13 +36,22 @@ declare namespace Api {
       unreadCount?: number;
       peerName?: string;
       peerAvatar?: string;
+      interveneStatus?: 'NONE' | 'REQUESTED' | 'HANDLING';
+      interveneReason?: string;
+      interveneBy?: Id;
+      interveneAt?: string | number;
+      interveneOrderId?: Id;
+      orderId?: Id;
       orderNo?: string;
       orderStatus?: string;
       orderStatusText?: string;
       productTitle?: string;
       productImage?: string;
-      amount?: number;
+      amount?: string | number;
+      activeOrderCount?: number;
     }
+    interface ConversationOrder { orderId: Id; orderNo?: string; orderStatus?: string; orderStatusText?: string; active?: boolean; productTitle?: string; productImage?: string; amount?: string | number; lastEventAt?: string | number; }
+    interface InterveneParams { conversationId: Id; orderId?: Id; reason?: string; }
 
     interface Message {
       id: Id;
