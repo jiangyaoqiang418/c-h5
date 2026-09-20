@@ -4,6 +4,7 @@ import { RequestError } from '@/service/request';
 import { useUserStore } from '@/stores';
 import { normalizeAmount } from './amount';
 import { fetchCategoryTree, enabledThirdLevelCategories } from '@/service/api/category';
+import { richTextError, richTextFingerprint } from './rich-text';
 
 export interface ProductCreateReceipt {
   attempt: string;
@@ -39,7 +40,7 @@ function validateRequest(request: Api.RealProduct.ProductCreateParams) {
     || ![request.shippingFee, request.taxFee].every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)
     || !Number.isSafeInteger(request.stock) || request.stock < 0 || request.stock > 2147483647
     || typeof request.overseasClearance !== 'boolean' || typeof request.brief !== 'string' || request.brief.length > 30
-    || typeof request.description !== 'string' || request.description.length > 500
+    || typeof request.description !== 'string' || !!richTextError(request.description)
     || !Array.isArray(request.images) || request.images.length < 1 || request.images.length > 6
     || request.images.some(item => !item || typeof item.bucket !== 'string' || !item.bucket.trim()
       || typeof item.filePath !== 'string' || !item.filePath.trim())) throw new Error('请核对商品字段、金额、整数库存及 1–6 张图片');
@@ -119,7 +120,7 @@ function matches(product: Api.RealProduct.ProductDTO, receipt: ProductCreateRece
   try {
     return validId(product.id) && !receipt.beforeIds.includes(String(product.id)) && String(product.sellerId) === userId
       && statuses.includes(product.status) && product.title === request.title && String(product.categoryId) === String(request.categoryId)
-      && product.brief === request.brief && product.description === request.description && product.stock === request.stock
+      && product.brief === request.brief && richTextFingerprint(product.description) === richTextFingerprint(request.description) && product.stock === request.stock
       && product.afterSaleType === request.afterSaleType && product.overseasClearance === request.overseasClearance
       && normalizeAmount(product.price) === normalizeAmount(request.price)
       && product.shippingFee != null && normalizeAmount(product.shippingFee) === normalizeAmount(request.shippingFee!)

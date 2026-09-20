@@ -8,5 +8,5 @@ const html = computed(() => sanitizeRichText(props.content) || `<p>${props.empty
 <template><rich-text class="rich-content" :nodes="html" /></template>
 
 <style scoped>
-.rich-content { display: block; color: #1d2129; font-size: 24rpx; line-height: 1.75; word-break: break-word; }
+.rich-content { display: block; max-width: 100%; overflow-x: auto; color: #1d2129; font-size: 24rpx; line-height: 1.75; word-break: break-word; }
 </style>

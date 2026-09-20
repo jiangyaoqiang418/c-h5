@@ -51,6 +51,8 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [uni()],
     resolve: {
+      // Tiptap/ProseMirror use pnpm's nested symlinks; resolve from the real package path so transitive imports remain visible.
+      preserveSymlinks: false,
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
         '@shared': fileURLToPath(new URL('./src/mock', import.meta.url))
