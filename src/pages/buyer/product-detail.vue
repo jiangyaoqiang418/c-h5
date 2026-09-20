@@ -4,6 +4,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app';
 import { buyerProductActions, deleteProduct, fetchBuyerProductDetail, setProductShelf } from '@/service/api/product';
 import { formatAmount } from '@/utils/format-bridge';
 import EmptyState from '@/components/common/empty-state.vue';
+import RichTextContent from '@/components/common/rich-text-content.vue';
 import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
@@ -166,7 +167,7 @@ onShow(() => { if (!operating.value) return load(); });
 
       <view class="section">
         <text class="section-title">详细描述</text>
-        <text class="description">{{ product.description || '暂无详细描述' }}</text>
+        <RichTextContent :content="product.description" empty-text="暂无详细描述" />
       </view>
 
       <view v-if="actions.shelf || actions.remove" class="bottom-bar">

@@ -11,6 +11,8 @@ import { getAccessToken } from '@/service/request/token';
 import { beginNextProduct, createProductWithReceipt, productCreateMessage, readProductCreateReceipt, reconcileProductCreation, type ProductCreateReceipt } from '@/utils/product-create';
 import EmptyState from '@/components/common/empty-state.vue';
 import CategoryPicker from '@/components/common/category-picker.vue';
+import RichTextEditor from '@/components/common/rich-text-editor.vue';
+import { richTextError, sanitizeRichText } from '@/utils/rich-text';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -198,6 +200,8 @@ async function submit() {
     uni.showToast({ title: '请核对商品信息、金额、整数库存和图片', icon: 'none' });
     return;
   }
+  const descriptionError = richTextError(form.description);
+  if (descriptionError) return uni.showToast({ title: descriptionError, icon: 'none' });
   submitting.value = true;
   const operation = page.capture();
   let created: ProductCreateReceipt | undefined;
@@ -219,7 +223,7 @@ async function submit() {
       afterSaleType: form.afterSaleType,
       overseasClearance: form.overseasClearance,
       brief: form.brief.trim(),
-      description: form.description.trim() || form.brief.trim(),
+      description: sanitizeRichText(form.description) || form.brief.trim(),
       images: form.images.map(image => ({ bucket: image.bucket, filePath: image.filePath }))
     }, [...form.images], operation.isCurrent);
     if (!operation.sameSession()) return;
@@ -270,7 +274,8 @@ async function submit() {
         <wd-cell title="分类" :value="categories.length ? categoryName : '暂不可选'" :is-link="!!categories.length" @click="pickCategory" />
         <view v-if="!categories.length" class="category-hint">分类暂不可用，选择后才可继续。<wd-button plain size="small" @click="load">重试</wd-button></view>
         <wd-textarea v-model="form.brief" label="商品简介" placeholder="30 字以内" :max-length="30" show-word-limit />
-        <wd-textarea v-model="form.description" label="详细描述" placeholder="可选，500 字以内" :max-length="500" show-word-limit />
+        <view class="field-label">详细描述</view>
+        <RichTextEditor v-model="form.description" :disabled="submitting" @uploading="uploading = $event" />
       </view>
 
       <view v-if="step === 1" class="form">
@@ -325,6 +330,7 @@ async function submit() {
 
 <style lang="scss" scoped>
 .category-hint { padding:12rpx 24rpx; display:flex; align-items:center; justify-content:space-between; gap:12rpx; color:var(--yb-muted); font-size:24rpx; }
+.field-label { padding: 20rpx 0 12rpx; color: #4e5969; font-size: 26rpx; }
 .publish-page { min-height:100%; }
 .receipt-panel { display:flex; flex-direction:column; gap:16rpx; margin:24rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); font-size:26rpx; }
 .create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx 200rpx; }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }

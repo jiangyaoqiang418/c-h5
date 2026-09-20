@@ -10,6 +10,7 @@ import { useCartStore } from '@/stores';
 import ReviewStars from '@/components/common/review-stars.vue';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import EmptyState from '@/components/common/empty-state.vue';
+import RichTextContent from '@/components/common/rich-text-content.vue';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 const { requireLogin } = useNavigationGuards();
@@ -309,7 +310,7 @@ function goBack() {
 
       <view class="section">
         <text class="section-title">商品详情</text>
-        <text class="description">{{ product.description || '暂无详情' }}</text>
+        <RichTextContent :content="product.description" />
       </view>
     </view>
 
