@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores';
 import { fetchPurchaseDetail, fetchPurchaseProgress } from '@/service/api/purchase';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
+import { showCompleteError } from '@/utils/error-message';
 import { claimPurchase, readClaimReceipts, reconcileClaimReceipts, type ClaimReceipt } from '@/utils/purchase-claim';
 import { cancelPurchaseWithReceipt, readPurchaseCancelReceipts, reconcilePurchaseCancel, purchaseCancelMessage, type PurchaseCancelReceipt } from '@/utils/purchase-cancel';
 import { getAccessToken } from '@/service/request/token';
@@ -136,7 +137,7 @@ async function claim() {
   } catch (error) {
     if (!operation.sameSession()) return;
     refreshClaimReceipt();
-    if (operation.isCurrent()) uni.showToast({ title: claimReceipt.value?.state === 'unknown' ? '接单结果尚未确认，请刷新核对，不要重复提交' : error instanceof Error ? error.message : '接单失败', icon: 'none' });
+    if (operation.isCurrent()) showCompleteError(claimReceipt.value?.state === 'unknown' ? new Error('接单结果尚未确认，请刷新核对，不要重复提交') : error, '接单失败');
   } finally {
     if (operation.sameSession()) {
       operating.value = false;

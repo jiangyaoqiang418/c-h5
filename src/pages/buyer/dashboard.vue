@@ -5,7 +5,7 @@ import { getAccessToken } from '@/service/request/token';
 import { avatarUrl } from '@shared/utils/image';
 import { formatAmount } from '@/utils/format-bridge';
 import { go } from '@/utils/navigate';
-import { fetchBuyerDepositLedger, fetchBuyerBusinessStats } from '@/service/api/buyer';
+import { fetchBuyerDepositSummary, fetchBuyerBusinessStats } from '@/service/api/buyer';
 import { fetchSoldOrders } from '@/service/api/order';
 import { fetchMyProducts } from '@/service/api/product';
 import { fetchHall } from '@/service/api/purchase';
@@ -60,7 +60,7 @@ async function load() {
       fetchSoldOrders({ pageNo: 1, pageSize: 5 }),
       fetchHall({ current: 1, size: 5 }),
       fetchMyProducts({ pageNo: 1, pageSize: 1, status: 'ON_SALE' }),
-      fetchBuyerDepositLedger({ pageNo: 1, pageSize: 1 }),
+      fetchBuyerDepositSummary(),
       userStore.currentUser.isBuyer ? fetchBuyerBusinessStats() : Promise.resolve(undefined)
     ]);
     const [soldOrders, demandHall, products, deposits, stats] = results;
@@ -83,7 +83,7 @@ async function load() {
       requestTotal.value = demandHall.value.total;
     }
     if (products.status === 'fulfilled') productTotal.value = products.value.total;
-    if (deposits.status === 'fulfilled') depositBalance.value = deposits.value.records[0]?.balanceAfter;
+    if (deposits.status === 'fulfilled') depositBalance.value = deposits.value.depositBalance;
     if (results.some(result => result.status === 'rejected')) {
       uni.showToast({ title: '部分买手数据加载失败', icon: 'none' });
     }

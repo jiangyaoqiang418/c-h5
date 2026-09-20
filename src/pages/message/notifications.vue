@@ -196,6 +196,7 @@ function target(notification: Api.RealNotify.Notification): string | undefined {
   if (type === 'FINANCE') return '/pages/finance/my-lockups';
   if (type === 'KYC') return '/pages/kyc/index';
   if (type === 'BUYER_APPLICATION') return '/pages/buyer/apply';
+  if (type === 'BUYER_DEPOSIT' && notification.templateCode === 'buyer_deposit_alert') return '/pages/buyer/deposit';
   if (id === undefined || id === null || id === '') return;
   if (type === 'ORDER') return `/pages/order/detail?id=${encodeURIComponent(String(id))}`;
   if (type === 'RECHARGE') return `/pages/wallet/recharge-detail?id=${encodeURIComponent(String(id))}`;

@@ -4,6 +4,7 @@ import { onHide, onPullDownRefresh, onReachBottom, onShow } from '@dcloudio/uni-
 import { usePagedList } from '@/utils/paged-list';
 import { useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
+import { showCompleteError } from '@/utils/error-message';
 import { claimPurchase, readClaimReceipts, reconcileClaimReceipts, type ClaimReceipt } from '@/utils/purchase-claim';
 import { getAccessToken } from '@/service/request/token';
 import PurchaseRequestCard from '@/components/purchase/purchase-request-card.vue';
@@ -114,7 +115,7 @@ async function onClaim(req: Api.PurchaseRequest.PurchaseRequest) {
   } catch (error) {
     if (!operation.sameSession()) return;
     refreshReceipts();
-    if (operation.isCurrent()) uni.showToast({ title: receipts.value.get(String(req.id))?.state === 'unknown' ? '接单结果尚未确认，请刷新核对，不要重复接单' : error instanceof Error ? error.message : '接单失败', icon: 'none' });
+    if (operation.isCurrent()) showCompleteError(receipts.value.get(String(req.id))?.state === 'unknown' ? new Error('接单结果尚未确认，请刷新核对，不要重复接单') : error, '接单失败');
   } finally {
     if (operation.sameSession()) {
       claiming.value = false;

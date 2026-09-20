@@ -52,5 +52,14 @@ declare namespace Api {
       amount: number;
       idempotencyKey: string;
     }
+
+    interface BuyerDepositSummary {
+      depositBalance?: string;
+      depositFrozen?: string;
+      depositAvailable?: string;
+      usageRate?: string;
+      depositExempt: boolean;
+      listable: boolean;
+    }
   }
 }

@@ -47,6 +47,10 @@ export function fetchBuyerDepositLedger(query: Api.RealUser.BuyerDepositLedgerQu
   });
 }
 
+export function fetchBuyerDepositSummary(): Promise<Api.RealUser.BuyerDepositSummary> {
+  return realUserRequest<Api.RealUser.BuyerDepositSummary>({ url: '/buyer/deposit/summary' });
+}
+
 export function payBuyerDeposit(params: Api.RealUser.BuyerDepositParams): Promise<string | number> {
   return realUserRequest<string | number, Api.RealUser.BuyerDepositParams>({
     url: '/buyer/deposit/pay',

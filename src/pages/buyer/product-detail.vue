@@ -7,6 +7,7 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
+import { showCompleteError } from '@/utils/error-message';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -115,7 +116,7 @@ async function changeProduct(action: 'shelf' | 'remove') {
       await load();
     }
   } catch (error) {
-    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '商品操作失败', icon: 'none' });
+    if (operation.isCurrent()) showCompleteError(error, '商品操作失败');
   } finally {
     if (operation.sameSession()) operating.value = false;
   }

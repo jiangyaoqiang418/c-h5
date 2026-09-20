@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
 import { fetchCategoryTree, enabledThirdLevelCategories, type CategoryNode } from '@/service/api/category';
 import { uploadProductImage } from '@/service/api/product';
+import { fetchBuyerDepositSummary } from '@/service/api/buyer';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 import { usePageOperation } from '@/utils/page-operation';
@@ -201,6 +202,13 @@ async function submit() {
   const operation = page.capture();
   let created: ProductCreateReceipt | undefined;
   try {
+    const depositSummary = await fetchBuyerDepositSummary();
+    if (!operation.isCurrent()) return;
+    if (!depositSummary.listable) {
+      uni.showToast({ title: '当前保证金不足，请先处理保证金', icon: 'none' });
+      go('/pages/buyer/deposit');
+      return;
+    }
     created = await createProductWithReceipt({
       title: form.title.trim(),
       categoryId: form.categoryId,

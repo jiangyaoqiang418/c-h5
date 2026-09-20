@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { onReachBottom, onShow } from '@dcloudio/uni-app';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { buyerProductActions, deleteProduct, fetchBuyerProductDetail, fetchMyProducts, setProductShelf } from '@/service/api/product';
+import { fetchBuyerDepositSummary } from '@/service/api/buyer';
 import { formatAmount } from '@/utils/format-bridge';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -151,7 +152,18 @@ async function changeProduct(product: Api.RealProduct.ProductDTO, action: 'shelf
       return;
     }
     if (action === 'remove') await deleteProduct(productId);
-    else await setProductShelf(productId, onShelf);
+    else {
+      if (onShelf) {
+        const depositSummary = await fetchBuyerDepositSummary();
+        if (!operation.isCurrent()) return;
+        if (!depositSummary.listable) {
+          uni.showToast({ title: '当前保证金不足，请先处理保证金', icon: 'none' });
+          go('/pages/buyer/deposit');
+          return;
+        }
+      }
+      await setProductShelf(productId, onShelf);
+    }
     if (!operation.sameSession()) return;
     if (action === 'remove') {
       deletedIds.add(String(productId));
@@ -161,7 +173,11 @@ async function changeProduct(product: Api.RealProduct.ProductDTO, action: 'shelf
     uni.showToast({ title: action === 'remove' ? '已删除' : onShelf ? '已上架' : '已下架', icon: 'success' });
     await load();
   } catch (error) {
-    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '商品操作失败', icon: 'none' });
+    if (operation.isCurrent()) {
+      const message = error instanceof Error ? error.message : '商品操作失败';
+      if (message.length > 24) uni.showModal({ title: '操作失败', content: message, showCancel: false });
+      else uni.showToast({ title: message, icon: 'none' });
+    }
   } finally {
     if (operation.sameSession()) operating.value = false;
     if (operation.isCurrent() && filter !== activeKey.value) void load();

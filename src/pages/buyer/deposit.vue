@@ -7,7 +7,7 @@ import { isMissingOperationRecord } from '@/utils/storage';
 import { useNavigationGuards } from '@/utils/navigate';
 import { RequestError } from '@/service/request';
 import { formatAmount } from '@/utils/format-bridge';
-import { fetchBuyerDepositLedger, payBuyerDeposit, refundBuyerDeposit } from '@/service/api/buyer';
+import { fetchBuyerDepositLedger, fetchBuyerDepositSummary, payBuyerDeposit, refundBuyerDeposit } from '@/service/api/buyer';
 import { useUserStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
 import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
@@ -15,6 +15,7 @@ import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 const userStore = useUserStore();
 const { requireLogin } = useNavigationGuards();
 const submitting = ref(false);
+const summary = ref<Api.RealUser.BuyerDepositSummary>();
 const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 
 const payPopup = ref(false);
@@ -71,12 +72,7 @@ onShow(loadPage);
 onHide(() => { invalidate(); payPopup.value = false; refundPopup.value = false; });
 onReachBottom(() => refreshRecords(false));
 
-const currentBalance = computed(() => {
-  const amount = ledgers.value[0]?.balanceAfter;
-  if (!userStore.currentUser || !pageNo.value || loading.value || loadFailed.value || pending.value?.receiptId != null
-    || amount == null || String(amount).trim() === '' || !Number.isFinite(Number(amount))) return undefined;
-  return amount;
-});
+const currentBalance = computed(() => summary.value?.depositBalance);
 
 function sameRequest(value: PendingDeposit | undefined, request: PendingDeposit) {
   return value?.idempotencyKey === request.idempotencyKey && value.action === request.action && value.amount === request.amount;
@@ -107,7 +103,8 @@ async function loadPage() {
     if (!await requireLogin('/pages/buyer/deposit') || !operation.isCurrent()) return;
     try { readPending(); }
     catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '原请求读取失败', icon: 'none' }); }
-    await refreshRecords();
+    const [summaryResult] = await Promise.all([fetchBuyerDepositSummary(), refreshRecords()]);
+    if (operation.isCurrent()) summary.value = summaryResult;
   } catch (error) {
     if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '保证金信息加载失败', icon: 'none' });
   }
@@ -162,6 +159,11 @@ async function submitDeposit(action: PendingDeposit['action']) {
     if (pending.value && pending.value.action !== action) throw new Error('请先恢复上一笔保证金操作');
     request = pending.value ? { ...pending.value } : { action, amount: Number(amountInput.value), idempotencyKey: createIdempotencyKey() };
     if (!Number.isFinite(request.amount) || request.amount <= 0) throw new Error('金额无效');
+    if (action === 'refund') {
+      const available = Number(summary.value?.depositAvailable);
+      if (!Number.isFinite(available)) throw new Error('可退保证金尚未加载，请刷新后重试');
+      if (request.amount > available) throw new Error('退还金额不能超过可退保证金');
+    }
     const recovering = !!pending.value;
     await userStore.refreshProfile();
     if (!current()) return;
@@ -202,13 +204,16 @@ async function submitDeposit(action: PendingDeposit['action']) {
   } finally {
     if (operation.sameSession()) {
       submitting.value = false;
-      if (page.visible.value) await refreshRecords();
+      if (page.visible.value) {
+        await userStore.refreshProfile().catch(() => undefined);
+        await loadPage();
+      }
     }
   }
 }
 
 function bizTypeText(type: Api.RealUser.BuyerDepositBizType): string {
-  return ({ PAY: '缴纳保证金', REFUND: '退还保证金', DEDUCT: '保证金扣罚', FREEZE: '保证金冻结', UNFREEZE: '保证金解冻' })[type];
+  return ({ PAY: '缴纳保证金', REFUND: '退还保证金', DEDUCT: '保证金扣罚', FREEZE: '订单占用', UNFREEZE: '订单释放' })[type];
 }
 
 function toTime(value: string | number): number {
@@ -226,24 +231,24 @@ function formatTime(value: string | number): string {
   <view class="dep-page yb-page">
     <PayPasswordPopup ref="payPasswordPopup" />
     <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.buyer})` }">
-      <text class="hero-label">最近流水保证金余额 (USDT)</text>
+      <text class="hero-label">保证金总额 (USDT)</text>
       <text class="hero-amount">U {{ currentBalance == null ? '—' : formatAmount(currentBalance) }}</text>
 
       <view class="meter">
         <view class="meter-info">
-          <text>余额以最新流水为准</text>
+          <text>{{ summary?.depositExempt ? '当前买手免押' : summary?.listable ? '当前可上架' : '当前不可上架' }}</text>
           <text>已加载 {{ ledgers.length }} / {{ total }} 条记录</text>
         </view>
       </view>
 
       <view class="hero-cells">
         <view class="cell">
-          <text class="cell-lbl">最新余额</text>
-          <text class="cell-val">{{ currentBalance == null ? '—' : formatAmount(currentBalance) }}</text>
+          <text class="cell-lbl">订单占用</text>
+          <text class="cell-val">{{ summary?.depositFrozen == null ? '—' : formatAmount(summary.depositFrozen) }}</text>
         </view>
         <view class="cell">
-          <text class="cell-lbl">最新类型</text>
-          <text class="cell-val">{{ ledgers[0] ? bizTypeText(ledgers[0].bizType) : '暂无' }}</text>
+          <text class="cell-lbl">可退 / 占用率</text>
+          <text class="cell-val">{{ summary?.depositAvailable == null ? '—' : formatAmount(summary.depositAvailable) }} / {{ summary?.usageRate == null ? '—' : `${summary.usageRate}%` }}</text>
         </view>
       </view>
 
