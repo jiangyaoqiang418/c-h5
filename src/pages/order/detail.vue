@@ -69,6 +69,10 @@ const actionsDisabled = computed(() => !page.visible.value || busy.value || load
   || (isCustomer.value && (refundBlocked.value || changeReceiptFailed.value || (!!order.value && orderChangeBlocks(order.value, currentChanges.value))))
   || (isCustomer.value && order.value?.rawStatus === 'CREATED' && (paymentReceiptFailed.value || (!!paymentReceipt.value && !paymentReceipt.value.retryable))));
 const logisticsDisabled = computed(() => actionsDisabled.value || logisticsLoadFailed.value || logisticsReceiptFailed.value || !!logisticsReceipt.value && logisticsReceipt.value.state !== 'verified');
+function trackMetaText(track: Api.RealOrder.LogisticsTrackDTO) {
+  const source = track.sourceText || (track.source === 'CARRIER_SYNC' ? '承运商同步' : '');
+  return [source, track.location, track.occurredAt ? formatTime(track.occurredAt) : ''].filter(Boolean).join(' · ');
+}
 function closePopups() {
   trackPopupVisible.value = false; exceptionPopupVisible.value = false;
   trackForm.value = { status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false };
@@ -390,7 +394,7 @@ function submitException() { return submitLogistics('exception'); }
        <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
        <view v-if="logistics.purchaseVouchers.length" class="voucher-section"><text class="voucher-title">采购凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.purchaseVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
        <view v-if="logistics.shipVouchers.length" class="voucher-section"><text class="voucher-title">发货凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.shipVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
-       <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="track.location || track.occurredAt" class="track-meta">{{ track.location || '' }} {{ formatTime(track.occurredAt) }}</text></view></view>
+       <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="trackMetaText(track)" class="track-meta">{{ trackMetaText(track) }}</text></view></view>
        <text v-else class="track-meta">暂无物流轨迹</text>
        <view v-if="isSeller && order.status === 'IN_TRANSIT'" class="logistics-actions">
          <wd-button size="small" plain :disabled="logisticsDisabled" @click="openTrackPopup">更新物流轨迹</wd-button>
