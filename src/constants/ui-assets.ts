@@ -7,7 +7,7 @@ export const UI_ASSETS = {
     account: `${ROOT}/backgrounds/bg-account-globe.png`,
     buyer: `${ROOT}/backgrounds/bg-buyer-world-map.png`,
     chain: `${ROOT}/backgrounds/bg-chain-circuit.png`,
-    login: `${ROOT}/backgrounds/bg-login-orbit-globe.png`,
+    login: `${ROOT}/backgrounds/bg-login-mobile-commerce-red.png`,
     vip: `${ROOT}/backgrounds/bg-vip-wave.png`,
     points: `${ROOT}/backgrounds/bg-points-orbit.png`,
     ai: `${ROOT}/backgrounds/bg-ai-aurora.png`,
@@ -37,6 +37,7 @@ export const UI_ASSETS = {
   },
   icons: {
     appMark: `${ROOT}/icons/custom/icon-app-mark.png`,
+    favicon: `${ROOT}/icons/custom/icon-app-favicon.svg`,
     brand: `${ROOT}/icons/custom/brand-youbao-mark.png`,
     verifiedBuyer: `${ROOT}/icons/custom/icon-buyer-verified.png`,
     tokenU: `${ROOT}/icons/custom/icon-token-u.png`

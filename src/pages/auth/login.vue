@@ -105,18 +105,20 @@ async function submitOAuth(payload: OAuthLoginParams) {
 
 <template>
   <view class="login-page" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.login})` }">
-    <view class="hero">
-      <image class="logo-mark" :src="UI_ASSETS.icons.brand" mode="aspectFit" />
-      <text class="title">油宝</text>
-      <text class="sub">Web3 稳定币代购撮合商城</text>
-    </view>
+    <view class="login-content">
+      <view class="hero">
+        <image class="logo-mark" :src="UI_ASSETS.icons.favicon" mode="aspectFit" />
+        <text class="title">油宝</text>
+        <text class="sub">Web3 稳定币代购撮合商城</text>
+      </view>
 
-    <view class="form-card">
-      <wd-input class="login-input" v-model="form.email" label="邮箱" label-width="36px" placeholder="如 wangxiaomei@bw-shop.com" />
-      <wd-input class="login-input" v-model="form.password" label="密码" label-width="36px" type="password" placeholder="请输入登录密码" />
-      <wd-button type="primary" block :loading="submitting" @click="submit">{{ loginConfirmed ? '已登录，继续进入' : '登 录' }}</wd-button>
-      <view v-if="oauthConflictMessage" class="oauth-warning">{{ oauthConflictMessage }}</view>
-      <OAuthLoginOptions :disabled="submitting" @login="submitOAuth" />
+      <view class="form-card">
+        <wd-input class="login-input" v-model="form.email" label="邮箱" label-width="36px" placeholder="如 wangxiaomei@bw-shop.com" />
+        <wd-input class="login-input" v-model="form.password" label="密码" label-width="36px" type="password" placeholder="请输入登录密码" />
+        <wd-button type="primary" block :loading="submitting" @click="submit">{{ loginConfirmed ? '已登录，继续进入' : '登 录' }}</wd-button>
+        <view v-if="oauthConflictMessage" class="oauth-warning">{{ oauthConflictMessage }}</view>
+        <OAuthLoginOptions :disabled="submitting" @login="submitOAuth" />
+      </view>
     </view>
   </view>
 </template>
@@ -126,18 +128,24 @@ async function submitOAuth(payload: OAuthLoginParams) {
   min-height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  background-color: #0e1530;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
   background-size: cover;
   background-position: center;
   padding: calc(32rpx + env(safe-area-inset-top)) 32rpx calc(32rpx + env(safe-area-inset-bottom));
 }
+.login-content {
+  width: 100%;
+  margin: auto 0;
+}
 .hero {
   text-align: center;
-  padding: 48rpx 0;
-  color: #fff;
+  padding: 32rpx 0;
+  color: #c91820;
 }
 .logo-mark {
-  width: 112rpx;
+  width: 96rpx;
   height: 96rpx;
   border-radius: 16rpx;
   margin-bottom: 16rpx;
@@ -150,7 +158,7 @@ async function submitOAuth(payload: OAuthLoginParams) {
 .sub {
   display: block;
   font-size: 24rpx;
-  opacity: 0.85;
+  color: #4e5969;
   margin-top: 8rpx;
 }
 .form-card {
