@@ -190,10 +190,10 @@ function onSortChange(v: string) {
 .grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
-  padding: 16rpx 0;
+  gap: 16rpx;
+  padding: 20rpx;
 }
-.grid > * { width: calc((100% - 12rpx) / 2); min-width: 0; }
+.grid > * { width: calc((100% - 16rpx) / 2); min-width: 0; }
 .loading, .no-more {
   text-align: center;
   padding: 32rpx;
