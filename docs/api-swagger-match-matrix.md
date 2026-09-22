@@ -15,6 +15,17 @@
 
 ## 本期后端变更适配
 
+### 2026-09-22 E6：移动 H5 第三方登录与安全设置
+
+| 能力 | live Swagger 契约 | H5 接入状态 |
+|---|---|---|
+| 渠道配置 | `GET /auth/oauth/config`：Google/Telegram 开关、Client ID、Bot Username；One Tap 字段仅读取不启用 | 仅 H5 加载官方 Google GIS 按钮与 Telegram Login Widget；开关关闭或配置缺失时不展示，普通邮箱登录不受影响 |
+| 第三方登录 | `POST /auth/oauth/login`：Google 传 `credential`；Telegram 原字段按字符串传 `telegramPayload` | 已接入；成功写入会话并读取 `/auth/me`，`-317` 持久提示改用邮箱密码登录且不写 token |
+| 登录密码状态与设置 | 登录响应及 `/auth/me` 返回 `loginPasswordSet`；`POST /auth/password/set`，密码 6-64 位，无邮箱时同时传邮箱 | 仅 `loginPasswordSet === false` 展示入口；第三方登录后先进入设置页，成功后保留当前 token 并刷新资料 |
+| 支付密码前置条件 | set/reset 在未设登录密码时返回 `-316`；update 不受影响 | set/reset 进入前检查；并兜底捕获 `-316`，清空密码表单后跳转设置登录密码，完成后回到原支付密码模式及业务回跳页 |
+
+本批未新增 OAuth/OIDC 自定义按钮接口，不调用 Google One Tap；App 代码由 H5 条件编译隔离。本节为契约和源码接入记录，不代表人工联调通过。
+
 9月8日本轮增量：商品与求购共用完整启用三级路径校验，商品首次创建前再取有效树；KYC三图nullable且逐图占位，原续签失败回退与状态/FileId不变；IM事件/合并清params和媒体FileId并保持撤回单调；请求错误追加可选traceId，成功响应及业务提示不变。共10既有源码文件，未新增接口、测试文件或依赖。用户补齐分类后，Chrome自有1281847767商品/求购ActionSheet均只呈现QA测试 / QA-1 / QA-3，点击后回显正确，L1/L2无独立可选项；主协调核L3为2097326320795602945。未专门验重开重选，无独立清除控件；本次未重确认393×852/Fit，只算功能证据，不继承手机布局验收。未填其他字段/上传/提交，自有标签已关闭释放；失效提交和真实创建仍未验。旧“商品可选一级/缺有效三级”仅历史；KYC材料/IM故障待指定样本复验。
 
 | 能力 | 当前契约 | API / 类型 / 核心逻辑 | 页面接入 | 本轮真实验证 |

@@ -96,7 +96,7 @@ const cells = computed(() => {
   }
   const buyerActive = userStore.isBuyerActive;
   if (buyerActive) {
-    return [
+    const result = [
       { label: '买手仪表盘', icon: 'chart', go: () => go('/pages/buyer/dashboard') },
       { label: '商品管理', icon: 'goods', go: () => go('/pages/buyer/products') },
       { label: '我的收藏', icon: 'star', go: () => go('/pages/my/favorites') },
@@ -107,8 +107,10 @@ const cells = computed(() => {
       { label: 'VIP 特权', icon: 'gift', go: () => go('/pages/vip/index') },
       { label: 'KYC 认证', icon: 'secured', go: () => go('/pages/kyc/index') }
     ];
+    if (userStore.needsLoginPassword) result.push({ label: '设置登录密码', icon: 'lock-on', go: () => go('/pages/my/login-password') });
+    return result;
   }
-  return [
+  const result = [
     { label: '我的钱包', icon: 'wallet', go: () => go('/pages/wallet/index') },
     { label: '我的收藏', icon: 'star', go: () => go('/pages/my/favorites') },
     { label: '小金库', icon: 'money-circle', go: () => go('/pages/finance/list') },
@@ -123,6 +125,8 @@ const cells = computed(() => {
     { label: 'VIP 特权', icon: 'gift', go: () => go('/pages/vip/index') },
     { label: '帮助中心', icon: 'service', go: () => go('/pages/help/index') }
   ];
+  if (userStore.needsLoginPassword) result.splice(result.length - 2, 0, { label: '设置登录密码', icon: 'lock-on', go: () => go('/pages/my/login-password') });
+  return result;
 });
 
 function logout() {
@@ -165,7 +169,7 @@ function goMessages() {
             <KycStatusTag :status="user.kycStatus" light />
           </view>
           <view class="tag-row">
-            <text class="email">{{ user.email }}</text>
+            <text class="email">{{ user.email || '未绑定邮箱' }}</text>
           </view>
         </view>
       </view>

@@ -112,7 +112,19 @@ export const useUserStore = defineStore('bw-user', () => {
     storage.set(STORAGE_KEY.currentAudience, 'customer');
     initialized.value = true;
     await refreshBuyerApplication();
-    return { userId: result.remoteId, token };
+    return { userId: result.remoteId, token, newUser: session.newUser, loginPasswordSet: session.loginPasswordSet, payPasswordSet: session.payPasswordSet };
+  }
+
+  async function loginWithOAuth(params: realAuthApi.OAuthLoginParams, accept: () => boolean = () => true) {
+    const session = await realAuthApi.oauthLogin(params, accept);
+    if (session.token !== getAccessToken()) throw new Error('会话已切换，本次登录资料已忽略');
+    currentUser.value = session.profile;
+    realUserId.value = session.profile.remoteId;
+    currentAudience.value = 'customer';
+    storage.set(STORAGE_KEY.currentAudience, 'customer');
+    initialized.value = true;
+    await refreshBuyerApplication();
+    return { userId: session.profile.remoteId, token: session.token, newUser: session.newUser, loginPasswordSet: session.loginPasswordSet, payPasswordSet: session.payPasswordSet };
   }
 
   function logout() {
@@ -141,6 +153,7 @@ export const useUserStore = defineStore('bw-user', () => {
     () => !!currentUser.value?.isBuyer && currentUser.value?.kycStatus === 'approved'
   );
   const isBuyerActive = computed(() => currentAudience.value === 'buyer');
+  const needsLoginPassword = computed(() => currentUser.value?.loginPasswordSet === false);
   return {
     currentUser,
     realUserId,
@@ -151,8 +164,10 @@ export const useUserStore = defineStore('bw-user', () => {
     displayName,
     canSwitchToBuyer,
     isBuyerActive,
+    needsLoginPassword,
     init,
     login,
+    loginWithOAuth,
     logout,
     setAudience,
     refreshBuyerApplication,

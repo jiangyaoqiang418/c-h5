@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { nextTick, reactive, ref } from 'vue';
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { getAccessToken, onSessionChanged } from '@/service/request/token';
 import { go } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
 import { UI_ASSETS } from '@/constants/ui-assets';
+import OAuthLoginOptions from '@/components/auth/oauth-login-options.vue';
+import type { OAuthLoginParams } from '@/service/api/auth';
+import { RequestError } from '@/service/request/type';
 
 const userStore = useUserStore();
 const env = ((import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env || {});
@@ -16,6 +19,7 @@ const form = reactive({
 const submitting = ref(false);
 const redirect = ref('/pages/my/index');
 const loginConfirmed = ref(false);
+const oauthConflictMessage = ref('');
 let confirmedToken = '';
 let visible = true;
 let disposed = false;
@@ -69,6 +73,34 @@ async function submit() {
   }
 }
 
+async function submitOAuth(payload: OAuthLoginParams) {
+  if (!visible || disposed || submitting.value) return;
+  submitting.value = true;
+  oauthConflictMessage.value = '';
+  const version = pageVersion;
+  const origin = getCurrentPages().slice(-1)[0];
+  const current = () => visible && !disposed && version === pageVersion && origin === getCurrentPages().slice(-1)[0];
+  try {
+    const receipt = await userStore.loginWithOAuth(payload, current);
+    if (!current() || receipt.token !== getAccessToken() || receipt.userId !== userStore.realUserId) return;
+    confirmedToken = receipt.token;
+    loginConfirmed.value = true;
+    uni.showToast({ title: '登录成功', icon: 'success' });
+    if (!receipt.loginPasswordSet) go(`/pages/my/login-password?redirect=${encodeURIComponent(redirect.value)}`, true);
+    else continueLogin();
+  } catch (error) {
+    if (!current()) return;
+    if (error instanceof RequestError && String(error.code) === '-317') {
+      oauthConflictMessage.value = error.message || '该 Google 邮箱已注册，请使用邮箱密码登录';
+      await nextTick();
+    } else {
+      uni.showToast({ title: error instanceof Error ? error.message : '第三方登录失败', icon: 'none' });
+    }
+  } finally {
+    submitting.value = false;
+  }
+}
+
 </script>
 
 <template>
@@ -83,6 +115,8 @@ async function submit() {
       <wd-input class="login-input" v-model="form.email" label="邮箱" label-width="36px" placeholder="如 wangxiaomei@bw-shop.com" />
       <wd-input class="login-input" v-model="form.password" label="密码" label-width="36px" type="password" placeholder="请输入登录密码" />
       <wd-button type="primary" block :loading="submitting" @click="submit">{{ loginConfirmed ? '已登录，继续进入' : '登 录' }}</wd-button>
+      <view v-if="oauthConflictMessage" class="oauth-warning">{{ oauthConflictMessage }}</view>
+      <OAuthLoginOptions :disabled="submitting" @login="submitOAuth" />
     </view>
   </view>
 </template>
@@ -128,6 +162,7 @@ async function submit() {
 .login-input {
   --wot-cell-padding: 12px;
 }
+.oauth-warning{margin-top:20rpx;padding:18rpx 20rpx;border-radius:8rpx;background:#fff2f0;color:#cf1322;font-size:24rpx;line-height:1.5}
 .divider {
   text-align: center;
   color: #86909c;

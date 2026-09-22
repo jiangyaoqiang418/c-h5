@@ -1,6 +1,10 @@
 import { clearAccessToken, getAccessToken, realUserRequest, setAccessToken } from '../request';
 
-export type CurrentUser = Omit<Api.User.UserRecord, 'points' | 'vipLevel'> & { points?: number };
+export type CurrentUser = Omit<Api.User.UserRecord, 'email' | 'points' | 'vipLevel'> & {
+  email: string | null;
+  points?: number;
+  loginPasswordSet?: boolean;
+};
 
 export interface LoginParams {
   email: string;
@@ -12,17 +16,41 @@ interface LoginResponse {
   token: string;
   nickname: string;
   avatar?: string;
+  newUser?: boolean;
+  loginPasswordSet?: boolean;
+  payPasswordSet?: boolean;
+}
+
+export interface OAuthConfig {
+  googleEnabled: boolean;
+  googleClientId: string | null;
+  googleOneTapEnabled: boolean;
+  telegramEnabled: boolean;
+  telegramBotUsername: string | null;
+}
+
+export type OAuthLoginParams =
+  | { provider: 'GOOGLE'; credential: string }
+  | { provider: 'TELEGRAM'; telegramPayload: Record<string, string> };
+
+export interface LoginReceipt {
+  profile: CurrentUser;
+  token: string;
+  newUser: boolean;
+  loginPasswordSet: boolean;
+  payPasswordSet: boolean;
 }
 
 interface CurrentUserResponse {
   userId: string;
-  email: string;
+  email: string | null;
   nickname: string;
   avatar?: string;
   phone?: string;
   points?: string | number;
   roles?: string[];
   kycStatus?: string;
+  loginPasswordSet?: boolean;
 }
 
 function normalizeKycStatus(status?: string): Api.User.KycStatus {
@@ -41,7 +69,7 @@ function toUserRecord(profile: CurrentUserResponse): CurrentUser {
     // `id` 仅保留给尚未迁移的 Mock 页面兼容使用；真实业务 ID 只能使用 remoteId。
     id: 0,
     remoteId: profile.userId,
-    email: profile.email || '',
+    email: profile.email ?? null,
     nickname: profile.nickname || '',
     avatar: profile.avatar,
     phone: profile.phone,
@@ -50,7 +78,8 @@ function toUserRecord(profile: CurrentUserResponse): CurrentUser {
     status: '1',
     points: profile.points == null ? undefined : Number(profile.points),
     tagIds: [],
-    registeredAt: ''
+    registeredAt: '',
+    loginPasswordSet: profile.loginPasswordSet
   };
 }
 
@@ -60,7 +89,21 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return toUserRecord(profile);
 }
 
-export async function login(params: LoginParams, accept: () => boolean = () => true): Promise<{ profile: CurrentUser; token: string }> {
+async function completeLogin(loginResult: LoginResponse, previousToken: string, accept: () => boolean): Promise<LoginReceipt> {
+  if (!accept() || previousToken !== getAccessToken()) throw new Error('登录操作已失效，请重新登录');
+  setAccessToken(loginResult.token);
+  const profile = await fetchCurrentUser();
+  profile.loginPasswordSet ??= loginResult.loginPasswordSet;
+  return {
+    profile,
+    token: loginResult.token,
+    newUser: !!loginResult.newUser,
+    loginPasswordSet: profile.loginPasswordSet ?? true,
+    payPasswordSet: !!loginResult.payPasswordSet
+  };
+}
+
+export async function login(params: LoginParams, accept: () => boolean = () => true): Promise<LoginReceipt> {
   const previousToken = getAccessToken();
   const loginResult = await realUserRequest<LoginResponse, LoginParams>({
     url: '/auth/login',
@@ -68,12 +111,23 @@ export async function login(params: LoginParams, accept: () => boolean = () => t
     data: params,
     requireToken: false
   });
-  if (!accept() || previousToken !== getAccessToken()) throw new Error('登录操作已失效，请重新登录');
-  setAccessToken(loginResult.token);
-  // 登录后的资料请求断网不等于凭据失效，真正的 401 由请求层统一处理。
-  const profile = await fetchCurrentUser();
-  return { profile, token: loginResult.token };
+  return completeLogin(loginResult, previousToken, accept);
 }
+
+export const fetchOAuthConfig = () => realUserRequest<OAuthConfig>({ url: '/auth/oauth/config', requireToken: false });
+
+export async function oauthLogin(params: OAuthLoginParams, accept: () => boolean = () => true): Promise<LoginReceipt> {
+  const previousToken = getAccessToken();
+  const result = await realUserRequest<LoginResponse, OAuthLoginParams>({
+    url: '/auth/oauth/login', method: 'POST', data: params, requireToken: false
+  });
+  return completeLogin(result, previousToken, accept);
+}
+
+export interface SetLoginPasswordParams { email?: string; password: string; confirmPassword: string }
+export const setLoginPassword = (data: SetLoginPasswordParams) => realUserRequest<void, SetLoginPasswordParams>({
+  url: '/auth/password/set', method: 'POST', data
+});
 
 export function logoutLocal(): void {
   clearAccessToken();

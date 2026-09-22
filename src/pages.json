@@ -49,6 +49,7 @@
     { "path": "pages/vip/index", "style": { "navigationBarTitleText": "VIP 特权" } },
     { "path": "pages/my/addresses", "style": { "navigationBarTitleText": "地址管理" } },
     { "path": "pages/my/pay-password", "style": { "navigationBarTitleText": "支付密码" } },
+    { "path": "pages/my/login-password", "style": { "navigationBarTitleText": "设置登录密码" } },
     { "path": "pages/my/favorites", "style": { "navigationBarTitleText": "我的收藏", "enablePullDownRefresh": true } },
     { "path": "pages/my/points", "style": { "navigationBarTitleText": "我的积分" } },
 
