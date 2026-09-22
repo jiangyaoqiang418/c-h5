@@ -136,8 +136,10 @@ async function submitOAuth(payload: OAuthLoginParams) {
   padding: calc(32rpx + env(safe-area-inset-top)) 32rpx calc(32rpx + env(safe-area-inset-bottom));
 }
 .login-content {
-  width: 100%;
-  margin: auto 0;
+  width: 90%;
+  max-width: 640rpx;
+  margin: auto;
+  transform: translateY(-6vh);
 }
 .hero {
   text-align: center;
@@ -215,5 +217,10 @@ async function submitOAuth(payload: OAuthLoginParams) {
   font-size: 22rpx;
   color: #86909c;
   margin-top: 24rpx;
+}
+@media (max-height: 560px) {
+  .login-content {
+    transform: none;
+  }
 }
 </style>
