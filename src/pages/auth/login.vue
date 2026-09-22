@@ -109,7 +109,6 @@ async function submitOAuth(payload: OAuthLoginParams) {
       <view class="hero">
         <image class="logo-mark" :src="UI_ASSETS.icons.favicon" mode="aspectFit" />
         <text class="title">油宝</text>
-        <text class="sub">Web3 稳定币代购撮合商城</text>
       </view>
 
       <view class="form-card">
@@ -142,26 +141,21 @@ async function submitOAuth(payload: OAuthLoginParams) {
   transform: translateY(-6vh);
 }
 .hero {
-  text-align: center;
-  padding: 32rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 24rpx 0 32rpx;
   color: #c91820;
 }
 .logo-mark {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 16rpx;
-  margin-bottom: 16rpx;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 12rpx;
 }
 .title {
-  display: block;
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: 700;
-}
-.sub {
-  display: block;
-  font-size: 24rpx;
-  color: #4e5969;
-  margin-top: 8rpx;
 }
 .form-card {
   background: #fff;
