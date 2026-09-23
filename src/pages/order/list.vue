@@ -14,6 +14,8 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
+import { fetchLatestWalletPay, validateWalletPay } from '@/service/api/wallet-pay';
+import { walletPayEntryEnabled } from '@/utils/wallet-pay-feature';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -205,6 +207,14 @@ async function pay(o: Api.RealOrder.OrderView) {
   const filter = filterVersion;
   try {
     const current = () => operation.isCurrent() && filter === filterVersion;
+    if (walletPayEntryEnabled) {
+      const walletPay = await fetchLatestWalletPay(o.orderGroupNo);
+      if (!current()) return;
+      if (walletPay && ['PENDING', 'SUBMITTED'].includes(validateWalletPay(walletPay, o.orderGroupNo).status)) {
+        go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(o.orderGroupNo)}`);
+        return;
+      }
+    }
     const payPassword = await payPasswordPopup.value?.request('/pages/order/list');
     if (!payPassword || !current()) return;
     const receipt = await confirmOrderGroupPayment(o.orderGroupNo, userId, payPassword, current);
@@ -225,6 +235,16 @@ async function pay(o: Api.RealOrder.OrderView) {
     if (operation.sameSession() && page.visible.value) await load();
     if (operation.sameSession()) paying.value = false;
   }
+}
+
+async function viewWalletPay(o: Api.RealOrder.OrderView) {
+  if (!walletPayEntryEnabled || !o.orderGroupNo || !userStore.realUserId) return;
+  try {
+    const latest = await fetchLatestWalletPay(o.orderGroupNo);
+    if (!latest) { uni.showToast({ title: '本组暂无钱包支付单', icon: 'none' }); return; }
+    validateWalletPay(latest, o.orderGroupNo);
+    go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(o.orderGroupNo)}`);
+  } catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '支付单读取失败', icon: 'none' }); }
 }
 
 async function changeOrder(o: Api.RealOrder.OrderView, action: 'cancel' | 'confirm') {
@@ -396,8 +416,10 @@ async function submitShipping() {
           :key="o.id"
           :order="o"
           :seller-mode="userStore.isBuyerActive"
+          :wallet-pay-enabled="walletPayEntryEnabled"
           :actions-disabled="busy || loading || loadFailed || receipts.get(String(o.id)) === o.rawStatus || uncertainShipping.has(String(o.id)) || paymentBlocked(o) || changeBlocked(o)"
           @pay="pay"
+          @wallet-pay="viewWalletPay"
           @cancel="cancel"
           @confirm="confirm"
           @review="review"

@@ -9,6 +9,7 @@ interface Props {
   order: Api.RealOrder.OrderView;
   sellerMode?: boolean;
   actionsDisabled?: boolean;
+  walletPayEnabled?: boolean;
 }
 const props = defineProps<Props>();
 defineEmits<{
@@ -18,6 +19,7 @@ defineEmits<{
   (e: 'review', o: Api.RealOrder.OrderView): void;
   (e: 'aftersale', o: Api.RealOrder.OrderView): void;
   (e: 'ship', o: Api.RealOrder.OrderView): void;
+  (e: 'wallet-pay', o: Api.RealOrder.OrderView): void;
 }>();
 
 const cover = computed(
@@ -65,6 +67,8 @@ function goDetail() {
       >
         立即付款
       </wd-button>
+      <wd-button v-if="walletPayEnabled && !props.sellerMode && order.orderGroupNo && order.status === 'PENDING_PAYMENT'"
+        plain size="small" :disabled="actionsDisabled" @click="$emit('wallet-pay', order)">钱包进度</wd-button>
       <wd-button
         v-if="!props.sellerMode && order.status === 'PENDING_PAYMENT'"
         plain

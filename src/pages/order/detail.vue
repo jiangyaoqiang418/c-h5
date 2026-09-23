@@ -18,6 +18,8 @@ import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
 import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
+import { fetchLatestWalletPay, validateWalletPay, type WalletPayOrder } from '@/service/api/wallet-pay';
+import { walletPayEntryEnabled } from '@/utils/wallet-pay-feature';
 
 const { requireLogin } = useNavigationGuards();
 const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
@@ -50,6 +52,8 @@ const refundBlocked = computed(() => refundReceiptFailed.value || (!!refundRecei
 const paymentReceipts = ref<PaymentReceipt[]>([]);
 const paymentReceiptFailed = ref(false);
 const paymentReceipt = computed(() => paymentReceipts.value.find(item => item.orderGroupNo === order.value?.orderGroupNo));
+const walletPay = ref<WalletPayOrder>();
+const walletPayError = ref('');
 const busy = computed(() => operating.value || logisticsSubmitting.value);
 const logisticsReceipt = ref<LogisticsUpdateReceipt>();
 const logisticsReceiptFailed = ref(false);
@@ -63,6 +67,7 @@ const page = usePageOperation(() => {
   changeReceipts.value = []; changeReceiptFailed.value = false; logisticsReceipt.value = undefined; logisticsReceiptFailed.value = false;
   refundReceipt.value = undefined; refundReceiptFailed.value = false;
   paymentReceipts.value = []; paymentReceiptFailed.value = false;
+  walletPay.value = undefined; walletPayError.value = '';
   closePopups();
 });
 const actionsDisabled = computed(() => !page.visible.value || busy.value || loading.value || loadFailed.value
@@ -121,6 +126,7 @@ async function reload() {
   const sequence = ++loadSequence;
   loading.value = true;
   loadFailed.value = false;
+  walletPay.value = undefined; walletPayError.value = '';
   try {
     if (id.value == null) return;
     const orderId = id.value;
@@ -140,6 +146,13 @@ async function reload() {
     if (sequence !== loadSequence || !operation.isCurrent()) return;
     if (detailResult.status === 'fulfilled' && String(detailResult.value.id) === String(orderId)) {
       order.value = detailResult.value;
+      if (walletPayEntryEnabled && order.value.orderGroupNo && orderRole(order.value, userStore.realUserId) === 'customer') {
+        try {
+          const groupNo = order.value.orderGroupNo;
+          const latest = await fetchLatestWalletPay(groupNo);
+          if (operation.isCurrent() && sequence === loadSequence) walletPay.value = latest ? validateWalletPay(latest, groupNo) : undefined;
+        } catch { if (operation.isCurrent() && sequence === loadSequence) walletPayError.value = '钱包支付进度读取失败，请刷新后核对'; }
+      }
     } else {
       loadFailed.value = true;
     }
@@ -186,6 +199,15 @@ async function pay() {
   const userId = userStore.realUserId!;
   const operation = page.capture();
   try {
+    if (walletPayEntryEnabled) {
+      const latest = await fetchLatestWalletPay(order.value.orderGroupNo);
+      if (!operation.isCurrent()) return;
+      walletPay.value = latest ? validateWalletPay(latest, order.value.orderGroupNo) : undefined;
+      if (walletPay.value && ['PENDING', 'SUBMITTED'].includes(walletPay.value.status)) {
+        go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(order.value.orderGroupNo)}`);
+        return;
+      }
+    }
     const payPassword = await payPasswordPopup.value?.request(`/pages/order/detail?id=${encodeURIComponent(String(order.value.id))}`);
     if (!payPassword || !operation.isCurrent()) return;
     const receipt = await confirmOrderGroupPayment(order.value.orderGroupNo, userId, payPassword, operation.isCurrent);
@@ -299,6 +321,12 @@ function submitException() { return submitLogistics('exception'); }
 <template>
   <PayPasswordPopup ref="payPasswordPopup" />
   <view v-if="order" class="detail-page yb-page">
+    <view v-if="isCustomer && walletPayError" class="section">{{ walletPayError }}</view>
+    <view v-if="isCustomer && walletPay" class="section">
+      <text class="section-title">钱包支付进度</text>
+      <text>{{ walletPay.payNo }} · {{ walletPay.statusText || walletPay.status }}</text>
+      <wd-button plain size="small" @click="go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(walletPay.orderGroupNo)}`)">查看原支付单</wd-button>
+    </view>
     <wd-button v-if="loadFailed || logisticsLoadFailed" block plain :disabled="busy" :loading="loading" @click="reload">部分数据刷新失败，点击重试</wd-button>
     <view v-if="isCustomer && paymentReceipt" class="section">
       <text class="section-title">付款结果</text>

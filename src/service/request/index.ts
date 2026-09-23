@@ -13,6 +13,7 @@ const LOGIN_RETURN_PARAMS: Record<string, readonly string[]> = {
   '/pages/order/detail': ['id'],
   '/pages/order/list': ['status'],
   '/pages/checkout/index': ['mode', 'contextId', 'guestTransferId'],
+  '/pages/checkout/wallet-pay': ['orderGroupNo'],
   '/pages/checkout/success': ['orderId', 'orderIds'],
   '/pages/purchase/create': ['productHint', 'categoryId'],
   '/pages/purchase/detail': ['id'],

@@ -8,6 +8,7 @@ export interface PendingCheckout {
   mode?: 'cart' | 'buy-now';
   contextId?: string;
   lines?: Array<{ key: string; qty: number }>;
+  walletPayAttempt?: { chain: string; idempotencyKey: string; payNo?: string };
 }
 
 const legacyKey = 'bw_h5_real_checkout_pending_v1';
@@ -28,6 +29,9 @@ function validate(record: PendingCheckout) {
     || (record.lines != null && (!Array.isArray(record.lines) || record.lines.some(line => !line || !nonempty(line.key) || !quantity(line.qty))
       || new Set(record.lines.map(line => line.key)).size !== record.lines.length))) throw new Error('本机结算进度不完整，请先核对订单，不要重新下单');
   const request = record.request;
+  const attempt = record.walletPayAttempt;
+  if (attempt && (!nonempty(attempt.chain) || !nonempty(attempt.idempotencyKey)
+    || (attempt.payNo != null && !nonempty(attempt.payNo)))) throw new Error('本机钱包支付进度不完整，请先核对原支付单');
   if (request && (!validId(request.addressId) || request.idempotencyKey !== record.idempotencyKey
     || !Array.isArray(request.items) || !request.items.length || request.items.length > 20
     || request.items.some(item => !item || !validId(item.productId) || (item.quantity != null && !quantity(item.quantity))
