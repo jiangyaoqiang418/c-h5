@@ -57,11 +57,11 @@ async function setLink() {
 <template>
   <view class="rich-editor" :class="{ disabled }">
     <view class="toolbar">
-      <button type="default" size="mini" @click="format('bold')">加粗</button><button type="default" size="mini" @click="format('italic')">斜体</button>
-      <button type="default" size="mini" @click="format('underline')">下划线</button><button type="default" size="mini" @click="format('header', 'H2')">标题</button>
-      <button type="default" size="mini" @click="format('list', 'bullet')">列表</button><button type="default" size="mini" @click="format('blockquote')">引用</button>
-      <button type="default" size="mini" @click="setLink">链接</button><button type="default" size="mini" :loading="uploading" @click="insertImage">图片</button>
-      <button type="default" size="mini" @click="editorContext?.undo()">撤销</button><button type="default" size="mini" @click="editorContext?.redo()">重做</button>
+      <button size="mini" @click="format('bold')">加粗</button><button size="mini" @click="format('italic')">斜体</button>
+      <button size="mini" @click="format('underline')">下划线</button><button size="mini" @click="format('header', 'H2')">标题</button>
+      <button size="mini" @click="format('list', 'bullet')">列表</button><button size="mini" @click="format('blockquote')">引用</button>
+      <button size="mini" @click="setLink">链接</button><button size="mini" :loading="uploading" @click="insertImage">图片</button>
+      <button size="mini" @click="editorContext?.undo()">撤销</button><button size="mini" @click="editorContext?.redo()">重做</button>
     </view>
     <editor id="product-rich-editor" class="editor" placeholder="请输入商品详情" show-img-size show-img-resize show-img-toolbar @ready="onReady" @input="onInput" />
     <text class="tip">支持标题、列表、链接和图片，图片会先上传后插入，最多 30 张。</text>

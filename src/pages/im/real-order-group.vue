@@ -586,7 +586,7 @@ function mediaDraft(conversationId: Api.RealNotify.Id, type: 'IMAGE' | 'VOICE' |
 }
 
 function videoDomId(id: Api.RealNotify.Id) { return `im-video-${String(id).replace(/[^a-zA-Z0-9_-]/g, '-')}`; }
-function stopVideo(id: Api.RealNotify.Id) { try { uni.createVideoContext(videoDomId(id)).stop(); } catch { /* 页面切换时组件可能已销毁。 */ } }
+function stopVideo(id: Api.RealNotify.Id) { try { uni.createVideoContext(videoDomId(id)).pause(); } catch { /* 页面切换时组件可能已销毁。 */ } }
 function stopAllVideos() { messages.value.filter(item => item.msgType === 'VIDEO').forEach(item => stopVideo(item.id)); }
 
 async function sendVideo() {

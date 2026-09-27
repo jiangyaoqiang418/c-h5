@@ -267,19 +267,25 @@ async function save() {
   }
   const operation = page.capture();
   const version = formVersion;
+  const editingAddressId = editingId.value;
   saving.value = true;
   try {
-    const result = editingId.value
-      ? await updateAddress(editingId.value, request).then(id => ({ id, action: 'create', state: 'verified' as const }))
-      : await runAddressOperation('create', request, operation.isCurrent);
+    let toastTitle: string | undefined;
+    if (editingAddressId) {
+      await updateAddress(editingAddressId, request);
+      toastTitle = '地址已更新';
+    } else {
+      const result = await runAddressOperation('create', request, operation.isCurrent);
+      if (result) toastTitle = addressReceiptMessage(result);
+    }
     if (!operation.sameSession()) return;
     refreshReceipt();
-    if (!operation.isCurrent() || version !== formVersion || !result) return;
-    uni.showToast({ title: editingId.value ? '地址已更新' : addressReceiptMessage(result), icon: editingId.value ? 'success' : 'none' });
+    if (!operation.isCurrent() || version !== formVersion || toastTitle === undefined) return;
+    uni.showToast({ title: toastTitle, icon: editingAddressId ? 'success' : 'none' });
     popupOpen.value = false;
   } catch (error) {
     if (operation.sameSession()) refreshReceipt();
-    if (operation.isCurrent()) uni.showToast({ title: receipt.value && receipt.value.state !== 'verified' ? addressReceiptMessage(receipt.value) : error instanceof Error ? error.message : editingId.value ? '地址更新失败' : '地址添加失败', icon: 'none' });
+    if (operation.isCurrent()) uni.showToast({ title: receipt.value && receipt.value.state !== 'verified' ? addressReceiptMessage(receipt.value) : error instanceof Error ? error.message : editingAddressId ? '地址更新失败' : '地址添加失败', icon: 'none' });
   } finally {
     if (operation.sameSession()) { saving.value = false; if (page.visible.value) await load(); }
   }
