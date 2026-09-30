@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { onReachBottom, onShow } from '@dcloudio/uni-app';
+import { computed, ref, watch } from 'vue';
+import { onLoad, onReachBottom, onShow } from '@dcloudio/uni-app';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { buyerProductActions, deleteProduct, fetchBuyerProductDetail, fetchMyProducts, setProductShelf } from '@/service/api/product';
 import { fetchBuyerDepositSummary } from '@/service/api/buyer';
@@ -15,6 +15,12 @@ const { requireLogin } = useNavigationGuards();
 const userStore = useUserStore();
 const activeKey = ref<Api.RealProduct.ProductQueryStatus | 'all'>('all');
 const list = ref<Api.RealProduct.ProductDTO[]>([]);
+const focusedId = ref('');
+const focusedProduct = ref<Api.RealProduct.ProductDTO>();
+const focusError = ref('');
+const displayedProducts = computed(() => focusedProduct.value
+  ? [focusedProduct.value, ...list.value.filter(item => String(item.id) !== String(focusedProduct.value!.id))]
+  : list.value);
 const loading = ref(false);
 const loadFailed = ref(false);
 const pageNo = ref(0);
@@ -29,6 +35,7 @@ const deletedIds = new Set<string>();
 const page = usePageOperation(() => {
   loadToken++;
   list.value = [];
+  focusedId.value = ''; focusedProduct.value = undefined; focusError.value = '';
   pageNo.value = 0;
   total.value = 0;
   loading.value = false;
@@ -96,6 +103,17 @@ async function load(reset = true) {
       } catch { /* 操作成功回执保留，用户可以继续重试回读。 */ }
     }));
     if (!valid()) return;
+    if (focusedId.value && !deletedIds.has(focusedId.value)) {
+      try {
+        const product = await fetchBuyerProductDetail(focusedId.value);
+        if (!valid()) return;
+        if (String(product.id) !== focusedId.value || String(product.sellerId) !== userStore.realUserId) throw new Error('通知商品不属于当前账号');
+        focusedProduct.value = product; focusError.value = '';
+      } catch (error) {
+        if (!valid()) return;
+        focusedProduct.value = undefined; focusError.value = error instanceof Error ? error.message : '通知商品读取失败';
+      }
+    }
     const result = await fetchMyProducts({
       pageNo: targetPage,
       pageSize,
@@ -131,7 +149,7 @@ async function load(reset = true) {
 }
 
 async function changeProduct(product: Api.RealProduct.ProductDTO, action: 'shelf' | 'remove') {
-  if (!page.visible.value || loading.value || loadFailed.value || operating.value || pendingShelf.value[String(product.id)] || deletedIds.has(String(product.id)) || !actions(product)[action] || !list.value.includes(product)) return;
+  if (!page.visible.value || loading.value || loadFailed.value || operating.value || pendingShelf.value[String(product.id)] || deletedIds.has(String(product.id)) || !actions(product)[action] || !displayedProducts.value.includes(product)) return;
   const operation = page.capture();
   const productId = product.id;
   const before = product.status;
@@ -142,12 +160,15 @@ async function changeProduct(product: Api.RealProduct.ProductDTO, action: 'shelf
     const result = await uni.showModal(action === 'remove'
       ? { title: '删除商品？', content: '删除后商品和收藏关系将不可恢复，请确认没有未完结订单。', confirmText: '确认删除' }
       : { title: onShelf ? '确认上架' : '确认下架', content: onShelf ? '重新上架后，顾客可继续购买该商品。' : '下架后，顾客将无法继续购买该商品。', confirmText: onShelf ? '确认上架' : '确认下架' });
-    const current = list.value.find(item => String(item.id) === String(productId));
+    const current = displayedProducts.value.find(item => String(item.id) === String(productId));
     if (!result.confirm || !operation.isCurrent() || filter !== activeKey.value || !current || current.status !== before || !actions(current)[action]) return;
     const latest = await fetchBuyerProductDetail(productId);
     if (!operation.isCurrent() || filter !== activeKey.value) return;
     if (String(latest.id) !== String(productId) || latest.status !== before || !actions(latest)[action]) {
-      if (String(latest.id) === String(productId)) list.value = list.value.map(item => String(item.id) === String(productId) ? latest : item);
+      if (String(latest.id) === String(productId)) {
+        list.value = list.value.map(item => String(item.id) === String(productId) ? latest : item);
+        if (focusedId.value === String(productId)) focusedProduct.value = latest;
+      }
       uni.showToast({ title: '商品状态或归属已变化，请重新确认', icon: 'none' });
       return;
     }
@@ -167,6 +188,7 @@ async function changeProduct(product: Api.RealProduct.ProductDTO, action: 'shelf
     if (!operation.sameSession()) return;
     if (action === 'remove') {
       deletedIds.add(String(productId));
+      if (focusedId.value === String(productId)) { focusedId.value = ''; focusedProduct.value = undefined; }
       list.value = list.value.filter(item => String(item.id) !== String(productId));
     } else pendingShelf.value[String(productId)] = before;
     if (!operation.isCurrent()) return;
@@ -184,15 +206,20 @@ async function changeProduct(product: Api.RealProduct.ProductDTO, action: 'shelf
   }
 }
 
+onLoad(options => {
+  if (TABS.some(tab => tab.key === options?.tab)) activeKey.value = options!.tab as typeof activeKey.value;
+  if (typeof options?.productId === 'string' && options.productId.trim()) focusedId.value = options.productId;
+});
 onShow(() => { if (!operating.value) return load(); });
 watch(activeKey, () => {
+  focusedId.value = ''; focusedProduct.value = undefined; focusError.value = '';
   loadToken++;
   list.value = [];
   pageNo.value = 0;
   total.value = 0;
   loading.value = false;
   if (!operating.value) void load();
-});
+}, { flush: 'sync' });
 onReachBottom(() => {
   if (!operating.value && !loadFailed.value && pageNo.value * pageSize < total.value) load(false);
 });
@@ -207,12 +234,15 @@ onReachBottom(() => {
     </view>
 
     <view class="list">
+      <text v-if="focusedProduct" class="focus-hint">已定位通知对应商品，当前状态以最新详情为准；解冻后需要手动上架。</text>
+      <view v-if="focusError" class="focus-hint">{{ focusError }}<wd-button plain size="small" :disabled="loading || operating" @click="load()">重新定位</wd-button></view>
       <wd-button v-if="loadFailed || Object.keys(pendingShelf).length" block plain :loading="loading" :disabled="operating" @click="load(loadFailed ? retryReset : true)">{{ loadFailed ? '商品数据刷新失败，点击重试' : '商品操作已成功，点击回读最新状态' }}</wd-button>
-      <view v-if="list.length">
+      <view v-if="displayedProducts.length">
         <view
-          v-for="product in list"
+          v-for="product in displayedProducts"
           :key="String(product.id)"
           class="product-card"
+          :class="{ focused: String(product.id) === focusedId }"
           @click="go(`/pages/buyer/product-detail?id=${encodeURIComponent(String(product.id))}`)"
         >
           <image v-if="product.images?.[0]" :src="product.images[0]" mode="aspectFill" class="cover" />
@@ -256,6 +286,8 @@ onReachBottom(() => {
 <style lang="scss" scoped>
 .products-page { min-height: 100%; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
 .list { padding: 20rpx 24rpx; }
+.focus-hint { display:block; margin-bottom:16rpx; font-size:24rpx; color:#4e5969; line-height:1.6; }
+.product-card.focused { border-color:var(--yb-brand); background:var(--yb-brand-soft, #fff7f4); }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
 .product-card {
   display: flex;

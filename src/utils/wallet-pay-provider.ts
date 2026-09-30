@@ -1,4 +1,4 @@
-import type { WalletPayOrder } from '@/service/api/wallet-pay';
+import type { WalletTransferParams } from '@/service/api/wallet-pay';
 
 interface EvmProvider {
   isMetaMask?: boolean;
@@ -20,7 +20,7 @@ interface TronProvider {
 }
 type InjectedWindow = Window & { ethereum?: EvmProvider; okxwallet?: { ethereum?: EvmProvider }; tron?: TronProvider; tronLink?: TronProvider };
 export interface WalletOption { key: string; label: string }
-export interface ConnectedWallet { account: string; sendTransfer(): Promise<string> }
+export interface ConnectedWallet { account: string; sendTransfer(current?: () => boolean): Promise<string> }
 
 function injected(): InjectedWindow | undefined {
   return typeof window === 'undefined' ? undefined : window as InjectedWindow;
@@ -44,7 +44,7 @@ export function availableWallets(chain: string): WalletOption[] {
   if (chain === 'ETH' || chain === 'BSC') return evmProviders().map(({ key, label }) => ({ key, label }));
   return [];
 }
-function validateRawAmount(pay: WalletPayOrder) {
+function validateRawAmount(pay: WalletTransferParams) {
   if (!/^\d+$/.test(pay.rawAmount) || BigInt(pay.rawAmount) <= 0n || BigInt(pay.rawAmount) >= (1n << 256n)) {
     throw new Error('链上转账金额无效，请返回订单核对');
   }
@@ -52,7 +52,7 @@ function validateRawAmount(pay: WalletPayOrder) {
 function evmChainMatches(value: unknown, chainId: bigint) {
   return typeof value === 'string' && /^0x[0-9a-fA-F]+$/.test(value) && BigInt(value) === chainId;
 }
-async function connectEvm(pay: WalletPayOrder, key: string): Promise<ConnectedWallet> {
+async function connectEvm(pay: WalletTransferParams, key: string): Promise<ConnectedWallet> {
   const provider = evmProviders().find(item => item.key === key)?.provider;
   if (!provider) throw new Error('当前浏览器没有所选钱包，请在钱包内置浏览器打开');
   if (!/^0x[0-9a-fA-F]{40}$/.test(pay.toAddress) || !/^0x[0-9a-fA-F]{40}$/.test(pay.tokenContract)) throw new Error('收款地址或合约地址无效');
@@ -66,12 +66,13 @@ async function connectEvm(pay: WalletPayOrder, key: string): Promise<ConnectedWa
     await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: `0x${chainId.toString(16)}` }] });
   }
   if (!evmChainMatches(await provider.request({ method: 'eth_chainId' }), chainId)) throw new Error('钱包网络与支付单不一致');
-  return { account, async sendTransfer() {
+  return { account, async sendTransfer(currentPage = () => true) {
     const current = await provider.request({ method: 'eth_accounts' });
     if (!Array.isArray(current) || typeof current[0] !== 'string' || current[0].toLowerCase() !== account.toLowerCase()
       || !evmChainMatches(await provider.request({ method: 'eth_chainId' }), chainId)) throw new Error('钱包账户或网络已变化，请重新核对');
     const address = pay.toAddress.slice(2).toLowerCase().padStart(64, '0');
     const amount = BigInt(pay.rawAmount).toString(16).padStart(64, '0');
+    if (!currentPage()) throw new Error('付款页面或账号已变化，已停止签名');
     const hash = await provider.request({ method: 'eth_sendTransaction', params: [{
       from: account, to: pay.tokenContract, value: '0x0', data: `0xa9059cbb${address}${amount}`
     }] });
@@ -88,7 +89,7 @@ function tronNetwork(web: TronWeb): string | undefined {
     if (hostname === 'nile.trongrid.io') return 'nile';
   } catch { /* 未知节点不推断为目标网络。 */ }
 }
-async function connectTron(pay: WalletPayOrder): Promise<ConnectedWallet> {
+async function connectTron(pay: WalletTransferParams): Promise<ConnectedWallet> {
   const provider = tronProvider();
   if (!provider) throw new Error('当前浏览器未检测到 TronLink，请在 TronLink 内置浏览器打开');
   const network = pay.network.toLowerCase();
@@ -110,16 +111,17 @@ async function connectTron(pay: WalletPayOrder): Promise<ConnectedWallet> {
     web = provider.tronWeb || undefined;
   }
   if (!web?.ready || tronNetwork(web) !== network) throw new Error('无法确认 TronLink 当前网络，请手动切换官方网络');
-  return { account, async sendTransfer() {
+  return { account, async sendTransfer(currentPage = () => true) {
     const active = provider.tronWeb || undefined;
     if (!active?.ready || active.defaultAddress?.base58 !== account || tronNetwork(active) !== network) throw new Error('TronLink 账户或网络已变化，请重新核对');
     const contract = await active.contract().at(pay.tokenContract);
+    if (!currentPage()) throw new Error('付款页面或账号已变化，已停止签名');
     const hash = await contract.transfer(pay.toAddress, pay.rawAmount).send({ feeLimit: 100_000_000 });
     if (typeof hash !== 'string' || !/^[0-9a-fA-F]{64}$/.test(hash)) throw new Error('TronLink 未返回有效交易哈希，请先核对钱包记录，勿重复转账');
     return hash;
   } };
 }
-export function connectPaymentWallet(pay: WalletPayOrder, key: string): Promise<ConnectedWallet> {
+export function connectPaymentWallet(pay: WalletTransferParams, key: string): Promise<ConnectedWallet> {
   if (pay.chain === 'TRON') return connectTron(pay);
   if (pay.chain === 'ETH' || pay.chain === 'BSC') return connectEvm(pay, key);
   throw new Error('当前链暂不支持浏览器钱包转账');

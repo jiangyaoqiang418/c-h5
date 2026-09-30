@@ -37,3 +37,22 @@ export function sumAmounts(values: Array<string | number>): string {
   const padded = sum.padStart(scale + 1, '0');
   return normalizeAmount(scale ? `${padded.slice(0, -scale)}.${padded.slice(-scale)}` : padded);
 }
+
+export function compareAmounts(left: string | number, right: string | number): number {
+  const [a, af = ''] = normalizeAmount(left).split('.');
+  const [b, bf = ''] = normalizeAmount(right).split('.');
+  if (a.length !== b.length) return a.length > b.length ? 1 : -1;
+  if (a !== b) return a > b ? 1 : -1;
+  const scale = Math.max(af.length, bf.length);
+  const ad = af.padEnd(scale, '0'), bd = bf.padEnd(scale, '0');
+  return ad === bd ? 0 : ad > bd ? 1 : -1;
+}
+
+export function amountToRaw(value: string | number, decimals: number): string {
+  if (!Number.isSafeInteger(decimals) || decimals < 0 || decimals > 36) throw new Error('代币精度无效');
+  const [whole, fraction = ''] = normalizeAmount(value).split('.');
+  if (fraction.length > decimals) throw new Error(`该链最多支持${decimals}位小数`);
+  const raw = (whole + fraction.padEnd(decimals, '0')).replace(/^0+(?=\d)/, '');
+  if (raw === '0') throw new Error('请输入大于0的转账金额');
+  return raw;
+}

@@ -7,13 +7,13 @@ import InfoTooltip from '@/components/common/info-tooltip.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { go, reLaunch } from '@/utils/navigate';
 import { fetchMyAddresses, type AddressRecord } from '@/service/api/address';
-import { createBatchOrder, fetchBoughtOrders, fetchOrderDetail, fetchOrderGroupPayResult, orderRole } from '@/service/api/order';
-import { createWalletPay, fetchLatestWalletPay, fetchWalletPayChains, validateWalletPay, type WalletPayChain, type WalletPayOrder } from '@/service/api/wallet-pay';
+import { createBatchOrder, fetchBoughtOrders, fetchOrderDetail, orderRole } from '@/service/api/order';
+import { fetchLatestWalletPay, fetchWalletPayChains, validateWalletPay, type WalletPayChain, type WalletPayOrder } from '@/service/api/wallet-pay';
 import { walletPayEntryEnabled } from '@/utils/wallet-pay-feature';
 import { sumAmounts } from '@/utils/amount';
 import { RequestError } from '@/service/request';
 import { getAccessToken } from '@/service/request/token';
-import { confirmOrderGroupPayment, isOrderPaid, paymentReceiptMessage, readPaymentReceipts, reconcileOrderGroupPayment, type PaymentReceipt } from '@/utils/order-payment';
+import { createOrderWalletPayment, confirmOrderGroupPayment, isOrderPaid, paymentReceiptMessage, readPaymentReceipts, reconcileOrderGroupPayment, type PaymentReceipt } from '@/utils/order-payment';
 import { usePageOperation } from '@/utils/page-operation';
 import { normalizeAmount } from '@/utils/amount';
 import { useCartStore, useUserStore, useWalletStore } from '@/stores';
@@ -323,7 +323,7 @@ async function executePending(pending: PendingCheckout, operation = page.capture
     await closeCanceledPending(pending, fetchOrders, operation);
     return;
   }
-  if (walletPayEntryEnabled) {
+  {
     const latest = await fetchLatestWalletPay(pending.orderGroupNo);
     if (!operation.isCurrent()) return;
     walletStatus.value = latest ? validateWalletPay(latest, pending.orderGroupNo) : undefined;
@@ -375,64 +375,13 @@ async function executePending(pending: PendingCheckout, operation = page.capture
 }
 
 async function startWalletPayment(pending: PendingCheckout, confirmed: Api.RealOrder.OrderView[], operation: ReturnType<typeof page.capture>) {
-  const group = pending.orderGroupNo!;
-  const chain = selectedChain.value;
-  const chosen = walletChains.value.find(item => item.chain === chain && item.enabled);
-  if (!chosen) throw new Error('当前支付链不可用，请重新选择');
-  if (!confirmed.length || confirmed.some(order => order.rawStatus !== 'CREATED' || orderRole(order, pending.userId) !== 'customer')) throw new Error('订单状态已变化，请先核对');
-  const amount = sumAmounts(confirmed.map(order => order.totalAmount));
-  if (chosen.minAmount != null && compareAmounts(amount, chosen.minAmount) < 0) throw new Error('订单金额低于该链最低支付金额');
-  const result = await fetchOrderGroupPayResult(group);
-  if (!operation.isCurrent()) return;
-  if (result.orderGroupNo !== group || result.items.length !== confirmed.length
-    || result.paidCount !== 0 || sumAmounts([result.unpaidAmount]) !== amount
-    || new Set(result.items.map(item => String(item.orderId))).size !== confirmed.length
-    || result.items.some(item => item.status !== 'CREATED' || !confirmed.some(order => String(order.id) === String(item.orderId)
-      && sumAmounts([order.totalAmount]) === sumAmounts([item.amount])))) throw new Error('订单组待付金额或状态已变化，请刷新后核对');
-  const answer = await uni.showModal({ title: '确认钱包支付', content: `${confirmed.length} 笔订单，共 U ${amount}。将使用 ${chosen.label}（${chosen.network}）创建 USDT 钱包支付单；实际应转金额以支付单为准。`, confirmText: '创建支付单' });
-  if (!answer.confirm || !operation.isCurrent()) return;
-  const latestOrders = await Promise.all(pending.orderIds!.map(id => fetchOrderDetail(id)));
-  if (!operation.isCurrent()) return;
-  if (latestOrders.some((order, index) => String(order.id) !== String(pending.orderIds![index]) || order.orderGroupNo !== group
-    || order.rawStatus !== 'CREATED' || orderRole(order, pending.userId) !== 'customer')
-    || sumAmounts(latestOrders.map(order => order.totalAmount)) !== amount) throw new Error('订单金额或状态已变化，请重新确认');
-  let attempt = pending.walletPayAttempt;
-  const savedBeforeCreate = readPendingCheckouts().find(item => item.userId === pending.userId && item.idempotencyKey === pending.idempotencyKey);
-  if (!savedBeforeCreate || JSON.stringify(savedBeforeCreate.walletPayAttempt) !== JSON.stringify(attempt)) throw new Error('另一页面已更新钱包支付进度，请先核对原支付单');
-  const balanceReceipt = readPaymentReceipts(pending.userId!).find(item => item.orderGroupNo === group);
-  if (balanceReceipt && !balanceReceipt.retryable) throw new Error('该订单组仍有余额付款待核对，请先核对原付款结果');
-  if (attempt && attempt.chain !== chain) throw new Error('原支付单使用另一条链，请先核对原支付进度');
-  if (walletStatus.value?.status === 'CLOSED' && attempt?.payNo === walletStatus.value.payNo) throw new Error('原支付单已关闭，请先核对链上交易再重新发起');
-  if (!attempt) { attempt = { chain, idempotencyKey: createIdempotencyKey() }; pending.walletPayAttempt = attempt; savePending(pending); }
-  try {
-    const pay = validateWalletPay(await createWalletPay({ orderGroupNo: group, chain, confirmedAmount: amount, idempotencyKey: attempt.idempotencyKey }), group);
-    if (!operation.isCurrent()) return;
-    attempt.payNo = pay.payNo;
-    const savedAfterCreate = readPendingCheckouts().find(item => item.userId === pending.userId && item.idempotencyKey === pending.idempotencyKey);
-    if (!savedAfterCreate || savedAfterCreate.walletPayAttempt?.idempotencyKey !== attempt.idempotencyKey) throw new Error('支付单已创建，但本机进度被其他页面更新；请从订单页恢复原支付单');
-    savePending(pending);
-    go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(group)}`);
-  } catch (error) {
-    if (error instanceof RequestError && String(error.code) === '-305' && operation.isCurrent()) {
-      go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(group)}`);
-      return;
-    }
-    if (error instanceof RequestError && ['-300', '-301', '-302', '-309', '-312'].includes(String(error.code)) && !attempt.payNo) {
-      delete pending.walletPayAttempt;
-      savePending(pending);
-    }
-    throw error;
-  }
-}
-
-function compareAmounts(left: string | number, right: string | number) {
-  const [li, lf = ''] = sumAmounts([left]).split('.');
-  const [ri, rf = ''] = sumAmounts([right]).split('.');
-  if (li.length !== ri.length) return li.length > ri.length ? 1 : -1;
-  if (li !== ri) return li > ri ? 1 : -1;
-  const scale = Math.max(lf.length, rf.length);
-  const l = lf.padEnd(scale, '0'); const r = rf.padEnd(scale, '0');
-  return l === r ? 0 : l > r ? 1 : -1;
+  const expected = confirmed.find(order => order.rawStatus === 'CREATED');
+  if (!expected || expected.orderGroupNo !== pending.orderGroupNo || orderRole(expected, pending.userId) !== 'customer') throw new Error('订单状态或归属已变化，请先核对');
+  const result = await createOrderWalletPayment(expected, selectedChain.value, operation.isCurrent);
+  if (!result || !operation.isCurrent()) return;
+  refreshPending();
+  walletStatus.value = result;
+  go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(result.orderGroupNo)}`);
 }
 
 async function closeCanceledPending(pending: PendingCheckout, fetchOrders: () => Promise<Api.RealOrder.OrderView[]>, operation: ReturnType<typeof page.capture>) {

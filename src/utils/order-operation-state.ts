@@ -7,6 +7,7 @@ export interface OrderChangeReceipt {
   attempt: string;
   state: 'unknown' | 'confirmed' | 'verified';
   observedStatus?: Api.RealOrder.OrderStatus;
+  passwordRequired?: true;
 }
 
 const keyFor = (userId: string) => `bw_h5_order_change_v1:${encodeURIComponent(userId)}`;

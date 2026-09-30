@@ -9,7 +9,8 @@ import { acquireOrderOperation, orderChangeBefore, orderChangeBlocks, orderChang
 export { readOrderChangeReceipts, orderChangeBlocks, type OrderChangeReceipt } from './order-operation-state';
 
 /** 沿用顾客侧现有入口，不因取消契约同时允许卖家而扩展 UI。 */
-export async function changeOrderWithReceipt(expected: Api.RealOrder.OrderView, action: OrderChangeReceipt['action'], stillActive: () => boolean) {
+export async function changeOrderWithReceipt(expected: Api.RealOrder.OrderView, action: OrderChangeReceipt['action'], stillActive: () => boolean,
+  input: { requestReason: () => Promise<string | undefined>; requestPayPassword: () => Promise<string | undefined> }) {
   expected = { ...expected };
   const user = useUserStore(), userId = user.realUserId, token = getAccessToken();
   const current = () => stillActive() && !!token && token === getAccessToken() && userId === user.realUserId;
@@ -30,8 +31,16 @@ export async function changeOrderWithReceipt(expected: Api.RealOrder.OrderView, 
   try {
     await assertRefundAllowsOrderChange(expected.id, userId, current);
     if (!current()) return;
-    const result = await uni.showModal({ title: action === 'cancel' ? '取消订单？' : '确认收货？' });
-    if (!result.confirm || !current()) return;
+    let reason: string | undefined, payPassword: string | undefined;
+    if (action === 'cancel') {
+      reason = (await input.requestReason())?.trim();
+      if (!reason || !current()) return;
+    } else {
+      const result = await uni.showModal({ title: '确认收货？', content: '确认后货款将结算给买手，请确认已收到商品。' });
+      if (!result.confirm || !current()) return;
+      payPassword = await input.requestPayPassword();
+      if (!payPassword || !current()) return;
+    }
     await assertRefundAllowsOrderChange(expected.id, userId, current);
     if (!current()) return;
     const latest = await fetchOrderDetail(expected.id, 'bought', userId);
@@ -39,16 +48,17 @@ export async function changeOrderWithReceipt(expected: Api.RealOrder.OrderView, 
     if (String(latest.id) !== String(expected.id) || latest.rawStatus !== orderChangeBefore(action)
       || latest.orderGroupNo !== expected.orderGroupNo || orderRole(latest, userId) !== 'customer') throw new Error('订单状态或归属已变化，请刷新核对');
     assertAvailable();
-    marker = { orderId: expected.id, orderGroupNo: expected.orderGroupNo || undefined, action, attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, state: 'unknown' };
+    marker = { orderId: expected.id, orderGroupNo: expected.orderGroupNo || undefined, action, attempt: `${Date.now()}-${Math.random().toString(36).slice(2)}`, state: 'unknown', ...(action === 'confirm' ? { passwordRequired: true as const } : {}) };
     saveOrderChangeReceipt(userId, marker, true);
     sent = true;
-    const receiptId = action === 'cancel' ? await cancelRealOrder({ id: expected.id, reason: '顾客取消' }) : await confirmRealOrder(expected.id);
+    const receiptId = action === 'cancel' ? await cancelRealOrder({ id: expected.id, reason: reason! }) : await confirmRealOrder(expected.id, payPassword!);
     if (!validOrderId(receiptId) || String(receiptId) !== String(expected.id)) throw new Error('订单操作回执缺失或不匹配，请核对原订单');
     return retainOrderChangeReceipt(userId, { ...marker, state: 'confirmed' });
   } catch (error) {
     // 收货包含结算，取消包含库存回补；契约未声明这些步骤原子化。
     // 请求层配置错误可证明尚未发送，服务端业务错误仍须回读，不能据此重发。
-    if (sent && marker && error instanceof RequestError && error.kind === 'config') {
+    if (sent && marker && error instanceof RequestError && (error.kind === 'config'
+      || action === 'confirm' && error.kind === 'business' && ['-313', '-314', '-315'].includes(String(error.code)))) {
       try { removeRejectedOrderChange(userId, marker); } catch { /* 无法清理时保守保留未知保护。 */ }
     }
     throw error;
@@ -65,6 +75,11 @@ export async function reconcileOrderChange(userId: string, receipt: OrderChangeR
     const order = await fetchOrderDetail(saved.orderId, 'bought', userId);
     if (!current() || String(order.id) !== String(saved.orderId) || (order.orderGroupNo || undefined) !== saved.orderGroupNo
       || orderRole(order, userId) !== 'customer') return saved;
+    // 旧版本收货请求缺少必填支付密码；先回读原订单，再允许用户重新进行密码确认。
+    if (saved.action === 'confirm' && saved.state === 'unknown' && !saved.passwordRequired && order.rawStatus === 'SHIPPED') {
+      removeRejectedOrderChange(userId, saved);
+      return;
+    }
     const target = orderChangeTarget(saved.action);
     if (saved.state === 'confirmed' && order.rawStatus !== target) return saved;
     const finalStates = saved.action === 'cancel' ? ['PAID', 'SHIPPED', 'REFUND_REVIEW', 'REFUNDED', 'COMPLETED', 'CANCELED'] : ['COMPLETED', 'REFUNDED', 'CANCELED'];

@@ -58,6 +58,9 @@ export function toOrderView(
     createdAt: normalizeTime(order.createdAt),
     paidAt: normalizeTime(order.paidAt),
     shippedAt: normalizeTime(order.shippedAt),
+    autoConfirmAt: normalizeTime(order.autoConfirmAt ?? undefined),
+    receiveExtendCount: Number.isSafeInteger(order.receiveExtendCount) && order.receiveExtendCount! >= 0 ? order.receiveExtendCount! : undefined,
+    receiveExtendable: order.receiveExtendable === true,
     completedAt: normalizeTime(order.completedAt),
     canceledAt: normalizeTime(order.canceledAt),
     cancelReason: order.cancelReason
@@ -267,10 +270,15 @@ export function cancelRealOrder(params: Api.RealOrder.OrderCancelParams): Promis
   });
 }
 
-export function confirmRealOrder(id: Api.RealOrder.LongId): Promise<Api.RealOrder.LongId> {
-  return realOrderRequest<Api.RealOrder.LongId, { id: Api.RealOrder.LongId }>({
+export function confirmRealOrder(id: Api.RealOrder.LongId, payPassword: string): Promise<Api.RealOrder.LongId> {
+  if (!/^\d{6}$/.test(payPassword)) throw new Error('请输入6位数字支付密码');
+  return realOrderRequest<Api.RealOrder.LongId, { id: Api.RealOrder.LongId; payPassword: string }>({
     url: '/orders/confirm',
     method: 'POST',
-    data: { id }
+    data: { id, payPassword }
   });
+}
+
+export function extendRealOrderReceipt(id: Api.RealOrder.LongId): Promise<Api.RealOrder.LongId> {
+  return realOrderRequest<Api.RealOrder.LongId, { id: Api.RealOrder.LongId }>({ url: '/orders/extend-receipt', method: 'POST', data: { id } });
 }

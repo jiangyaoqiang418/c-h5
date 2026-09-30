@@ -199,8 +199,9 @@ async function target(notification: Api.RealNotify.Notification): Promise<string
   if (type === 'BUYER_APPLICATION') return '/pages/buyer/apply';
   if (type === 'BUYER_DEPOSIT' && notification.templateCode === 'buyer_deposit_alert') return '/pages/buyer/deposit';
   if (id === undefined || id === null || id === '') return;
-  if (type === 'PRODUCT' && (notification.templateCode === 'product_approved' || notification.templateCode === 'product_rejected')) {
-    return `/pages/buyer/product-detail?id=${encodeURIComponent(String(id))}`;
+  if (type === 'PRODUCT' && ['product_approved', 'product_rejected', 'product_unfrozen'].includes(notification.templateCode || '')) {
+    const tab = notification.templateCode === 'product_unfrozen' ? 'OFF_SHELF' : notification.templateCode === 'product_rejected' ? 'REJECTED' : 'all';
+    return `/pages/buyer/products?tab=${tab}&productId=${encodeURIComponent(String(id))}`;
   }
   if (type === 'ORDER') return `/pages/order/detail?id=${encodeURIComponent(String(id))}`;
   if (type === 'RECHARGE') return `/pages/wallet/recharge-detail?id=${encodeURIComponent(String(id))}`;

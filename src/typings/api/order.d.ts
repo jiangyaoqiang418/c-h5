@@ -85,6 +85,9 @@ declare namespace Api {
       paymentBizNo?: string;
       paidAt?: string | number;
       shippedAt?: string | number;
+      autoConfirmAt?: string | number | null;
+      receiveExtendCount?: number | null;
+      receiveExtendable?: boolean | null;
       completedAt?: string | number;
       createdAt?: string | number;
     }
@@ -132,6 +135,9 @@ declare namespace Api {
       createdAt?: string | number;
       paidAt?: string | number;
       shippedAt?: string | number;
+      autoConfirmAt?: string | number;
+      receiveExtendCount?: number;
+      receiveExtendable?: boolean;
       completedAt?: string | number;
       canceledAt?: string | number;
       cancelReason?: string;

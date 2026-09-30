@@ -14,6 +14,9 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
+import OrderCancelPopup from '@/components/order/order-cancel-popup.vue';
+import OrderPaymentSelector from '@/components/order/order-payment-selector.vue';
+import { extendOrderReceipt } from '@/utils/order-receipt-extension';
 import { fetchLatestWalletPay, validateWalletPay } from '@/service/api/wallet-pay';
 import { walletPayEntryEnabled } from '@/utils/wallet-pay-feature';
 
@@ -21,6 +24,9 @@ const { requireLogin } = useNavigationGuards();
 
 const userStore = useUserStore();
 const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
+const cancelPopup = ref<InstanceType<typeof OrderCancelPopup>>();
+const paymentSelectorVisible = ref(false);
+const paymentSelectorOrder = ref<Api.RealOrder.OrderView>();
 
 interface TabDef {
   key: string;
@@ -69,6 +75,7 @@ const uncertainShipping = ref(new Set<string>());
 const busy = computed(() => paying.value || shippingSubmitting.value || voucherUploading.value);
 const page = usePageOperation(() => {
   loadToken++; filterVersion++; shippingVersion++;
+  paymentSelectorVisible.value = false; paymentSelectorOrder.value = undefined;
   orders.value = []; total.value = 0; pageNo.value = 0;
   loading.value = false; loadFailed.value = false;
   paying.value = false; shippingSubmitting.value = false; voucherUploading.value = false;
@@ -183,6 +190,8 @@ onPullDownRefresh(() => { if (!busy.value) return load(); uni.stopPullDownRefres
 onReachBottom(() => { if (!busy.value && !loadFailed.value) return load(false); });
 function changeFilter() {
   filterVersion++; loadToken++;
+  paymentSelectorVisible.value = false; paymentSelectorOrder.value = undefined;
+  cancelPopup.value?.close(); payPasswordPopup.value?.close();
   loading.value = false; orders.value = []; total.value = 0; pageNo.value = 0;
   closeShipping();
   if (!busy.value) void load();
@@ -195,7 +204,11 @@ async function retry() {
   await load(loadFailed.value ? retryReset : true);
 }
 
-async function pay(o: Api.RealOrder.OrderView) {
+function pay(o: Api.RealOrder.OrderView) {
+  if (!canOperate(o, 'customer', 'CREATED')) return;
+  paymentSelectorOrder.value = o; paymentSelectorVisible.value = true;
+}
+async function payBalance(o: Api.RealOrder.OrderView) {
   if (!canOperate(o, 'customer', 'CREATED')) return;
   if (!o.orderGroupNo) {
     uni.showToast({ title: '订单组信息缺失，暂无法继续付款', icon: 'none' });
@@ -207,10 +220,10 @@ async function pay(o: Api.RealOrder.OrderView) {
   const filter = filterVersion;
   try {
     const current = () => operation.isCurrent() && filter === filterVersion;
-    if (walletPayEntryEnabled) {
+    {
       const walletPay = await fetchLatestWalletPay(o.orderGroupNo);
       if (!current()) return;
-      if (walletPay && ['PENDING', 'SUBMITTED'].includes(validateWalletPay(walletPay, o.orderGroupNo).status)) {
+      if (walletPay && ['PENDING', 'SUBMITTED', 'SUCCESS'].includes(validateWalletPay(walletPay, o.orderGroupNo).status)) {
         go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(o.orderGroupNo)}`);
         return;
       }
@@ -256,7 +269,10 @@ async function changeOrder(o: Api.RealOrder.OrderView, action: 'cancel' | 'confi
   const current = () => operation.isCurrent() && filter === filterVersion;
   paying.value = true;
   try {
-    const receipt = await changeOrderWithReceipt(o, action, current);
+    const receipt = await changeOrderWithReceipt(o, action, current, {
+      requestReason: async () => cancelPopup.value?.request(),
+      requestPayPassword: async () => payPasswordPopup.value?.request('/pages/order/list', '确认收货')
+    });
     if (!operation.sameSession()) return;
     refreshChangeReceipts();
     if (receipt && current()) {
@@ -271,6 +287,20 @@ async function changeOrder(o: Api.RealOrder.OrderView, action: 'cancel' | 'confi
       if (page.visible.value) await load();
       if (operation.sameSession()) paying.value = false;
     }
+  }
+}
+async function extendReceipt(o: Api.RealOrder.OrderView) {
+  if (!canOperate(o, 'customer', 'SHIPPED') || o.receiveExtendable !== true) return;
+  const operation = page.capture(), filter = filterVersion;
+  const current = () => operation.isCurrent() && filter === filterVersion;
+  paying.value = true;
+  try {
+    const result = await extendOrderReceipt(o, current);
+    if (result && current()) uni.showToast({ title: result.recovered ? '已核对到延长结果' : '已延长收货5天', icon: 'success' });
+  } catch (error) {
+    if (current()) uni.showToast({ title: error instanceof Error ? error.message : '延长结果待核对', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) { if (page.visible.value) await load(); paying.value = false; }
   }
 }
 function cancel(o: Api.RealOrder.OrderView) { return changeOrder(o, 'cancel'); }
@@ -402,6 +432,8 @@ async function submitShipping() {
 <template>
   <view class="order-list-page yb-page yb-page--full-bleed">
     <PayPasswordPopup ref="payPasswordPopup" />
+    <OrderCancelPopup ref="cancelPopup" />
+    <OrderPaymentSelector v-model="paymentSelectorVisible" :order="paymentSelectorOrder" @balance="payBalance" />
     <view class="yb-sticky-tabs-frame">
       <wd-tabs v-model="activeKey">
         <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
@@ -422,6 +454,7 @@ async function submitShipping() {
           @wallet-pay="viewWalletPay"
           @cancel="cancel"
           @confirm="confirm"
+          @extend-receipt="extendReceipt"
           @review="review"
           @aftersale="aftersale"
           @ship="openShipping"

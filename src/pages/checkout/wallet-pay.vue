@@ -8,7 +8,9 @@ import { readPendingCheckouts, removePendingCheckout, savePendingCheckout } from
 import { walletPayEntryEnabled } from '@/utils/wallet-pay-feature';
 import { useCartStore, useUserStore } from '@/stores';
 import { go, reLaunch } from '@/utils/navigate';
-import { getAccessToken } from '@/service/request/token';
+import { getAccessToken, onSessionChanged } from '@/service/request/token';
+import { compareAmounts } from '@/utils/amount';
+import WalletBrowserEntry from '@/components/common/wallet-browser-entry.vue';
 
 const userStore = useUserStore();
 const cart = useCartStore();
@@ -24,6 +26,17 @@ const errorText = ref('');
 const recoveryBlocked = ref(false);
 const minConfirmations = ref<number>();
 const wallets = computed(() => availableWallets(pay.value?.chain || ''));
+const chainRetryable = computed(() => pay.value?.status === 'SUBMITTED' && pay.value.chainTx?.status === 'FAILED');
+const retryReady = computed(() => chainRetryable.value && !!pay.value?.txHash && validHash(pay.value.chain, pay.value.txHash)
+  && (!progress.value?.started || !!progress.value.txHash && progress.value.txHash === pay.value.txHash));
+const awaitingReport = computed(() => !!progress.value?.txHash && progress.value.txHash !== pay.value?.txHash && ['PENDING', 'SUBMITTED'].includes(pay.value?.status || ''));
+const insufficientTransfer = computed(() => pay.value?.status === 'SUBMITTED' && pay.value.chainTx?.status !== 'FAILED'
+  && pay.value.chainTx?.transferAmount != null && compareAmounts(pay.value.chainTx.transferAmount, pay.value.payAmount) < 0);
+const chainProgressText = computed(() => {
+  const tx = pay.value?.chainTx;
+  if (!tx) return '正在等待链上确认及平台入账';
+  return { NOT_FOUND: '节点暂未查到交易，请继续等待', PENDING: '交易等待打包', CONFIRMING: `区块确认中 ${tx.confirmations}/${tx.minConfirmations}`, CONFIRMED: '链上已确认，等待平台入账付款', FAILED: '本笔链上交易执行失败' }[tx.status];
+});
 let visible = false;
 let version = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -31,8 +44,12 @@ let successHandled = false;
 
 onLoad(query => { group.value = typeof query?.orderGroupNo === 'string' ? query.orderGroupNo : ''; });
 onShow(() => { visible = true; void load(); });
-onHide(() => { visible = false; version++; stopPolling(); });
-onUnload(() => { visible = false; version++; stopPolling(); });
+onHide(() => { visible = false; version++; busy.value = false; stopPolling(); });
+const unsubscribeSession = onSessionChanged(() => {
+  version++; stopPolling(); pay.value = undefined; progress.value = undefined; account.value = ''; selectedWallet.value = ''; newHash.value = ''; errorText.value = ''; busy.value = false; successHandled = false;
+  if (visible) void load();
+});
+onUnload(() => { visible = false; version++; stopPolling(); unsubscribeSession(); });
 
 function stopPolling() { if (timer) clearTimeout(timer); timer = undefined; }
 function schedulePolling() {
@@ -62,12 +79,12 @@ function acceptPay(next: WalletPayOrder) {
 async function load() {
   const current = ++version;
   stopPolling();
-  pay.value = undefined; progress.value = undefined; recoveryBlocked.value = false; errorText.value = '';
+  pay.value = undefined; progress.value = undefined; recoveryBlocked.value = false; errorText.value = ''; minConfirmations.value = undefined;
   loading.value = true;
   try {
     await userStore.init();
     if (current !== version || !visible) return;
-    if (!walletPayEntryEnabled || !group.value) throw new Error('钱包直付入口暂未开放，请从订单页核对');
+    if (!group.value) throw new Error('订单组信息缺失，请从订单页核对');
     if (!userStore.realUserId) {
       if (getAccessToken()) throw new Error('账户资料暂未加载成功，请稍后重试');
       go(`/pages/auth/login?redirect=${encodeURIComponent(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(group.value)}`)}`);
@@ -75,14 +92,14 @@ async function load() {
     }
     const next = await fetchLatestWalletPay(group.value);
     if (current !== version || !visible) return;
-    if (!next) throw new Error('未找到钱包支付单，请返回结算页核对');
+    if (!next) throw new Error('未找到钱包支付单，请返回订单页核对');
     acceptPay(next);
     selectedWallet.value = wallets.value[0]?.key || '';
     void fetchWalletPayChains().then(chains => {
       if (current === version) minConfirmations.value = chains.find(chain => chain.chain === next.chain && chain.network === next.network)?.minConfirmations;
     }).catch(() => undefined);
     const saved = readWalletTransferProgress(userStore.realUserId, next.payNo);
-    if (saved?.txHash && next.status === 'PENDING') void retryReport();
+    if (saved?.txHash && (next.status === 'PENDING' || next.status === 'SUBMITTED' && saved.txHash !== next.txHash)) void retryReport();
   } catch (error) {
     if (current === version) errorText.value = error instanceof Error ? error.message : '支付单读取失败';
   } finally { if (current === version) loading.value = false; }
@@ -102,73 +119,90 @@ async function refreshDetail() {
     schedulePolling();
   }
 }
-async function reportFor(currentPay: WalletPayOrder, userId: string, hash: string, fromAddress?: string) {
+async function reportFor(currentPay: WalletPayOrder, userId: string, hash: string, fromAddress: string | undefined, current: () => boolean) {
   if (!validHash(currentPay.chain, hash)) throw new Error('交易哈希格式无效，请核对钱包交易记录');
   const marker: WalletTransferProgress = { started: true, txHash: hash, ...(fromAddress ? { fromAddress } : {}) };
   saveWalletTransferProgress(userId, currentPay.payNo, marker);
-  if (pay.value?.payNo === currentPay.payNo && userStore.realUserId === userId) progress.value = marker;
-  if (userStore.realUserId !== userId) throw new Error('账号已切换，交易哈希已保留在原账号，请切回后上报');
+  if (!current()) return; // 已签名的结果保留在原账号，页面离开后不更新 UI 或继续上报。
+  progress.value = marker;
   const next = await submitWalletPayTx({ payNo: currentPay.payNo, txHash: hash, ...(fromAddress ? { fromAddress } : {}) });
-  if (pay.value?.payNo === currentPay.payNo && userStore.realUserId === userId) acceptPay(next);
+  if (current()) {
+    if (next.payNo !== currentPay.payNo) throw new Error('上报回执与原支付单不一致，请刷新核对');
+    acceptPay(next);
+  }
 }
 async function retryReport() {
   const currentPay = pay.value;
   const userId = userStore.realUserId;
   const marker = progress.value;
   if (!currentPay || !userId || !marker?.txHash || busy.value) return;
+  const operationVersion = version;
+  const current = () => visible && operationVersion === version && userStore.realUserId === userId && pay.value?.payNo === currentPay.payNo;
+  if (!current()) return;
   busy.value = true; errorText.value = '';
-  try { await reportFor(currentPay, userId, marker.txHash, marker.fromAddress); }
-  catch (error) { errorText.value = error instanceof Error ? error.message : '哈希上报失败，请重试同一笔交易'; }
-  finally { busy.value = false; }
+  try { await reportFor(currentPay, userId, marker.txHash, marker.fromAddress, current); }
+  catch (error) { if (current()) errorText.value = error instanceof Error ? error.message : '哈希上报失败，请重试同一笔交易'; }
+  finally { if (operationVersion === version) busy.value = false; }
 }
 async function reportManual() {
   const currentPay = pay.value;
   const userId = userStore.realUserId;
   const hash = newHash.value.trim();
   if (!currentPay || !userId || busy.value) return;
+  const operationVersion = version;
+  const current = () => visible && operationVersion === version && userStore.realUserId === userId && pay.value?.payNo === currentPay.payNo;
+  if (!current()) return;
   if (!validHash(currentPay.chain, hash)) { uni.showToast({ title: '交易哈希格式不正确', icon: 'none' }); return; }
   busy.value = true; errorText.value = '';
-  try { await reportFor(currentPay, userId, hash, progress.value?.fromAddress); newHash.value = ''; }
-  catch (error) { errorText.value = error instanceof Error ? error.message : '交易哈希上报失败，请保留哈希重试'; }
-  finally { busy.value = false; }
+  try { await reportFor(currentPay, userId, hash, progress.value?.fromAddress, current); if (current()) newHash.value = ''; }
+  catch (error) { if (current()) errorText.value = error instanceof Error ? error.message : '交易哈希上报失败，请保留哈希重试'; }
+  finally { if (operationVersion === version) busy.value = false; }
 }
 async function transfer() {
   const currentPay = pay.value;
   const userId = userStore.realUserId;
-  if (!currentPay || !userId || busy.value || recoveryBlocked.value || currentPay.status !== 'PENDING') return;
-  if (progress.value?.started) { uni.showToast({ title: '先核对原交易，勿重复转账', icon: 'none' }); return; }
+  if (!walletPayEntryEnabled || !currentPay || !userId || busy.value || recoveryBlocked.value || (currentPay.status !== 'PENDING' && !retryReady.value)) return;
+  if (progress.value?.started && !retryReady.value) { uni.showToast({ title: '先核对原交易，勿重复转账', icon: 'none' }); return; }
   busy.value = true; errorText.value = '';
   let signatureStarted = false;
+  const previousProgress = progress.value, operationVersion = version;
+  const retrying = retryReady.value;
+  const current = () => visible && operationVersion === version && userStore.realUserId === userId && pay.value?.payNo === currentPay.payNo;
   try {
     if (Number(currentPay.expireAt) <= Date.now()) throw new Error('支付单已过期，请刷新状态');
     const latest = validateWalletPay(await fetchWalletPayDetail(currentPay.payNo), group.value);
-    if (latest.status !== 'PENDING' || latest.chain !== currentPay.chain || latest.rawAmount !== currentPay.rawAmount
+    if (!current()) return;
+    const latestRetryable = retrying && latest.status === 'SUBMITTED' && latest.chainTx?.status === 'FAILED' && latest.txHash === currentPay.txHash;
+    if (latest.payNo !== currentPay.payNo || (latest.status !== 'PENDING' && !latestRetryable) || latest.chain !== currentPay.chain || latest.rawAmount !== currentPay.rawAmount
       || latest.network !== currentPay.network || latest.toAddress !== currentPay.toAddress || latest.tokenContract !== currentPay.tokenContract) {
       acceptPay(latest); throw new Error('支付单状态或参数已变化，请重新核对');
     }
     const wallet = await connectPaymentWallet(latest, selectedWallet.value);
-    if (userStore.realUserId !== userId || pay.value?.payNo !== latest.payNo) throw new Error('账号或支付单已变化');
+    if (!current()) return;
     account.value = wallet.account;
     const confirm = await uni.showModal({ title: '核对链上转账', content: `${latest.chainLabel || latest.chain} ${latest.network}\n账户：${wallet.account}\n应转：${latest.payAmount} USDT\n收款：${latest.toAddress}\n请确认后在钱包内签名。`, confirmText: '打开钱包' });
-    if (!confirm.confirm || userStore.realUserId !== userId || pay.value?.payNo !== latest.payNo) return;
+    if (!confirm.confirm || !current()) return;
     const before = validateWalletPay(await fetchWalletPayDetail(latest.payNo), group.value);
-    if (before.status !== 'PENDING' || before.rawAmount !== latest.rawAmount || before.toAddress !== latest.toAddress
+    if (!current()) return;
+    const beforeRetryable = retrying && before.status === 'SUBMITTED' && before.chainTx?.status === 'FAILED' && before.txHash === latest.txHash;
+    if (before.payNo !== latest.payNo || before.chain !== latest.chain || (before.status !== 'PENDING' && !beforeRetryable) || before.rawAmount !== latest.rawAmount || before.toAddress !== latest.toAddress
       || before.tokenContract !== latest.tokenContract || before.network !== latest.network || Number(before.expireAt) <= Date.now()) {
       acceptPay(before); throw new Error('支付单已变化，请重新核对，勿转账');
     }
-    if (userStore.realUserId !== userId || pay.value?.payNo !== latest.payNo) return;
+    if (!current()) return;
     const marker: WalletTransferProgress = { started: true, fromAddress: wallet.account };
     saveWalletTransferProgress(userId, latest.payNo, marker);
     progress.value = marker; signatureStarted = true;
-    const hash = await wallet.sendTransfer();
-    await reportFor(latest, userId, hash, wallet.account);
+    const hash = await wallet.sendTransfer(current);
+    await reportFor(latest, userId, hash, wallet.account, current);
   } catch (error) {
     if (signatureStarted && walletRequestRejected(error)) {
-      clearWalletTransferProgress(userId, currentPay.payNo);
-      progress.value = undefined;
+      if (previousProgress) saveWalletTransferProgress(userId, currentPay.payNo, previousProgress);
+      else clearWalletTransferProgress(userId, currentPay.payNo);
+      if (current()) progress.value = previousProgress;
     }
-    errorText.value = error instanceof Error ? error.message : '钱包操作未确认，请先核对钱包交易，勿重复转账';
-  } finally { busy.value = false; }
+    if (current()) errorText.value = error instanceof Error ? error.message : '钱包操作未确认，请先核对钱包交易，勿重复转账';
+  } finally { if (operationVersion === version) busy.value = false; }
 }
 async function finishSuccess(currentPay: WalletPayOrder) {
   if (successHandled || !visible) return;
@@ -199,15 +233,16 @@ async function restartClosed() {
   const userId = userStore.realUserId;
   if (!currentPay || currentPay.status !== 'CLOSED' || !userId) return;
   if (progress.value?.started || recoveryBlocked.value) { uni.showToast({ title: '请先核对原交易，勿重复付款', icon: 'none' }); return; }
-  const answer = await uni.showModal({ title: '重新发起支付？', content: '只有确认未发生链上转账后才可重新创建支付单。旧单关闭后仍可能收到到账回调。', confirmText: '返回结算' });
-  if (!answer.confirm || userStore.realUserId !== userId) return;
+  const operationVersion = version;
+  const answer = await uni.showModal({ title: '重新发起支付？', content: '只有确认未发生链上转账后才可重新创建支付单。旧单关闭后仍可能收到到账回调。', confirmText: '返回订单' });
+  if (!answer.confirm || !visible || operationVersion !== version || userStore.realUserId !== userId) return;
   try {
     const pending = readPendingCheckouts().find(item => item.userId === userId && item.orderGroupNo === currentPay.orderGroupNo);
     if (pending?.walletPayAttempt?.payNo === currentPay.payNo) {
       delete pending.walletPayAttempt;
       savePendingCheckout(pending);
     }
-    go('/pages/checkout/index');
+    go('/pages/order/list?status=CREATED');
   } catch (error) { errorText.value = error instanceof Error ? error.message : '结算记录无法更新，请先核对订单'; }
 }
 </script>
@@ -218,9 +253,11 @@ async function restartClosed() {
     <view v-if="errorText" class="notice warning">{{ errorText }}</view>
     <template v-if="pay">
       <view class="notice" v-if="pay.status === 'PENDING'">转账前请核对链、金额、收款地址和合约。仅平台确认到账才算付款成功。</view>
-      <view class="notice" v-else-if="pay.status === 'SUBMITTED'">交易已提交，等待链上确认{{ minConfirmations ? `（至少 ${minConfirmations} 个确认）` : '' }}及平台入账。请勿重复转账。</view>
+      <view class="notice warning" v-else-if="chainRetryable">原链上交易执行失败。核对钱包记录后，可用原支付单的链、金额和地址重新转账并上报新哈希。</view>
+      <view class="notice" v-else-if="pay.status === 'SUBMITTED'">{{ chainProgressText }}{{ !pay.chainTx && minConfirmations ? `（至少 ${minConfirmations} 个确认）` : '' }}。请勿重复转账。</view>
       <view class="notice warning" v-else-if="pay.status === 'CLOSED'">支付单已关闭，但延迟到账仍可能被处理。请先核对钱包交易。</view>
       <view class="notice warning" v-else-if="pay.status === 'FAILED'">订单支付未成立，已到账资金按后端规则进入平台余额。请核对原因后使用余额支付。</view>
+      <view v-if="insufficientTransfer" class="notice warning">已识别转入金额低于应付金额，到账后可能存入平台余额；最终付款结果以支付单状态为准。</view>
       <view class="card">
         <text class="title">{{ pay.payAmount }} USDT</text>
         <text class="subtitle">{{ pay.statusText || pay.status }} · {{ pay.chainLabel || pay.chain }} {{ pay.network }}</text>
@@ -229,26 +266,31 @@ async function restartClosed() {
         <view class="detail"><text>收款地址</text><text selectable class="value">{{ pay.toAddress }}</text></view>
         <view class="detail"><text>USDT 合约</text><text selectable class="value">{{ pay.tokenContract }}</text></view>
         <view class="detail"><text>有效期至</text><text>{{ expiryText(pay.expireAt) }}</text></view>
-        <view class="detail"><text>钱包账户</text><text selectable class="value">{{ account || progress?.fromAddress || '尚未连接' }}</text></view>
+        <view class="detail"><text>钱包账户</text><text selectable class="value">{{ account || progress?.fromAddress || pay.fromAddress || '尚未连接' }}</text></view>
         <view v-if="pay.txHash || progress?.txHash" class="detail"><text>交易哈希</text><text selectable class="value">{{ pay.txHash || progress?.txHash }}</text></view>
+        <view v-if="pay.chainTx" class="detail"><text>链上进度</text><text class="value">{{ chainProgressText }}</text></view>
+        <view v-if="pay.chainTx?.blockHeight != null" class="detail"><text>区块高度</text><text>{{ pay.chainTx.blockHeight }}</text></view>
+        <view v-if="pay.chainTx?.transferAmount != null" class="detail"><text>已识别转入</text><text>{{ pay.chainTx.transferAmount }} USDT</text></view>
+        <view v-if="pay.arrivedAmount != null" class="detail"><text>实际到账</text><text>{{ pay.arrivedAmount }} USDT</text></view>
         <text v-if="pay.failReason" class="chain-tip">{{ pay.failReason }}</text>
       </view>
-      <view v-if="pay.status === 'PENDING' && !progress?.started && !recoveryBlocked" class="card action-card">
+      <text v-if="!walletPayEntryEnabled" class="chain-tip">当前仅可查看原支付进度，钱包转账入口暂未开放。</text>
+      <view v-if="walletPayEntryEnabled && (pay.status === 'PENDING' && !progress?.started || retryReady) && !recoveryBlocked" class="card action-card">
         <text class="section-title">选择当前浏览器钱包</text>
         <wd-radio-group v-if="wallets.length" v-model="selectedWallet">
           <wd-radio v-for="wallet in wallets" :key="wallet.key" :value="wallet.key">{{ wallet.label }}</wd-radio>
         </wd-radio-group>
-        <text v-else class="chain-tip">当前浏览器未检测到该链的钱包能力。请在对应钱包内置浏览器打开本页；暂不支持无注入能力的外跳签名。</text>
-        <wd-button type="primary" block :disabled="!selectedWallet" :loading="busy" @click="transfer">连接钱包并转账</wd-button>
+        <WalletBrowserEntry v-else :chain="pay.chain" :path="`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(pay.orderGroupNo)}`" />
+        <wd-button type="primary" block :disabled="!selectedWallet" :loading="busy" @click="transfer">{{ retryReady ? '重新连接钱包并转账' : '连接钱包并转账' }}</wd-button>
         <text class="chain-tip">请准备该链 Gas 币（ETH、BNB 或 TRX）。</text>
       </view>
-      <view v-if="progress?.started && !progress.txHash && pay.status === 'PENDING'" class="card action-card">
+      <view v-if="progress?.started && !progress.txHash && (pay.status === 'PENDING' || chainRetryable)" class="card action-card">
         <text class="section-title">核对原交易</text>
         <text class="chain-tip">本机曾请求钱包签名，但未取得哈希。请先核对钱包交易记录，勿再次转账。</text>
         <wd-input v-model="newHash" placeholder="填写原交易哈希" clearable />
         <wd-button block plain :loading="busy" @click="reportManual">上报原交易哈希</wd-button>
       </view>
-      <view v-if="progress?.txHash && pay.status === 'PENDING'" class="card action-card">
+      <view v-if="awaitingReport || progress?.txHash && pay.status === 'PENDING'" class="card action-card">
         <wd-button block plain :loading="busy" @click="retryReport">重试上报同一交易</wd-button>
       </view>
       <view v-if="pay.status === 'SUBMITTED' && progress?.started" class="card action-card">
@@ -256,8 +298,8 @@ async function restartClosed() {
         <wd-input v-model="newHash" placeholder="替换交易的新哈希（选填）" clearable />
         <wd-button block plain :loading="busy" @click="reportManual">上报替换哈希</wd-button>
       </view>
-      <wd-button v-if="pay.status === 'CLOSED'" block plain @click="restartClosed">核对后返回结算页</wd-button>
-      <wd-button v-if="pay.status === 'FAILED'" block plain @click="go('/pages/checkout/index')">返回结算页使用余额</wd-button>
+      <wd-button v-if="pay.status === 'CLOSED'" block plain @click="restartClosed">核对后返回订单页</wd-button>
+      <wd-button v-if="pay.status === 'FAILED'" block plain @click="go('/pages/order/list?status=CREATED')">返回订单使用余额</wd-button>
     </template>
     <view class="footer-actions">
       <wd-button plain :disabled="loading || busy" @click="pay ? refreshDetail() : load()">刷新支付状态</wd-button>

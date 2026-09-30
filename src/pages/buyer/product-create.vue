@@ -32,6 +32,9 @@ const receiptFailed = ref(false);
 const categories = ref<CategoryOption[]>([]);
 const categoryTree = ref<CategoryNode[]>([]);
 const categoryPickerOpen = ref(false);
+const categoryLoading = ref(false);
+const categoryError = ref('');
+let categorySequence = 0;
 const loading = ref(true);
 const loadFailed = ref(false);
 let loadSequence = 0;
@@ -51,6 +54,7 @@ const form = reactive({
 });
 const page = usePageOperation(() => {
   loadSequence++;
+  categorySequence++; categoryLoading.value = false; categoryError.value = '';
   loading.value = false;
   loadFailed.value = true;
   step.value = 0;
@@ -65,7 +69,7 @@ const page = usePageOperation(() => {
   categoryPickerOpen.value = false;
   Object.assign(form, { title: '', brief: '', description: '', categoryId: '', price: '99', shippingFee: '0', taxFee: '0', stock: 10, afterSaleType: 'SEVEN_DAY_NO_REASON', overseasClearance: false, images: [] });
 });
-const canPublish = computed(() => page.visible.value && !loading.value && !loadFailed.value && !receiptFailed.value && !receipt.value && userStore.canSwitchToBuyer);
+const canPublish = computed(() => page.visible.value && !loading.value && !loadFailed.value && !categoryLoading.value && !categoryError.value && !receiptFailed.value && !receipt.value && userStore.canSwitchToBuyer);
 
 const categoryName = computed(() => categories.value.find(item => item.id === form.categoryId)?.name || '请选择');
 
@@ -95,11 +99,7 @@ async function load() {
     }
     await userStore.refreshProfile();
     if (!valid() || !userStore.canSwitchToBuyer) return;
-    const tree = await fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: false });
-    if (valid()) {
-      categoryTree.value = tree;
-      categories.value = enabledThirdLevelCategories(tree);
-    }
+    await refreshCategories(valid);
   } catch (error) {
     if (!valid()) return;
     loadFailed.value = true;
@@ -108,8 +108,24 @@ async function load() {
     if (operation.sameSession() && sequence === loadSequence) loading.value = false;
   }
 }
+async function refreshCategories(parentCurrent: () => boolean = () => true) {
+  if (!page.visible.value || submitting.value || uploading.value || !userStore.canSwitchToBuyer) return;
+  const operation = page.capture(), sequence = ++categorySequence;
+  const current = () => operation.isCurrent() && sequence === categorySequence && parentCurrent();
+  categoryLoading.value = true; categoryError.value = ''; categoryPickerOpen.value = false;
+  try {
+    const tree = await fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: false });
+    if (!current()) return;
+    categoryTree.value = tree; categories.value = enabledThirdLevelCategories(tree);
+    if (form.categoryId && !categories.value.some(item => item.id === form.categoryId)) {
+      form.categoryId = ''; uni.showToast({ title: '原分类已不可用，请重新选择', icon: 'none' });
+    }
+  } catch (error) {
+    if (current()) categoryError.value = error instanceof Error ? error.message : '分类读取失败，请刷新重试';
+  } finally { if (sequence === categorySequence) categoryLoading.value = false; }
+}
 onShow(load);
-onHide(() => { loadSequence++; loading.value = false; });
+onHide(() => { loadSequence++; categorySequence++; loading.value = false; categoryLoading.value = false; categoryPickerOpen.value = false; });
 
 function refreshReceipt() {
   try {
@@ -272,7 +288,7 @@ async function submit() {
       <view v-if="step === 0" class="form">
         <wd-input v-model="form.title" label="商品标题" placeholder="请输入商品标题" :maxlength="128" />
         <wd-cell title="分类" :value="categories.length ? categoryName : '暂不可选'" :is-link="!!categories.length" @click="pickCategory" />
-        <view v-if="!categories.length" class="category-hint">分类暂不可用，选择后才可继续。<wd-button plain size="small" @click="load">重试</wd-button></view>
+        <view class="category-hint"><text>{{ categoryError || (categories.length ? '申请的分类已通过？刷新后重新选择' : '分类暂不可用，请刷新后选择') }}</text><wd-button plain size="small" :loading="categoryLoading" :disabled="loading || submitting || uploading" @click="refreshCategories()">刷新分类</wd-button></view>
         <wd-textarea v-model="form.brief" label="商品简介" placeholder="30 字以内" :max-length="30" show-word-limit />
         <view class="field-label">详细描述</view>
         <RichTextEditor v-model="form.description" :disabled="submitting" @uploading="uploading = $event" />

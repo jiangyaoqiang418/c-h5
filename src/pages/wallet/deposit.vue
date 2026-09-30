@@ -5,6 +5,8 @@ import { usePageOperation } from '@/utils/page-operation';
 import { getAccessToken } from '@/service/request/token';
 import { useSubmissionGuard } from '@/utils/submission-guard';
 import SubmissionWarning from '@/components/common/submission-warning.vue';
+import WalletDirectRecharge from '@/components/common/wallet-direct-recharge.vue';
+import { walletPayEntryEnabled } from '@/utils/wallet-pay-feature';
 import { fetchRechargeAddress, fetchRechargeChains, fetchRechargeDetail } from '@/service/api/wallet';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { useUserStore } from '@/stores';
@@ -295,6 +297,8 @@ watch(submittedId, () => { stopPolling(); detail.value = undefined; detailLoadTo
       <wd-input v-model="form.amount" label="充值金额" type="digit" placeholder="USDT" />
       <wd-button type="primary" block :disabled="!canSubmit || submitting" :loading="submitting" class="submit-btn" @click="submit">创建充值申报单（可选）</wd-button>
     </view>
+
+    <WalletDirectRecharge v-if="walletPayEntryEnabled && userStore.currentUser" :chain="form.chain" :disabled="chainsLoading || chainsLoadFailed || addressLoading || addressLoadFailed || !rechargeAddress || submitting || running" />
 
     <view v-if="detail" class="detail-card">
       <view class="detail-head">

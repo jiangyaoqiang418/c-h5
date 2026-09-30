@@ -46,6 +46,19 @@
 
 以上真实验证来自本期已有证据，本次提交准备不新增业务写入。前端临时进程分支检查使用实际源码与替换依赖，不是仓库测试套件；不新增测试框架/脚本。旧“求购无状态筛选、评价资格需全量扫描、三类资金只能人工核对、无经营统计/进度”结论已被当前契约和实现替代，不再并列为现状。
 
+## 2026-09-30 H5 对齐 PC 接入矩阵
+
+| 能力 | 当日实时契约 | API 与页面接入 | 验证边界 |
+|---|---|---|---|
+| 收货、取消、延长收货 | confirm必填6位payPassword；cancel必填reason；extend-receipt必填id，服务端控制5天/5次 | 列表/详情共用密码/原因弹窗；延长回执及unknown回读；类型映射自动收货时间、次数、可延长标志 | 契约已读取、代码已调用；无业务写入、浏览器或真机验收 |
+| 订单支付方式 | wallet-pay chains/latest/create/detail；group/pay-result/pay | 列表/详情默认余额；钱包同键创建、金额/组/归属校验与旧单恢复；未知结果不跨方式重复付款 | 原本机结算上下文仍保留；H5钱包入口默认开启，显式配置false可关闭；App入口仍关闭，未做实际签名 |
+| 物流时间轴 | logistics聚合信息与完整tracks，MANUAL/CARRIER_SYNC | 合并进度、轨迹/来源/异常、发货资料与凭证；采购资料与预览 | 展示代码已接入；仅根据现有数据展示，不代表快递服务商已配置或实时同步正常 |
+| 链上付款进度 | chainTx状态/confirmations/minConfirmations/blockHeight/transferAmount，fromAddress/arrivedAmount | 确认数和不足提示；明确FAILED才按原参数重转并报新哈希；原哈希报告可恢复 | 未验证链节点、平台入账、重转回调或钱包加速交易 |
+| 移动钱包、直接充值 | 现有钱包链配置 + recharge/chains/address | 官方钱包打开/下载/复制安全链接；钱包内登录后恢复原单；专属地址直充与未知签名防重 | 仅H5钱包入口启用时可转账；无跨App连接SDK，未验真实移动唤起；充值地址契约不含独立网络标识，不能匹配配置时保留复制地址路径 |
+| 商品通知与分类刷新 | PRODUCT/product_approved/product_rejected/product_unfrozen；products/detail、categories/tree | 本人商品定位高亮、状态由详情确认、分页独立；主动刷新分类保留其他输入 | 无通知点击或真实商品写验；解冻不自动上架 |
+
+本批 `pnpm typecheck`、`pnpm build:h5`、`pnpm build:app-plus` 与 `git diff --check` 通过。没有浏览器验证、真实签名、链上转账或后台写入；编译不等于完整业务验收。未新增测试文件、依赖或 Mock；按用户“推送代码”授权交付 `main`，提交与同步结果以 Git 回执为准，未部署。跨 App SDK 与真实资金闭环仍未完成，整体状态为部分完成。
+
 ## 既有能力与验收边界
 
 | 能力 | 契约/API | 页面调用与保护 | 最近有效真实证据 / 剩余 |

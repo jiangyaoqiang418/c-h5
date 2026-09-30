@@ -16,6 +16,7 @@ defineEmits<{
   (e: 'pay', o: Api.RealOrder.OrderView): void;
   (e: 'cancel', o: Api.RealOrder.OrderView): void;
   (e: 'confirm', o: Api.RealOrder.OrderView): void;
+  (e: 'extend-receipt', o: Api.RealOrder.OrderView): void;
   (e: 'review', o: Api.RealOrder.OrderView): void;
   (e: 'aftersale', o: Api.RealOrder.OrderView): void;
   (e: 'ship', o: Api.RealOrder.OrderView): void;
@@ -87,6 +88,8 @@ function goDetail() {
       >
         确认收货
       </wd-button>
+      <wd-button v-if="!props.sellerMode && order.rawStatus === 'SHIPPED' && order.receiveExtendable === true"
+        plain size="small" :disabled="actionsDisabled" @click="$emit('extend-receipt', order)">延长收货</wd-button>
       <wd-button
         v-if="!props.sellerMode && ['COMPLETED', 'WARRANTY'].includes(order.status)"
         plain

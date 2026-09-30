@@ -18,11 +18,16 @@ import { useUserStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
 import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
+import OrderCancelPopup from '@/components/order/order-cancel-popup.vue';
+import OrderPaymentSelector from '@/components/order/order-payment-selector.vue';
+import { extendOrderReceipt } from '@/utils/order-receipt-extension';
 import { fetchLatestWalletPay, validateWalletPay, type WalletPayOrder } from '@/service/api/wallet-pay';
-import { walletPayEntryEnabled } from '@/utils/wallet-pay-feature';
 
 const { requireLogin } = useNavigationGuards();
 const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
+const cancelPopup = ref<InstanceType<typeof OrderCancelPopup>>();
+const paymentSelectorVisible = ref(false);
+const paymentSelectorOrder = ref<Api.RealOrder.OrderView>();
 
 const userStore = useUserStore();
 const order = ref<Api.RealOrder.OrderView>();
@@ -61,6 +66,7 @@ const trackForm = ref<{ status: Api.RealOrder.LogisticsStatus; description: stri
 const exceptionForm = ref({ exception: '', location: '' });
 const page = usePageOperation(() => {
   loadSequence++; popupVersion++;
+  paymentSelectorVisible.value = false; paymentSelectorOrder.value = undefined;
   order.value = undefined; logistics.value = undefined;
   loading.value = false; loadFailed.value = false; logisticsLoadFailed.value = false;
   operating.value = false; logisticsSubmitting.value = false;
@@ -74,10 +80,6 @@ const actionsDisabled = computed(() => !page.visible.value || busy.value || load
   || (isCustomer.value && (refundBlocked.value || changeReceiptFailed.value || (!!order.value && orderChangeBlocks(order.value, currentChanges.value))))
   || (isCustomer.value && order.value?.rawStatus === 'CREATED' && (paymentReceiptFailed.value || (!!paymentReceipt.value && !paymentReceipt.value.retryable))));
 const logisticsDisabled = computed(() => actionsDisabled.value || logisticsLoadFailed.value || logisticsReceiptFailed.value || !!logisticsReceipt.value && logisticsReceipt.value.state !== 'verified');
-function trackMetaText(track: Api.RealOrder.LogisticsTrackDTO) {
-  const source = track.sourceText || (track.source === 'CARRIER_SYNC' ? '承运商同步' : '');
-  return [source, track.location, track.occurredAt ? formatTime(track.occurredAt) : ''].filter(Boolean).join(' · ');
-}
 function closePopups() {
   trackPopupVisible.value = false; exceptionPopupVisible.value = false;
   trackForm.value = { status: 'IN_TRANSIT', description: '', location: '', exceptionNode: false };
@@ -146,7 +148,7 @@ async function reload() {
     if (sequence !== loadSequence || !operation.isCurrent()) return;
     if (detailResult.status === 'fulfilled' && String(detailResult.value.id) === String(orderId)) {
       order.value = detailResult.value;
-      if (walletPayEntryEnabled && order.value.orderGroupNo && orderRole(order.value, userStore.realUserId) === 'customer') {
+      if (order.value.orderGroupNo && orderRole(order.value, userStore.realUserId) === 'customer') {
         try {
           const groupNo = order.value.orderGroupNo;
           const latest = await fetchLatestWalletPay(groupNo);
@@ -156,6 +158,7 @@ async function reload() {
     } else {
       loadFailed.value = true;
     }
+    if (sequence !== loadSequence || !operation.isCurrent()) return;
     logisticsLoadFailed.value = logisticsResult.status === 'rejected' || (logisticsResult.status === 'fulfilled' && String(logisticsResult.value.orderId) !== String(orderId));
     if (logisticsResult.status === 'fulfilled' && !logisticsLoadFailed.value) {
       logistics.value = logisticsResult.value;
@@ -183,13 +186,19 @@ async function reload() {
   }
 }
 
+function previewPurchaseVoucher(url: string) { if (logistics.value) uni.previewImage({ urls: logistics.value.purchaseVouchers, current: url }); }
+
 function formatTime(value?: string | number): string {
   if (value === undefined || value === null || value === '') return '';
   const date = typeof value === 'number' ? new Date(value) : /^\d+$/.test(value) ? new Date(Number(value)) : new Date(value);
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
-async function pay() {
+function pay() {
+  if (actionsDisabled.value || !isCustomer.value || order.value?.rawStatus !== 'CREATED') return;
+  paymentSelectorOrder.value = order.value; paymentSelectorVisible.value = true;
+}
+async function payBalance() {
   if (actionsDisabled.value || !isCustomer.value || order.value?.rawStatus !== 'CREATED') return;
   if (!order.value.orderGroupNo) {
     uni.showToast({ title: '订单组信息缺失，暂无法继续付款', icon: 'none' });
@@ -199,11 +208,11 @@ async function pay() {
   const userId = userStore.realUserId!;
   const operation = page.capture();
   try {
-    if (walletPayEntryEnabled) {
+    {
       const latest = await fetchLatestWalletPay(order.value.orderGroupNo);
       if (!operation.isCurrent()) return;
       walletPay.value = latest ? validateWalletPay(latest, order.value.orderGroupNo) : undefined;
-      if (walletPay.value && ['PENDING', 'SUBMITTED'].includes(walletPay.value.status)) {
+      if (walletPay.value && ['PENDING', 'SUBMITTED', 'SUCCESS'].includes(walletPay.value.status)) {
         go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(order.value.orderGroupNo)}`);
         return;
       }
@@ -232,7 +241,10 @@ async function changeOrder(action: 'cancel' | 'confirm') {
   const userId = userStore.realUserId!;
   operating.value = true;
   try {
-    const receipt = await changeOrderWithReceipt(expected, action, operation.isCurrent);
+    const receipt = await changeOrderWithReceipt(expected, action, operation.isCurrent, {
+      requestReason: async () => cancelPopup.value?.request(),
+      requestPayPassword: async () => payPasswordPopup.value?.request(`/pages/order/detail?id=${encodeURIComponent(String(expected.id))}`, '确认收货')
+    });
     if (!operation.sameSession()) return;
     refreshChangeReceipts();
     if (receipt && operation.isCurrent()) {
@@ -247,6 +259,19 @@ async function changeOrder(action: 'cancel' | 'confirm') {
       if (page.visible.value) await reload();
       if (operation.sameSession()) operating.value = false;
     }
+  }
+}
+async function extendReceipt() {
+  if (actionsDisabled.value || !isCustomer.value || order.value?.receiveExtendable !== true) return;
+  const operation = page.capture(), expected = order.value;
+  operating.value = true;
+  try {
+    const result = await extendOrderReceipt(expected, operation.isCurrent);
+    if (result && operation.isCurrent()) uni.showToast({ title: result.recovered ? '已核对到延长结果' : '已延长收货5天', icon: 'success' });
+  } catch (error) {
+    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '延长结果待核对', icon: 'none' });
+  } finally {
+    if (operation.sameSession()) { if (page.visible.value) await reload(); operating.value = false; }
   }
 }
 function cancel() { return changeOrder('cancel'); }
@@ -320,6 +345,8 @@ function submitException() { return submitLogistics('exception'); }
 
 <template>
   <PayPasswordPopup ref="payPasswordPopup" />
+  <OrderCancelPopup ref="cancelPopup" />
+  <OrderPaymentSelector v-model="paymentSelectorVisible" :order="paymentSelectorOrder" @balance="payBalance" />
   <view v-if="order" class="detail-page yb-page">
     <view v-if="isCustomer && walletPayError" class="section">{{ walletPayError }}</view>
     <view v-if="isCustomer && walletPay" class="section">
@@ -344,7 +371,9 @@ function submitException() { return submitLogistics('exception'); }
 
     <view class="section">
       <text class="section-title">订单进度</text>
-      <OrderTimeline :order="order" />
+      <view v-if="isCustomer && order.rawStatus === 'SHIPPED' && order.autoConfirmAt" class="amt-row"><text class="amt-lbl">自动收货时间</text><text>{{ formatTime(order.autoConfirmAt) }}</text></view>
+      <view v-if="isCustomer && order.rawStatus === 'SHIPPED' && order.receiveExtendCount != null" class="amt-row"><text class="amt-lbl">已延长收货</text><text>{{ order.receiveExtendCount }} 次</text></view>
+      <OrderTimeline :order="order" :logistics="logistics" />
     </view>
 
     <view class="section">
@@ -420,10 +449,7 @@ function submitException() { return submitLogistics('exception'); }
        <view v-if="logistics.purchaseNo" class="amt-row"><text class="amt-lbl">采购单号</text><text>{{ logistics.purchaseNo }}</text></view>
        <view v-if="logistics.eta" class="amt-row"><text class="amt-lbl">预计送达</text><text>{{ formatTime(logistics.eta) }}</text></view>
        <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
-       <view v-if="logistics.purchaseVouchers.length" class="voucher-section"><text class="voucher-title">采购凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.purchaseVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
-       <view v-if="logistics.shipVouchers.length" class="voucher-section"><text class="voucher-title">发货凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.shipVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" /></view></view>
-       <view v-if="logistics.tracks.length" class="tracks"><view v-for="track in logistics.tracks" :key="String(track.trackId)" class="track"><text>{{ track.statusText || track.status }} · {{ track.description }}</text><text v-if="trackMetaText(track)" class="track-meta">{{ trackMetaText(track) }}</text></view></view>
-       <text v-else class="track-meta">暂无物流轨迹</text>
+       <view v-if="logistics.purchaseVouchers.length" class="voucher-section"><text class="voucher-title">采购凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.purchaseVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" @click="previewPurchaseVoucher(url)" /></view></view>
        <view v-if="isSeller && order.status === 'IN_TRANSIT'" class="logistics-actions">
          <wd-button size="small" plain :disabled="logisticsDisabled" @click="openTrackPopup">更新物流轨迹</wd-button>
          <wd-button size="small" type="error" plain :disabled="logisticsDisabled" @click="openExceptionPopup">标记物流异常</wd-button>
@@ -458,6 +484,7 @@ function submitException() { return submitLogistics('exception'); }
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" type="primary" @click="pay">立即付款</wd-button>
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" plain @click="cancel">取消订单</wd-button>
       <wd-button v-if="order.status === 'IN_TRANSIT'" :disabled="actionsDisabled" type="primary" @click="confirm">确认收货</wd-button>
+      <wd-button v-if="order.rawStatus === 'SHIPPED' && order.receiveExtendable === true" :disabled="actionsDisabled" plain @click="extendReceipt">延长收货</wd-button>
       <wd-button v-if="isCustomer && order.status === 'COMPLETED'" :disabled="actionsDisabled || order.reviewEligibility?.reviewable === false" plain @click="goReview">{{ order.reviewEligibility?.reviewable === false ? (order.reviewEligibility.reasonText || '不可评价') : order.reviewEligibility?.reviewable ? '写评价' : '核对评价资格' }}</wd-button>
       <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" :disabled="actionsDisabled" plain @click="goAftersale">申请仅退款</wd-button>
     </view>
@@ -568,7 +595,7 @@ function submitException() { return submitLogistics('exception'); }
   font-size: 26rpx;
   color: #1d2129;
 }
-.logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#f53f3f; background:#fff2f0; font-size:24rpx; line-height:1.5; }.tracks { margin-top:12rpx; }.track { padding:14rpx 0; border-top:1rpx solid #f2f3f5; font-size:24rpx; color:#1d2129; }.track-meta { display:block; margin-top:6rpx; color:#86909c; font-size:21rpx; }
+.logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#f53f3f; background:#fff2f0; font-size:24rpx; line-height:1.5; }
 .page-loading { display:flex; flex-direction:column; align-items:center; gap:16rpx; padding:120rpx 0; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }.logistics-load-failed { color:#a85a00; font-size:24rpx; }
 .voucher-section { margin-top:20rpx; }.voucher-title { display:block; margin-bottom:12rpx; color:#4e5969; font-size:24rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-image { width:160rpx; height:160rpx; border-radius:8rpx; }
 .logistics-actions { display:flex; justify-content:flex-end; gap:12rpx; margin-top:20rpx; }.logistics-popup { padding:32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background:#fff; }.popup-title { display:block; margin-bottom:20rpx; color:#1d2129; font-size:32rpx; font-weight:700; }
