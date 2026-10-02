@@ -133,12 +133,6 @@ onShow(() => { if (!operating.value) return load(); });
     <view v-else-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     <template v-else-if="product">
       <wd-button v-if="loadFailed || pendingShelf" block plain :loading="loading" :disabled="operating" @click="load">{{ pendingShelf ? '操作已成功，点击回读最新状态' : '详情刷新失败，点击重试' }}</wd-button>
-      <swiper v-if="product.images?.length" indicator-dots class="gallery">
-        <swiper-item v-for="image in product.images" :key="image">
-          <image :src="image" mode="aspectFill" class="gallery-image" />
-        </swiper-item>
-      </swiper>
-
       <view class="section main-section">
         <view class="status-row">
           <wd-tag round :type="statusType">{{ product.statusText || product.status }}</wd-tag>
@@ -153,6 +147,12 @@ onShow(() => { if (!operating.value) return load(); });
         <text class="section-title">审核意见</text>
         <text class="review-text">{{ product.reviewComment }}</text>
       </view>
+
+      <swiper v-if="product.images?.length" indicator-dots class="gallery">
+        <swiper-item v-for="image in product.images" :key="image">
+          <image :src="image" mode="aspectFill" class="gallery-image" />
+        </swiper-item>
+      </swiper>
 
       <view class="section">
         <text class="section-title">商品信息</text>
@@ -184,7 +184,7 @@ onShow(() => { if (!operating.value) return load(); });
 <style lang="scss" scoped>
 .detail-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); }.detail-page.has-actions { padding-bottom:calc(144rpx + env(safe-area-inset-bottom)); }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:24rpx; }
-.gallery { width:100%; height:600rpx; overflow:hidden; border-radius:var(--yb-radius-lg); background:#f2f3f5; }
+.gallery { width:100%; height:440rpx; margin-top:20rpx; overflow:hidden; border-radius:var(--yb-radius-lg); background:#f2f3f5; }
 .gallery-image { width: 100%; height: 100%; }
 .section { margin-top:20rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .main-section { margin-top:20rpx; }

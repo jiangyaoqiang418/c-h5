@@ -51,7 +51,7 @@ const AGREEMENT_LINKS: { kind: Api.Cms.AgreementKind; label: string }[] = [
         <view class="popup-header"><text class="popup-title">{{ detail.title }}</text><view class="popup-close" aria-label="关闭协议" @click="popupOpen = false"><wd-icon name="close" size="20px" /></view></view>
         <scroll-view scroll-y class="popup-body">
         <text class="demo-notice">以下协议与政策为演示内容，不代表正式生效的规则。</text>
-        <text class="popup-meta">版本 {{ detail.version }} · 生效 {{ new Date(detail.effectiveAt).toLocaleDateString() }}</text>
+        <text class="popup-meta">版本 {{ detail.version }} · 演示日期 {{ new Date(detail.effectiveAt).toLocaleDateString() }}</text>
         <view class="popup-content"><view v-for="(paragraph, index) in paragraphs" :key="index" :class="['agreement-line', paragraph.kind]"><text v-for="(segment, segmentIndex) in paragraph.segments" :key="segmentIndex" :class="{ bold: segment.bold }">{{ segment.text }}</text></view></view>
         </scroll-view>
       </view>
@@ -70,10 +70,10 @@ const AGREEMENT_LINKS: { kind: Api.Cms.AgreementKind; label: string }[] = [
 .ag-title { display: block; font-size: 26rpx; font-weight: 600; margin-bottom: 16rpx; color: #4e5969; }
 .demo-notice { display: block; margin: 16rpx 0; color: var(--yb-muted); font-size: 24rpx; line-height: 1.6; }
 .ag-row { display: flex; align-items:center; justify-content: space-between; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 26rpx; }
-.popup { display: flex; flex-direction: column; height: 1100rpx; max-height: 80vh; padding: 0 28rpx; box-sizing: border-box; }
+.popup { display: flex; flex-direction: column; height: auto; max-height: 80vh; padding: 0 28rpx; box-sizing: border-box; }
 .popup-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 104rpx; border-bottom: 1rpx solid var(--yb-border); gap: 16rpx; }
 .popup-close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; }
-.popup-body { flex: 1; min-height: 0; width: 100%; }
+.popup-body { flex:0 1 auto; max-height:62vh; min-height: 0; width: 100%; }
 .popup-title { display: block; flex:1; min-width:0; overflow-wrap:anywhere; font-size: 32rpx; font-weight: 700; }
 .popup-meta { display: block; font-size: 24rpx; color: var(--yb-muted); margin: 8rpx 0 24rpx; }
 .popup-content { font-size: 26rpx; color: #4e5969; line-height: 1.7; white-space: pre-wrap; }

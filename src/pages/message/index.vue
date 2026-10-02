@@ -16,6 +16,7 @@ interface Category {
   path: string;
   unread?: number;
   latestText: string;
+  latestTitle?: string;
   latestTime: string;
   disabled?: boolean;
 }
@@ -94,10 +95,11 @@ async function load() {
       task(fetchNotifications({ pageNo: 1, pageSize: 50 }), page => {
         categories.value.slice(0, 2).forEach((category, index) => {
           const record = page.records.find(item => isTransactionNotification(item) === (index === 1));
-          category.latestText = record ? `${record.title || category.title}：${record.content || ''}` : `暂无近期${category.title}，点击查看全部`;
+          category.latestTitle = record?.title;
+          category.latestText = record ? record.content || '' : `暂无近期${category.title}，点击查看全部`;
           category.latestTime = formatDate(record?.createdAt);
         });
-      }, () => { categories.value.slice(0, 2).forEach(category => { category.latestText = '摘要暂不可用，仍可点击查看通知'; category.latestTime = ''; }); }),
+      }, () => { categories.value.slice(0, 2).forEach(category => { category.latestTitle = undefined; category.latestText = '摘要暂不可用，仍可点击查看通知'; category.latestTime = ''; }); }),
       task(fetchConversations({ pageNo: 1, pageSize: 1 }), page => {
         const conversation = page.records[0];
         categories.value[2].latestText = conversation?.lastMessagePreview || (realtimeState.value === 'ready' ? '订单群消息服务已连接' : '点击查看订单群聊');
@@ -229,12 +231,11 @@ async function open(c: Category) {
           </view>
         </view>
         <view class="cat-middle">
-          <text class="cat-title">{{ c.title }}</text>
-          <text class="cat-preview">{{ c.latestText }}</text>
+          <view class="category-heading"><text class="cat-title">{{ c.title }}</text><text v-if="c.latestTime" class="cat-time">{{ c.latestTime }}</text></view>
+          <text v-if="c.latestTitle" class="notification-title">{{ c.latestTitle }}</text><text class="cat-preview">{{ c.latestText }}</text>
           <text v-if="userStore.currentUser && c.unread === undefined" class="cat-preview">未读数暂不可用</text>
         </view>
         <view class="cat-right">
-          <text v-if="c.latestTime" class="cat-time">{{ c.latestTime }}</text>
           <wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
         </view>
       </view>
@@ -346,4 +347,12 @@ async function open(c: Category) {
   color: #C9CDD4;
   line-height: 1;
 }
+</style>
+
+<style scoped lang="scss">
+.category-heading { display:flex; align-items:center; justify-content:space-between; gap:12rpx; }.cat-right { width:32rpx; flex-shrink:0; }.cat-middle { flex:1; min-width:0; }.category-heading .cat-time { flex-shrink:0; }.cat-preview { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; }
+</style>
+
+<style scoped lang="scss">
+.notification-title { display:block; margin-top:8rpx; color:var(--yb-ink-2); font-size:24rpx; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 </style>

@@ -243,6 +243,7 @@ async function open(notification: Api.RealNotify.Notification) {
     }
     const path = await target(notification);
     if (operation.valid() && path) await uni.navigateTo({ url: path });
+    else if (operation.valid()) await uni.showModal({ title: notification.title || '系统通知', content: notification.content || '暂无内容', showCancel: false, confirmText: '知道了' });
   } catch {
     if (operation.valid()) uni.showToast({ title: '业务页面打开失败，请重试', icon: 'none' });
   } finally {
@@ -321,7 +322,7 @@ async function clear() {
     <view class="refresh-row"><text v-if="records.length || unreadCount" class="toolbar-text">{{ unreadCount === undefined ? '未读数暂不可用' : `账号共 ${unreadCount} 条未读` }}</text><view class="tool-buttons"><wd-button v-if="userStore.currentUser" plain size="small" :loading="loading" :disabled="operating" @click="load(true)">{{ updatesAvailable ? '有新通知，刷新' : '刷新' }}</wd-button><wd-button v-if="records.length || unreadCount" plain size="small" :disabled="operating" @click="managing = !managing">{{ managing ? '完成管理' : '管理' }}</wd-button></view></view>
     <view v-if="records.length || unreadCount" class="toolbar">
       <view class="toolbar-actions">
-        <view class="action" :class="{ disabled: unreadCount === 0 || operating }" @click="readAll">全部设为已读</view>
+        <view class="action" :class="{ disabled: unreadCount === 0 || operating }" @click="readAll">全部已读</view>
         <view v-if="managing" class="action danger" :class="{ disabled: operating }" @click="clear">清空全部</view>
       </view>
     </view>
@@ -342,10 +343,10 @@ async function clear() {
 
 <style lang="scss" scoped>
 .notification-page { min-height:100%; padding:24rpx; }.toolbar,.toolbar-actions,.right { display:flex; align-items:center; }.toolbar { justify-content:space-between; padding:8rpx 0 20rpx 8rpx; }.toolbar-text { color:#86909c; font-size:24rpx; }.toolbar-actions { gap:8rpx; }.action,.delete { display:flex; align-items:center; justify-content:center; min-height:80rpx; padding:0 16rpx; box-sizing:border-box; }.action { color:var(--yb-brand); font-size:24rpx; }.action.danger,.delete { color:var(--yb-danger); }.disabled { color:#c9cdd4; }.list { background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); overflow:hidden; }.item { display:flex; align-items:flex-start; padding:24rpx 20rpx; border-bottom:1rpx solid var(--yb-border); gap:14rpx; }.item:last-child { border:none; }.dot { width:12rpx; height:12rpx; margin-top:11rpx; border-radius:50%; background:transparent; flex-shrink:0; }.unread .dot { background:var(--yb-brand); }.body { flex:1; min-width:0; }.title,.content,.time { display:block; }.title { color:#1d2129; font-size:28rpx; font-weight:600; }.content { color:#4e5969; font-size:24rpx; line-height:1.5; margin-top:6rpx; }.time { color:#86909c; font-size:22rpx; margin-top:8rpx; }.right { flex-shrink:0; flex-direction:column; align-items:flex-end; gap:4rpx; }.delete { min-width:80rpx; font-size:24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
-.notification-tools { margin-bottom:20rpx; padding:8rpx 20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:var(--yb-surface); }
-.refresh-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8rpx 16rpx; min-height:88rpx; }.tool-buttons { display:flex; gap:12rpx; margin-left:auto; }.toolbar-text { min-width:0; overflow-wrap:anywhere; }
+.notification-tools { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 12rpx; margin-bottom:16rpx; padding:8rpx 20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:var(--yb-surface); }
+.refresh-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8rpx 16rpx; min-height:44px; flex:1; }.tool-buttons { display:flex; gap:12rpx; margin-left:auto; }.toolbar-text { min-width:0; overflow-wrap:anywhere; }
 .toolbar { flex-wrap:wrap; justify-content:flex-end; gap:8rpx; padding:0; }.toolbar-actions { flex-wrap:wrap; }
 .toolbar-text, .time { color: var(--yb-muted); font-size: 24rpx; }
 .action, .delete { min-height: 88rpx; min-width: 88rpx; }
-.content { overflow-wrap:anywhere; }
+.content { overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }.title { line-height:1.5; overflow-wrap:anywhere; }.right { align-self:center; }
 </style>

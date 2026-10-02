@@ -472,6 +472,7 @@ async function submitShipping() {
       <view class="shipping-popup">
         <text class="shipping-title">填写发货信息</text>
         <text v-if="shippingOrder" class="shipping-order">订单 {{ shippingOrder.code }}</text>
+        <scroll-view scroll-y class="shipping-body">
         <wd-cell title="承运商"><wd-radio-group v-model="shippingForm.carrier" inline><wd-radio v-for="carrier in carriers" :key="carrier.code" :value="carrier.code">{{ carrier.name }}</wd-radio></wd-radio-group></wd-cell>
         <wd-button v-if="carriersFailed || !carriers.length" plain :loading="carriersLoading" @click="loadCarriers">{{ carriersFailed ? '承运商加载失败，重试' : '暂无可用承运商，刷新' }}</wd-button>
         <wd-input v-if="selectedCarrier?.customNameRequired" v-model="shippingForm.carrierName" label="承运商名称" placeholder="请输入" />
@@ -480,7 +481,8 @@ async function submitShipping() {
         <view class="voucher-field"><text class="voucher-label">采购凭证（可选，最多 6 张）</text><view class="voucher-grid"><view v-for="(url, index) in purchaseVouchers" :key="url" class="voucher-cell"><image :src="url" mode="aspectFill" class="voucher-image" /><view class="voucher-remove" @click="removeVoucher('purchase', index)"><wd-icon name="close" size="12px" color="#fff" /></view></view><view v-if="purchaseVouchers.length < 6" class="voucher-add" @click="chooseVouchers('purchase')"><wd-icon name="add" size="20px" /><text>{{ voucherUploading ? '上传中' : '添加' }}</text></view></view></view>
         <view class="voucher-field"><text class="voucher-label">发货凭证（可选，最多 6 张）</text><view class="voucher-grid"><view v-for="(url, index) in shipVouchers" :key="url" class="voucher-cell"><image :src="url" mode="aspectFill" class="voucher-image" /><view class="voucher-remove" @click="removeVoucher('ship', index)"><wd-icon name="close" size="12px" color="#fff" /></view></view><view v-if="shipVouchers.length < 6" class="voucher-add" @click="chooseVouchers('ship')"><wd-icon name="add" size="20px" /><text>{{ voucherUploading ? '上传中' : '添加' }}</text></view></view></view>
         <wd-input v-model="shippingForm.remark" label="发货备注" placeholder="可选" />
-        <wd-button type="primary" block :loading="shippingSubmitting" :disabled="voucherUploading" @click="submitShipping">{{ voucherUploading ? '凭证上传中' : '确认发货' }}</wd-button>
+        </scroll-view>
+        <view class="shipping-footer"><wd-button type="primary" block :loading="shippingSubmitting" :disabled="voucherUploading" @click="submitShipping">{{ voucherUploading ? '凭证上传中' : '确认发货' }}</wd-button></view>
       </view>
     </wd-popup>
   </view>
@@ -492,7 +494,7 @@ async function submitShipping() {
   padding: 24rpx;
 }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
-.shipping-popup { padding: 32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background: #fff; }
+.shipping-popup { display:flex; flex-direction:column; max-height:82vh; padding:28rpx 24rpx 0; background:#fff; box-sizing:border-box; border-radius:24rpx 24rpx 0 0; }.shipping-body { flex:1; min-height:0; max-height:58vh; }.shipping-footer { flex-shrink:0; padding:20rpx 0; border-top:1rpx solid var(--yb-border); }
 .shipping-title { display: block; font-size: 32rpx; font-weight: 700; color: #1d2129; }
 .shipping-order { display: block; margin: 12rpx 0 20rpx; font-size: 24rpx; color: var(--yb-muted); font-family: ui-monospace, monospace; }
 .voucher-field { padding:20rpx 32rpx; }.voucher-label { display:block; margin-bottom:12rpx; color:#4e5969; font-size:26rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-cell,.voucher-add { width:160rpx; height:160rpx; }.voucher-cell { position:relative; }.voucher-image { width:100%; height:100%; border-radius:var(--yb-radius-md); }.voucher-remove { position:absolute; top:4rpx; right:4rpx; display:flex; align-items:center; justify-content:center; width:36rpx; height:36rpx; border-radius:50%; background:rgba(0,0,0,.55); }.voucher-add { display:flex; flex-direction:column; gap:6rpx; align-items:center; justify-content:center; box-sizing:border-box; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); background:#f7f8fa; color:var(--yb-muted); font-size:24rpx; }

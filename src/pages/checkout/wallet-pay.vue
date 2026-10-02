@@ -15,6 +15,7 @@ import WalletBrowserEntry from '@/components/common/wallet-browser-entry.vue';
 const userStore = useUserStore();
 const cart = useCartStore();
 const group = ref('');
+const recordsExpanded = ref(false);
 const pay = ref<WalletPayOrder>();
 const progress = ref<WalletTransferProgress>();
 const selectedWallet = ref('');
@@ -268,7 +269,7 @@ async function restartClosed() {
         <view class="address-detail"><view class="detail-heading"><text>收款地址</text><wd-button plain size="small" @click="copyValue(pay.toAddress)">复制</wd-button></view><text selectable class="address-value">{{ pay.toAddress }}</text></view>
         <view class="address-detail"><view class="detail-heading"><text>USDT 合约</text><wd-button plain size="small" @click="copyValue(pay.tokenContract)">复制</wd-button></view><text selectable class="address-value">{{ pay.tokenContract }}</text></view>
         <view class="detail"><text>有效期至</text><text>{{ expiryText(pay.expireAt) }}</text></view>
-        <text class="record-title">支付与链上记录</text>
+        <view class="yb-expand-action" :aria-expanded="recordsExpanded" @click="recordsExpanded = !recordsExpanded">支付与链上记录<wd-icon :name="recordsExpanded ? 'arrow-up' : 'arrow-down'" size="12px" /></view><view v-show="recordsExpanded">
         <view class="detail"><text>支付单号</text><text selectable>{{ pay.payNo }}</text></view>
         <view class="detail"><text>订单组号</text><text selectable>{{ pay.orderGroupNo }}</text></view>
         <view class="detail"><text>钱包账户</text><text selectable class="value">{{ account || progress?.fromAddress || pay.fromAddress || '尚未连接' }}</text></view>
@@ -277,8 +278,9 @@ async function restartClosed() {
         <view v-if="pay.chainTx?.blockHeight != null" class="detail"><text>区块高度</text><text>{{ pay.chainTx.blockHeight }}</text></view>
         <view v-if="pay.chainTx?.transferAmount != null" class="detail"><text>已识别转入</text><text>{{ pay.chainTx.transferAmount }} USDT</text></view>
         <view v-if="pay.arrivedAmount != null" class="detail"><text>实际到账</text><text>{{ pay.arrivedAmount }} USDT</text></view>
-        <text v-if="pay.failReason" class="chain-tip">{{ pay.failReason }}</text>
       </view>
+      </view>
+      <text v-if="pay.failReason" class="notice warning">{{ pay.failReason }}</text>
       <text v-if="!walletPayEntryEnabled" class="chain-tip">当前仅可查看原支付进度，钱包转账入口暂未开放。</text>
       <view v-if="walletPayEntryEnabled && (pay.status === 'PENDING' && !progress?.started || retryReady) && !recoveryBlocked" class="card action-card">
         <text class="section-title">选择当前浏览器钱包</text>

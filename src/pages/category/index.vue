@@ -29,6 +29,8 @@ const activeRootNode = computed(() => roots.value.find(item => item.id === activ
 const activeCategory = computed(() => findCategory(roots.value, activeCategoryId.value));
 const activePathNodes = computed(() => findCategoryPath(roots.value, activeCategoryId.value) || []);
 const activePath = computed(() => activePathNodes.value.map(item => item.name));
+const categoriesExpanded = ref(false);
+watch(activeCategoryId, () => { categoriesExpanded.value = false; });
 const visibleCategories = computed(() => activeCategory.value?.children || activeRootNode.value?.children || []);
 
 function findCategory(nodes: CategoryNode[], id?: string): CategoryNode | undefined {
@@ -159,7 +161,7 @@ watch(activeCategoryId, id => load(id, true));
         <view class="category-hero">
           <view class="category-hero-copy">
             <text>精选{{ activeCategory?.name || '好物' }}</text>
-            <text>{{ activePath.length > 1 ? activePath.join(' / ') : '全球直采 · 正品保障' }}</text>
+            <text>{{ activePath.length > 1 ? activePath.join(' / ') : '按分类发现商品' }}</text>
           </view>
 
         </view>
@@ -182,13 +184,14 @@ watch(activeCategoryId, id => load(id, true));
           </view>
           <view class="category-leaves">
             <view
-              v-for="item in visibleCategories"
+              v-for="item in (categoriesExpanded ? visibleCategories : visibleCategories.slice(0, 6))"
               :key="item.id"
               class="category-leaf yb-pressable"
               :class="{ active: activeCategoryId === item.id }"
               @click="activateCategory(item.id)"
             >{{ item.name }}<text v-if="item.children?.length"> ›</text></view>
           </view>
+          <view v-if="visibleCategories.length > 6" class="yb-expand-action" @click="categoriesExpanded = !categoriesExpanded">{{ categoriesExpanded ? '收起分类' : `更多分类（${visibleCategories.length}）` }}<wd-icon :name="categoriesExpanded ? 'arrow-up' : 'arrow-down'" size="12px" /></view>
         </view>
         <view v-if="products.length" class="product-grid">
           <ProductCard v-for="product in products" :key="String(product.id)" :product="product" layout="list" />
@@ -210,12 +213,12 @@ watch(activeCategoryId, id => load(id, true));
 .category-tab.active { background: #fff5f6; color: var(--yb-ink); font-weight: 600; }
 .category-tab.active::before { position: absolute; top: 20rpx; bottom: 20rpx; left: 0; width: 6rpx; border-radius: var(--yb-radius-pill); background: var(--yb-brand); content: ''; }
 .category-content { flex: 1; height: 100%; min-width: 0; padding: 20rpx 16rpx 32rpx; box-sizing: border-box; }
-.category-hero { position: relative; display: flex; align-items: center; min-height: 112rpx; overflow: hidden; padding: 24rpx 22rpx; border-radius: 24rpx; background: var(--yb-surface); }
+.category-hero { position: relative; display: flex; align-items: center; min-height: 0; overflow: hidden; padding: 4rpx 4rpx 16rpx; border-radius: 0; background: transparent; }
 .category-hero-copy { position: relative; z-index: 1; display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 12rpx; }
 .category-hero-copy text:first-child { color: var(--yb-ink); font-size: 32rpx; font-weight: 700; line-height: 48rpx; }
 .category-hero-copy text:last-child { color: var(--yb-muted); font-size: var(--yb-fs-body); }
 .category-hero image { position: relative; z-index: 1; width: 180rpx; height: 166rpx; }
-.category-tree-panel { margin-top: 20rpx; padding: 20rpx; border: 1rpx solid var(--yb-hairline); border-radius: 20rpx; background: var(--yb-surface); }
+.category-tree-panel { margin-top: 0; padding: 16rpx; border: 1rpx solid var(--yb-hairline); border-radius: 20rpx; background: var(--yb-surface); }
 .category-tree-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
 .category-path { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 18rpx; }
 .crumb { display: inline-flex; align-items: center; min-height: 44px; color: var(--yb-brand); font-size: var(--yb-fs-body-sm); }
@@ -228,7 +231,7 @@ watch(activeCategoryId, id => load(id, true));
 .category-group-title > text:last-child { color: var(--yb-muted); font-size: var(--yb-fs-caption); font-weight: 400; }
 .category-group-title.active > text:first-child { color: var(--yb-brand); }
 .category-leaves { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.category-leaf { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18rpx; border: 1rpx solid var(--yb-hairline); border-radius: 14rpx; background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
+.category-leaf { display: flex; align-items: center; justify-content: center; min-height: 44px; width:calc((100% - 12rpx)/2); box-sizing:border-box; padding:8rpx; text-align:center; overflow-wrap:anywhere; border: 1rpx solid var(--yb-hairline); border-radius: 14rpx; background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
 .category-leaf.active { border-color: var(--yb-brand); background: #fff5f6; color: var(--yb-brand); font-weight: 600; }
 .product-grid { display: flex; flex-wrap: wrap; margin-top: 20rpx; gap: 16rpx; }
 .product-grid > * { width: 100%; min-width: 0; }

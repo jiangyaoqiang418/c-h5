@@ -17,6 +17,7 @@ const loadFailed = ref(false);
 const profileFailed = ref(false);
 const userStore = useUserStore();
 const removing = ref(false);
+const removingId = ref<string>();
 const { requireLogin } = useNavigationGuards();
 let loadSequence = 0;
 let visible = true;
@@ -81,6 +82,7 @@ async function removeFavorite(id: string | number) {
   const token = getAccessToken();
   if (removing.value || disposed || !visible || !token) return;
   removing.value = true;
+  removingId.value = String(id);
   let removed = false;
   try {
     const result = await uni.showModal({ title: '取消收藏？', content: '取消后可在商品详情重新收藏' });
@@ -97,7 +99,7 @@ async function removeFavorite(id: string | number) {
     if (!disposed && token === getAccessToken()) uni.showToast({ title: error instanceof Error ? error.message : '取消收藏失败', icon: 'none' });
   } finally {
     if (!disposed && token === getAccessToken()) {
-      removing.value = false;
+      removing.value = false; removingId.value = undefined;
       if (removed) await load(true);
     }
   }
@@ -116,7 +118,7 @@ onReachBottom(() => {
     <view v-if="list.length" class="grid">
       <view v-for="product in list" :key="product.id" class="favorite-item">
         <ProductCard :product="product" />
-        <view class="remove" @click.stop="removeFavorite(product.id)">{{ removing ? '处理中…' : '取消收藏' }}</view>
+        <view class="remove" @click.stop="removeFavorite(product.id)"><wd-icon name="star" size="14px" />{{ removingId === String(product.id) && removing ? '处理中…' : '取消收藏' }}</view>
       </view>
     </view>
     <EmptyState v-else-if="profileFailed" title="账户资料加载失败" description="请联网后重试" action-text="重新加载" @action="load(true)" />
@@ -133,6 +135,6 @@ onReachBottom(() => {
 .favorites-page { min-height: 100%; padding: 24rpx; }
 .grid { display: flex; flex-wrap: wrap; gap: 20rpx 16rpx; }
 .favorite-item { width: calc((100% - 16rpx) / 2); min-width: 0; }
-.remove { display:flex; align-items:center; justify-content:center; min-height:88rpx; box-sizing:border-box; margin-top:12rpx; padding:12rpx 0; border-radius:var(--yb-radius-md); background:var(--yb-surface); border:1rpx solid var(--yb-border); color:var(--yb-muted); font-size:24rpx; text-align:center; }
+.remove { display:flex; align-items:center; justify-content:center; min-height:44px; gap:8rpx; box-sizing:border-box; margin-top:0; padding:12rpx 0; border-radius:0 0 var(--yb-radius-md) var(--yb-radius-md); background:var(--yb-surface); border:1rpx solid var(--yb-border); color:var(--yb-muted); font-size:24rpx; text-align:center; }
 .loading, .no-more { padding: 32rpx; color: #86909c; font-size: 24rpx; text-align: center; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; }
 </style>

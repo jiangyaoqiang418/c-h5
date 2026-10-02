@@ -137,7 +137,7 @@ async function submitOAuth(payload: OAuthLoginParams) {
 .login-content {
   width: 100%;
   max-width: 750rpx;
-  margin: auto;
+  margin: 24rpx auto 0;
 
 }
 .hero {
@@ -159,11 +159,11 @@ async function submitOAuth(payload: OAuthLoginParams) {
 }
 .form-card {
   background: var(--yb-surface);
-  border: 1rpx solid var(--yb-border);
-  border-radius: 24rpx;
-  padding: 28rpx;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
   margin-bottom: 24rpx;
-  box-shadow: var(--yb-shadow-card);
+  box-shadow: none;
 }
 .login-input {
   --wot-cell-padding: 12px;

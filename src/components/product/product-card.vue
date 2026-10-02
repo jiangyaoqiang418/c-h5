@@ -61,7 +61,7 @@ function goDetail() {
       </view>
     </view>
     <view class="info">
-      <text class="brand">{{ categoryLabel }}</text>
+      <text v-if="layout === 'list'" class="brand">{{ categoryLabel }}</text>
       <text class="title">{{ product.title }}</text>
       <PriceTag class="price-row" :price="product.price" size="sm" :show-rate="false" />
       <view class="bottom">
@@ -125,7 +125,7 @@ function goDetail() {
   letter-spacing: 4rpx;
 }
 .info {
-  padding: 20rpx 20rpx 24rpx;
+  padding: 16rpx 16rpx 20rpx;
   display: flex;
   flex-direction: column;
   gap: 6rpx;
@@ -171,7 +171,7 @@ function goDetail() {
   font-family: var(--yb-font-body);
 }
 .p-card--list { display: flex; padding: 16rpx; gap: 16rpx; }
-.p-card--list .cover-wrap { width: 152rpx; height: 152rpx; flex-shrink: 0; border-radius: 12rpx; }
+.p-card--list .cover-wrap { width: 128rpx; height: 128rpx; flex-shrink: 0; border-radius: 12rpx; }
 .p-card--list .info { flex: 1; min-width: 0; padding: 0; gap: 4rpx; }
 .p-card--list .brand { display: none; }
 .p-card--list .title { min-height: 0; font-size: 26rpx; }

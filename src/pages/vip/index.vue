@@ -122,12 +122,10 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 
     <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">部分 VIP 数据加载失败，点击重试</wd-button>
 
-    <view v-if="featuredConfigs.length" class="featured-levels">
-      <view v-for="c in featuredConfigs" :key="c.level" class="benefit-card" :class="{ 'benefit-card--current': configIsCurrent(c) }">
-        <view class="benefit-header"><text class="benefit-title">{{ configTitle(c) }}</text><text class="level-label">{{ configIsCurrent(c) ? '当前等级' : '下一等级' }}</text></view>
-        <text class="threshold">积分阈值 {{ c.threshold }}</text>
-        <view v-for="row in rows" :key="row.key" class="benefit-row"><text>{{ row.label }}</text><text class="benefit-value">{{ benefitValue(c, row.key) }}</text></view>
-      </view>
+    <view v-if="featuredConfigs.length" class="featured-levels benefit-card">
+      <view class="benefit-row"><text class="benefit-label">权益对照</text><view v-for="c in featuredConfigs" :key="c.level" class="featured-value"><text class="benefit-title">{{ configTitle(c) }}</text><text class="level-label">{{ configIsCurrent(c) ? '当前' : '下一等级' }}</text></view></view>
+      <view class="benefit-row"><text class="benefit-label">积分阈值</text><text v-for="c in featuredConfigs" :key="c.level" class="featured-value">{{ c.threshold }}</text></view>
+      <view v-for="row in rows" :key="row.key" class="benefit-row"><text class="benefit-label">{{ row.label }}</text><text v-for="c in featuredConfigs" :key="c.level" class="featured-value">{{ benefitValue(c, row.key) }}</text></view>
     </view>
     <view v-if="audienceConfigs.length" class="table-wrap">
       <view v-if="featuredConfigs.length" class="comparison-toggle" @click="fullComparisonOpen = !fullComparisonOpen"><text>完整权益对照</text><text>{{ fullComparisonOpen ? '收起' : '展开' }}</text></view>
@@ -148,9 +146,9 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 
     <view class="rules">
       <text class="rules-title">升级规则</text>
-      <text class="rules-text">·积分由消费、好评、求购成交贡献</text>
-      <text class="rules-text">·达到阈值自动升级，无降级</text>
-      <text class="rules-text">·VIP 权益于次日 0 点生效</text>
+      <text class="rules-text">积分获取与扣减请查看当前积分规则。</text>
+      <text class="rules-text">等级和权益按当前账号与平台配置展示。</text>
+      <text class="rules-text">实际生效状态以账号信息为准。</text>
     </view>
   </view>
 </template>
@@ -197,4 +195,8 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 .rules-title { display: block; font-size: 26rpx; font-weight: 600; margin-bottom: 16rpx; }
 .rules-text { display: block; font-size: 24rpx; color: #4e5969; line-height: 1.8; }
 .current-level { background: var(--yb-brand-soft); color: var(--yb-brand); font-weight: 600; }
+</style>
+
+<style scoped lang="scss">
+.featured-levels { gap:0; }.featured-levels .benefit-row { align-items:center; padding:16rpx 0; gap:12rpx; border-bottom:1rpx solid var(--yb-border); }.featured-levels .benefit-row:last-child { border-bottom:0; }.benefit-label { flex:1; min-width:0; }.featured-value { width:136rpx; flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:8rpx; font-size:26rpx; }.featured-value .benefit-title { font-size:28rpx; }
 </style>

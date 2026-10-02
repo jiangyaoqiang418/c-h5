@@ -361,6 +361,7 @@ async function onLongPress(a: AddressRecord) {
 
 <template>
   <view class="addr-page">
+    <text v-if="selectionMode" class="selection-page-hint">选择本单收货地址，不改变账号的默认地址。</text>
     <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="saving || choosing" @click="load">地址加载失败，点击重试</wd-button>
     <view v-if="loading && !list.length" class="loading">地址加载中…</view>
     <view v-else-if="list.length" class="list">
@@ -371,9 +372,9 @@ async function onLongPress(a: AddressRecord) {
           <wd-tag v-if="a.isDefault" type="primary" round size="small">默认</wd-tag>
           <wd-tag v-if="selectionMode && selectedId === String(a.id)" type="success" size="small">本单已选</wd-tag>
         </view>
-        <text class="addr">{{ a.province }} {{ a.city }} {{ a.district }} {{ a.detail }}</text>
+        <text class="addr">{{ a.country || a.countryCode }} {{ a.province }} {{ a.city }} {{ a.district }} {{ a.detail }}</text>
         <view class="card-actions"><view v-if="!a.isDefault" class="set-default" @click.stop="setDefault(a)">设为默认</view><view class="edit-address" @click.stop="openEdit(a)">编辑</view></view>
-        <text v-if="selectionMode" class="selection-hint">点击卡片选择此地址，不修改默认地址</text>
+
       </view>
     </view>
     <EmptyState v-else-if="loadFailed" title="地址加载失败" description="请重新读取，不代表没有地址" action-text="重试" @action="load" />
@@ -536,4 +537,5 @@ async function onLongPress(a: AddressRecord) {
 .country-code { margin-left:auto; font-size:24rpx; color:var(--yb-muted); }.country-selected { color:var(--yb-brand); font-size:24rpx; }.country-empty { padding:48rpx 24rpx; color:var(--yb-muted); font-size:26rpx; line-height:1.6; }
 
 .save-btn { margin-top:24rpx; }
+.selection-page-hint { display:block; margin-bottom:16rpx; font-size:24rpx; color:var(--yb-muted); line-height:1.6; }
 </style>

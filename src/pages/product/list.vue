@@ -299,3 +299,7 @@ function onSortChange(v: string) {
 }
 .loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; }
 </style>
+
+<style scoped lang="scss">
+.subcategory-option { min-height:44px; }.category-path-track { margin-bottom:4rpx; }.category-option-label { max-width:100%; }
+</style>

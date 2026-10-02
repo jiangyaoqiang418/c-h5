@@ -934,6 +934,18 @@ function readText(message: Api.RealNotify.Message) {
     .length;
   return count ? `已读 ${count}` : '未读';
 }
+function messageTime(value?: string | number) { if (!value) return ''; const date = new Date(/^\d+$/.test(String(value)) ? Number(value) : value); return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(); }
+function startsTimeGroup(index: number) {
+  if (index === 0) return true;
+  const current = messages.value[index], previous = messages.value[index - 1];
+  return Math.abs(new Date(/^\d+$/.test(String(current.createdAt)) ? Number(current.createdAt) : current.createdAt || '').getTime() - new Date(/^\d+$/.test(String(previous.createdAt)) ? Number(previous.createdAt) : previous.createdAt || '').getTime()) > 300000;
+}
+function startsSenderGroup(index: number) { return index === 0 || startsTimeGroup(index) || String(messages.value[index].senderId) !== String(messages.value[index - 1].senderId) || messages.value[index - 1].msgType === 'SYSTEM'; }
+async function messageActions(message: Api.RealNotify.Message) {
+  if (!canRecall(message)) return;
+  const scope = captureConversation();
+  try { const result = await uni.showActionSheet({ itemList:['撤回消息'] }); if (scope.isCurrent() && result.tapIndex === 0 && canRecall(message)) await recallMessage(message); } catch { /* 用户关闭菜单时保持消息。 */ }
+}
 </script>
 
 <template>
@@ -951,12 +963,13 @@ function readText(message: Api.RealNotify.Message) {
     </view>
     <scroll-view scroll-y class="messages" :scroll-into-view="scrollIntoView" @scroll="scrollChanged" @scrolltolower="reachedBottom" @scrolltoupper="loadOlderMessages">
       <view v-if="hasMoreHistory" class="empty" @click="loadOlderMessages">{{ loadingHistory ? '历史消息加载中…' : '加载更早消息' }}</view>
-      <view v-for="message in messages" :id="messageAnchor(message.id)" :key="message.id" class="row" :class="side(message)">
-        <view v-if="side(message) !== 'center'" class="sender"><text>{{ message.senderName || (isMine(message) ? '我' : '成员') }}</text><text v-if="message.senderRole" class="role-tag" :class="String(message.senderRole).toLowerCase()">{{ roleText(message.senderRole) }}</text></view>
-        <view class="bubble" :class="side(message)"><image v-if="message.msgType === 'IMAGE' && message.mediaUrl && !message.recalled" :src="message.mediaUrl" mode="widthFix" class="message-image" /><video v-else-if="message.msgType === 'VIDEO' && message.mediaUrl && !message.recalled" :id="videoDomId(message.id)" :src="message.mediaUrl" :poster="message.coverUrl || undefined" controls :show-center-play-btn="true" class="message-video" /><text v-else-if="message.msgType === 'VOICE' && !message.recalled" class="voice-message" @click="playVoice(message)">{{ playingVoiceId === String(message.id) ? '播放中…' : '语音消息' }}{{ message.duration ? ` · ${message.duration} 秒` : '' }}</text><text v-else>{{ messageText(message) }}</text></view>
+      <view v-for="(message, index) in messages" :id="messageAnchor(message.id)" :key="message.id" class="row" :class="side(message)">
+        <text v-if="startsTimeGroup(index)" class="message-time">{{ messageTime(message.createdAt) }}</text>
+        <view v-if="side(message) !== 'center' && startsSenderGroup(index)" class="sender"><text>{{ message.senderName || (isMine(message) ? '我' : '成员') }}</text><text v-if="message.senderRole" class="role-tag" :class="String(message.senderRole).toLowerCase()">{{ roleText(message.senderRole) }}</text></view>
+        <view class="bubble" :class="side(message)" @longpress="messageActions(message)"><image v-if="message.msgType === 'IMAGE' && message.mediaUrl && !message.recalled" :src="message.mediaUrl" mode="widthFix" class="message-image" /><video v-else-if="message.msgType === 'VIDEO' && message.mediaUrl && !message.recalled" :id="videoDomId(message.id)" :src="message.mediaUrl" :poster="message.coverUrl || undefined" controls :show-center-play-btn="true" class="message-video" /><text v-else-if="message.msgType === 'VOICE' && !message.recalled" class="voice-message" @click="playVoice(message)">{{ playingVoiceId === String(message.id) ? '播放中…' : '语音消息' }}{{ message.duration ? ` · ${message.duration} 秒` : '' }}</text><text v-else>{{ messageText(message) }}</text></view>
         <view class="message-status">
           <text v-if="recallingId === String(message.id)" class="delivery">撤回处理中…</text>
-          <text v-else-if="canRecall(message)" class="recall" @click="recallMessage(message)">撤回</text>
+          <view v-else-if="canRecall(message)" class="message-menu" role="button" aria-label="消息操作" @click="messageActions(message)"><wd-icon name="more" size="16px" /></view>
           <text v-if="message.pending" class="delivery">发送中</text>
           <text v-else-if="message.failed" class="delivery retry" @click="retryMessage(message)">发送失败，点击重试</text>
           <text v-else-if="readText(message)" class="delivery">{{ readText(message) }}</text>
@@ -1004,4 +1017,5 @@ function readText(message: Api.RealNotify.Message) {
 .send { min-height: 88rpx; min-width: 88rpx; }
 .order-context { flex-shrink:0; background:var(--yb-surface); border-bottom:1rpx solid var(--yb-border); }.orders { border-bottom:0; }.order-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:12rpx; padding:0 24rpx 12rpx; }.order-chip { border-radius:var(--yb-radius-md); }.order-action { border-radius:var(--yb-radius-md); }
 .title,.meta { overflow-wrap:anywhere; }.header .meta:first-child { margin-top:0; }.message-status { display:flex; align-items:center; gap:12rpx; max-width:100%; }.message-status:empty { display:none; }.message-status .delivery,.message-status .recall { margin-top:0; }.message-status .delivery { overflow-wrap:anywhere; }.row.right .message-status { justify-content:flex-end; }
+.message-time { align-self:center; margin:12rpx 0 20rpx; color:var(--yb-muted); font-size:22rpx; }.message-menu { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; }.row { position:relative; }.message-status { min-height:0; }.sender { margin-bottom:8rpx; }.header { padding:16rpx 24rpx; }
 </style>

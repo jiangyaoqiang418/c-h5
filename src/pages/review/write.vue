@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProductSummary from '@/components/common/product-summary.vue';
 import { computed, reactive, ref } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { uploadReviewImage } from '@/service/api/review';
@@ -166,8 +167,8 @@ async function submit(retryOriginal = false) {
     </view>
     <template v-else-if="!receipt && !receiptFailed">
       <template v-if="order">
-        <view class="order-card"><text class="ord-code">订单 {{ order.orderNo || order.orderId }}</text><text class="ord-target">评价对象：{{ order.sellerName || '买手' }}</text><text v-if="order.reviewDeadline != null" class="ord-date">评价截止：{{ new Date(Number(order.reviewDeadline)).toLocaleString() }}</text></view>
-        <view class="step"><text class="step-title">评分</text><view class="stars-row"><ReviewStars v-model:score="form.score" :mode="formDisabled ? 'readonly' : 'input'" size="lg" /><text class="score-text">{{ form.score }}.0</text></view></view>
+        <view class="order-card"><ProductSummary :title="order.productTitle" :image="order.productImage" :subtitle="order.sellerName || '买手'" :quantity="order.quantity" :reference="`订单 ${order.orderNo || order.orderId}`" /><text v-if="order.reviewDeadline != null" class="ord-date">评价截止：{{ new Date(Number(order.reviewDeadline)).toLocaleString() }}</text></view>
+        <view class="step"><text class="step-title">购物体验评分</text><text class="score-note">本次评分同时用于商品和买手服务评价。</text><view class="stars-row"><ReviewStars v-model:score="form.score" :mode="formDisabled ? 'readonly' : 'input'" size="lg" /><text class="score-text">{{ form.score }}.0</text></view></view>
         <view class="step"><text class="step-title">评价内容（可选）</text><wd-textarea v-model="form.content" :disabled="formDisabled" placeholder="分享本次购物体验" :max-length="1000" show-word-limit /></view>
         <view class="step"><text class="step-title">配图（可选，最多 9 张）</text><view class="img-grid"><view v-for="(url, index) in form.photoUrls" :key="url + index" class="img-cell"><image :src="url" mode="aspectFill" class="img" /><view class="del" @click="removePhoto(index)"><wd-icon name="close" size="12px" color="#fff" /></view></view><view v-if="form.photoUrls.length < 9" class="add" @click="addPhoto"><wd-icon name="add" size="18px" /><text>添加</text></view></view></view>
         <wd-button type="primary" block class="submit" :loading="submitting" :disabled="formDisabled" @click="submit()">{{ uploading ? '图片上传中' : '提交评价' }}</wd-button>
@@ -188,4 +189,5 @@ async function submit(retryOriginal = false) {
 .del :deep(.wd-icon) { position:relative; }
 .review-write { min-height: 100%; padding:20rpx 24rpx 32rpx; }.order-card,.step { background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); padding:24rpx; margin-bottom:20rpx; box-shadow:var(--yb-shadow-card); }.ord-code { display:block; font-family:ui-monospace,monospace; font-size:24rpx; color:var(--yb-muted); overflow-wrap:break-word; }.ord-target { display:block; font-size:28rpx; font-weight:600; margin-top:8rpx; }.step-title { display:block; font-size:26rpx; font-weight:600; margin-bottom:16rpx; }.stars-row { display:flex; align-items:center; gap:16rpx; }.score-text { font-size:36rpx; font-weight:700; color:#c88a06; font-family:ui-monospace,monospace; }.img-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.img-cell { position:relative; width:160rpx; height:160rpx; }.img { width:100%; height:100%; border-radius:12rpx; }.del { position:absolute; top:0; right:0; color:#fff; width:88rpx; height:88rpx; display:flex; align-items:center; justify-content:center; }.add { width:160rpx; height:160rpx; background:#f5f5f2; border:2rpx dashed #b9bdc7; border-radius:12rpx; display:flex; flex-direction:column; gap:6rpx; align-items:center; justify-content:center; color:var(--yb-brand); font-size:24rpx; }.submit { margin-top:16rpx; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
+.score-note { display:block; margin-bottom:16rpx; color:var(--yb-muted); font-size:24rpx; }.step + .step { margin-top:-8rpx; }
 </style>

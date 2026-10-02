@@ -250,18 +250,6 @@ function goBanner(path?: string) {
       </view>
     </view>
 
-    <view class="hero yb-pressable">
-      <image :src="UI_ASSETS.backgrounds.home" mode="aspectFill" class="hero-image" />
-      <view class="hero-content">
-        <text class="hero-title">高级选品，链上撮合</text>
-        <text class="hero-subtitle">全球买手 24h 内响应 · 押金担保</text>
-        <view class="hero-actions">
-          <view class="hero-primary" @click="goSearch">探索商品</view>
-          <view class="hero-secondary" @click="goPurchase">发起求购</view>
-        </view>
-      </view>
-    </view>
-
     <view v-if="loadFailed" class="data-notice" @click="load([...failedModules])">{{ loading ? '正在重试失败内容…' : '部分首页内容加载失败，点击重试' }}</view>
     <view v-if="unreadFailed" class="data-notice" @click="refreshUnread">消息未读状态暂不可用，点击重试；仍可进入消息中心。</view>
 
@@ -283,6 +271,18 @@ function goBanner(path?: string) {
       </scroll-view>
       <view v-if="categoriesScrollable" class="category-scroll-indicator" aria-label="左右滑动查看更多分类">
         <view class="category-scroll-thumb" :style="{ width: `${categoryIndicatorRatio * 100}%`, left: `${categoryScrollProgress * (1 - categoryIndicatorRatio) * 100}%` }" />
+      </view>
+    </view>
+
+    <view class="hero yb-pressable">
+      <image :src="UI_ASSETS.backgrounds.home" mode="aspectFill" class="hero-image" />
+      <view class="hero-content">
+        <text class="hero-title">高级选品，链上撮合</text>
+        <text class="hero-subtitle">全球买手选品 · 按订单规则履约</text>
+        <view class="hero-actions">
+          <view class="hero-primary" @click="goSearch">探索商品</view>
+          <view class="hero-secondary" @click="goPurchase">发起求购</view>
+        </view>
       </view>
     </view>
 
@@ -384,7 +384,7 @@ function goBanner(path?: string) {
 .message-entry { position: relative; display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 84rpx; min-width: 44px; height: 84rpx; min-height: 44px; color: var(--yb-ink); }
 .notice-dot { position: absolute; top: 12rpx; right: 1rpx; width: 14rpx; height: 14rpx; border: 2rpx solid var(--yb-surface); border-radius: 50%; background: var(--yb-brand); }
 
-.hero { position: relative; height: 280rpx; margin: 16rpx var(--yb-page-padding) 24rpx; overflow: hidden; border-radius: var(--yb-radius-card); background: var(--yb-deep); box-shadow: none; }
+.hero { position: relative; height: 240rpx; margin: 16rpx var(--yb-page-padding) 24rpx; overflow: hidden; border-radius: var(--yb-radius-card); background: var(--yb-deep); box-shadow: none; }
 .hero-image { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero-content { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; width: 68%; height: 100%; padding: 20rpx 28rpx; box-sizing: border-box; color: var(--yb-surface); }
 .hero-title { font-size: 36rpx; font-weight: 700; letter-spacing: -1.5rpx; line-height: 1.25; }
@@ -393,7 +393,7 @@ function goBanner(path?: string) {
 .hero-primary, .hero-secondary { display: flex; align-items: center; justify-content: center; min-width: 132rpx; min-height: 44px; padding: 0 18rpx; border-radius: 12rpx; font-size: var(--yb-fs-body-sm); font-weight: 600; white-space: nowrap; }
 .hero-primary { background: var(--yb-brand); color: var(--yb-surface); }
 .hero-secondary { border: 1rpx solid rgba(255, 255, 255, .78); color: var(--yb-surface); }
-.category-card { margin: 0 var(--yb-page-padding); padding: 12rpx 8rpx; overflow: hidden; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); box-shadow: var(--yb-shadow-card); }
+.category-card { margin: 16rpx var(--yb-page-padding) 0; padding: 12rpx 8rpx; overflow: hidden; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); box-shadow: var(--yb-shadow-card); }
 .category-scroll { width: 100%; white-space: nowrap; }
 .category-track { display: flex; width: 100%; }
 .category-track--scrollable { display: inline-flex; width: auto; min-width: 100%; vertical-align: top; }

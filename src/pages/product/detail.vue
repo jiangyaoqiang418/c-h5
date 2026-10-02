@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import ContentText from '@/components/common/content-text.vue';
+import { computed, ref, watch } from 'vue';
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { formatUsdt, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
@@ -43,6 +44,30 @@ const realReviews = ref<Api.RealReview.ReviewDTO[]>([]);
 const realReviewSummary = ref<Api.RealReview.ReviewSummaryDTO>();
 const realSellerRating = ref<Api.RealReview.SellerRatingDTO>();
 const reviewLoadFailed = ref(false);
+const allReviewsOpen = ref(false);
+const allReviews = ref<Api.RealReview.ReviewDTO[]>([]);
+const allReviewPage = ref(0);
+const allReviewTotal = ref(0);
+const allReviewLoading = ref(false);
+const allReviewFailed = ref(false);
+let allReviewSequence = 0;
+async function loadAllReviews(reset = false) {
+  if (!pageActive || !product.value || allReviewLoading.value) return;
+  const sequence = ++allReviewSequence, version = pageVersion, id = product.value.id;
+  const pageNo = reset ? 1 : allReviewPage.value + 1;
+  allReviewLoading.value = true; allReviewFailed.value = false;
+  try {
+    const result = await fetchStorefrontReviews({ productId:id, pageNo, pageSize:20 });
+    if (!pageActive || version !== pageVersion || sequence !== allReviewSequence || !allReviewsOpen.value) return;
+    allReviews.value = reset ? result.records : [...new Map([...allReviews.value, ...result.records].map(item => [String(item.reviewId), item])).values()];
+    allReviewPage.value = pageNo; allReviewTotal.value = result.total;
+  } catch { if (sequence === allReviewSequence && pageActive) allReviewFailed.value = true; }
+  finally { if (sequence === allReviewSequence) allReviewLoading.value = false; }
+}
+watch(allReviewsOpen, open => { if (!open) { allReviewSequence++; allReviewLoading.value = false; } });
+function previewReviewImages(images: string[], current: string) { uni.previewImage({ urls: images, current }); }
+function openReviews() { allReviewsOpen.value = true; allReviewPage.value = 0; allReviews.value = []; void loadAllReviews(true); }
+
 const failedImages = ref<string[]>([]);
 const qty = ref(1);
 const isRealProduct = ref(false);
@@ -55,8 +80,8 @@ const loadedOnce = ref(false);
 let pageActive = true;
 let pageVersion = 0;
 onShow(() => { pageActive = true; buying.value = false; if (loadedOnce.value && detailId.value) void loadDetail(); });
-onHide(() => { pageActive = false; pageVersion++; });
-onUnload(() => { pageActive = false; pageVersion++; });
+onHide(() => { pageActive = false; pageVersion++; allReviewsOpen.value = false; });
+onUnload(() => { pageActive = false; pageVersion++; allReviewsOpen.value = false; });
 
 function toAfterSaleType(value?: string): ProductView['aftersaleType'] {
   if (value === 'NONE') return 'none';
@@ -272,10 +297,6 @@ function goBack() {
     </swiper>
 
     <view class="content-sheet">
-      <text class="category">{{ product.categoryPath }}</text>
-      <text class="title">{{ product.title }}</text>
-      <text v-if="product.summary" class="summary">{{ product.summary }}</text>
-
       <view class="price-block">
         <PriceTag :price="product.price" size="lg" :show-rate="false" />
         <view class="fee-row">
@@ -284,6 +305,10 @@ function goBack() {
           <text>库存 {{ product.stock }}</text>
         </view>
       </view>
+
+      <text class="category">{{ product.categoryPath }}</text>
+      <text class="title">{{ product.title }}</text>
+      <text v-if="product.summary" class="summary">{{ product.summary }}</text>
 
       <view class="service-info">
         <view class="service-row"><text class="service-label">售后标注</text><text class="service-value">{{ aftersaleLabel }}</text></view>
@@ -294,6 +319,7 @@ function goBack() {
         </view>
       </view>
 
+      <view class="buy-quantity"><text>购买数量</text><view class="quantity"><text role="button" aria-label="减少购买数量" @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text role="button" aria-label="增加购买数量" @click="increaseQty">+</text></view></view>
       <view class="tag-row">
         <text class="tag">销量 {{ product.salesCount }}</text>
         <text class="tag">收藏 {{ product.favoriteCount }}</text>
@@ -313,11 +339,11 @@ function goBack() {
       </view>
 
       <view v-if="realReviews.length || reviewLoadFailed" class="section">
-        <text class="section-title">商品评价</text>
+        <view class="reviews-heading"><text class="section-title">商品评价</text><view class="yb-expand-action" @click="openReviews">全部评价<wd-icon name="arrow-right" size="12px" /></view></view>
         <text v-if="reviewLoadFailed" class="section-notice">部分评价信息加载失败，请稍后重试。</text>
         <view v-for="review in realReviews" :key="review.reviewId" class="review-row">
           <view class="review-head"><text>{{ review.userName || '匿名用户' }}</text><ReviewStars :score="review.productScore" size="sm" /></view>
-          <text class="review-text">{{ review.content || '用户未填写文字评价' }}</text>
+          <ContentText class="review-text" :text="review.content || '用户未填写文字评价'" :lines="2" />
         </view>
         <text v-if="realReviewSummary" class="review-total">共 {{ realReviewSummary.total ?? realReviewSummary.totalCount ?? 0 }} 条评价</text>
       </view>
@@ -328,21 +354,21 @@ function goBack() {
       </view>
     </view>
 
-    <view class="bottom-bar">
+    <view v-if="!allReviewsOpen" class="bottom-bar">
       <text v-if="tradeNotice" class="trade-notice">{{ tradeNotice }}</text>
       <view class="bottom-tools">
       <view class="tool yb-pressable" @click="startPurchase"><wd-icon name="search" size="20px" /><text>求购</text></view>
       <view class="tool yb-pressable" @click="go('/pages/cart/index')"><wd-icon name="cart" size="20px" /><text>购物车</text></view>
       <view class="tool yb-pressable" :class="{ 'tool--disabled': favoriting }" @click="favorite"><wd-icon name="star" size="20px" /><text>{{ favoriting ? '收藏中' : '收藏' }}</text></view>
-      <view class="quantity">
-        <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="increaseQty">+</text>
-      </view>
+
       </view>
       <view class="bottom-actions">
       <wd-button plain :disabled="!canAdd" @click="canAdd ? addToCart() : showTradeUnavailable()">加购</wd-button>
       <wd-button type="primary" :disabled="!canBuy || buying" :loading="buying" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
       </view>
     </view>
+    <wd-popup v-model="allReviewsOpen" position="bottom" closable :safe-area-inset-bottom="true"><view class="reviews-drawer"><text class="section-title">全部商品评价</text><scroll-view scroll-y class="reviews-body" @scrolltolower="!allReviewLoading && !allReviewFailed && allReviews.length < allReviewTotal && loadAllReviews()"><view v-for="review in allReviews" :key="String(review.reviewId)" class="review-row"><view class="review-head"><text>{{ review.userName || '匿名用户' }}</text><ReviewStars :score="review.productScore" size="sm" /></view><ContentText :text="review.content || '用户未填写文字评价'" /><view v-if="review.images?.length" class="review-images"><image v-for="image in review.images.slice(0, 3)" :key="image" :src="image" mode="aspectFill" @click="previewReviewImages(review.images, image)" /><text v-if="review.images.length > 3" @click="previewReviewImages(review.images, review.images[0])">共 {{ review.images.length }} 张</text></view><ContentText v-if="review.replyContent" :text="`买手回复：${review.replyContent}`" /></view><text v-if="allReviewLoading" class="review-total">正在加载评价…</text><wd-button v-if="allReviewFailed" plain block @click="loadAllReviews(allReviewPage === 0)">评价读取失败，点击重试</wd-button><EmptyState v-else-if="!allReviewLoading && !allReviews.length" title="暂无商品评价" /><view v-else-if="allReviews.length < allReviewTotal" class="yb-expand-action" @click="loadAllReviews()">加载更多</view></scroll-view></view></wd-popup>
+
   </view>
   <EmptyState v-else-if="!isRealProduct" title="商品链接已失效" description="此商品链接已不可用，请从首页或分类重新选择商品。" action-text="返回" @action="goBack" />
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载商品详情</text></view>
@@ -351,8 +377,8 @@ function goBack() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding: 0 0 calc(224rpx + env(safe-area-inset-bottom)); }
-.detail-page.has-trade-notice { padding-bottom: calc(304rpx + env(safe-area-inset-bottom)); }
+.detail-page { min-height: 100%; padding: 0 0 calc(132rpx + env(safe-area-inset-bottom)); }
+.detail-page.has-trade-notice { padding-bottom: calc(212rpx + env(safe-area-inset-bottom)); }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .section-notice { display:block; margin-bottom:16rpx; color:#8b5300; font-size:24rpx; }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
@@ -366,7 +392,7 @@ function goBack() {
 .title { display: block; margin-top: 16rpx; color: #0f111a; font-size: 36rpx; font-weight: 700; line-height: 1.45; }
 .summary { display: block; margin-top: 8rpx; color: #6b7385; font-size: 24rpx; line-height: 1.5; }
 .rating-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; color: var(--yb-muted); font-size: 24rpx; }
-.price-block { margin-top: 16rpx; }
+.price-block { margin-top:0; }.buy-quantity { display:flex; justify-content:space-between; align-items:center; gap:16rpx; margin-top:20rpx; padding-top:16rpx; border-top:1rpx solid var(--yb-border); font-size:26rpx; }
 .fee-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid var(--yb-border); color: var(--yb-muted); font-size: 24rpx; }
 .fee-with-tip { display: flex; align-items: center; gap: 4rpx; }
 .service-info { margin-top: 24rpx; }
@@ -376,7 +402,7 @@ function goBack() {
 .overseas-warn { display: flex; flex-direction: column; gap: 6rpx; margin-top: 16rpx; padding: 20rpx; border-radius: 12rpx; background: var(--yb-warning-soft, #fff7e8); color: #8b5300; font-size: 24rpx; line-height: 1.6; }
 .warning-title { font-weight: 600; }
 .warning-note { color: #805b24; }
-.trade-notice { color: #805b24; font-size: 24rpx; line-height: 1.5; }
+.trade-notice { width:100%; color: #805b24; font-size: 24rpx; line-height: 1.5; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
 .tag { padding: 8rpx 16rpx; border: 1rpx solid #edece6; border-radius: 8rpx; background: #fafaf7; color: #1d2129; font-size: 24rpx; }
 .seller-section { display: flex; align-items: flex-start; gap: 16rpx; margin-top: 24rpx; padding: 20rpx 0; border-top: 1rpx solid var(--yb-border); border-bottom: 1rpx solid var(--yb-border); }
@@ -391,9 +417,14 @@ function goBack() {
 .review-row { padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
 .review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
-.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; flex-direction: column; gap: 12rpx; padding: 12rpx 24rpx calc(6rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
-.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 84rpx; min-height: 84rpx; color: #6b7385; font-size: 24rpx; }.tool--disabled { opacity: .55; pointer-events: none; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:88rpx; padding:0 16rpx; white-space:nowrap; }
-.bottom-tools { display: flex; align-items: center; width: 100%; gap: 20rpx; }
-.bottom-actions { display: flex; width: 100%; gap: 16rpx; }
-.quantity { margin-left: auto; display: flex; flex-shrink:0; align-items: center; min-width:252rpx; padding: 0; border-radius: 8rpx; background: var(--yb-bg); font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:84rpx; min-height:84rpx; }
+.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; flex-direction: row; flex-wrap:wrap; align-items:center; gap: 12rpx; padding: 12rpx 16rpx calc(6rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
+.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 72rpx; min-height: 88rpx; color: #6b7385; font-size: 24rpx; }.tool--disabled { opacity: .55; pointer-events: none; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:88rpx; padding:0 16rpx; white-space:nowrap; }
+.bottom-tools { display:flex; align-items:center; flex-shrink:0; gap:0; }
+.bottom-actions { display:flex; flex:1; min-width:0; gap:12rpx; }
+.quantity { margin-left: auto; display: flex; flex-shrink:0; align-items: center; min-width:216rpx; padding: 0; border-radius: 8rpx; background: var(--yb-bg); font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:72rpx; min-height:84rpx; }
+.reviews-heading { display:flex; align-items:center; justify-content:space-between; gap:16rpx; }.reviews-heading .section-title { margin-bottom:0; }.reviews-drawer { display:flex; flex-direction:column; max-height:80vh; padding:28rpx 24rpx; }.reviews-body { max-height:62vh; min-height:0; }.review-total { display:block; font-size:24rpx; color:var(--yb-muted); margin-top:16rpx; }
+</style>
+
+<style scoped lang="scss">
+.review-images { display:flex; flex-wrap:wrap; gap:12rpx; margin-top:16rpx; }.review-images image { width:calc(33.333% - 8rpx); height:160rpx; border-radius:12rpx; }.review-images text { width:100%; color:var(--yb-muted); font-size:24rpx; }
 </style>

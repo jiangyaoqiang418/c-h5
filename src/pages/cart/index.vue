@@ -11,6 +11,16 @@ const { requireLogin } = useNavigationGuards();
 
 const cart = useCartStore();
 const items = computed(() => cart.enrichedItems);
+const groups = computed(() => {
+  const result: { key: string; name: string; items: typeof items.value }[] = [];
+  for (const item of items.value) {
+    const name = item.product?.sellerName || '买手信息待确认';
+    const key = String(item.product?.sellerId || name);
+    const group = result.find(entry => entry.key === key);
+    if (group) group.items.push(item); else result.push({ key, name, items: [item] });
+  }
+  return result;
+});
 const openingCheckout = ref(false);
 const managing = ref(false);
 watch(() => cart.scope, () => { managing.value = false; });
@@ -84,7 +94,8 @@ async function goCheckout() {
     <template v-if="items.length">
       <view class="cart-toolbar"><text>共 {{ items.length }} 种商品</text><wd-button plain size="small" @click="managing = !managing">{{ managing ? '完成管理' : '管理' }}</wd-button></view>
       <view class="list">
-        <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">
+        <view v-for="group in groups" :key="group.key" class="seller-group"><view class="group-head"><wd-icon name="shop" size="16px" /><text>{{ group.name }}</text></view>
+        <view v-for="item in group.items" :key="item.key" class="row" :class="{ invalid: !item.available }">
           <view class="check yb-pressable" @click="cart.setSelected(item.key, !item.selected)">
             <view class="dot" :class="{ on: item.selected }">
               <wd-icon v-if="item.selected" name="check" size="18px" color="#fff" />
@@ -98,11 +109,11 @@ async function goCheckout() {
           />
           <view class="info">
             <text class="title">{{ item.product?.title || '商品已删除' }}</text>
-            <text class="seller">{{ item.product?.sellerName || '—' }}</text>
+
             <text v-if="!item.available" class="invalid-note">当前不可结算，请调整商品</text>
             <view class="price-row">
               <view class="price-block">
-                <PriceTag v-if="item.product && item.product.price != null" :price="item.product?.price || 0" size="sm" :show-rate="false" />
+                <PriceTag v-if="item.product && item.product.price != null" :price="item.product?.price || 0" size="sm" :show-rate="false" :show-reference="false" />
                 <text v-else class="price-unknown">价格待确认</text>
               </view>
                 <view class="qty" @click.stop>
@@ -117,6 +128,7 @@ async function goCheckout() {
             </view>
           </view>
           <view v-if="managing" class="del yb-pressable" aria-label="移除商品" @click="remove(item.key)"><wd-icon name="delete" size="20px" color="var(--yb-muted)" /></view>
+        </view>
         </view>
       </view>
 
@@ -151,24 +163,24 @@ async function goCheckout() {
   padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
 }
 .list {
-  padding: 16rpx 12rpx 8rpx;
+  padding: 16rpx 24rpx 8rpx;
 }
 .row {
   display: flex;
   align-items: center;
   gap: 12rpx;
   background: var(--yb-surface);
-  padding: 16rpx 0 16rpx 16rpx;
+  padding: 16rpx 0;
   border-radius: var(--yb-radius-lg);
   margin-bottom: 16rpx;
   overflow: hidden;
-  box-shadow: var(--yb-shadow-card);
+  box-shadow: none;
 }
-.row.invalid { background: #fafafb; }
+.seller-group { padding:0 16rpx; margin-bottom:16rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:var(--yb-surface); }.group-head { display:flex; align-items:center; gap:12rpx; padding:20rpx 0 12rpx; font-size:26rpx; font-weight:600; border-bottom:1rpx solid var(--yb-border); }.group-head text { min-width:0; overflow-wrap:anywhere; }.row.invalid { background: #fafafb; }
 .invalid-note { display: block; color: var(--yb-danger); font-size: 24rpx; margin: 4rpx 0; }
 .check {
-  width: 84rpx;
-  min-height: 88rpx;
+  width: 44px;
+  min-height: 44px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -197,8 +209,8 @@ async function goCheckout() {
   background: var(--yb-brand);
 }
 .cover {
-  width: 132rpx;
-  height: 132rpx;
+  width: 116rpx;
+  height: 116rpx;
   border-radius: var(--yb-radius-md);
   flex-shrink: 0;
 }
@@ -244,8 +256,8 @@ async function goCheckout() {
   margin-left: auto;
 }
 .qty-btn {
-  width: 84rpx;
-  min-height: 88rpx;
+  width: 44px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -266,7 +278,7 @@ async function goCheckout() {
   align-self: stretch;
   align-items: center;
   justify-content: center;
-  width: 84rpx;
+  width: 44px;
   flex-shrink: 0;
   margin: -16rpx 0 -16rpx 0;
   background: var(--yb-bg);

@@ -25,7 +25,7 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
     </view>
     <view class="right">
       <text class="amount" :style="{ color: amountColor }">{{ sign }}{{ formatAmount(txn.amount) }} <text class="unit">USDT</text></text>
-      <text class="balance">变动后余额 {{ formatAmount(txn.balanceAfter) }} USDT</text>
+      <view class="detail-hint"><text>查看明细</text><wd-icon name="arrow-right" size="12px" /></view>
     </view>
   </view>
 </template>
@@ -43,14 +43,14 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
   flex: 1;
   min-width: 0;
 }
-.type {
+.detail-hint { display:flex; justify-content:flex-end; align-items:center; gap:4rpx; margin-top:8rpx; font-size:22rpx; color:var(--yb-muted); }.type {
   display: inline-block;
-  background: var(--yb-bg);
+  background: transparent;
   color: var(--yb-muted);
-  padding: 2rpx 12rpx;
+  padding: 0;
   border-radius: 4rpx;
-  font-size: 24rpx;
-  font-weight: 500;
+  font-size: 26rpx;
+  font-weight: 600;
 }
 .desc {
   display: -webkit-box;
@@ -69,8 +69,8 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
 }
 .right {
   text-align: right;
-  flex: 0 1 46%;
-  max-width: 46%;
+  flex: 0 1 48%;
+  max-width: 48%;
   min-width: 0;
   overflow-wrap: anywhere;
 }

@@ -255,11 +255,12 @@ onReachBottom(() => {
           <view v-else class="cover placeholder">暂无图片</view>
           <view class="info">
             <text class="title">{{ product.title }}</text>
-            <text class="category">{{ categoryNames[String(product.categoryId)] || `分类 ${product.categoryId}` }}</text>
+            <text class="category">{{ categoryNames[String(product.categoryId)] || '分类名称暂不可用' }}</text>
             <view class="meta">
               <view class="price"><text class="price-number">{{ formatAmount(product.price) }}</text><text class="price-unit">USDT</text></view>
               <text class="stock">库存 {{ product.stock }}</text>
             </view>
+          </view>
             <view class="card-foot">
               <wd-tag size="small" round :type="statusType(product.status)">{{ product.statusText || product.status }}</wd-tag>
               <wd-button
@@ -274,10 +275,9 @@ onReachBottom(() => {
               <wd-button v-if="actions(product).remove" type="error" plain size="small" :disabled="operating || loading || loadFailed || !!pendingShelf[String(product.id)]" @click.stop="changeProduct(product, 'remove')">删除</wd-button>
             </view>
             <view v-if="product.reviewComment" class="comment-section" @click.stop="toggleComment(product.id)">
-              <text class="review-comment" :class="{ 'review-comment--rejected': product.status === 'REJECTED', 'review-comment--collapsed': !expandedComments.includes(String(product.id)) }">审核意见：{{ product.reviewComment }}</text>
-              <text class="comment-toggle">{{ expandedComments.includes(String(product.id)) ? '收起审核意见' : '查看完整审核意见' }}</text>
+              <text class="review-comment" :class="{ 'review-comment--rejected': product.status === 'REJECTED', 'review-comment--collapsed': product.reviewComment.length > 60 && !expandedComments.includes(String(product.id)) }">审核意见：{{ product.reviewComment }}</text>
+              <text v-if="product.reviewComment.length > 60" class="comment-toggle">{{ expandedComments.includes(String(product.id)) ? '收起审核意见' : '查看完整审核意见' }}</text>
             </view>
-          </view>
         </view>
       </view>
       <EmptyState v-else-if="loadFailed" title="商品列表加载失败" description="请稍后重试" />
@@ -301,8 +301,9 @@ onReachBottom(() => {
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:24rpx; }
 .product-card {
   display: flex;
+  flex-wrap:wrap;
   gap: 16rpx;
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
   padding: 20rpx;
   background: #fff;
   border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
@@ -330,4 +331,5 @@ onReachBottom(() => {
   font-size: 28rpx; font-weight: 600;
 }
 .review-comment--rejected { color: #b42318; }
+.card-foot,.comment-section { width:100%; box-sizing:border-box; }.card-foot { border-top:1rpx solid var(--yb-border); padding-top:12rpx; }.card-foot :deep(.wd-tag) { margin-right:auto; }.comment-toggle { min-height:44px; }.info { flex-basis:calc(100% - 176rpx); }
 </style>

@@ -13,6 +13,6 @@ function returnFromPage() {
 
 <template>
   <view class="yb-page">
-    <EmptyState title="会话链接已失效" description="此链接已不可用，请从消息中心或订单详情进入订单群。" action-text="返回" @action="returnFromPage" />
+    <EmptyState variant="unavailable" title="会话链接已失效" description="此链接已不可用，请从消息中心或订单详情进入订单群。" action-text="返回" @action="returnFromPage" />
   </view>
 </template>

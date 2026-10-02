@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentText from '@/components/common/content-text.vue';
 import { computed, ref, watch } from 'vue';
 import { onHide, onReachBottom, onShow } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -199,7 +200,7 @@ function formatDate(value?: string | number): string {
     <view class="hero" >
       <text class="hero-label">当前积分</text>
       <text class="hero-amount">{{ balance }}</text>
-      <text class="hero-hint">完成订单、好评、求购可获得积分</text>
+      <text class="hero-hint">积分获取与扣减以当前积分规则为准</text>
     </view>
 
     <view class="yb-sticky-tabs-frame">
@@ -211,7 +212,7 @@ function formatDate(value?: string | number): string {
     </view>
 
     <wd-button v-if="Object.keys(pendingAppeals).length" block plain @click="viewAppeals">申诉已提交，查看记录</wd-button>
-    <LedgerFilters v-show="activeKey === 'log'" :key="userStore.realUserId || 'guest'" mode="points" :disabled="loading || !userStore.currentUser" :behaviors="rules.map(item => ({ value: item.code, label: item.label }))" @apply="applyFilters" />
+    <view class="filter-frame" v-show="activeKey === 'log'"><LedgerFilters v-show="activeKey === 'log'" :key="userStore.realUserId || 'guest'" mode="points" :disabled="loading || !userStore.currentUser" :behaviors="rules.map(item => ({ value: item.code, label: item.label }))" @apply="applyFilters" /></view>
     <wd-button v-if="activeKey === 'log' && filterRulesFailed" plain block @click="loadFilterRules">行为选项加载失败，点击重试</wd-button>
     <EmptyState v-if="loadFailed" title="积分数据加载失败" description="请重新加载后继续" action-text="重新加载" @action="load()" />
 
@@ -242,8 +243,8 @@ function formatDate(value?: string | number): string {
             </text>
           </view>
           <text class="appeal-score">原积分变动 {{ item.originalScore > 0 ? '+' : '' }}{{ item.originalScore }}</text>
-          <text class="appeal-reason">{{ item.reason }}</text>
-          <text v-if="item.reviewComment" class="appeal-review">审核意见：{{ item.reviewComment }}</text>
+          <ContentText class="appeal-reason" :text="item.reason" :lines="2" />
+          <ContentText v-if="item.reviewComment" class="appeal-review" :text="`审核意见：${item.reviewComment}`" :lines="2" />
           <view class="appeal-times">
             <text>提交 {{ formatDate(item.createdAt) }}</text>
             <text v-if="item.reviewedAt">审核 {{ formatDate(item.reviewedAt) }}</text>
@@ -365,4 +366,5 @@ function formatDate(value?: string | number): string {
 .popup-title { display: block; font-size: 30rpx; font-weight: 600; margin-bottom: 8rpx; }
 .popup-meta { display:block; font-size:24rpx; color:var(--yb-muted); margin-bottom:16rpx; }
 .popup-btn { margin-top: 16rpx; }
+.filter-frame { margin:16rpx 24rpx; border-radius:var(--yb-radius-lg); overflow:hidden; border:1rpx solid var(--yb-border); }
 </style>

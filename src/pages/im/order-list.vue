@@ -20,11 +20,12 @@ function open(group: Api.RealNotify.Conversation) {
   else if (group.orderId != null) go(`/pages/im/real-order-group?orderId=${encodeURIComponent(String(group.orderId))}`);
 }
 function contactSupport() { go('/pages/im/real-order-group?support=1'); }
+function messageTime(value?: string | number) { if (!value) return ''; const date = new Date(/^\d+$/.test(String(value)) ? Number(value) : value); return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(); }
 </script>
 
 <template>
   <view class="list-page yb-page">
-    <view class="support-entry"><wd-button block @click="contactSupport">联系平台客服</wd-button></view>
+    <view class="support-entry" role="button" @click="contactSupport"><wd-icon name="service" size="18px" /><text>联系平台客服</text><wd-icon name="arrow-right" size="14px" /></view>
     <view v-if="groups.length" class="list">
       <view v-for="g in groups" :key="g.id" class="conversation" @click="open(g)">
         <view class="avatar">{{ (g.productTitle || g.title || '订').slice(0, 1) }}</view>
@@ -33,7 +34,7 @@ function contactSupport() { go('/pages/im/real-order-group?support=1'); }
           <text class="preview">{{ g.lastMessagePreview || '暂无消息' }}</text>
           <text class="meta">{{ g.type === 'SUPPORT' ? '独立客服会话' : `进行中订单 ${g.activeOrderCount || 0} 笔 · ${g.orderStatusText || '订单'}` }}</text>
         </view>
-        <view class="right"><wd-badge v-if="(g.unreadCount || 0) > 0" :value="g.unreadCount" /></view>
+        <view class="right"><text class="message-time">{{ messageTime(g.lastMessageAt) }}</text><wd-badge v-if="(g.unreadCount || 0) > 0" :value="g.unreadCount" /></view>
       </view>
     </view>
     <EmptyState v-else-if="loadFailed" title="订单群加载失败" description="请稍后重试" />
@@ -51,13 +52,13 @@ function contactSupport() { go('/pages/im/real-order-group?support=1'); }
   padding: 20rpx 24rpx;
 }
 .loading { padding: 80rpx 0; text-align: center; color: var(--yb-muted); }
-.support-entry { margin-bottom: 20rpx; }
-.conversation { display: flex; gap: 16rpx; padding: 24rpx; margin-bottom: 16rpx; background: #fff; border: 1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow: var(--yb-shadow-card); }
+.support-entry { display:flex; align-items:center; gap:12rpx; padding:12rpx 20rpx; min-height:44px; border-radius:var(--yb-radius-lg); background:var(--yb-surface); margin-bottom:16rpx; color:var(--yb-ink); font-size:26rpx; }.support-entry > text { flex:1; }.message-time { font-size:22rpx; color:var(--yb-muted); max-width:160rpx; text-align:right; }
+.conversation { display: flex; gap: 16rpx; padding: 24rpx; margin-bottom: 0; border-bottom:1rpx solid var(--yb-border); background: #fff; border: 1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow: var(--yb-shadow-card); }
 .avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #1d2027; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32rpx; flex-shrink: 0; }
 .info { flex: 1; min-width: 0; }
 .name, .preview, .meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name { font-size: 28rpx; color: #1d2129; font-weight: 500; }
 .preview { font-size: 24rpx; color: var(--yb-muted); margin-top: 8rpx; }
 .meta { font-size: 24rpx; color: var(--yb-muted); margin-top: 8rpx; }
-.right { flex-shrink: 0; }
+.right { display:flex; flex-direction:column; align-items:flex-end; gap:12rpx; flex-shrink:0; }.list { overflow:hidden; border-radius:var(--yb-radius-lg); background:var(--yb-surface); }.conversation { border-radius:0; border-left:0; border-right:0; box-shadow:none; }
 </style>

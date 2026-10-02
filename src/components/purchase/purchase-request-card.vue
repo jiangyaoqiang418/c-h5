@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentText from '@/components/common/content-text.vue';
 import { computed } from 'vue';
 import { enums } from '@shared';
 import { formatAmount } from '@/utils/format-bridge';
@@ -38,8 +39,8 @@ function goDetail() {
 
     <view class="body">
       <view class="left">
-        <view class="cat"><wd-icon name="goods" size="13px" /> <text>{{ request.categoryPath }}</text></view>
         <text class="title">{{ request.productTitle }}</text>
+        <view class="cat"><text>{{ request.categoryPath }}</text></view>
         <view class="reward">
           <text class="reward-label">预算</text>
           <view class="reward-amount"><text class="num">{{ formatAmount(request.budgetAmount) }}</text><text class="unit">USDT</text></view>
@@ -56,9 +57,7 @@ function goDetail() {
     <view v-if="mode === 'mine' && request.claimedByName" class="claimed">
       <wd-icon name="check" size="13px" /> 已被买手 <text class="strong">{{ request.claimedByName }}</text> 接单
     </view>
-    <view v-if="mode === 'mine' && request.status === 'rejected' && request.auditNote" class="rejected-note">
-      驳回原因：{{ request.auditNote }}
-    </view>
+    <view v-if="mode === 'mine' && request.status === 'rejected' && request.auditNote" class="rejected-note" @click.stop><ContentText :text="`驳回原因：${request.auditNote}`" :lines="2" /></view>
 
     <view v-if="(mode === 'hall' && canClaim && request.status === 'pushing') || (mode === 'mine' && ['pending_audit', 'pushing'].includes(request.status))" class="actions" @click.stop>
       <wd-button
@@ -87,7 +86,7 @@ function goDetail() {
 .pr-card {
   background: #FFFFFF;
   border-radius: 24rpx;
-  padding: 28rpx;
+  padding: 24rpx;
   margin-bottom: 16rpx;
   border: 1rpx solid #EDECE6;
   box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.04);
@@ -123,7 +122,7 @@ function goDetail() {
   gap: 8rpx;
   min-width: 0;
 }
-.cat {
+.cat { overflow-wrap:anywhere;
   font-size: 24rpx;
   color: #6B7385;
   display: flex;

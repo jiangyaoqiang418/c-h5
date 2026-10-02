@@ -69,7 +69,7 @@ function copy(text?: string) {
   box-sizing: border-box;
   background: #fff;
   border-radius: 24rpx 24rpx 0 0;
-  height: 1100rpx;
+  height: auto;
   max-height: 80vh;
   overflow: hidden;
 }
@@ -103,8 +103,9 @@ function copy(text?: string) {
   color: var(--yb-muted);
 }
 .rows {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
+  max-height:54vh;
   width: 100%;
   padding-top: 16rpx;
   box-sizing: border-box;

@@ -131,9 +131,8 @@ async function confirmWithdraw() {
       <text class="lbl">可用余额</text>
       <text class="amount">{{ available === undefined ? '—' : formatAmount(walletStore.account?.available) }} <text class="unit">USDT</text></text>
       <text v-if="loading || loadFailed" class="balance-note">{{ loading ? '正在核对最新余额' : '余额读取失败，上次金额仅供核对，请重试' }}</text>
-    </view>
 
-    <view class="form-card">
+      <view class="withdraw-fields">
       <view class="choice-field"><text class="choice-label">转出网络</text>
         <wd-radio-group v-model="form.chain" class="yb-choice-group" inline>
           <wd-radio shape="dot" icon-placement="left" value="TRON">TRC20</wd-radio>
@@ -147,6 +146,7 @@ async function confirmWithdraw() {
       <text class="field-label">转出金额（USDT）</text>
       <wd-input v-model="form.amount" type="digit" placeholder="请输入金额" @blur="touched.amount = true" />
       <text v-if="touched.amount && amountError" class="field-error">{{ amountError }}</text>
+      </view>
     </view>
 
     <view class="agree-row">
@@ -212,4 +212,5 @@ async function confirmWithdraw() {
 .field-error { display:block; margin:8rpx 0 16rpx; color:var(--yb-danger); font-size:24rpx; line-height:1.5; }
 .submit-hint,.balance-note { display:block; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
 .balance-note { margin-top:12rpx; }.unit { font-size:26rpx; font-weight:500; }
+.withdraw-fields { margin-top:24rpx; padding-top:20rpx; border-top:1rpx solid var(--yb-border); --wot-input-padding:0; }.balance-card { text-align:left; }.agree-row { padding:12rpx 4rpx; background:transparent; border:0; box-shadow:none; }
 </style>

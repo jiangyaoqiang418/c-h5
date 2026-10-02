@@ -126,7 +126,7 @@ async function submit() {
       <view v-if="status?.hasSet" class="modes"><view class="mode-tab" :class="{ active: mode === 'update', disabled: loading }" @click="selectMode('update')">修改密码</view><view class="mode-tab" :class="{ active: mode === 'reset', disabled: loading }" @click="selectMode('reset')">忘记支付密码</view></view>
       <wd-input v-if="mode !== 'update'" v-model="form.loginPassword" label="平台登录密码" type="password" :disabled="loading" />
       <wd-input v-else v-model="form.oldPayPassword" label="原支付密码" type="number" password :maxlength="6" :disabled="loading" />
-      <wd-input v-model="form.payPassword" label="新支付密码" type="number" password :maxlength="6" :disabled="loading" placeholder="6位数字，支持0开头" />
+      <wd-input v-model="form.payPassword" :label="mode === 'update' ? '新支付密码' : '支付密码'" type="number" password :maxlength="6" :disabled="loading" placeholder="6位数字，支持0开头" />
       <wd-input v-model="form.confirmPayPassword" label="确认支付密码" type="number" password :maxlength="6" :disabled="loading" />
       <text v-if="submitHint" class="form-hint">{{ submitHint }}</text>
       <wd-button type="primary" block :disabled="!canSubmit" :loading="loading" @click="submit">保存</wd-button>
@@ -140,4 +140,5 @@ async function submit() {
 .state-error{display:flex;flex-direction:column;gap:24rpx;color:var(--yb-muted);font-size:26rpx;line-height:1.6}
 .error{display:block;background:#fff2f0;color:#cf1322;padding:16rpx;border-radius:8rpx;margin-bottom:18rpx;font-size:24rpx}
 .modes{display:flex;gap:8rpx;margin-bottom:24rpx;padding:6rpx;background:var(--yb-bg);border-radius:16rpx}.mode-tab{display:flex;align-items:center;justify-content:center;flex:1;min-height:88rpx;font-size:26rpx;color:var(--yb-muted);border-radius:12rpx}.mode-tab.active{background:#fff;color:var(--yb-brand);font-weight:600}.mode-tab.disabled{opacity:.6}
+.card :deep(.wd-input__label){width:176rpx!important}
 </style>

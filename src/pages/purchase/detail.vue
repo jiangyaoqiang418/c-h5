@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentText from '@/components/common/content-text.vue';
 import { computed, ref } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { enums } from '@shared';
@@ -20,6 +21,9 @@ const request = ref<Api.PurchaseRequest.PurchaseRequest>();
 const id = ref<string>();
 const progress = ref<Api.RealPurchase.DemandProgress>();
 const progressFailed = ref(false);
+const progressExpanded = ref(false);
+const aftersaleLabels: Record<Api.Product.AftersaleType, string> = { '7day-no-reason': '7天无理由', 'shop-warranty': '店保', 'national-warranty': '国保', none: '无' };
+function previewEvidence(url: string) { uni.previewImage({ current: url, urls: request.value?.evidenceUrls || [] }); }
 const loading = ref(true);
 const loadFailed = ref(false);
 const operating = ref(false);
@@ -168,14 +172,13 @@ async function cancel() {
     <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="reload">状态刷新失败，点击重试</wd-button>
     <view class="hero">
       <wd-tag v-if="statusMeta" plain round size="medium">{{ statusMeta.label }}</wd-tag>
-      <text class="code">{{ request.code }}</text>
       <text class="title">{{ request.productTitle }}</text>
       <view class="cat"><wd-icon name="goods" size="14px" /><text>{{ request.categoryPath }}</text></view>
       <text v-if="request.categoryPath === '分类暂不可用'" class="category-note">分类名称暂无法匹配，请查看下方商品需求。</text>
     </view>
 
     <view class="meta">
-      <view class="meta-cell">
+      <view class="meta-cell meta-cell--budget">
         <text class="lbl">预算</text>
         <text class="val budget">{{ formatAmount(request.budgetAmount) }} <text class="amount-unit">USDT</text></text>
       </view>
@@ -187,11 +190,15 @@ async function cancel() {
         <text class="lbl">海外</text>
         <text class="val">{{ request.overseasCustoms ? '是' : '否' }}</text>
       </view>
+      <view class="meta-cell"><text class="lbl">售后要求</text><text class="val">{{ aftersaleLabels[request.aftersaleType] || '暂未提供' }}</text></view>
     </view>
 
+    <view v-if="request.cancelledReason" class="section review-section"><text class="section-title">取消原因</text><ContentText :text="request.cancelledReason" /></view>
+    <view v-if="request.productDescription && request.productDescription !== request.appeal" class="section"><text class="section-title">商品需求</text><ContentText :text="request.productDescription" /></view>
+    <view v-if="request.evidenceUrls?.length" class="section"><text class="section-title">参考图片</text><view class="reference-images"><image v-for="url in request.evidenceUrls" :key="url" :src="url" mode="aspectFill" @click="previewEvidence(url)" /></view></view>
     <view class="section">
       <text class="section-title">求购说明</text>
-      <text class="appeal">{{ request.appeal }}</text>
+      <ContentText :text="request.appeal" />
     </view>
 
     <view v-if="request.auditNote" class="section review-section">
@@ -205,14 +212,16 @@ async function cancel() {
       <template v-else-if="progress">
         <text class="push-hint">{{ progress.statusText || progress.status }} · 推送 {{ progress.pushBatchCount }} 批，触达 {{ progress.reachedBuyerCount }} 位买手</text>
         <text v-if="progress.lastPushedAt" class="log-text">最近推送：{{ new Date(progress.lastPushedAt).toLocaleString() }}</text>
-        <view v-for="(node, index) in progress.timeline" :key="`${node.code}-${index}`" class="log-row">
+        <view v-for="(node, index) in (progressExpanded ? progress.timeline : progress.timeline.slice(-2))" :key="`${node.code}-${index}`" class="log-row">
           <text>{{ node.name }}</text><text class="log-text">{{ node.description }} · {{ new Date(node.occurredAt).toLocaleString() }}</text>
         </view>
+        <view v-if="progress.timeline.length > 2" class="yb-expand-action" @click="progressExpanded = !progressExpanded">{{ progressExpanded ? '收起历史进度' : '查看全部处理进度' }}</view>
         <text v-if="!progress.timeline.length" class="log-text">暂无处理记录</text>
       </template>
       <view v-else class="log-text">进度尚未加载</view>
     </view>
 
+    <view class="section request-reference"><text class="code">{{ request.code }}</text><text v-if="request.createdAt" class="log-text">创建时间：{{ new Date(request.createdAt).toLocaleString() }}</text></view>
     <view class="bottom-bar">
       <wd-button v-if="isMy && request.relatedOrderId" type="primary" block :disabled="operating" @click="go(`/pages/order/detail?id=${encodeURIComponent(String(request.relatedOrderId))}`)">去付款</wd-button>
       <wd-button v-if="canClaim" type="primary" block :loading="operating" :disabled="operating || loading || loadFailed || !!confirmedAction" @click="claim">我接此单</wd-button>
@@ -259,12 +268,15 @@ async function cancel() {
   background: #fff;
   margin-top: 20rpx;
   display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
   padding: 24rpx;
   border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .meta-cell {
   flex: 1;
-  text-align: center;
+  min-width: 0;
+  text-align: left;
 }
 .lbl {
   display: block;
@@ -334,4 +346,5 @@ async function cancel() {
   display: flex;
   gap: 12rpx;
 }
+.meta-cell--budget { flex: 0 0 100%; }.val.budget { overflow-wrap: anywhere; }.reference-images { display:flex; flex-wrap:wrap; gap:12rpx; }.reference-images image { width:calc(33.333% - 8rpx); height:180rpx; border-radius:12rpx; }.request-reference .code { margin-top:0; }
 </style>

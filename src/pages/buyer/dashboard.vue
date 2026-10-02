@@ -129,11 +129,6 @@ const kpis = computed(() => {
       </view>
     </view>
 
-    <!-- 固定四项指标在手机端完整展示，不使用横向滚动。 -->
-    <view class="kpi-row">
-      <BuyerKpiCard v-for="k in kpis" :key="k.label" :label="k.label" :value="k.value" :unit="k.unit" :icon="k.icon" :color="k.color" :description="k.description" @click="go(k.url)" />
-    </view>
-
     <view class="section work-entry-section">
       <text class="section-title">工作入口</text>
       <view class="work-entries">
@@ -141,6 +136,11 @@ const kpis = computed(() => {
         <view class="work-entry" @click="go('/pages/aftersale/list')"><text class="entry-title">售后记录</text><text>查看当前处理进度</text><wd-icon name="arrow-right" size="14px" /></view>
         <view class="work-entry" @click="go('/pages/buyer/products?tab=PENDING')"><text class="entry-title">商品审核</text><text>查看送审状态</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
+    </view>
+
+    <!-- 固定四项指标在手机端完整展示，不使用横向滚动。 -->
+    <view class="kpi-row">
+      <BuyerKpiCard v-for="k in kpis" :key="k.label" :label="k.label" :value="k.value" :unit="k.unit" :icon="k.icon" :color="k.color" :description="k.description" @click="go(k.url)" />
     </view>
 
     <!-- 进行中订单 -->
@@ -163,11 +163,11 @@ const kpis = computed(() => {
         </view>
         <view class="more" @click="go('/pages/order/list')"><text>全部</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
-      <text class="section-caption">仅展示最近 5 条记录，全部订单请进入列表查看。</text>
+      <text class="section-caption">仅展示最近 3 条记录，全部订单请进入列表查看。</text>
       <view v-if="orders.length">
-        <view v-for="o in orders" :key="String(o.id)" class="recent-order" :class="{ 'recent-order--pending': o.rawStatus === 'PAID' }">
+        <view v-for="o in orders.slice(0, 3)" :key="String(o.id)" class="recent-order" :class="{ 'recent-order--pending': o.rawStatus === 'PAID' }">
           <view v-if="o.rawStatus === 'PAID'" class="pending-note"><text>此订单待发货</text><text class="pending-link" @click="go('/pages/order/list?status=PAID')">前往待发货列表</text></view>
-          <BuyerOrderCard :order="o" :show-actions="false" />
+          <BuyerOrderCard :order="o" :show-actions="false" compact />
         </view>
       </view>
       <EmptyState v-else-if="ordersLoadFailed" title="卖出订单加载失败" description="请稍后重试" />
@@ -185,11 +185,11 @@ const kpis = computed(() => {
         <view class="more" @click="go('/pages/purchase/hall')"><text>前往大厅</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
       <view v-if="requests.length">
-        <PurchaseRequestCard v-for="r in requests" :key="r.id" :request="r" mode="hall" />
+        <PurchaseRequestCard v-for="r in requests.slice(0, 2)" :key="r.id" :request="r" mode="hall" />
       </view>
       <EmptyState v-else-if="requestsLoadFailed" title="求购大厅加载失败" description="请稍后重试" />
       <view v-else-if="loading" class="section-loading">求购数据加载中…</view>
-      <EmptyState v-else title="暂无可接求购" description="当前求购大厅没有返回可接记录，请稍后查看。" />
+      <view v-else class="compact-empty">当前暂无可接求购，可前往大厅查看。</view>
     </view>
 
     <!-- 押金 -->
@@ -413,4 +413,5 @@ const kpis = computed(() => {
   overflow-wrap: anywhere;
 }
 .footer-space { height: 40rpx; }
+.compact-empty { padding:24rpx; border-radius:var(--yb-radius-lg); background:var(--yb-surface); font-size:26rpx; color:var(--yb-muted); }
 </style>

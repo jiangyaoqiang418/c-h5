@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProductSummary from '@/components/common/product-summary.vue';
 import { computed, reactive, ref } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { formatUsdt } from '@shared/utils/currency';
@@ -157,6 +158,7 @@ async function submit() {
   <EmptyState v-else-if="unavailableReason" title="当前订单不可申请退款" :description="unavailableReason" action-text="返回订单列表" @action="go('/pages/order/list', true)" />
   <EmptyState v-else-if="loadFailed" title="可退款订单加载失败" description="请重新加载订单后继续" action-text="重新加载" @action="load" />
   <view v-else-if="order && eligible && !submitted">
+    <view v-if="order" class="product-context yb-card"><ProductSummary :title="order.productTitle" :image="order.productCover" :subtitle="order.counterpartName" :quantity="order.quantity" :reference="`订单 ${order.orderNo || order.code}`" /></view>
     <view class="step">
       <text class="step-title">仅退款</text>
       <view class="refund-summary"><text class="refund-label">退款金额</text><text class="refund-amount">{{ formatUsdt(order.totalAmount) }}</text><text class="refund-hint">以订单应付金额为准</text></view>
@@ -250,4 +252,5 @@ async function submit() {
 .submit {
   margin-top: 16rpx;
 }
+.product-context { margin-bottom:20rpx; margin-top:20rpx; }.reason-block { margin-top:20rpx; }.reason-block .section-title { margin-bottom:8rpx; }
 </style>

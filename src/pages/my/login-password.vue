@@ -138,13 +138,13 @@ async function submit() {
 
 <template>
   <view class="page yb-page"><view class="card">
-    <text class="title">设置平台登录密码</text>
+
     <text class="desc">设置后可使用邮箱和密码登录，当前会话不会退出。</text>
     <text v-if="checking" class="desc">正在读取账号状态…</text>
     <text v-if="stateError" class="error">{{ stateError }}</text>
     <wd-button v-if="stateError" plain size="small" :disabled="checking" @click="loadState">重新读取状态</wd-button>
     <wd-input v-if="needsEmail" v-model="form.email" label="邮箱" placeholder="请输入登录邮箱" />
-    <wd-input v-else :model-value="userStore.currentUser?.email || ''" label="邮箱" readonly />
+    <view v-else class="account-email"><text>登录邮箱</text><text>{{ userStore.currentUser?.email || '—' }}</text></view>
     <wd-input v-model="form.password" label="登录密码" type="password" placeholder="6-64位" />
     <wd-input v-model="form.confirmPassword" label="确认密码" type="password" />
     <text v-if="submitHint" class="form-hint" aria-live="polite">{{ submitHint }}</text>
@@ -152,4 +152,5 @@ async function submit() {
   </view></view>
 </template>
 
-<style scoped>.page{padding:24rpx}.card{background:#fff;border:1rpx solid var(--yb-border);border-radius:var(--yb-radius-lg);padding:28rpx;--wot-input-padding:0}.title{display:block;font-size:34rpx;font-weight:700}.desc{display:block;color:var(--yb-muted);font-size:24rpx;line-height:1.6;margin:12rpx 0 20rpx}.form-hint{display:block;margin:20rpx 0;color:var(--yb-muted);font-size:24rpx;line-height:1.6}.error{display:block;color:#cf1322;font-size:24rpx;margin-bottom:12rpx}</style>
+<style scoped>.page{padding:24rpx}.card{background:#fff;border:1rpx solid var(--yb-border);border-radius:var(--yb-radius-lg);padding:28rpx;--wot-input-padding:0}.title{display:block;font-size:34rpx;font-weight:700}.desc{display:block;color:var(--yb-muted);font-size:24rpx;line-height:1.6;margin:12rpx 0 20rpx}.form-hint{display:block;margin:20rpx 0;color:var(--yb-muted);font-size:24rpx;line-height:1.6}.error{display:block;color:#cf1322;font-size:24rpx;margin-bottom:12rpx}.card :deep(.wd-input__label){width:160rpx!important}.account-email{display:flex;flex-direction:column;gap:8rpx;padding:16rpx 0;font-size:26rpx;overflow-wrap:anywhere}.account-email>text:first-child{font-size:24rpx;color:var(--yb-muted)}
+</style>

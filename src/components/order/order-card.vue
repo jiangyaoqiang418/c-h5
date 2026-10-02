@@ -38,16 +38,17 @@ function goDetail() {
 <template>
   <view class="order-card" @click="goDetail">
     <view class="head">
-      <text class="code">订单 {{ order.code }}</text>
+      <text class="counterpart">{{ order.counterpartName || order.counterpartLabel }}</text>
       <OrderStatusTag :status="order.status" />
     </view>
     <view class="body">
       <image :src="cover" mode="aspectFill" class="cover" />
       <view class="info">
         <text class="title">{{ order.productTitle }}</text>
-        <text class="seller">{{ order.counterpartLabel }} · {{ order.counterpartName }}</text>
+        <text class="seller">数量 ×{{ order.quantity ?? '待确认' }}</text>
       </view>
     </view>
+    <text class="code">订单 {{ order.code }}</text>
     <view class="amount">
       <text class="amount-label">订单合计</text>
       <PriceTag class="amount-values" :price="order.totalAmount" size="sm" :show-rate="false" />
@@ -129,9 +130,9 @@ function goDetail() {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 12rpx;
-  border-bottom: 1rpx dashed var(--yb-border);
+  border-bottom: 1rpx solid var(--yb-border);
 }
-.code {
+.counterpart { flex:1; min-width:0; margin-right:16rpx; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:26rpx; font-weight:600; }.code { display:block;
   min-width: 0;
   margin-right: 16rpx;
   overflow: hidden;

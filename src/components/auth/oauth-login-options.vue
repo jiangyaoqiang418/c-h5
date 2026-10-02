@@ -96,7 +96,7 @@ onBeforeUnmount(() => {
     <view class="divider"><text>其他登录方式</text></view>
     <view :id="googleId" class="oauth-control" />
     <view :id="telegramId" class="oauth-control" />
-    <text class="oauth-note">{{ loginError || '第三方登录由 Google / Telegram 提供。遇到组件错误或无法连接时，可使用上方邮箱登录。' }}</text>
+    <text v-if="loginError" class="oauth-note">{{ loginError }}</text>
   </view>
   <!-- #endif -->
 </template>

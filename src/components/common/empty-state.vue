@@ -6,7 +6,7 @@ interface Props {
   title: string;
   description?: string;
   actionText?: string;
-  variant?: 'empty' | 'error';
+  variant?: 'empty' | 'error' | 'unavailable';
   image?: string;
   showIllustration?: boolean;
 }
@@ -23,7 +23,7 @@ const illustration = computed(() => props.image || (
   <view class="empty-state">
     <image v-if="showIllustration || image" :src="illustration" mode="aspectFit" class="illustration" />
     <view v-else class="state-icon" :class="{ 'state-icon--error': variant === 'error' }">
-      <wd-icon :name="variant === 'error' ? 'info-circle' : 'search'" size="48rpx" />
+      <wd-icon :name="variant === 'error' ? 'info-circle' : variant === 'unavailable' ? 'clock' : 'search'" size="48rpx" />
     </view>
     <text class="title">{{ title }}</text>
     <text v-if="description" class="desc">{{ description }}</text>

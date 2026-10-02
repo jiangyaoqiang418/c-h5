@@ -261,3 +261,6 @@ page {
 .wd-button.is-round { border-radius: var(--wot-button-medium-radius) !important; }
 .wd-button.is-round.is-small { border-radius: var(--wot-button-small-radius) !important; }
 .wd-button.is-round.is-large { border-radius: var(--wot-button-large-radius) !important; }
+
+/* Local disclosure controls retain the complete content without crowding the first screen. */
+.yb-expand-action { display:flex; align-items:center; justify-content:center; gap:8rpx; min-height:44px; color:var(--yb-muted); font-size:24rpx; }

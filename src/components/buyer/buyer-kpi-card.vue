@@ -13,7 +13,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
 
 <template>
   <view class="kpi-card" :style="{ '--c': color }">
-    <view class="head">
+    <view class="head" v-if="delta != null">
       <view class="icon-wrap">
         <image v-if="icon.startsWith('/')" :src="icon" class="icon-image" mode="aspectFit" />
         <wd-icon v-else :name="icon" size="19px" :color="color" />
@@ -28,7 +28,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
       <text v-if="unit" class="unit">{{ unit }}</text>
     </view>
     <text class="label">{{ label }}</text>
-    <text v-if="description" class="description">{{ description }}</text>
+
   </view>
 </template>
 

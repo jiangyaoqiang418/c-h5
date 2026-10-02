@@ -128,6 +128,15 @@ const cells = computed(() => {
   if (userStore.needsLoginPassword) result.splice(result.length - 2, 0, { label: '设置登录密码', icon: 'lock-on', go: () => go('/pages/my/login-password') });
   return result;
 });
+const cellGroups = computed(() => {
+  const categories = [
+    { title: userStore.isBuyerActive ? '买手工作台' : '购物服务', labels: ['买手仪表盘', '商品管理', '买手押金', '我的收藏', '我的求购', '我的售后', '我的评价'] },
+    { title: '资产与权益', labels: ['我的钱包', '小金库', '我的积分', 'VIP 特权'] },
+    { title: '账户与帮助', labels: ['地址管理', '支付密码', '设置登录密码', 'KYC 认证', '买手申请', '帮助中心'] }
+  ];
+  return categories.map(group => ({ title: group.title, entries: cells.value.filter(cell => group.labels.includes(cell.label)) })).filter(group => group.entries.length);
+});
+
 
 function logout() {
   uni.showModal({
@@ -225,19 +234,9 @@ function goMessages() {
       </view>
     </view>
 
-    <!-- 快捷入口 -->
-    <view class="section">
-      <view class="section-head">
-        <text class="section-title">{{ !user ? '服务中心' : userStore.isBuyerActive ? '买手中心' : '功能中心' }}</text>
-      </view>
-      <view class="cell-grid" :class="{ guest: !user }">
-        <view v-for="c in cells" :key="c.label" class="cell" @click="c.go()">
-          <view class="cell-icon-wrap">
-            <wd-icon :name="c.icon" size="22px" />
-          </view>
-          <text class="cell-label">{{ c.label }}</text>
-        </view>
-      </view>
+    <view v-for="group in cellGroups" :key="group.title" class="section">
+      <view class="section-head"><text class="section-title">{{ group.title }}</text></view>
+      <view class="cell-grid" :class="{ guest: !user }"><view v-for="cell in group.entries" :key="cell.label" class="cell" @click="cell.go()"><view class="cell-icon-wrap"><wd-icon :name="cell.icon" size="22px" /></view><text class="cell-label">{{ cell.label }}</text></view></view>
     </view>
 
     <!-- 退出 -->

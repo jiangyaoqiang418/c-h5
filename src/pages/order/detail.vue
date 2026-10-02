@@ -383,6 +383,12 @@ function submitException() { return submitLogistics('exception'); }
   <OrderCancelPopup ref="cancelPopup" />
   <OrderPaymentSelector v-model="paymentSelectorVisible" :order="paymentSelectorOrder" @balance="payBalance" />
   <view v-if="order" class="detail-page yb-page" :class="{ 'has-actions': showActionsBar && !inlineReviewNotice }">
+    <view class="hero">
+      <OrderStatusTag :status="order.status" />
+      <text class="state-description">{{ orderStateDescription }}</text>
+      <text class="code">订单号 {{ order.code }}</text>
+      <text v-if="order.createdAt" class="time">下单时间 {{ formatTime(order.createdAt) }}</text>
+    </view>
     <view v-if="isCustomer && walletPayError" class="section">{{ walletPayError }}</view>
     <view v-if="isCustomer && walletPay" class="section">
       <text class="section-title">钱包支付进度</text>
@@ -398,12 +404,7 @@ function submitException() { return submitLogistics('exception'); }
       </view>
       <wd-button plain size="small" :disabled="busy" :loading="loading" @click="reload">刷新付款状态</wd-button>
     </view>
-    <view class="hero">
-      <OrderStatusTag :status="order.status" />
-      <text class="state-description">{{ orderStateDescription }}</text>
-      <text class="code">订单号 {{ order.code }}</text>
-      <text v-if="order.createdAt" class="time">下单时间 {{ formatTime(order.createdAt) }}</text>
-    </view>
+
 
     <view class="section">
       <text class="section-title">订单进度</text>
@@ -436,11 +437,11 @@ function submitException() { return submitLogistics('exception'); }
           <text class="g-seller">数量 {{ order.quantity ?? '待确认' }}</text>
           <text class="g-seller">{{ order.counterpartLabel }} · {{ order.counterpartName }}</text>
         </view>
+      </view>
         <view class="g-price-block">
           <text class="g-price-cny">{{ formatUsdt(order.price) }}</text>
           <text class="g-price-usdt">≈ {{ formatCny(order.price) }}</text>
         </view>
-      </view>
     </view>
 
     <view class="section">
@@ -633,7 +634,7 @@ function submitException() { return submitLogistics('exception'); }
   display: block;
   font-size: 26rpx;
 }
-.g-price-block { flex: none; max-width: 42%; text-align: right; overflow-wrap: anywhere; }
+.g-price-block { display:flex; justify-content:flex-end; align-items:baseline; flex-wrap:wrap; gap:12rpx; margin-top:16rpx; padding-top:12rpx; border-top:1rpx solid var(--yb-border); text-align:right; overflow-wrap:anywhere; }
 .g-price-cny, .g-price-usdt { display: block; font-size: 26rpx; }
 .g-price-usdt { color: var(--yb-muted); font-size: 24rpx; margin-top: 8rpx; }
 .g-seller {

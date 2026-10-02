@@ -39,6 +39,8 @@ function updatePhotoState(field: UploadField, url: string | null | undefined, st
   photoStates[field] = state;
 }
 const step = ref(0);
+const previousOpen = ref(false);
+function previewMaterial(url?: string) { if (url) uni.previewImage({ current:url, urls:[url] }); }
 const form = reactive({
   realName: '',
   idType: 'ID_CARD' as 'ID_CARD' | 'PASSPORT',
@@ -249,12 +251,13 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
     <view v-else-if="loadFailed" class="error-card"><text class="title">认证状态加载失败</text><text class="description">请检查网络后重新加载。</text><wd-button type="primary" block @click="load">重新加载</wd-button></view>
     <template v-else>
       <view class="status-card" :class="`status-card--${status}`"><KycStatusTag :status="status" /><text class="title">{{ statusTitle }}</text><text v-if="detail?.reviewRemark" class="review-remark" :class="{ 'review-remark--rejected': status === 'rejected' }">审核意见：{{ detail.reviewRemark }}</text><text v-else-if="detailLoadFailed" class="review-remark">历史认证资料暂不可查看，请联系平台处理。</text></view>
-      <view v-if="detail" class="record-card">
+      <view v-if="detail && status === 'rejected'" class="yb-expand-action" @click="previousOpen = !previousOpen">{{ previousOpen ? '收起上次认证资料' : '查看上次认证资料' }}</view>
+      <view v-if="detail" v-show="status !== 'rejected' || previousOpen" class="record-card">
         <view class="record-row"><text class="label">姓名</text><text>{{ detail.realName || '-' }}</text></view><view class="record-row"><text class="label">证件类型</text><text>{{ detail.idType === 'PASSPORT' ? '护照' : '身份证' }}</text></view><view class="record-row"><text class="label">证件号码</text><text>{{ detail.idNo || '-' }}</text></view><view class="record-row"><text class="label">提交时间</text><text>{{ formatTime(detail.submittedAt) }}</text></view><view v-if="detail.expireAt" class="record-row"><text class="label">有效期至</text><text>{{ formatTime(detail.expireAt) }}</text></view>
         <view class="image-row">
           <view v-for="photo in detailPhotos" :key="`${photo.field}-${photo.url || ''}`" class="record-photo">
             <view class="photo-preview">
-              <image v-if="photo.url && photo.state !== 'failed'" :src="photo.url" mode="aspectFill" @load="updatePhotoState(photo.field, photo.url, 'ready')" @error="updatePhotoState(photo.field, photo.url, 'failed')" />
+              <image v-if="photo.url && photo.state !== 'failed'" :src="photo.url" mode="aspectFit" @click="photo.state === 'ready' && previewMaterial(photo.url)" @load="updatePhotoState(photo.field, photo.url, 'ready')" @error="updatePhotoState(photo.field, photo.url, 'failed')" />
               <view v-if="photo.state === 'loading'" class="photo-loading"><wd-loading size="32rpx" /><text>加载中</text></view>
               <view v-else-if="photo.state === 'failed' || photo.state === 'missing'" class="photo-empty"><text>{{ photo.state === 'failed' ? '材料暂无法预览' : '暂无可展示影像' }}</text></view>
             </view>
@@ -276,7 +279,7 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
           <wd-input :disabled="formLocked" v-model="form.nationality" :label="schema?.nationalityRequired ? '国籍（必填）' : '国籍（选填）'" placeholder="请输入" />
         </view>
         <view v-else-if="step === 1" class="upload-list"><view class="upload-card" @click="chooseAndUpload('idCardFront')"><text>证件正面（必填）</text><image :src="form.idCardFront?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'idCardFront' ? '上传中…' : '点击选择图片' }}</text></view><view class="upload-card" @click="chooseAndUpload('idCardBack')"><text>证件反面（{{ schema?.idCardBackRequired ? '必填' : '选填' }}）</text><image :src="form.idCardBack?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'idCardBack' ? '上传中…' : '点击选择图片' }}</text></view><view class="upload-card" @click="chooseAndUpload('holdingPhoto')"><text>手持证件照（{{ schema?.holdingPhotoRequired ? '必填' : '选填' }}）</text><image :src="form.holdingPhoto?.url || UI_ASSETS.placeholders.upload" mode="aspectFill" /><text>{{ uploading === 'holdingPhoto' ? '上传中…' : '点击选择图片' }}</text></view></view>
-        <view v-else class="summary"><text>姓名：{{ form.realName }}</text><text>证件号：{{ form.idNo }}</text><text>已上传：{{ (form.idCardFront ? 1 : 0) + (form.idCardBack ? 1 : 0) + (form.holdingPhoto ? 1 : 0) }} 张</text></view>
+        <view v-else class="summary"><text>姓名：{{ form.realName }}</text><text>证件类型：{{ form.idType === 'PASSPORT' ? '护照' : '身份证' }}</text><text>证件号：{{ form.idNo }}</text><text>国籍：{{ form.nationality || '未填写' }}</text><text>证件正面：{{ form.idCardFront ? '已上传' : '未上传' }} · 反面：{{ form.idCardBack ? '已上传' : '未上传' }} · 手持：{{ form.holdingPhoto ? '已上传' : '未上传' }}</text><text>已上传：{{ (form.idCardFront ? 1 : 0) + (form.idCardBack ? 1 : 0) + (form.holdingPhoto ? 1 : 0) }} 张</text></view>
         <text v-if="stepHint" class="step-hint" aria-live="polite">{{ stepHint }}</text>
         <view class="nav-bar"><wd-button v-if="step > 0" :disabled="formLocked" plain @click="step--">上一步</wd-button><wd-button v-if="step < 2" type="primary" :disabled="formLocked || (step === 0 ? !validation.identity : !validation.identity || !validation.images)" @click="step++">下一步</wd-button><wd-button v-else type="primary" :disabled="!canSubmit" :loading="submitting" @click="submit">提交认证</wd-button></view>
       </view>

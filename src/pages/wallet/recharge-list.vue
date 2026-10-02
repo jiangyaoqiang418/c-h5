@@ -28,6 +28,8 @@ function formatTime(value?: string | number): string {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
 }
 
+function chainName(chain: string) { return ({ ETH: '以太坊', TRON: '波场', BSC: 'BNB 智能链' } as Record<string, string>)[chain.toUpperCase()] || chain; }
+function shortAddress(value?: string) { return value && value.length > 24 ? `${value.slice(0, 10)}…${value.slice(-8)}` : value || '—'; }
 </script>
 
 <template>
@@ -39,7 +41,7 @@ function formatTime(value?: string | number): string {
         class="record-card"
         @click="open(item)"
       >
-        <view class="head"><text class="chain">{{ item.chain }}</text><wd-tag round :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
+        <view class="head"><text class="chain">{{ chainName(item.chain) }}</text><wd-tag round :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
         <text class="amount-label">申报金额</text><text class="amount">{{ formatAmount(item.amount) }} <text class="unit">USDT</text></text>
         <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><view class="detail-link"><text>详情</text><wd-icon name="arrow-right" size="14px" color="#86909c" /></view></view>
       </view>
@@ -54,7 +56,7 @@ function formatTime(value?: string | number): string {
 </template>
 
 <style lang="scss" scoped>
-.list-page { min-height:100%; padding:24rpx; box-sizing:border-box; }.record-card { margin-bottom:16rpx; padding:24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
+.list-page { min-height:100%; padding:24rpx; box-sizing:border-box; }.record-card { margin-bottom:16rpx; padding:20rpx 24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .head, .foot { display: flex; align-items: center; justify-content: space-between; }
 .chain { font-size: 24rpx; font-weight: 600; color: #1d2129; }
 .amount-label { display:block; margin-top:18rpx; font-size:24rpx; color:var(--yb-muted); }.amount { display:block; margin:8rpx 0 18rpx; font-size:36rpx; font-weight:700; color:var(--yb-ink); font-family:var(--yb-font-body); overflow-wrap:anywhere; }.unit { font-size:24rpx; font-weight:400; color:var(--yb-muted); }

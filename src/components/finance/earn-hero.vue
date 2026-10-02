@@ -34,14 +34,14 @@ function handleWithdraw() {
     <text class="hero-sub">参考 ≈ ¥{{ cnyEquiv }}</text>
     <view v-if="bestApy > 0" class="apy-badge">
       <wd-icon name="chart" size="16px" color="var(--yb-muted)" />
-      <text class="apy-num">{{ bestApy.toFixed(2) }}% APY</text>
+      <text class="apy-num">在售产品最高年化 {{ bestApy.toFixed(2) }}%</text>
     </view>
     <view class="hero-actions">
       <view class="action-btn primary" @click="handleDeposit">
         <text>存入</text>
       </view>
       <view class="action-btn" @click="handleWithdraw">
-        <text>取出</text>
+        <text>查看持仓</text>
       </view>
     </view>
   </view>
@@ -85,7 +85,7 @@ function handleWithdraw() {
   min-width: 0;
   overflow-wrap: anywhere;
   font-family: var(--yb-font-body);
-  font-size: 64rpx;
+  font-size: 52rpx;
   font-weight: 700;
   color: var(--yb-ink);
   letter-spacing: -1rpx;
@@ -98,7 +98,7 @@ function handleWithdraw() {
   font-family: var(--yb-font-body);
   font-size: 26rpx;
   color: var(--yb-muted);
-  margin-bottom: 24rpx;
+  margin-bottom: 16rpx;
 }
 .apy-badge {
   display: flex;
@@ -107,7 +107,7 @@ function handleWithdraw() {
   gap: 8rpx;
   margin: 0 auto 24rpx;
   width: fit-content;
-  padding: 12rpx 24rpx;
+  padding: 8rpx 16rpx;
   background: var(--yb-bg);
   border-radius: 20rpx;
 }

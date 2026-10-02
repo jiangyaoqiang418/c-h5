@@ -295,22 +295,25 @@ async function submit() {
       <view class="text-field"><text class="field-label">商品标题 <text class="field-note">必填</text></text><wd-input v-model="form.productTitle" :disabled="formDisabled" placeholder="如 iPhone 16 Pro Max 256GB" /></view>
       <wd-cell title="商品分类" :value="categoryIds.length ? form.categoryName || '请选择' : '暂不可选'" :is-link="!formDisabled && !!categoryIds.length" @click="selectCategory" />
       <view v-if="!loading && !loadFailed && !categoryIds.length" class="category-hint">分类暂不可用，选择后才可提交。<wd-button plain size="small" @click="load">重试</wd-button></view>
+      <text class="form-section-label">预算与交付</text>
       <wd-cell title="收货地址" title-width="144rpx" custom-class="address-summary-cell" center :is-link="!formDisabled" @click="selectAddress">
         <view v-if="selectedAddress" class="address-summary">
+          <text class="address-summary-detail">{{ addressText(selectedAddress) }}</text>
           <view class="address-summary-contact">
             <text class="address-summary-name">{{ selectedAddress.receiverName }}</text>
             <text class="address-summary-phone">{{ selectedAddress.receiverPhone }}</text>
           </view>
-          <text class="address-summary-detail">{{ addressText(selectedAddress) }}</text>
         </view>
         <text v-else>请选择</text>
       </wd-cell>
       <wd-input v-model="form.budgetAmount" :disabled="formDisabled" label="预算 (USDT)" type="digit" />
       <wd-input v-model="form.expectedDays" :disabled="formDisabled" label="期望天数" type="number" />
+      <text class="form-section-label">服务要求</text>
       <wd-cell title="海外过关">
         <wd-switch v-model="form.overseasCustoms" :disabled="formDisabled" />
       </wd-cell>
       <wd-cell title="售后类型" :value="aftersaleLabel" :is-link="!formDisabled" @click="selectAftersale" />
+      <text class="form-section-label">补充说明</text>
       <view class="text-field"><text class="field-label">商品描述 <text class="field-note">选填</text></text><wd-textarea auto-height v-model="form.productDescription" :disabled="formDisabled" placeholder="补充型号、颜色与规格，最多 200 字" :maxlength="200" /></view>
       <view class="text-field"><text class="field-label">求购说明 <text class="field-note">必填 · 至少 10 字</text></text><wd-textarea auto-height v-model="form.appeal" :disabled="formDisabled" placeholder="说明需要购买的商品及具体要求" :maxlength="500" show-word-limit /></view>
       <view class="image-field">
@@ -434,4 +437,5 @@ async function submit() {
 .aftersale-option-check { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36rpx; height: 36rpx; border: 2rpx solid var(--yb-hairline-2); border-radius: 50%; box-sizing: border-box; }
 .is-selected .aftersale-option-check { border-color: var(--yb-brand); background: var(--yb-brand); }
 .aftersale-picker-footer { padding: 20rpx 24rpx; border-top: 1rpx solid var(--yb-hairline); }
+.form-section-label { display:block; padding:20rpx 28rpx 12rpx; margin-top:8rpx; background:var(--yb-bg); color:var(--yb-muted); font-size:24rpx; font-weight:600; }.address-summary { text-align:left; }.address-summary-contact { margin-top:6rpx; color:var(--yb-muted); font-size:24rpx; }.address-summary-detail { color:var(--yb-ink); font-size:26rpx; }
 </style>

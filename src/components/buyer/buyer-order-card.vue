@@ -8,8 +8,9 @@ import OrderStatusTag from '@/components/order/order-status-tag.vue';
 interface Props {
   order: Api.Order.OrderRecord | Api.RealOrder.OrderView;
   showActions?: boolean;
+  compact?: boolean;
 }
-const props = withDefaults(defineProps<Props>(), { showActions: true });
+const props = withDefaults(defineProps<Props>(), { showActions: true, compact: false });
 defineEmits<{
   (e: 'upload-proof', o: Api.Order.OrderRecord | Api.RealOrder.OrderView): void;
   (e: 'upload-shipping', o: Api.Order.OrderRecord | Api.RealOrder.OrderView): void;
@@ -32,7 +33,7 @@ function goDetail() {
 <template>
   <view class="bo-card" @click="goDetail">
     <view class="head">
-      <text class="code">{{ order.code }}</text>
+      <text class="counterpart">{{ counterpartName || '顾客信息待完善' }}</text>
       <OrderStatusTag :status="order.status" />
     </view>
     <view class="body">
@@ -40,9 +41,9 @@ function goDetail() {
       <view class="info">
         <text class="title">{{ order.productTitle }}</text>
         <view class="meta-chips">
-          <view class="chip"><wd-icon name="user" size="12px" /><text>{{ counterpartName }}</text></view>
+          <text class="code">订单 {{ order.code }}</text>
         </view>
-        <view class="addr"><wd-icon name="location" size="12px" /><text>{{ order.shippingAddress }}</text></view>
+        <view v-if="!compact" class="addr"><wd-icon name="location" size="12px" /><text>{{ order.shippingAddress }}</text></view>
       </view>
     </view>
     <view class="footer">
@@ -199,4 +200,8 @@ function goDetail() {
   background: rgba(0, 168, 138, 0.1);
   color: #00A88A;
 }
+</style>
+
+<style scoped lang="scss">
+.counterpart { flex:1; min-width:0; font-size:26rpx; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:16rpx; }.bo-card { padding:24rpx; box-shadow:none; }.code { white-space:normal; overflow-wrap:anywhere; }.footer { justify-content:flex-end; }.amount-block { align-items:flex-end; }.amount-label { font-size:22rpx; }
 </style>

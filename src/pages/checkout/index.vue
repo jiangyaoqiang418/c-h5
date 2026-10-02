@@ -31,6 +31,7 @@ const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 const addresses = ref<AddressRecord[]>([]);
 const selectedAddrId = ref<Api.RealAddress.LongId>();
 const agreed = ref(false);
+const goodsExpanded = ref(false);
 const submitting = ref(false);
 const loading = ref(false);
 const loadFailed = ref(false);
@@ -491,7 +492,7 @@ async function resumePending(pending: PendingCheckout) {
       <view class="block-heading"><text class="block-title">收货地址</text><wd-button v-if="selectedAddr" plain size="small" @click="chooseAddress">更换地址</wd-button></view>
       <view v-if="selectedAddr" class="addr">
         <text class="receiver">{{ selectedAddr.receiverName }} · {{ selectedAddr.receiverPhone }}</text>
-        <text class="detail">{{ selectedAddr.province }} {{ selectedAddr.city }} {{ selectedAddr.district }} {{ selectedAddr.detail }}</text>
+        <text class="detail">{{ selectedAddr.country || selectedAddr.countryCode || '' }} {{ selectedAddr.province }} {{ selectedAddr.city }} {{ selectedAddr.district }} {{ selectedAddr.detail }}</text>
       </view>
       <view v-else class="addr empty">
         <text>暂无地址</text>
@@ -501,7 +502,7 @@ async function resumePending(pending: PendingCheckout) {
 
     <view class="block">
       <text class="block-title">商品清单 ({{ items.length }})</text>
-      <view v-for="item in items" :key="item.key" class="goods-row">
+      <view v-for="item in (goodsExpanded ? items : items.slice(0, 3))" :key="item.key" class="goods-row">
         <image
           :src="item.product?.cover || UI_ASSETS.placeholders.product"
           class="goods-cover"
@@ -512,10 +513,11 @@ async function resumePending(pending: PendingCheckout) {
           <text class="goods-seller">买手 · {{ item.product?.sellerName }}</text>
           <view class="goods-amount">
             <text class="goods-qty">×{{ item.qty }}</text>
-            <PriceTag :price="item.lineTotal" size="sm" :show-rate="false" />
+            <PriceTag :price="item.lineTotal" size="sm" :show-rate="false" :show-reference="false" />
           </view>
         </view>
       </view>
+      <view v-if="items.length > 3" class="yb-expand-action" @click="goodsExpanded = !goodsExpanded">{{ goodsExpanded ? '收起商品清单' : `查看全部 ${items.length} 种商品` }}<wd-icon :name="goodsExpanded ? 'arrow-up' : 'arrow-down'" size="12px" /></view>
     </view>
 
     <view class="block">

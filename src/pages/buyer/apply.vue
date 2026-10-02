@@ -36,6 +36,7 @@ function applicationVersion(record: Api.RealUser.BuyerApplicationDTO | null | un
   return record ? JSON.stringify([String(record.id), record.status, record.appliedAt ?? null, record.reviewedAt ?? null]) : 'none';
 }
 
+const previousExpanded = ref(false);
 const application = computed(() => userStore.buyerApplication);
 const canApply = computed(() => submittedId.value == null && (!application.value || application.value.status === 'REJECTED'));
 const canSubmit = computed(() => (
@@ -165,11 +166,13 @@ onShow(() => { if (!submitting.value) load(); });
           <text class="status-tag yb-status-pill" :class="statusMeta.className">{{ statusMeta.label }}</text>
         </view>
         <text class="status-detail">{{ statusMeta.detail }}</text>
-        <view v-if="application" class="record-list">
+        <view v-if="application?.status === 'REJECTED' && application.reviewRemark" class="review-row"><text class="record-label">驳回原因</text><text class="review-text">{{ application.reviewRemark }}</text></view>
+        <view v-if="application?.status === 'REJECTED'" class="yb-expand-action" @click="previousExpanded = !previousExpanded">{{ previousExpanded ? '收起上次申请资料' : '查看上次申请资料' }}<wd-icon :name="previousExpanded ? 'arrow-up' : 'arrow-down'" size="12px" /></view>
+        <view v-if="application" v-show="application.status !== 'REJECTED' || previousExpanded" class="record-list">
           <view class="record-row"><text class="record-label">真实姓名</text><text>{{ application.realName || '-' }}</text></view>
           <view class="record-row"><text class="record-label">联系方式</text><text>{{ application.contact || '-' }}</text></view>
           <view class="record-row"><text class="record-label">申请时间</text><text>{{ formatTime(application.appliedAt) || '-' }}</text></view>
-          <view v-if="application.reviewRemark" class="review-row">
+          <view v-if="application.reviewRemark && application.status !== 'REJECTED'" class="review-row">
             <text class="record-label">审核意见</text>
             <text class="review-text">{{ application.reviewRemark }}</text>
           </view>

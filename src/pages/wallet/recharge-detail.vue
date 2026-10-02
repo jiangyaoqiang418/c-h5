@@ -123,17 +123,17 @@ async function cancel() {
       <text class="chain">充值链 · {{ detail.chainLabel || detail.chain }}</text>
     </view>
     <view class="section">
+      <text class="section-title">时间记录</text>
+      <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
+      <view class="row"><text class="label">到账时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
+    </view>
+    <view class="section">
       <text v-if="loadFailed" class="block">详情刷新失败，暂时保留上次信息；请重试后再操作。</text>
       <text class="section-title">充值信息</text>
       <view class="row"><text class="label">充值单 ID</text><text>{{ detail.id }}</text></view>
       <view class="block"><text class="label">平台充值地址</text><text class="block-value">{{ detail.depositAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.depositAddress)">复制地址</wd-button></view>
       <view class="block"><text class="label">转账备注</text><text class="block-value">{{ detail.memo || String(detail.id) }}</text><wd-button plain size="small" @click="copy(detail.memo || String(detail.id))">复制备注</wd-button></view>
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
-    </view>
-    <view class="section">
-      <text class="section-title">时间记录</text>
-      <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
-      <view class="row"><text class="label">到账时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
     </view>
     <view class="detail-actions">
       <wd-button block plain :loading="loading" :disabled="canceling" @click="load">刷新状态</wd-button>

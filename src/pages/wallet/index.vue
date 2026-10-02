@@ -191,14 +191,14 @@ function bucketLabel(key: string): string {
     </view>
 
     <view class="section">
-      <text class="sec-title">充提记录</text>
+
       <view class="record-links">
         <view class="record-link" @click="go('/pages/wallet/recharge-list')">
-          <view><text class="record-title">充值记录</text><text class="record-sub">查看充值地址与到账状态</text></view>
+          <view><text class="record-title">充值记录</text></view>
           <wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
         </view>
         <view class="record-link" @click="go('/pages/wallet/withdraw-list')">
-          <view><text class="record-title">提现记录</text><text class="record-sub">查看审核与链上到账状态</text></view>
+          <view><text class="record-title">提现记录</text></view>
           <wd-icon name="arrow-right" size="16px" color="#a6a9b1" />
         </view>
       </view>
@@ -216,6 +216,7 @@ function bucketLabel(key: string): string {
       <view v-if="recent.length">
         <TxnRow v-for="t in recent" :key="t.id" :txn="t" @detail="openTxn" />
       </view>
+      <view v-else-if="loading" class="page-loading">正在读取最近交易…</view>
       <EmptyState v-else-if="recentLoadFailed" title="最近交易加载失败" description="请稍后重试" />
       <EmptyState v-else title="暂无交易" />
     </view>
@@ -320,7 +321,7 @@ function bucketLabel(key: string): string {
 .hero-actions {
   display: flex;
   gap: 12rpx;
-  margin-top: 32rpx;
+  margin-top: 24rpx;
 }
 .action-btn {
   flex: 1;
@@ -328,7 +329,7 @@ function bucketLabel(key: string): string {
   flex-direction: column;
   align-items: center;
   gap: 6rpx;
-  padding: 20rpx 12rpx;
+  padding: 16rpx 12rpx;
   background: rgba(255,255,255,.1);
   border: 1rpx solid rgba(255,255,255,.16);
   border-radius: 20rpx;
@@ -452,8 +453,8 @@ function bucketLabel(key: string): string {
   font-size: 24rpx;
   color: var(--yb-muted);
 }
-.record-links { border-top: 1rpx solid #edece6; }
-.record-link { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; border-bottom: 1rpx solid #edece6; }
+.record-links { display:flex; gap:20rpx; }
+.record-link { display: flex; align-items: center; justify-content: space-between; flex:1; min-width:0; gap:8rpx; padding:8rpx 0; min-height:44px; }
 .record-link:last-child { border-bottom: none; }
 .record-title { display: block; font-size: 26rpx; font-weight: 600; color: #0f111a; }
 .record-sub { display: block; margin-top: 6rpx; font-size: 24rpx; color: var(--yb-muted); }

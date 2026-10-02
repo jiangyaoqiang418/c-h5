@@ -316,10 +316,10 @@ watch(submittedId, () => { stopPolling(); detail.value = undefined; detailLoadTo
         <view v-if="minimumAmount != null" class="condition-row"><text>最低充值金额</text><text>{{ minimumAmount }} USDT</text></view>
         <text v-else class="tip">最低充值条件尚未核对，请核实后转账。</text>
         <view v-if="rechargeAddress.minConfirmations != null" class="condition-row"><text>链确认要求</text><text>{{ rechargeAddress.minConfirmations }} 个确认</text></view>
-        <view v-if="rechargeAddress.tokenContract" class="contract"><text class="label">USDT 合约</text><text selectable class="contract-value">{{ rechargeAddress.tokenContract }}</text></view>
         <text class="label">专属充值地址</text>
         <text class="block-value">{{ rechargeAddress.address }}</text>
         <wd-button type="primary" block @click="copy(rechargeAddress.address)">复制充值地址</wd-button>
+        <view v-if="rechargeAddress.tokenContract" class="contract"><text class="label">USDT 合约</text><text selectable class="contract-value">{{ rechargeAddress.tokenContract }}</text></view>
         <text v-if="rechargeAddress.memo" class="tip">Memo / Tag：{{ rechargeAddress.memo }}</text>
       </view>
       <text v-else-if="addressLoading" class="tip">正在加载专属充值地址…</text>

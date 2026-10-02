@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentText from '@/components/common/content-text.vue';
 import { computed, ref, watch } from 'vue';
 import { onHide, onReachBottom, onShow } from '@dcloudio/uni-app';
 import { usePagedList } from '@/utils/paged-list';
@@ -259,8 +260,8 @@ function formatTime(value: string | number): string {
 
       <view class="meter">
         <view class="meter-info">
-          <text>{{ qualificationText }}</text>
-          <text>已加载 {{ ledgers.length }} / {{ total }} 条记录</text>
+          <text>{{ qualificationText }}</text><text>保证金使用率 {{ summary?.usageRate == null ? '—' : `${summary.usageRate}%` }}</text>
+
         </view>
       </view>
 
@@ -272,8 +273,8 @@ function formatTime(value: string | number): string {
           <text class="cell-val">{{ summary?.depositFrozen == null ? '—' : formatAmount(summary.depositFrozen) }}</text>
         </view>
         <view class="cell">
-          <text class="cell-lbl">可退 / 占用率</text>
-          <text class="cell-val">{{ summary?.depositAvailable == null ? '—' : formatAmount(summary.depositAvailable) }} / {{ summary?.usageRate == null ? '—' : `${summary.usageRate}%` }}</text>
+          <text class="cell-lbl">可退保证金</text>
+          <text class="cell-val">{{ summary?.depositAvailable == null ? '—' : formatAmount(summary.depositAvailable) }}</text>
         </view>
       </view>
 
@@ -287,12 +288,12 @@ function formatTime(value: string | number): string {
       <text v-if="!userStore.currentUser" class="empty-text">请先登录查看保证金记录</text>
       <text v-else-if="!userStore.currentUser.isBuyer" class="empty-text">当前账号尚未成为买手</text>
       <wd-button block plain :loading="summaryLoading || loading" :disabled="submitting" @click="loadPage">{{ userStore.currentUser ? '刷新并核对流水' : '登录或重试' }}</wd-button>
-      <text class="section-title">押金流水</text>
+      <view class="ledger-heading"><text class="section-title">押金流水</text><text>已加载 {{ ledgers.length }} / {{ total }} 条</text></view>
       <view v-if="ledgers.length">
         <view v-for="t in ledgers" :key="String(t.id)" class="txn-row">
           <view class="txn-main">
             <text class="txn-title">{{ bizTypeText(t.bizType) }}</text>
-            <text v-if="t.remark" class="txn-remark">{{ t.remark }}</text>
+            <ContentText v-if="t.remark" class="txn-remark" :text="t.remark" :lines="2" />
             <text class="txn-time">{{ formatTime(t.createdAt) }}</text>
           </view>
           <view class="txn-side">
@@ -354,4 +355,5 @@ function formatTime(value: string | number): string {
 .popup-title { display: block; font-size: 30rpx; font-weight: 600; margin-bottom: 16rpx; }
 .popup-hint { display: block; font-size: 24rpx; color: var(--yb-muted); line-height: 1.6; margin-bottom: 16rpx; }
 .popup-btn { margin-top: 16rpx; }
+.ledger-heading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12rpx; font-size:24rpx; color:var(--yb-muted); margin:20rpx 0 12rpx; }.ledger-heading .section-title { margin:0; }
 </style>

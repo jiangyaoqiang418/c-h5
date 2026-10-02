@@ -12,10 +12,12 @@ interface Props {
   size?: 'sm' | 'md' | 'lg';
   showFee?: boolean;
   showRate?: boolean;
+  showReference?: boolean;
 }
 const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   showFee: false,
+  showReference: true,
   showRate: true
 });
 
@@ -30,7 +32,7 @@ const set = computed(() => priceSet(props.price));
       <text class="usdt-unit">USDT</text>
     </view>
     <!-- 副 1：CNY 折算 -->
-    <view class="sub-line">
+    <view v-if="showReference" class="sub-line">
       <text class="approx">参考约 </text>
       <text class="cny-value">{{ set.cny }}</text>
     </view>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProductSummary from '@/components/common/product-summary.vue';
 import { computed, ref } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { orderRole } from '@/service/api/order';
@@ -141,11 +142,12 @@ function openOrder() {
       <text class="review-remark">{{ refund.reviewRemark }}</text>
     </view>
 
+    <view v-if="relatedOrder" class="product-context yb-card"><ProductSummary :title="relatedOrder.productTitle" :image="relatedOrder.productCover" :subtitle="relatedOrder.counterpartName" :quantity="relatedOrder.quantity" :reference="`订单 ${relatedOrder.orderNo || relatedOrder.code}`" /></view>
     <view class="section">
       <text class="section-title">退款信息</text>
       <view class="row"><text>关联订单</text><text class="mono">{{ refund.orderNo || refund.orderId }}</text></view>
       <view class="row"><text>退款金额</text><text class="amount">{{ refund.amount == null ? '—' : formatUsdt(refund.amount) }}</text></view>
-      <view class="row"><text>退款原因</text><text class="value">{{ refund.reason || '未填写' }}</text></view>
+      <view class="reason-block"><text class="reason-label">退款原因</text><text>{{ refund.reason || '未填写' }}</text></view>
       <view v-if="refund.appliedAt" class="row"><text>申请时间</text><text class="value">{{ formatTime(refund.appliedAt) }}</text></view>
       <view v-if="refund.reviewedAt" class="row"><text>审核时间</text><text class="value">{{ formatTime(refund.reviewedAt) }}</text></view>
       <view v-if="refund.canceledAt" class="row"><text>撤销时间</text><text class="value">{{ formatTime(refund.canceledAt) }}</text></view>
@@ -178,4 +180,5 @@ function openOrder() {
 .status { display: block; color: #8b5300; font-size: 36rpx; font-weight: 700; }.status--AGREED { color: #08765e; } .status--REJECTED { color: #b42318; } .status--CANCELED { color: var(--yb-muted); } .type { color: var(--yb-muted); font-size: 24rpx; }.code { display: block; margin-top: 12rpx; color: var(--yb-muted); font-family: ui-monospace, monospace; font-size: 24rpx; overflow-wrap:anywhere; }
 .section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: var(--yb-muted); font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: var(--yb-brand); font-family: var(--yb-font-body); font-size: 28rpx; font-weight: 700; }
 .evidence { display: flex; flex-wrap: wrap; gap: 12rpx; }.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }.section.actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:12rpx; padding:16rpx 0 calc(24rpx + env(safe-area-inset-bottom)); border:0; background:transparent; box-shadow:none; }
+.product-context { margin-bottom:20rpx; margin-top:20rpx; }.reason-block { display:flex; flex-direction:column; gap:8rpx; margin-top:20rpx; font-size:26rpx; line-height:1.6; overflow-wrap:anywhere; }.reason-label { color:var(--yb-muted); font-size:24rpx; }
 </style>

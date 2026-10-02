@@ -157,7 +157,7 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
       <view v-else-if="list.length">
         <view v-for="item in list" :key="item.refundId" class="refund-card" @click="openDetail(item)">
           <view class="head">
-            <text class="code">订单 {{ item.orderNo || item.orderId }}</text>
+            <text class="code">{{ userStore.isBuyerActive ? (item.buyerName || '顾客') : (item.sellerName || '买手') }}</text>
             <text class="status yb-status-pill" :class="`status-${item.status.toLowerCase()}`">{{ item.statusText || statusLabel[item.status] }}</text>
           </view>
           <view class="body">
@@ -165,10 +165,11 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
             <view class="info">
               <text class="title">{{ item.productTitle || '商品信息待补充' }}</text>
               <text class="reason">退款原因：{{ item.reason || '未填写' }}</text>
-              <text class="counterpart">{{ userStore.isBuyerActive ? '顾客' : '买手' }}：{{ userStore.isBuyerActive ? (item.buyerName || '—') : (item.sellerName || '—') }}</text>
+              <text class="counterpart">订单 {{ item.orderNo || item.orderId }}</text>
             </view>
           </view>
-          <view class="record-foot"><text class="record-time">{{ formatTime(item.reviewedAt || item.canceledAt || item.appliedAt) }}</text><text class="amount">退款金额 {{ item.amount == null ? '—' : formatUsdt(item.amount) }}</text></view>
+          <view class="record-foot"><text class="record-time">{{ item.canceledAt ? '撤销' : item.reviewedAt ? '审核' : '申请' }} {{ formatTime(item.canceledAt || item.reviewedAt || item.appliedAt) }}</text><text class="amount">退款金额 {{ item.amount == null ? '—' : formatUsdt(item.amount) }}</text></view>
+<text v-if="item.status === 'AGREED'" class="refund-note">申请已同意，实际退款结果请核对订单与资金流水。</text>
           <view v-if="!userStore.isBuyerActive && item.status === 'APPLYING'" class="actions" @click.stop>
             <wd-button plain size="small" :disabled="!canCancel(item)" @click="cancel(item)">撤销申请</wd-button>
           </view>
@@ -204,4 +205,5 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
 .record-time { color: var(--yb-muted); font-size: 24rpx; }
 .record-foot .amount { flex-shrink: 1; overflow-wrap: anywhere; }
 .actions { justify-content: flex-end; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx dashed #f2f3f5; }
+.refund-note { display:block; margin-top:12rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
 </style>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import RichTextContent from '@/components/common/rich-text-content.vue';
 import { computed, reactive, ref } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
 import { fetchCategoryTree, enabledThirdLevelCategories, type CategoryNode } from '@/service/api/category';
@@ -23,6 +24,9 @@ interface CategoryOption {
 
 const userStore = useUserStore();
 const step = ref(0);
+const descriptionOpen = ref(false);
+function previewImages(url: string) { uni.previewImage({ current: url, urls: form.images.map(image => image.url) }); }
+const saleLabels: Record<Api.RealProduct.AfterSaleType, string> = { SEVEN_DAY_NO_REASON: '7天无理由', SHOP_WARRANTY: '店保', NATIONAL_WARRANTY: '国保', NONE: '无售后' };
 const submitting = ref(false);
 const uploading = ref(false);
 const submitted = ref(false);
@@ -322,7 +326,8 @@ async function submit() {
         <view class="text-field"><text class="field-label">商品简介 <text class="required-note">必填</text></text><wd-textarea auto-height v-model="form.brief" placeholder="30 字以内，简要介绍商品特点" :maxlength="30" show-word-limit /></view>
         <view class="field-label">图文详情 <text class="optional-note">选填</text></view>
         <text class="field-help">补充规格、材质与使用说明；未填写时沿用商品简介。</text>
-        <RichTextEditor v-model="form.description" :disabled="submitting" @uploading="uploading = $event" />
+        <view class="yb-expand-action" role="button" :aria-expanded="descriptionOpen" @click="descriptionOpen = !descriptionOpen">{{ descriptionOpen ? '收起图文编辑' : form.description ? '编辑已填写的图文详情' : '添加图文详情' }}<wd-icon :name="descriptionOpen ? 'arrow-up' : 'arrow-down'" size="14px" /></view>
+        <view v-show="descriptionOpen"><RichTextEditor v-model="form.description" :disabled="submitting" @uploading="uploading = $event" /></view>
       </view>
 
       <view v-show="step === 1" class="form">
@@ -359,8 +364,15 @@ async function submit() {
         <view class="row"><text class="label">标题</text><text>{{ form.title }}</text></view>
         <view class="row"><text class="label">分类</text><text>{{ categoryName }}</text></view>
         <view class="row"><text class="label">售价</text><text>{{ form.price }} USDT</text></view>
+        <view class="row"><text class="label">运费</text><text>{{ form.shippingFee }} USDT</text></view>
+        <view class="row"><text class="label">税费</text><text>{{ form.taxFee }} USDT</text></view>
+        <view class="row"><text class="label">售后类型</text><text>{{ saleLabels[form.afterSaleType] }}</text></view>
+        <view class="row"><text class="label">海外过关</text><text>{{ form.overseasClearance ? '是 · 过关后不可退换' : '否' }}</text></view>
         <view class="row"><text class="label">库存</text><text>{{ form.stock }}</text></view>
         <view class="row"><text class="label">图片</text><text>{{ form.images.length }} 张</text></view>
+        <view class="summary-section"><text class="field-label">商品简介</text><text class="summary-copy">{{ form.brief }}</text></view>
+        <view class="summary-section"><text class="field-label">商品图片</text><view class="image-grid"><image v-for="image in form.images" :key="String(image.id)" :src="image.url" mode="aspectFit" class="summary-image" @click="previewImages(image.url)" /></view></view>
+        <view class="summary-section"><text class="field-label">图文详情</text><RichTextContent :content="form.description || form.brief" /></view>
         <text class="submit-tip">提交后商品进入平台审核，审核通过后才可上架销售。</text>
       </view>
     </view>
@@ -392,7 +404,7 @@ async function submit() {
 .choice-field { padding-bottom:20rpx; }
 .publish-page { min-height:100%; }
 .receipt-panel { display:flex; flex-direction:column; gap:16rpx; margin:24rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); font-size:26rpx; }
-.create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(280rpx + env(safe-area-inset-bottom)); }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }
+.create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(196rpx + env(safe-area-inset-bottom)); }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }
 .hint { display:block; margin-bottom:16rpx; font-size:24rpx; color:var(--yb-muted); }
 .image-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .image-cell, .add { width: 200rpx; height: 200rpx; }
@@ -417,4 +429,5 @@ async function submit() {
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f2f3f5; background: #fff;
 }
 .navigation-hint { display:block; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }.nav-actions { display:flex; gap:12rpx; }.nav-actions > * { flex:1; }
+.summary-section { margin-top:16rpx; }.summary-copy { display:block; font-size:26rpx; line-height:1.6; overflow-wrap:anywhere; }.summary-image { width:calc(33.333% - 8rpx); height:180rpx; border-radius:12rpx; background:var(--yb-bg); }.form { --wot-input-cell-label-width:168rpx; }
 </style>

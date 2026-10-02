@@ -75,11 +75,6 @@ onHide(() => { loadVersion++; loading.value = false; });
       <text class="amount-label">申请金额</text><text class="amount">{{ formatAmount(detail.amount) }} <text class="unit">USDT</text></text>
       <text class="chain">转出网络 · {{ detail.chain }}</text>
     </view>
-    <view class="section fund-check">
-      <text class="section-title">资金核对</text>
-      <text class="fund-note">提现状态与资金变化请分别核对。仅凭审核或失败状态无法确认资金是否已退回，可查看资金流水。</text>
-      <wd-button block plain @click="go('/pages/wallet/history')">查看资金流水</wd-button>
-    </view>
     <view class="section">
       <text v-if="loadFailed" class="block">刷新失败，暂时保留上次详情，请重试核对最新状态。</text>
       <text class="section-title">提现申请</text>
@@ -105,6 +100,11 @@ onHide(() => { loadVersion++; loading.value = false; });
       <view v-if="detail.submittedAt" class="row"><text class="label">已提交链上</text><text>{{ formatTime(detail.submittedAt) }}</text></view>
       <view v-if="detail.dispatchedAt" class="row"><text class="label">已派发打款</text><text>{{ formatTime(detail.dispatchedAt) }}</text></view>
       <view class="row"><text class="label">完成时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
+    </view>
+    <view class="section fund-check">
+      <text class="section-title">核对资金变化</text>
+      <text class="fund-note">提现状态与资金变化请分别核对。仅凭审核或失败状态无法确认资金是否已退回，可查看资金流水。</text>
+      <wd-button size="small" plain @click="go('/pages/wallet/history')">查看资金流水</wd-button>
     </view>
     <wd-button block plain :loading="loading" @click="load">刷新提现状态</wd-button>
   </view>

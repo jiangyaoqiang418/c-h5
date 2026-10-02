@@ -147,7 +147,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
           <wd-button type="primary" size="small" :disabled="opening || claiming" @click="goCreate"><wd-icon name="add" size="15px" /> 发起</wd-button>
         </view>
       </view>
-      <text class="hero-sub">USDT 担保 · 全球买手 · 24h 接单</text>
+      <text class="hero-sub">发布需求，查看买手接单与履约进度</text>
     </view>
 
     <view v-if="canClaim" class="tip">
@@ -196,7 +196,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
   position: relative;
   overflow: hidden;
 }
-.hero-sub {
+.hero-sub { display:none;
   display: block;
   font-size: 24rpx;
   color: var(--yb-muted);

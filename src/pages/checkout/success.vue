@@ -90,9 +90,9 @@ async function load() {
     <view v-if="order && !loadFailed && !loading" class="meta"><text>{{ orders.length }} 笔订单 · </text><text class="amount">{{ formatAmount(total) }}</text><text> USDT</text></view>
     <text v-if="!paid && !loading" class="meta">请查看订单核对状态，不要重复创建订单或重复付款。</text>
     <view class="actions">
-      <wd-button v-if="orderIds.length && !paramsInvalid" class="secondary-action" plain :loading="loading" @click="load">{{ userStore.currentUser ? '重新核对' : '登录或重试' }}</wd-button>
-      <wd-button v-if="orders.length > 1" class="secondary-action" plain @click="go('/pages/order/list')">查看全部订单</wd-button>
-      <wd-button v-if="orderId && !paramsInvalid" class="primary-action" type="primary" @click="go(`/pages/order/detail?id=${encodeURIComponent(String(orderId))}`)">查看订单</wd-button>
+      <wd-button v-if="!paid && orderIds.length && !paramsInvalid" class="secondary-action" plain :loading="loading" @click="load">{{ userStore.currentUser ? '重新核对' : '登录或重试' }}</wd-button>
+
+      <wd-button v-if="orderId && !paramsInvalid" class="primary-action" type="primary" @click="orders.length > 1 ? go('/pages/order/list') : go(`/pages/order/detail?id=${encodeURIComponent(String(orderId))}`)">{{ orders.length > 1 ? '查看全部订单' : '查看订单' }}</wd-button>
       <wd-button class="secondary-action" plain @click="go('/pages/index/index')">继续购物</wd-button>
     </view>
   </view>
