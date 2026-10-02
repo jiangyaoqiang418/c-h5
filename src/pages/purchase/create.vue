@@ -29,6 +29,14 @@ const categoryIds = ref<string[]>([]);
 const categoryTree = ref<CategoryNode[]>([]);
 const categoryPickerOpen = ref(false);
 const addresses = ref<AddressRecord[]>([]);
+const addressPickerOpen = ref(false);
+const aftersalePickerOpen = ref(false);
+const aftersaleOptions: Array<{ label: string; value: Api.Product.AftersaleType }> = [
+  { label: '7天无理由', value: '7day-no-reason' },
+  { label: '店保', value: 'shop-warranty' },
+  { label: '国保', value: 'national-warranty' },
+  { label: '无', value: 'none' }
+];
 const images = ref<Api.RealProduct.FileUploadResult[]>([]);
 const uploading = ref(false);
 
@@ -40,13 +48,15 @@ const form = reactive({
   budgetAmount: 500,
   expectedDays: 14,
   overseasCustoms: false,
-  aftersaleType: '7day-no-reason' as Api.Product.AftersaleType,
+  aftersaleType: aftersaleOptions[0].value,
   appeal: '',
   addressId: ''
 });
+const aftersaleLabel = computed(() => aftersaleOptions.find(option => option.value === form.aftersaleType)?.label || '请选择');
+const selectedAddress = computed(() => addresses.value.find(address => String(address.id) === form.addressId));
 function resetForm() {
   images.value = [];
-  Object.assign(form, { productTitle: '', productDescription: '', categoryName: '', categoryId: '', budgetAmount: 500, expectedDays: 14, overseasCustoms: false, aftersaleType: '7day-no-reason', appeal: '', addressId: '' });
+  Object.assign(form, { productTitle: '', productDescription: '', categoryName: '', categoryId: '', budgetAmount: 500, expectedDays: 14, overseasCustoms: false, aftersaleType: aftersaleOptions[0].value, appeal: '', addressId: '' });
 }
 const page = usePageOperation(() => {
   loadSequence++;
@@ -59,6 +69,8 @@ const page = usePageOperation(() => {
   loadFailed.value = true;
   formInitialized.value = false;
   addresses.value = [];
+  addressPickerOpen.value = false;
+  aftersalePickerOpen.value = false;
   categoryNames.value = [];
   categoryIds.value = [];
   categoryTree.value = [];
@@ -123,7 +135,7 @@ async function load() {
   }
 }
 onShow(load);
-onHide(() => { loadSequence++; loading.value = false; });
+onHide(() => { loadSequence++; loading.value = false; addressPickerOpen.value = false; aftersalePickerOpen.value = false; });
 
 function refreshReceipt() {
   try {
@@ -167,12 +179,28 @@ function onCategorySelected(item: { id: string; name: string }) {
 function selectAddress() {
   if (formDisabled.value) return;
   if (!addresses.value.length) return go('/pages/my/addresses');
-  const operation = page.capture();
-  const options = [...addresses.value];
-  uni.showActionSheet({
-    itemList: options.map(address => `${address.receiverName} ${address.receiverPhone} · ${address.detail}`),
-    success: result => { if (operation.isCurrent() && options[result.tapIndex]) form.addressId = String(options[result.tapIndex].id); }
-  });
+  addressPickerOpen.value = true;
+}
+
+function chooseAddress(address: AddressRecord) {
+  if (!addressPickerOpen.value || formDisabled.value || !addresses.value.some(item => String(item.id) === String(address.id))) return;
+  form.addressId = String(address.id);
+  addressPickerOpen.value = false;
+}
+
+function addressText(address: AddressRecord) {
+  return [address.countryCode !== 'CN' ? address.country : '', address.province, address.city, address.district, address.detail].filter(Boolean).join(' ');
+}
+
+function selectAftersale() {
+  if (formDisabled.value) return;
+  aftersalePickerOpen.value = true;
+}
+
+function chooseAftersale(value: Api.Product.AftersaleType) {
+  if (!aftersalePickerOpen.value || formDisabled.value || !aftersaleOptions.some(option => option.value === value)) return;
+  form.aftersaleType = value;
+  aftersalePickerOpen.value = false;
 }
 
 async function chooseImages() {
@@ -267,20 +295,22 @@ async function submit() {
       <view class="text-field"><text class="field-label">商品标题 <text class="field-note">必填</text></text><wd-input v-model="form.productTitle" :disabled="formDisabled" placeholder="如 iPhone 16 Pro Max 256GB" /></view>
       <wd-cell title="商品分类" :value="categoryIds.length ? form.categoryName || '请选择' : '暂不可选'" :is-link="!formDisabled && !!categoryIds.length" @click="selectCategory" />
       <view v-if="!loading && !loadFailed && !categoryIds.length" class="category-hint">分类暂不可用，选择后才可提交。<wd-button plain size="small" @click="load">重试</wd-button></view>
-      <wd-cell title="收货地址" :value="addresses.find(address => String(address.id) === form.addressId)?.detail || '请选择'" is-link @click="selectAddress" />
+      <wd-cell title="收货地址" title-width="144rpx" custom-class="address-summary-cell" center :is-link="!formDisabled" @click="selectAddress">
+        <view v-if="selectedAddress" class="address-summary">
+          <view class="address-summary-contact">
+            <text class="address-summary-name">{{ selectedAddress.receiverName }}</text>
+            <text class="address-summary-phone">{{ selectedAddress.receiverPhone }}</text>
+          </view>
+          <text class="address-summary-detail">{{ addressText(selectedAddress) }}</text>
+        </view>
+        <text v-else>请选择</text>
+      </wd-cell>
       <wd-input v-model="form.budgetAmount" :disabled="formDisabled" label="预算 (USDT)" type="digit" />
       <wd-input v-model="form.expectedDays" :disabled="formDisabled" label="期望天数" type="number" />
       <wd-cell title="海外过关">
         <wd-switch v-model="form.overseasCustoms" :disabled="formDisabled" />
       </wd-cell>
-      <view class="choice-field"><text class="choice-label">售后类型</text>
-        <wd-radio-group v-model="form.aftersaleType" :disabled="formDisabled" class="yb-choice-group" inline>
-          <wd-radio shape="dot" icon-placement="left" value="7day-no-reason">7天无理由</wd-radio>
-          <wd-radio shape="dot" icon-placement="left" value="shop-warranty">店保</wd-radio>
-          <wd-radio shape="dot" icon-placement="left" value="national-warranty">国保</wd-radio>
-          <wd-radio shape="dot" icon-placement="left" value="none">无</wd-radio>
-        </wd-radio-group>
-      </view>
+      <wd-cell title="售后类型" :value="aftersaleLabel" :is-link="!formDisabled" @click="selectAftersale" />
       <view class="text-field"><text class="field-label">商品描述 <text class="field-note">选填</text></text><wd-textarea auto-height v-model="form.productDescription" :disabled="formDisabled" placeholder="补充型号、颜色与规格，最多 200 字" :maxlength="200" /></view>
       <view class="text-field"><text class="field-label">求购说明 <text class="field-note">必填 · 至少 10 字</text></text><wd-textarea auto-height v-model="form.appeal" :disabled="formDisabled" placeholder="说明需要购买的商品及具体要求" :maxlength="500" show-word-limit /></view>
       <view class="image-field">
@@ -297,6 +327,45 @@ async function submit() {
     <wd-button type="primary" block class="submit-btn" :loading="submitting" :disabled="formDisabled || !categoryIds.length" @click="submit">{{ uploading ? '图片上传中' : '提交求购' }}</wd-button>
     </view>
     <CategoryPicker v-model="categoryPickerOpen" :tree="categoryTree" :selected-id="form.categoryId" @select="onCategorySelected" />
+    <wd-popup v-model="aftersalePickerOpen" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 28rpx 28rpx 0 0; overflow: hidden;">
+      <view class="aftersale-picker">
+        <view class="aftersale-picker-header">
+          <text class="aftersale-picker-title">选择售后类型</text>
+          <view class="aftersale-picker-close" role="button" aria-label="关闭售后类型选择" @click="aftersalePickerOpen = false"><wd-icon name="close" size="20px" /></view>
+        </view>
+        <view class="aftersale-options">
+          <view v-for="option in aftersaleOptions" :key="option.value" class="aftersale-option" :class="{ 'is-selected': form.aftersaleType === option.value }" role="radio" :aria-checked="form.aftersaleType === option.value" @click="chooseAftersale(option.value)">
+            <text>{{ option.label }}</text>
+            <view class="aftersale-option-check"><wd-icon v-if="form.aftersaleType === option.value" name="check" size="14px" color="#fff" /></view>
+          </view>
+        </view>
+        <view class="aftersale-picker-footer"><wd-button plain block @click="aftersalePickerOpen = false">取消</wd-button></view>
+      </view>
+    </wd-popup>
+    <wd-popup v-model="addressPickerOpen" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 28rpx 28rpx 0 0; overflow: hidden;">
+      <view class="address-picker">
+        <view class="address-picker-header">
+          <text class="address-picker-title">选择收货地址</text>
+          <view class="address-picker-close" role="button" aria-label="关闭地址选择" @click="addressPickerOpen = false"><wd-icon name="close" size="20px" /></view>
+        </view>
+        <scroll-view scroll-y class="address-picker-list" :style="{ height: `${Math.min(addresses.length, 4) * 196 + 40}rpx` }">
+          <view class="address-picker-options">
+            <view v-for="address in addresses" :key="String(address.id)" class="address-option" :class="{ 'is-selected': String(address.id) === form.addressId }" role="button" :aria-label="`${address.receiverName} ${address.receiverPhone} ${addressText(address)}${String(address.id) === form.addressId ? '，已选中' : ''}`" @click="chooseAddress(address)">
+              <view class="address-option-content">
+                <view class="address-option-contact">
+                  <text class="address-option-name">{{ address.receiverName }}</text>
+                  <text class="address-option-phone">{{ address.receiverPhone }}</text>
+                  <text v-if="address.isDefault" class="address-option-tag">默认</text>
+                </view>
+                <text class="address-option-detail">{{ addressText(address) }}</text>
+              </view>
+              <view class="address-option-check"><wd-icon v-if="String(address.id) === form.addressId" name="check" size="14px" color="#fff" /></view>
+            </view>
+          </view>
+        </scroll-view>
+        <view class="address-picker-footer"><wd-button plain block @click="addressPickerOpen = false">取消</wd-button></view>
+      </view>
+    </wd-popup>
   </view>
 </template>
 
@@ -323,14 +392,46 @@ async function submit() {
 .image { width: 100%; height: 100%; border-radius: 12rpx; }
 .remove { position:absolute; top:0; right:0; display:flex; align-items:center; justify-content:center; width:88rpx; height:88rpx; color:#fff; font-size:26rpx; }.remove::before { content:''; position:absolute; width:40rpx; height:40rpx; border-radius:50%; background:rgba(0,0,0,.55); }.remove :deep(.wd-icon) { position:relative; }
 .add { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 2rpx dashed #b9bdc7; border-radius: 12rpx; background: #f5f5f2; color: var(--yb-brand); font-size: 24rpx; }
-.choice-field { padding: 20rpx 32rpx 24rpx; }
-.choice-field :deep(.yb-choice-group) { display: flex; flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 12rpx; }
-.choice-field :deep(.wd-radio) { flex: 0 0 calc(50% - 6rpx); width: calc(50% - 6rpx); min-width: 0; margin: 0 !important; min-height: 88rpx; }
-.choice-label { display: block; margin-bottom: 16rpx; font-size: 26rpx; color: var(--yb-ink-2); }
 .form-intro { display:block; margin-bottom:16rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
 .text-field { padding:20rpx 32rpx; border-bottom:1rpx solid var(--yb-border); }
 .field-label { display:block; margin-bottom:12rpx; color:var(--yb-ink); font-size:26rpx; font-weight:600; }
 .field-note { margin-left:8rpx; color:var(--yb-muted); font-size:24rpx; font-weight:400; }
 .text-field :deep(.wd-input), .text-field :deep(.wd-textarea) { padding:0; }
 .text-field :deep(.wd-input__inner), .text-field :deep(.wd-textarea__inner) { text-align:left; }
+:deep(.address-summary-cell .wd-cell__body) { align-items: center; }
+:deep(.address-summary-cell .wd-cell__value) { min-width: 0; }
+.address-summary { min-width: 0; text-align: left; }
+.address-summary-contact { display: flex; align-items: center; gap: 12rpx; }
+.address-summary-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--yb-ink-2); font-size: 26rpx; font-weight: 500; }
+.address-summary-phone { flex-shrink: 0; color: var(--yb-muted); font-size: 24rpx; }
+.address-summary-detail { display: block; overflow: hidden; margin-top: 6rpx; text-overflow: ellipsis; white-space: nowrap; color: var(--yb-muted); font-size: 24rpx; line-height: 1.5; }
+.address-picker { background: var(--yb-surface); }
+.address-picker-header { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; padding: 0 24rpx 0 32rpx; border-bottom: 1rpx solid var(--yb-hairline); }
+.address-picker-title { color: var(--yb-ink); font-size: 30rpx; font-weight: 600; }
+.address-picker-close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; color: var(--yb-muted); }
+.address-picker-list { max-height: 54vh; background: var(--yb-bg); }
+.address-picker-options { padding: 20rpx 24rpx; }
+.address-option { display: flex; align-items: center; gap: 20rpx; margin-bottom: 16rpx; padding: 24rpx; border: 1rpx solid var(--yb-hairline-2); border-radius: var(--yb-radius-md); background: var(--yb-surface); }
+.address-option:last-child { margin-bottom: 0; }
+.address-option.is-selected { border-color: var(--yb-brand); background: var(--yb-brand-soft); }
+.address-option-content { flex: 1; min-width: 0; }
+.address-option-contact { display: flex; align-items: center; gap: 12rpx; margin-bottom: 10rpx; }
+.address-option-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--yb-ink); font-size: 28rpx; font-weight: 600; }
+.address-option-phone { flex-shrink: 0; color: var(--yb-muted); font-size: 24rpx; }
+.address-option-tag { flex-shrink: 0; padding: 2rpx 8rpx; border-radius: 6rpx; background: var(--yb-brand-soft); color: var(--yb-brand); font-size: 20rpx; line-height: 1.4; }
+.address-option-detail { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--yb-ink-2); font-size: 24rpx; line-height: 1.6; word-break: break-word; }
+.address-option-check { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36rpx; height: 36rpx; border: 2rpx solid var(--yb-hairline-2); border-radius: 50%; box-sizing: border-box; }
+.is-selected .address-option-check { border-color: var(--yb-brand); background: var(--yb-brand); }
+.address-picker-footer { padding: 20rpx 24rpx; border-top: 1rpx solid var(--yb-hairline); }
+.aftersale-picker { background: var(--yb-surface); }
+.aftersale-picker-header { display: flex; align-items: center; justify-content: space-between; min-height: 104rpx; padding: 0 24rpx 0 32rpx; border-bottom: 1rpx solid var(--yb-hairline); }
+.aftersale-picker-title { color: var(--yb-ink); font-size: 30rpx; font-weight: 600; }
+.aftersale-picker-close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; color: var(--yb-muted); }
+.aftersale-options { padding: 16rpx 24rpx; }
+.aftersale-option { display: flex; align-items: center; justify-content: space-between; min-height: 96rpx; margin-bottom: 12rpx; padding: 0 24rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-sm); color: var(--yb-ink-2); font-size: 28rpx; }
+.aftersale-option:last-child { margin-bottom: 0; }
+.aftersale-option.is-selected { border-color: var(--yb-brand); background: var(--yb-brand-soft); color: var(--yb-brand); font-weight: 600; }
+.aftersale-option-check { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 36rpx; height: 36rpx; border: 2rpx solid var(--yb-hairline-2); border-radius: 50%; box-sizing: border-box; }
+.is-selected .aftersale-option-check { border-color: var(--yb-brand); background: var(--yb-brand); }
+.aftersale-picker-footer { padding: 20rpx 24rpx; border-top: 1rpx solid var(--yb-hairline); }
 </style>

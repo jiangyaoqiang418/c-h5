@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { onLoad, onPullDownRefresh, onReachBottom, onUnload } from '@dcloudio/uni-app';
 import { fetchStorefrontProducts } from '@/service/api/product';
+import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import ProductCard from '@/components/product/product-card.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 
@@ -22,10 +23,66 @@ const loading = ref(false);
 const loadFailed = ref(false);
 const keyword = ref('');
 const categoryId = ref<string>();
+const categoryScopeId = ref<string>();
+const categoryTree = ref<CategoryNode[]>([]);
+const categoriesLoading = ref(false);
+const categoriesLoadFailed = ref(false);
 const sortKey = ref<SortKey>('sales');
 let loadSequence = 0;
+let categorySequence = 0;
 let disposed = false;
 let querySnapshot: { keyword?: string; categoryId?: string; sortBy: Api.RealProduct.PublicProductSort } = { sortBy: 'DEFAULT' };
+
+function findCategoryPath(nodes: CategoryNode[], id?: string, parents: CategoryNode[] = []): CategoryNode[] {
+  if (!id) return [];
+  for (const node of nodes) {
+    const path = [...parents, node];
+    if (String(node.id) === id) return path;
+    const childPath = findCategoryPath(node.children || [], id, path);
+    if (childPath.length) return childPath;
+  }
+  return [];
+}
+const categoryPath = computed(() => {
+  const path = findCategoryPath(categoryTree.value, categoryId.value);
+  const scopeIndex = path.findIndex(node => String(node.id) === categoryScopeId.value);
+  return scopeIndex >= 0 ? path.slice(scopeIndex) : [];
+});
+const filterParent = computed(() => {
+  const path = categoryPath.value;
+  const selected = path[path.length - 1];
+  return selected?.children?.some(node => node.enabled !== false) ? selected : path[path.length - 2];
+});
+const subcategories = computed(() => filterParent.value?.children?.filter(node => node.enabled !== false) || []);
+const selectedCategoryAnchor = computed(() => {
+  const index = subcategories.value.findIndex(node => String(node.id) === categoryId.value);
+  return index >= 0 ? `subcategory-${index}` : 'subcategory-all';
+});
+
+async function loadCategories() {
+  if (disposed || !categoryScopeId.value) return;
+  const sequence = ++categorySequence;
+  categoriesLoading.value = true;
+  categoriesLoadFailed.value = false;
+  try {
+    const tree = await fetchCategoryTree({ onlyEnabled: true, onlyWithProduct: true });
+    if (!disposed && sequence === categorySequence) categoryTree.value = tree;
+  } catch {
+    if (!disposed && sequence === categorySequence) categoriesLoadFailed.value = true;
+  } finally {
+    if (!disposed && sequence === categorySequence) categoriesLoading.value = false;
+  }
+}
+
+function selectCategory(id: string) {
+  if (disposed || id === categoryId.value) return;
+  const scope = findCategoryPath(categoryTree.value, categoryScopeId.value).slice(-1)[0];
+  if (!scope || !findCategoryPath([scope], id).length) return;
+  categoryId.value = id;
+  // 切换分类沿用已应用的搜索词和排序，重置分页并使旧请求失效。
+  querySnapshot = { ...querySnapshot, categoryId: id };
+  void load(true);
+}
 
 function submitSearch() {
   querySnapshot = { keyword: keyword.value.trim() || undefined, categoryId: categoryId.value, sortBy: sortMap[sortKey.value] };
@@ -38,11 +95,15 @@ function clearSearch() {
 
 onLoad(query => {
   if (query?.keyword) keyword.value = String(query.keyword);
-  if (query?.categoryId) categoryId.value = String(query.categoryId);
+  if (query?.categoryId) {
+    categoryId.value = String(query.categoryId);
+    categoryScopeId.value = categoryId.value;
+    void loadCategories();
+  }
   if (query?.sort && query.sort in sortMap) sortKey.value = query.sort as SortKey;
   submitSearch();
 });
-onUnload(() => { disposed = true; loadSequence++; });
+onUnload(() => { disposed = true; loadSequence++; categorySequence++; });
 
 async function load(reset = false) {
   if (disposed || (loading.value && !reset)) return;
@@ -84,7 +145,7 @@ async function load(reset = false) {
   }
 }
 
-onPullDownRefresh(() => load(true));
+onPullDownRefresh(() => { void loadCategories(); void load(true); });
 onReachBottom(() => {
   if (!loading.value && list.value.length < total.value) {
     load();
@@ -120,6 +181,25 @@ function onSortChange(v: string) {
       >
         <text>{{ s.label }}</text>
       </view>
+    </view>
+
+    <view v-if="categoriesLoading && !categoryTree.length" class="category-feedback">正在加载分类…</view>
+    <view v-else-if="categoriesLoadFailed" class="category-feedback category-feedback--error" @click="loadCategories">分类筛选加载失败，点击重试</view>
+    <view v-else-if="subcategories.length && filterParent" class="category-filter">
+      <scroll-view v-if="categoryPath.length > 1" scroll-x class="category-path" :show-scrollbar="false">
+        <view class="category-path-track">
+          <template v-for="(node, index) in categoryPath" :key="String(node.id)">
+            <text v-if="index" class="category-path-divider">/</text>
+            <view class="category-crumb" :class="{ 'is-current': String(node.id) === categoryId }" role="button" @click="selectCategory(String(node.id))"><text class="category-option-label">{{ node.name }}</text></view>
+          </template>
+        </view>
+      </scroll-view>
+      <scroll-view :key="String(filterParent.id)" scroll-x class="subcategory-scroll" :show-scrollbar="false" :scroll-into-view="selectedCategoryAnchor" scroll-with-animation>
+        <view class="subcategory-track">
+          <view id="subcategory-all" class="subcategory-option" :class="{ active: String(filterParent.id) === categoryId }" role="button" :aria-pressed="String(filterParent.id) === categoryId" @click="selectCategory(String(filterParent.id))"><text class="category-option-label">全部{{ filterParent.name }}</text></view>
+          <view v-for="(node, index) in subcategories" :id="`subcategory-${index}`" :key="String(node.id)" class="subcategory-option" :class="{ active: String(node.id) === categoryId }" role="button" :aria-pressed="String(node.id) === categoryId" @click="selectCategory(String(node.id))"><text class="category-option-label">{{ node.name }}</text><wd-icon v-if="node.children?.some(child => child.enabled !== false)" name="arrow-down" size="22rpx" /></view>
+        </view>
+      </scroll-view>
     </view>
 
     <view v-if="list.length" class="grid">
@@ -192,6 +272,18 @@ function onSortChange(v: string) {
   font-weight: 600;
   border-bottom: 4rpx solid var(--yb-brand);
 }
+.category-filter { padding: 16rpx 0; border-bottom: 1rpx solid var(--yb-hairline); background: var(--yb-surface); }
+.category-path, .subcategory-scroll { width: 100%; white-space: nowrap; }
+.category-path-track, .subcategory-track { display: inline-flex; align-items: center; padding: 0 24rpx; gap: 12rpx; vertical-align: top; }
+.category-path-track { margin-bottom: 12rpx; gap: 8rpx; }
+.category-crumb { display: flex; flex-shrink: 0; align-items: center; min-height: 72rpx; max-width: 240rpx; color: var(--yb-muted); font-size: 24rpx; }
+.category-crumb.is-current { color: var(--yb-ink); font-weight: 500; }
+.category-path-divider { color: var(--yb-hairline-2); font-size: 24rpx; }
+.subcategory-option { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 72rpx; max-width: 280rpx; padding: 0 24rpx; box-sizing: border-box; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-pill); background: var(--yb-bg); color: var(--yb-ink-2); font-size: 24rpx; gap: 8rpx; }
+.category-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subcategory-option.active { border-color: var(--yb-brand); background: var(--yb-brand-soft); color: var(--yb-brand); font-weight: 600; }
+.category-feedback { padding: 20rpx 24rpx; background: var(--yb-surface); color: var(--yb-muted); font-size: 24rpx; }
+.category-feedback--error { color: var(--yb-brand); }
 .grid {
   display: flex;
   flex-wrap: wrap;

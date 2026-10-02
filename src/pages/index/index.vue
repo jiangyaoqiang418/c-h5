@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { onHide, onShow, onUnload } from '@dcloudio/uni-app';
+import { computed, getCurrentInstance, nextTick, ref, watch } from 'vue';
+import { onHide, onResize, onShow, onUnload } from '@dcloudio/uni-app';
 import { usePageOperation } from '@/utils/page-operation';
 import { useUserStore } from '@/stores';
 import { getAccessToken } from '@/service/request/token';
@@ -54,7 +54,39 @@ const page = usePageOperation(() => {
 });
 
 const categoryIcons = ['phone', 'shop', 'gift', 'cart', 'bags', 'star'];
-const visibleCategories = computed(() => categoryRoots.value.slice(0, 10));
+const categoriesScrollable = computed(() => categoryRoots.value.length > 5);
+const pageInstance = getCurrentInstance();
+const categoryViewportWidth = ref(0);
+const categoryContentWidth = ref(0);
+const categoryScrollLeft = ref(0);
+const categoryIndicatorRatio = computed(() => categoryContentWidth.value > 0
+  ? Math.max(0.15, Math.min(1, categoryViewportWidth.value / categoryContentWidth.value))
+  : Math.min(1, 5.5 / Math.max(1, categoryRoots.value.length)));
+const categoryScrollProgress = computed(() => {
+  const distance = categoryContentWidth.value - categoryViewportWidth.value;
+  return distance > 0 ? Math.max(0, Math.min(1, categoryScrollLeft.value / distance)) : 0;
+});
+
+async function measureCategoryScroll() {
+  await nextTick();
+  if (!page.visible.value || !categoriesScrollable.value) return;
+  const operation = page.capture();
+  const query = uni.createSelectorQuery().in(pageInstance?.proxy);
+  query.select('.category-scroll').boundingClientRect(result => {
+    if (operation.isCurrent() && result && !Array.isArray(result)) categoryViewportWidth.value = result.width || 0;
+  });
+  query.select('.category-track').boundingClientRect(result => {
+    if (operation.isCurrent() && result && !Array.isArray(result)) categoryContentWidth.value = result.width || 0;
+  });
+  query.exec();
+}
+
+function onCategoryScroll(event: { detail: { scrollLeft: number; scrollWidth: number } }) {
+  categoryScrollLeft.value = event.detail.scrollLeft;
+  categoryContentWidth.value = event.detail.scrollWidth;
+}
+watch(categoryRoots, measureCategoryScroll);
+onResize(measureCategoryScroll);
 
 function endTime(value: string | number): number {
   if (value == null || String(value).trim() === '') return NaN;
@@ -233,21 +265,24 @@ function goBanner(path?: string) {
     <view v-if="loadFailed" class="data-notice" @click="load([...failedModules])">{{ loading ? '正在重试失败内容…' : '部分首页内容加载失败，点击重试' }}</view>
     <view v-if="unreadFailed" class="data-notice" @click="refreshUnread">消息未读状态暂不可用，点击重试；仍可进入消息中心。</view>
 
-    <view
-      v-if="visibleCategories.length"
-      class="category-card"
-      :class="{ 'category-card--compact': visibleCategories.length < 5 }"
-    >
-      <view
-        v-for="(category, index) in visibleCategories"
-        :key="category.id"
-        class="category-item yb-pressable"
-        :class="{ 'category-item--compact': visibleCategories.length < 5 }"
-        @click="goCategory(category.id)"
-      >
-        <wd-icon :name="categoryIcons[index % categoryIcons.length]" size="52rpx" />
-        <text>{{ category.name }}</text>
-        <wd-icon v-if="visibleCategories.length < 5" class="category-arrow" name="arrow-right" size="30rpx" />
+    <view v-if="categoryRoots.length" class="category-card">
+      <scroll-view :scroll-x="categoriesScrollable" class="category-scroll" :show-scrollbar="false" @scroll="onCategoryScroll">
+        <view class="category-track" :class="{ 'category-track--scrollable': categoriesScrollable }">
+          <view
+            v-for="(category, index) in categoryRoots"
+            :key="category.id"
+            class="category-item yb-pressable"
+            role="button"
+            :aria-label="category.name"
+            @click="goCategory(category.id)"
+          >
+            <wd-icon :name="categoryIcons[index % categoryIcons.length]" size="44rpx" />
+            <text class="category-name">{{ category.name }}</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view v-if="categoriesScrollable" class="category-scroll-indicator" aria-label="左右滑动查看更多分类">
+        <view class="category-scroll-thumb" :style="{ width: `${categoryIndicatorRatio * 100}%`, left: `${categoryScrollProgress * (1 - categoryIndicatorRatio) * 100}%` }" />
       </view>
     </view>
 
@@ -337,7 +372,9 @@ function goBanner(path?: string) {
   align-items: center;
   min-height: 112rpx;
   padding: calc(env(safe-area-inset-top) + 16rpx) 32rpx 16rpx;
-  background: var(--yb-surface);
+  background: #fcfcfd;
+  border-bottom: 1rpx solid var(--yb-hairline);
+  box-shadow: 0 2rpx 10rpx rgba(15, 17, 26, 0.035);
   gap: 16rpx;
 }
 
@@ -356,13 +393,16 @@ function goBanner(path?: string) {
 .hero-primary, .hero-secondary { display: flex; align-items: center; justify-content: center; min-width: 132rpx; min-height: 44px; padding: 0 18rpx; border-radius: 12rpx; font-size: var(--yb-fs-body-sm); font-weight: 600; white-space: nowrap; }
 .hero-primary { background: var(--yb-brand); color: var(--yb-surface); }
 .hero-secondary { border: 1rpx solid rgba(255, 255, 255, .78); color: var(--yb-surface); }
-.category-card { display: flex; flex-wrap: wrap; margin: 0 var(--yb-page-padding); padding: 16rpx 8rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); box-shadow: var(--yb-shadow-card); }
-.category-item { display: flex; flex: none; flex-direction: column; align-items: center; width: 20%; min-width: 0; padding: 12rpx 2rpx; color: var(--yb-ink); font-size: var(--yb-fs-body-sm); gap: 12rpx; }
+.category-card { margin: 0 var(--yb-page-padding); padding: 12rpx 8rpx; overflow: hidden; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); box-shadow: var(--yb-shadow-card); }
+.category-scroll { width: 100%; white-space: nowrap; }
+.category-track { display: flex; width: 100%; }
+.category-track--scrollable { display: inline-flex; width: auto; min-width: 100%; vertical-align: top; }
+.category-item { display: flex; flex: 1; flex-direction: column; align-items: center; min-width: 0; padding: 16rpx 12rpx 8rpx; box-sizing: border-box; color: var(--yb-ink); font-size: var(--yb-fs-body-sm); gap: 12rpx; }
+.category-track--scrollable .category-item { flex: 0 0 124rpx; width: 124rpx; }
 .category-item :deep(.wd-icon) { color: var(--yb-ink); }
-.category-card--compact { padding: 10rpx 12rpx; }
-.category-item--compact { flex: 1; flex-direction: column; justify-content: center; width: auto; min-height: 76rpx; padding: 8rpx 16rpx; font-size: var(--yb-fs-body); gap: 14rpx; }
-.category-item--compact text { text-align: center; word-break: break-word; }
-.category-item--compact :deep(.category-arrow) { display: none; }
+.category-name { display: -webkit-box; width: 100%; height: 64rpx; overflow: hidden; line-height: 32rpx; text-align: center; white-space: normal; word-break: break-word; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.category-scroll-indicator { position: relative; width: 84rpx; height: 6rpx; margin: 4rpx auto 8rpx; overflow: hidden; border-radius: var(--yb-radius-pill); background: var(--yb-hairline); }
+.category-scroll-thumb { position: absolute; top: 0; height: 100%; border-radius: var(--yb-radius-pill); background: var(--yb-brand); }
 
 .section { margin: 24rpx var(--yb-page-padding) 0; padding: 24rpx; border: 1rpx solid var(--yb-hairline); border-radius: var(--yb-radius-card); background: var(--yb-surface); }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
