@@ -41,6 +41,24 @@ const status = computed(() => {
   }
   return refund.value ? (refund.value.statusText || statusLabel[refund.value.status]) : '';
 });
+const statusDescription = computed(() => {
+  if (!refund.value) return '';
+  const descriptions: Record<Api.RealOrder.RefundStatus, string> = {
+    APPLYING: '申请已提交，当前正在等待审核。',
+    AGREED: '退款申请已同意，资金变化请结合订单与资金流水核对。',
+    REJECTED: '申请已驳回，请先阅读审核说明。',
+    CANCELED: '申请已撤销，当前订单状态请在关联订单中查看。'
+  };
+  return cancelReceipt.value ? refundCancelMessage(cancelReceipt.value) : descriptions[refund.value.status] || '请核对当前申请状态。';
+});
+function formatTime(value?: string | number) {
+  if (value == null || value === '') return '';
+  const date = /^\d+$/.test(String(value)) ? new Date(Number(value)) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '时间待确认' : date.toLocaleString();
+}
+function previewEvidence(current: string) {
+  if (refund.value?.evidenceImages?.length) uni.previewImage({ current, urls: refund.value.evidenceImages });
+}
 function refreshReceipt() {
   if (!userStore.realUserId) return;
   try {
@@ -113,9 +131,15 @@ function openOrder() {
   <view v-if="refund" class="as-detail yb-page">
     <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="reload">详情刷新失败，点击重试（当前为上次记录）</wd-button>
     <view class="hero">
-      <text class="status">{{ status }}</text>
+      <text class="status" :class="`status--${refund.status}`">{{ status }}</text>
       <text class="type">仅退款</text>
+      <text class="status-description">{{ statusDescription }}</text>
       <text class="code">退款单号 {{ refund.refundBizNo || refund.refundId }}</text>
+    </view>
+
+    <view v-if="refund.reviewRemark" class="section review-result">
+      <text class="section-title">审核说明</text>
+      <text class="review-remark">{{ refund.reviewRemark }}</text>
     </view>
 
     <view class="section">
@@ -123,16 +147,14 @@ function openOrder() {
       <view class="row"><text>关联订单</text><text class="mono">{{ refund.orderNo || refund.orderId }}</text></view>
       <view class="row"><text>退款金额</text><text class="amount">{{ refund.amount == null ? '—' : formatUsdt(refund.amount) }}</text></view>
       <view class="row"><text>退款原因</text><text class="value">{{ refund.reason || '未填写' }}</text></view>
+      <view v-if="refund.appliedAt" class="row"><text>申请时间</text><text class="value">{{ formatTime(refund.appliedAt) }}</text></view>
+      <view v-if="refund.reviewedAt" class="row"><text>审核时间</text><text class="value">{{ formatTime(refund.reviewedAt) }}</text></view>
+      <view v-if="refund.canceledAt" class="row"><text>撤销时间</text><text class="value">{{ formatTime(refund.canceledAt) }}</text></view>
     </view>
 
     <view v-if="refund.evidenceImages?.length" class="section">
       <text class="section-title">凭证图片</text>
-      <view class="evidence"><image v-for="url in refund.evidenceImages" :key="url" :src="url || UI_ASSETS.placeholders.evidence" mode="aspectFill" class="ev-img" /></view>
-    </view>
-
-    <view v-if="refund.reviewRemark" class="section">
-      <text class="section-title">审核说明</text>
-      <text class="value">{{ refund.reviewRemark }}</text>
+      <view class="evidence"><image v-for="url in refund.evidenceImages" :key="url" :src="url || UI_ASSETS.placeholders.evidence" mode="aspectFill" class="ev-img" @click="previewEvidence(url)" /></view>
     </view>
 
     <view class="section actions">
@@ -147,9 +169,13 @@ function openOrder() {
 </template>
 
 <style lang="scss" scoped>
+.status-description { display: block; margin-top: 12rpx; color: var(--yb-muted); font-size: 26rpx; line-height: 1.6; }
+.review-remark { display: block; color: var(--yb-ink); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 26rpx; line-height: 1.7; }
+.row > text:first-child { flex: none; }
+.row > text:last-child { min-width: 0; overflow-wrap: anywhere; }
 .as-detail { min-height: 100%; padding:24rpx; }.hero, .section { background:#fff; padding:24rpx; border-radius:var(--yb-radius-lg); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.section { margin-top:20rpx; }.section + .hero { margin-top:20rpx; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
-.status { display: block; color: #ff7d00; font-size: 36rpx; font-weight: 700; }.type { display: block; margin-top: 8rpx; color: #1d2129; font-size: 28rpx; }.code { display: block; margin-top: 12rpx; color: #86909c; font-family: ui-monospace, monospace; font-size: 22rpx; }
-.section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: #86909c; font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: #f53f3f; font-family: ui-monospace, monospace; font-size: 28rpx; font-weight: 700; }
+.status { display: block; color: #8b5300; font-size: 36rpx; font-weight: 700; }.status--AGREED { color: #08765e; } .status--REJECTED { color: #b42318; } .status--CANCELED { color: var(--yb-muted); } .type { display: block; margin-top: 8rpx; color: #1d2129; font-size: 28rpx; }.code { display: block; margin-top: 12rpx; color: var(--yb-muted); font-family: ui-monospace, monospace; font-size: 24rpx; }
+.section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: var(--yb-muted); font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: var(--yb-brand); font-family: var(--yb-font-body); font-size: 28rpx; font-weight: 700; }
 .evidence { display: flex; flex-wrap: wrap; gap: 12rpx; }.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }.actions { padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); }.mt { margin-top: 12rpx; }
 </style>

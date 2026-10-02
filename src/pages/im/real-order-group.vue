@@ -134,9 +134,9 @@ const latestOrderCard = computed(() => {
   const message = [...messages.value].reverse().find(item => item.msgType === 'ORDER_CARD');
   return message ? parseOrderCard(message.content) : undefined;
 });
-const headerTitle = computed(() => conversation.value?.peerName || latestOrderCard.value?.productTitle || conversation.value?.productTitle || conversation.value?.title || (supportMode ? '平台客服' : '订单群聊'));
+const headerTitle = computed(() => supportMode || conversation.value?.type === 'SUPPORT' ? '平台客服' : latestOrderCard.value?.productTitle || conversation.value?.productTitle || conversation.value?.peerName || conversation.value?.title || '订单会话');
 const headerMeta = computed(() => {
-  if (conversation.value?.type === 'SUPPORT') return '平台客服';
+  if (supportMode || conversation.value?.type === 'SUPPORT') return conversation.value?.peerName && conversation.value.peerName !== '平台客服' ? `会话对象 · ${conversation.value.peerName}` : '独立客服会话';
   const orderNo = latestOrderCard.value?.orderNo || conversation.value?.orderNo;
   const status = currentOrderStatus.value || latestOrderCard.value?.statusText || conversation.value?.orderStatusText || '—';
   return `进行中订单 ${conversation.value?.activeOrderCount || 0} 笔 · 最近订单 ${orderNo || '—'} · ${status}`;
@@ -795,7 +795,11 @@ function rememberRecoveryBoundary() {
   }
 }
 
-onLoad(query => { currentOrderId = String(query?.orderId || ''); supportMode = String(query?.support || '') === '1'; });
+onLoad(query => {
+  currentOrderId = String(query?.orderId || '');
+  supportMode = String(query?.support || '') === '1';
+  uni.setNavigationBarTitle({ title: supportMode ? '平台客服' : '订单会话' });
+});
 
 async function initialize() {
   if (!pageVisible.value || destroyed || initializing) return;
@@ -959,14 +963,18 @@ function readText(message: Api.RealNotify.Message) {
     </scroll-view>
     <view v-if="hasNewMessages" class="realtime-notice" @click="showLatestMessages">有新消息，点击查看</view>
     <view class="composer">
+      <view class="composer-text">
+      <input v-model="inputText" class="input" placeholder="输入消息" :disabled="sending" confirm-type="send" @confirm="sendText()" />
+      <view class="send" :class="{ disabled: !inputText.trim() || sending }" @click="sendText()">{{ sending ? '发送中' : '发送' }}</view>
+      </view>
+      <view class="composer-media">
       <view class="image-picker" :class="{ disabled: sending }" @click="sendImage">图片</view>
       <view class="image-picker" :class="{ disabled: sending }" @click="sendVideo">视频</view>
       <view class="voice-picker" :class="{ recording: voiceRecording, disabled: sending }" @touchstart="startVoice" @touchend="stopVoice" @touchcancel="discardVoice">{{ voiceRecording ? '松开发送' : '按住说话' }}</view>
-      <input v-model="inputText" class="input" placeholder="输入消息" :disabled="sending" confirm-type="send" @confirm="sendText()" />
-      <view class="send" :class="{ disabled: !inputText.trim() || sending }" @click="sendText()">{{ sending ? '发送中' : '发送' }}</view>
+      </view>
     </view>
   </view>
-  <EmptyState v-else-if="loadFailed" title="订单群加载失败" description="请重新加载会话与消息" action-text="重新加载" @action="initialize" />
+  <EmptyState v-else-if="loadFailed" :title="supportMode ? '客服会话加载失败' : '订单会话加载失败'" description="请重新加载会话与消息" action-text="重新加载" @action="initialize" />
   <EmptyState v-else-if="(currentOrderId || supportMode) && !userStore.currentUser" title="请先登录查看会话" description="当前尚未读取账号消息" action-text="登录或重试" @action="initialize" />
   <EmptyState v-else-if="currentOrderId || supportMode" title="会话尚未加载" action-text="重新加载" @action="initialize" />
   <EmptyState v-else title="缺少订单信息" description="请从订单或会话列表进入" />
@@ -977,5 +985,18 @@ function readText(message: Api.RealNotify.Message) {
 .state-loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
 .orders{flex-shrink:0;width:100%;background:#fff;border-bottom:1rpx solid var(--yb-border)}.orders-inner{display:flex;gap:12rpx;padding:12rpx 24rpx;white-space:nowrap}.order-chip,.order-action{padding:10rpx 16rpx;border-radius:24rpx;background:#f2f3f5;color:#4e5969;font-size:22rpx}.order-action{color:var(--yb-brand)}.intervention{background:#e8f3ff}.order-action.disabled{color:#86909c;background:#f2f3f5}
 .header { padding: 20rpx 32rpx; background: #fff; border-bottom: 1rpx solid var(--yb-border); }.title,.meta,.sender { display:block; }.title{font-size:30rpx;font-weight:600}.meta,.sender{font-size:22rpx;color:#86909c;margin-top:4rpx}.messages{flex:1;width:100%;min-width:0;min-height:0;padding:20rpx 24rpx;box-sizing:border-box;overflow-x:hidden}.row{display:flex;width:100%;min-width:0;flex-direction:column;margin-bottom:20rpx}.row.right{align-items:flex-end}.row.center{align-items:center}.bubble{max-width:75%;padding:16rpx 20rpx;box-sizing:border-box;border-radius:var(--yb-radius-md);background:#fff;color:#1d2129;font-size:26rpx;overflow-wrap:anywhere;word-break:break-word;border:1rpx solid var(--yb-border)}.bubble.right{background:var(--yb-brand);border-color:var(--yb-brand);color:#fff}.bubble.center{background:#f1f1ee;color:#717784;font-size:22rpx}.empty{text-align:center;color:#86909c;padding:60rpx 0}
-.realtime-notice{display:flex;align-items:center;justify-content:space-between;gap:16rpx;padding:12rpx 32rpx;background:#fff6e8;color:#a85a00;font-size:22rpx}.retry{color:var(--yb-brand)}.delivery,.recall{font-size:20rpx;color:#86909c;margin-top:4rpx}.recall{color:var(--yb-brand)}.sender{display:flex;align-items:center;gap:8rpx}.role-tag{padding:1rpx 8rpx;border-radius:12rpx;font-size:18rpx}.role-tag.customer{background:#e8f3ff;color:#165dff}.role-tag.seller{background:#f5e8ff;color:#722ed1}.role-tag.admin{background:#fff3e8;color:#d46b08}.message-image{display:block;max-width:100%;border-radius:12rpx}.message-video{display:block;width:480rpx;max-width:68vw;height:270rpx;border-radius:12rpx;background:#151922}.voice-message{display:block;min-width:150rpx}.composer{display:flex;width:100%;min-width:0;align-items:center;gap:12rpx;padding:16rpx 24rpx;padding-bottom:calc(16rpx + env(safe-area-inset-bottom));box-sizing:border-box;background:#fff;border-top:1rpx solid var(--yb-border)}.image-picker,.voice-picker{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-width:72rpx;min-height:80rpx;color:var(--yb-brand);font-size:22rpx}.image-picker.disabled,.voice-picker.disabled{color:#c9cdd4}.voice-picker.recording{color:#d4380d}.input{flex:1;min-width:0;height:80rpx;padding:0 24rpx;box-sizing:border-box;border-radius:40rpx;background:#f2f2ef;font-size:26rpx}.send{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-height:80rpx;padding:0 24rpx;border-radius:40rpx;background:var(--yb-brand);color:#fff;font-size:24rpx;font-weight:600}.send.disabled{background:#c9cdd4}
+.realtime-notice{display:flex;align-items:center;justify-content:space-between;gap:16rpx;padding:12rpx 32rpx;background:#fff6e8;color:#a85a00;font-size:22rpx}.retry{color:var(--yb-brand)}.delivery,.recall{font-size:20rpx;color:#86909c;margin-top:4rpx}.recall{color:var(--yb-brand)}.sender{display:flex;align-items:center;gap:8rpx}.role-tag{padding:1rpx 8rpx;border-radius:12rpx;font-size:18rpx}.role-tag.customer{background:#e8f3ff;color:#165dff}.role-tag.seller{background:#f5e8ff;color:#722ed1}.role-tag.admin{background:#fff3e8;color:#d46b08}.message-image{display:block;max-width:100%;border-radius:12rpx}.message-video{display:block;width:480rpx;max-width:68vw;height:270rpx;border-radius:12rpx;background:#151922}.voice-message{display:block;min-width:150rpx}.composer{display:flex;flex-direction:column;width:100%;min-width:0;align-items:center;gap:12rpx;padding:16rpx 24rpx;padding-bottom:calc(16rpx + env(safe-area-inset-bottom));box-sizing:border-box;background:#fff;border-top:1rpx solid var(--yb-border)}.image-picker,.voice-picker{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-width:72rpx;min-height:80rpx;color:var(--yb-brand);font-size:22rpx}.image-picker.disabled,.voice-picker.disabled{color:#c9cdd4}.voice-picker.recording{color:#d4380d}.input{flex:1;min-width:0;height:80rpx;padding:0 24rpx;box-sizing:border-box;border-radius:16rpx;background:#f5f6f8;font-size:26rpx}.send{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-height:80rpx;padding:0 24rpx;border-radius:16rpx;background:var(--yb-brand);color:#fff;font-size:24rpx;font-weight:600}.send.disabled{background:#c9cdd4}
+.composer-text,.composer-media { display: flex; align-items: center; width: 100%; gap: 16rpx; }
+.composer-media { justify-content: flex-start; }
+.composer-media > view { min-width: 96rpx; min-height: 88rpx; font-size: 24rpx; color: var(--yb-muted); }
+.state-loading, .meta, .sender, .empty, .delivery { color: var(--yb-muted); font-size: 24rpx; }
+.bubble.center, .realtime-notice { font-size: 24rpx; }
+.bubble.center { color: var(--yb-muted); }
+.order-chip, .order-action { font-size: 24rpx; }
+.order-action, .retry, .recall { display: inline-flex; align-items: center; justify-content: center; min-height: 88rpx; min-width: 88rpx; box-sizing: border-box; }
+.recall { font-size: 24rpx; }
+.role-tag { font-size: 24rpx; }
+.role-tag.customer { color: #1554d1; }
+.role-tag.admin { color: #8b5300; }
+.send { min-height: 88rpx; min-width: 88rpx; }
 </style>

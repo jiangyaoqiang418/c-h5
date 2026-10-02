@@ -26,6 +26,9 @@ defineEmits<{
 const cover = computed(
   () => props.order.productCover || UI_ASSETS.placeholders.product
 );
+const hasActions = computed(() => props.sellerMode ? props.order.rawStatus === 'PAID'
+  : ['PENDING_PAYMENT', 'IN_TRANSIT', 'COMPLETED', 'WARRANTY'].includes(props.order.status)
+    || ['PAID', 'SHIPPED'].includes(props.order.rawStatus));
 
 function goDetail() {
   go(`/pages/order/detail?id=${props.order.id}`);
@@ -35,7 +38,7 @@ function goDetail() {
 <template>
   <view class="order-card" @click="goDetail">
     <view class="head">
-      <text class="code">{{ order.code }}</text>
+      <text class="code">订单 {{ order.code }}</text>
       <OrderStatusTag :status="order.status" />
     </view>
     <view class="body">
@@ -44,12 +47,12 @@ function goDetail() {
         <text class="title">{{ order.productTitle }}</text>
         <text class="seller">{{ order.counterpartLabel }} · {{ order.counterpartName }}</text>
       </view>
-      <view class="amount">
-        <text class="amount-cny">{{ formatUsdt(order.totalAmount) }}</text>
-        <text class="amount-usdt">≈ {{ formatCny(order.totalAmount) }}</text>
-      </view>
     </view>
-    <view class="actions" @click.stop>
+    <view class="amount">
+      <text class="amount-label">订单合计</text>
+      <view class="amount-values"><text class="amount-cny">{{ formatUsdt(order.totalAmount) }}</text><text class="amount-usdt">参考 ≈ {{ formatCny(order.totalAmount) }}</text></view>
+    </view>
+    <view v-if="hasActions" class="actions" @click.stop>
       <wd-button
         v-if="props.sellerMode && order.rawStatus === 'PAID'"
         type="primary"
@@ -129,14 +132,19 @@ function goDetail() {
   border-bottom: 1rpx dashed var(--yb-border);
 }
 .code {
-  font-size: 22rpx;
-  color: #4e5969;
-  font-family: ui-monospace, monospace;
+  min-width: 0;
+  margin-right: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 24rpx;
+  color: var(--yb-muted);
+  font-family: var(--yb-font-body);
 }
 .body {
   display: flex;
   gap: 16rpx;
-  padding: 14rpx 0;
+  padding: 16rpx 0;
 }
 .cover {
   width: 112rpx;
@@ -161,33 +169,36 @@ function goDetail() {
   overflow: hidden;
 }
 .seller {
-  font-size: 22rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
 .amount {
-  text-align: right;
-  align-self: flex-start;
   display: flex;
-  flex-direction: column;
-  gap: 2rpx;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 12rpx;
+  padding-top: 4rpx;
 }
+.amount-label { color: var(--yb-muted); font-size: 24rpx; flex: none; }
+.amount-values { min-width: 0; text-align: right; display: flex; flex-direction: column; gap: 4rpx; overflow-wrap: anywhere; }
 .amount-cny {
   font-size: 30rpx;
   font-weight: 700;
   color: #0F111A;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   letter-spacing: -0.5rpx;
   font-variant-numeric: tabular-nums;
 }
 .amount-usdt {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #6B7385;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
 }
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 12rpx;
-  padding-top: 4rpx;
+  flex-wrap: wrap;
+  padding-top: 16rpx;
 }
 </style>

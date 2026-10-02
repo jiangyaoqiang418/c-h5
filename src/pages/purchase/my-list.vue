@@ -11,7 +11,6 @@ import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { fetchMyPurchases } from '@/service/api/purchase';
 import { cancelPurchaseWithReceipt, readPurchaseCancelReceipts, reconcilePurchaseCancel, purchaseCancelMessage, type PurchaseCancelReceipt } from '@/utils/purchase-cancel';
-import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const { requireLogin } = useNavigationGuards();
@@ -139,11 +138,6 @@ watch(activeKey, changeFilter, { flush: 'sync' });
 
 <template>
   <view class="my-purchase-page yb-page yb-page--full-bleed">
-    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.purchase})` }">
-      <text class="hero-eyebrow">MY PURCHASE REQUESTS</text>
-      <text class="hero-title">我的求购</text>
-      <text class="hero-sub">跟踪状态 · 接单进度 · 关联订单</text>
-    </view>
     <view class="yb-sticky-tabs-frame">
       <wd-tabs v-model="activeKey">
         <wd-tab v-for="t in TABS" :key="t.key" :name="t.key" :title="t.label" />
@@ -175,34 +169,6 @@ watch(activeKey, changeFilter, { flush: 'sync' });
 
 <style lang="scss" scoped>
 .my-purchase-page { min-height:100%; }
-.hero {
-  background-color: #10131f;
-  background-size: cover;
-  background-position:center;
-  color:#fff;
-  padding: 44rpx 28rpx 32rpx;
-}
-.hero-eyebrow {
-  display: block;
-  font-size: 20rpx;
-  font-weight: 700;
-  letter-spacing: 3rpx;
-  color: rgba(255,255,255,.64);
-  margin-bottom: 12rpx;
-}
-.hero-title {
-  display: block;
-  font-size: 44rpx;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -1rpx;
-}
-.hero-sub {
-  display: block;
-  font-size: 24rpx;
-  color: rgba(255,255,255,.76);
-  margin-top: 8rpx;
-}
-.list { padding:24rpx; }
+.list { padding:16rpx 24rpx 24rpx; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 </style>

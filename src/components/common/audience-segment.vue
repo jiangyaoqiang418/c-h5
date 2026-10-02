@@ -44,7 +44,7 @@ function onChange(v: 'customer' | 'buyer') {
 .audience-segment {
   display: inline-flex;
   background: #f2f3f5;
-  border-radius: 32rpx;
+  border-radius: 16rpx;
   padding: 4rpx;
 }
 .seg {
@@ -54,8 +54,10 @@ function onChange(v: 'customer' | 'buyer') {
   gap: 6rpx;
   flex: 1;
   text-align: center;
-  padding: 8rpx 28rpx;
-  border-radius: 28rpx;
+  padding: 8rpx 24rpx;
+  min-height: 72rpx;
+  box-sizing: border-box;
+  border-radius: 12rpx;
   font-size: 24rpx;
   color: #4e5969;
   transition: all 0.2s;

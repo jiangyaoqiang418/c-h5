@@ -13,6 +13,6 @@ function returnFromPage() {
 
 <template>
   <view class="yb-page">
-    <EmptyState title="暂不可用" action-text="返回" @action="returnFromPage" />
+    <EmptyState title="公告暂不可用" description="当前功能尚未开放，请稍后再来。" action-text="返回" @action="returnFromPage" />
   </view>
 </template>

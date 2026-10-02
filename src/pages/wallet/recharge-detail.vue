@@ -119,8 +119,8 @@ async function cancel() {
   <view v-if="detail" class="detail-page yb-page">
     <view class="summary">
       <text class="status">{{ detail.statusText || detail.status }}</text>
-      <text class="amount">U {{ formatAmount(detail.amount) }}</text>
-      <text class="chain">{{ detail.chainLabel || `USDT-${detail.chain}` }}</text>
+      <text class="amount">{{ formatAmount(detail.amount) }} USDT</text>
+      <text class="chain">充值链 · {{ detail.chainLabel || detail.chain }}</text>
     </view>
     <view class="section">
       <text v-if="loadFailed" class="block">详情刷新失败，暂时保留上次信息；请重试后再操作。</text>
@@ -145,12 +145,12 @@ async function cancel() {
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .summary, .section { margin-bottom: 20rpx; padding: 24rpx; border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); background: #fff; box-shadow:var(--yb-shadow-card); }
 .summary { text-align: center; }
-.status, .chain { display: block; color: #86909c; font-size: 23rpx; }
-.amount { display: block; margin: 14rpx 0; color: #00b42a; font-size: 52rpx; font-weight: 700; font-family: ui-monospace, monospace; }
-.row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 23rpx; }
+.status, .chain { display: block; color: var(--yb-muted); font-size: 24rpx; }
+.amount { display: block; margin: 14rpx 0; color: #00b42a; font-size: 52rpx; font-weight: 700; font-family: var(--yb-font-body); overflow-wrap:anywhere; }
+.row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 24rpx; }
 .row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
-.label { color: #86909c; }
+.label { color: var(--yb-muted); font-size: 24rpx; }
 .block { padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
-.block-value { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 12rpx; background: #f5f5f2; font-size: 21rpx; font-family: ui-monospace, monospace; word-break: break-all; }
+.block-value { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 12rpx; background: #f5f5f2; font-size: 24rpx; font-family: ui-monospace, monospace; word-break: break-all; }
 .cancel-btn { margin-top: 20rpx; }
 </style>

@@ -39,13 +39,13 @@ defineProps<Props>();
   margin-bottom: 24rpx;
 }
 .chart-amount .unit {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 32rpx;
   font-weight: 600;
   color: #86909C;
 }
 .chart-amount .num {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 60rpx;
   font-weight: 700;
   color: #0F111A;

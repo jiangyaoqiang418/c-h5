@@ -6,7 +6,6 @@ import { getAccessToken } from '@/service/request/token';
 import VipBadge from '@/components/common/vip-badge.vue';
 import { fetchPointAccount, fetchVipConfigs, type PointAccount } from '@/service/api/point';
 import { useUserStore } from '@/stores';
-import { UI_ASSETS } from '@/constants/ui-assets';
 
 const userStore = useUserStore();
 const configs = ref<Api.Vip.LevelConfig[]>([]);
@@ -71,12 +70,24 @@ onShow(load);
 onHide(() => { loadSequence++; loading.value = false; });
 
 const audienceConfigs = computed(() => configs.value.filter(c => c.audience === audience.value));
+const fullComparisonOpen = ref(false);
+const featuredConfigs = computed(() => {
+  if (!vipLevel.value) return [];
+  const current = audienceConfigs.value.find(config => config.level === vipLevel.value);
+  if (!current) return [];
+  const levels = ['VIP0', 'VIP1', 'VIP2'];
+  const nextLevel = levels[levels.indexOf(vipLevel.value) + 1];
+  const next = audienceConfigs.value.find(config => config.level === nextLevel);
+  return next ? [current, next] : [current];
+});
+function configTitle(config: Api.Vip.LevelConfig) { return config.label.replace(/（当前）$/, ''); }
+function configIsCurrent(config: Api.Vip.LevelConfig) { return config.level === vipLevel.value || config.label.endsWith('（当前）'); }
 
 const customerRows = [
   { key: 'interestRateBonus', label: '小金库利率上浮 (%)' },
   { key: 'purchaseConcurrent', label: '求购同时存在' },
-  { key: 'purchasePriority', label: '求购优先级' },
-  { key: 'aftersaleResponse', label: '售后响应优先级' },
+  { key: 'purchasePriority', label: '求购优先级配置值' },
+  { key: 'aftersaleResponse', label: '售后响应优先级配置值' },
   { key: 'withdrawFeeDiscount', label: '转出手续费减免 (%)' }
 ];
 const buyerRows = [
@@ -94,8 +105,8 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 
 <template>
   <view class="vip-page yb-page">
-    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.vip})` }">
-      <text class="hero-title">VIP 特权中心</text>
+    <view class="hero" >
+      <text class="hero-title">当前会员等级</text>
       <view class="my-card">
         <VipBadge v-if="vipLevel" :level="vipLevel" />
         <view class="my-info">
@@ -111,15 +122,28 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 
     <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">部分 VIP 数据加载失败，点击重试</wd-button>
 
-    <view class="table-wrap">
-      <view class="th">
-        <text class="th-cell label-col">权益项</text>
-        <text v-for="c in audienceConfigs" :key="c.level" class="th-cell">{{ c.label }}</text>
+    <view v-if="featuredConfigs.length" class="featured-levels">
+      <view v-for="c in featuredConfigs" :key="c.level" class="benefit-card" :class="{ 'benefit-card--current': configIsCurrent(c) }">
+        <view class="benefit-header"><text class="benefit-title">{{ configTitle(c) }}</text><text class="level-label">{{ configIsCurrent(c) ? '当前等级' : '下一等级' }}</text></view>
+        <text class="threshold">积分阈值 {{ c.threshold }}</text>
+        <view v-for="row in rows" :key="row.key" class="benefit-row"><text>{{ row.label }}</text><text class="benefit-value">{{ benefitValue(c, row.key) }}</text></view>
       </view>
-      <view v-for="row in rows" :key="row.key" class="tr">
-        <text class="td label-col">{{ row.label }}</text>
-        <text v-for="c in audienceConfigs" :key="c.level" class="td">{{ benefitValue(c, row.key) }}</text>
-      </view>
+    </view>
+    <view v-if="audienceConfigs.length" class="table-wrap">
+      <view v-if="featuredConfigs.length" class="comparison-toggle" @click="fullComparisonOpen = !fullComparisonOpen"><text>完整权益对照</text><text>{{ fullComparisonOpen ? '收起' : '展开' }}</text></view>
+      <scroll-view v-if="!featuredConfigs.length || fullComparisonOpen" scroll-x class="comparison-scroll">
+        <view class="comparison-table">
+          <view class="th">
+            <text class="th-cell label-col">权益项</text>
+            <view v-for="c in audienceConfigs" :key="c.level" class="th-cell" :class="{ 'current-level': configIsCurrent(c) }"><text>{{ configTitle(c) }}</text><text v-if="configIsCurrent(c)" class="current-badge">当前</text></view>
+          </view>
+          <view v-for="row in rows" :key="row.key" class="tr">
+            <text class="td label-col">{{ row.label }}</text>
+            <text v-for="c in audienceConfigs" :key="c.level" class="td" :class="{ 'current-level': configIsCurrent(c) }">{{ benefitValue(c, row.key) }}</text>
+          </view>
+        </view>
+      </scroll-view>
+      <text v-if="audience === 'customer'" class="config-note">优先级按当前配置值展示，不代表具体响应时长。</text>
     </view>
 
     <view class="rules">
@@ -134,16 +158,16 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 <style lang="scss" scoped>
 .vip-page { min-height: 100%; padding-bottom: 32rpx; }
 .hero {
-  background-color: #30110f;
+  background-color: var(--yb-surface);
   background-size: cover;
   background-position: center;
-  color: #fff;
+  color: var(--yb-ink);
   padding: 48rpx 32rpx;
 }
 .hero-title { display: block; font-size: 36rpx; font-weight: 700; }
 .my-card {
   margin-top: 24rpx;
-  background: rgba(255,255,255,0.15);
+  background: var(--yb-bg);
   border-radius: 16rpx;
   padding: 24rpx;
   display: flex;
@@ -152,17 +176,23 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 }
 .my-info { display: flex; flex-direction: column; }
 .my-points { font-size: 32rpx; font-weight: 600; }
-.my-next { font-size: 22rpx; opacity: 0.8; margin-top: 4rpx; }
+.my-next { font-size:24rpx; color:var(--yb-muted); margin-top:4rpx; }
 .segment-wrap { margin:20rpx 24rpx 0; padding:16rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
-.table-wrap { overflow:hidden; background:#fff; margin:20rpx 24rpx 0; padding:16rpx 0; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.table-wrap { overflow:hidden; background:#fff; margin:20rpx 24rpx 0; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.featured-levels { display:flex; flex-direction:column; gap:16rpx; margin:20rpx 24rpx 0; }
+.benefit-card { padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; }
+.benefit-card--current { border-color:var(--yb-brand); }.benefit-header { display:flex; align-items:center; gap:12rpx; }.benefit-title { font-size:32rpx; font-weight:700; }.level-label { padding:4rpx 12rpx; border-radius:8rpx; background:var(--yb-bg); font-size:24rpx; color:var(--yb-ink-2); white-space:nowrap; }.threshold { display:block; margin-top:8rpx; color:var(--yb-muted); font-size:24rpx; }
+.benefit-row { display:flex; justify-content:space-between; gap:24rpx; padding-top:16rpx; color:var(--yb-ink-2); font-size:26rpx; }.benefit-value { flex-shrink:0; color:var(--yb-ink); font-weight:600; font-variant-numeric:tabular-nums; }
+.comparison-toggle { display:flex; align-items:center; justify-content:space-between; gap:24rpx; min-height:96rpx; padding:0 24rpx; font-size:26rpx; color:var(--yb-ink-2); }.comparison-table { min-width:660rpx; }.comparison-scroll { width:100%; }.config-note { display:block; padding:16rpx 24rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
 .th, .tr { display: flex; padding: 16rpx 24rpx; }
 .tr:nth-child(even) { background: #fafbfc; }
 .th { background: #f5f5f2; }
 .th-cell, .td { flex: 1; text-align: center; font-size: 24rpx; }
-.th-cell { font-weight: 600; color: #4e5969; }
+.th-cell { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8rpx; font-weight:600; color:var(--yb-ink-2); white-space:nowrap; }
 .td { color: #1d2129; }
-.label-col { flex: 1.5; text-align: left; color: #86909c; }
+.label-col { flex:1.8; text-align:left; align-items:flex-start; color:var(--yb-ink-2); white-space:normal; }.current-badge { padding:2rpx 8rpx; border-radius:6rpx; background:var(--yb-brand-soft); color:var(--yb-brand); font-size:24rpx; line-height:1.4; }
 .rules { background:#fff; margin:20rpx 24rpx 0; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .rules-title { display: block; font-size: 26rpx; font-weight: 600; margin-bottom: 16rpx; }
 .rules-text { display: block; font-size: 24rpx; color: #4e5969; line-height: 1.8; }
+.current-level { background: var(--yb-brand-soft); color: var(--yb-brand); font-weight: 600; }
 </style>

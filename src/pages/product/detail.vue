@@ -42,6 +42,7 @@ const realReviews = ref<Api.RealReview.ReviewDTO[]>([]);
 const realReviewSummary = ref<Api.RealReview.ReviewSummaryDTO>();
 const realSellerRating = ref<Api.RealReview.SellerRatingDTO>();
 const reviewLoadFailed = ref(false);
+const failedImages = ref<string[]>([]);
 const qty = ref(1);
 const isRealProduct = ref(false);
 const loading = ref(true);
@@ -115,6 +116,13 @@ const canAdd = computed(() => (
   && product.value.aftersaleType !== 'unknown'
 ));
 const canBuy = computed(() => canAdd.value);
+const tradeNotice = computed(() => {
+  if (!product.value) return '';
+  if (product.value.status !== 'NORMAL' || product.value.shelfStatus !== 'on-shelf') return '商品当前不可购买，请查看其他商品。';
+  if (product.value.stock <= 0) return '商品已售罄，暂时无法加购或购买。';
+  if (product.value.aftersaleType === 'unknown') return '商品售后信息暂不完整，当前无法结算。';
+  return '';
+});
 
 async function loadDetail() {
   const rawId = detailId.value;
@@ -250,12 +258,12 @@ function goBack() {
 </script>
 
 <template>
-  <view v-if="product" class="detail-page yb-page yb-page--full-bleed">
+  <view v-if="product" class="detail-page yb-page yb-page--full-bleed" :class="{ 'has-trade-notice': !!tradeNotice }">
     <view class="nav"><view class="nav-btn yb-pressable" @click="goBack"><wd-icon name="arrow-left" size="22px" color="#151820" /></view></view>
 
     <swiper :indicator-dots="product.images.length > 1" :autoplay="false" circular class="gallery" indicator-active-color="#FFFFFF">
       <swiper-item v-for="(url, index) in product.images" :key="`${url}-${index}`">
-        <image :src="url" mode="aspectFill" class="gallery-image" />
+        <image :src="failedImages.includes(url) ? UI_ASSETS.placeholders.product : url" :mode="failedImages.includes(url) ? 'aspectFit' : 'aspectFill'" class="gallery-image" @error="!failedImages.includes(url) && failedImages.push(url)" />
       </swiper-item>
       <swiper-item v-if="!product.images.length">
         <image :src="UI_ASSETS.placeholders.product" mode="aspectFit" class="gallery-image gallery-image--placeholder" />
@@ -268,6 +276,7 @@ function goBack() {
       <text v-if="product.summary" class="summary">{{ product.summary }}</text>
 
       <view v-if="realSellerRating" class="rating-summary">
+        <text>买手评分</text>
         <ReviewStars :score="Number(realSellerRating.averageScore ?? realSellerRating.avgScore ?? 0)" size="sm" show-score />
         <text>· {{ realSellerRating.total ?? realSellerRating.totalCount ?? 0 }} 评价</text>
       </view>
@@ -282,10 +291,16 @@ function goBack() {
         </view>
       </view>
 
-      <view v-if="product.overseasCustoms" class="overseas-warn">海外直邮商品，过关后不可退换</view>
+      <view class="service-info">
+        <view class="service-row"><text class="service-label">售后标注</text><text class="service-value">{{ aftersaleLabel }}</text></view>
+        <view v-if="product.overseasCustoms" class="overseas-warn">
+          <text class="warning-title">海外直邮限制</text>
+          <text>过关后不可退换</text>
+          <text class="warning-note">售后标注与海外限制分别展示，实际可操作项目请在订单页核对。</text>
+        </view>
+      </view>
 
       <view class="tag-row">
-        <text class="tag">{{ aftersaleLabel }}</text>
         <text class="tag">销量 {{ product.salesCount }}</text>
         <text class="tag">收藏 {{ product.favoriteCount }}</text>
       </view>
@@ -299,7 +314,7 @@ function goBack() {
       </view>
 
       <view v-if="realReviews.length || reviewLoadFailed" class="section">
-        <text class="section-title">用户评价</text>
+        <text class="section-title">商品评价</text>
         <text v-if="reviewLoadFailed" class="section-notice">部分评价信息加载失败，请稍后重试。</text>
         <view v-for="review in realReviews" :key="review.reviewId" class="review-row">
           <view class="review-head"><text>{{ review.userName || '匿名用户' }}</text><ReviewStars :score="review.productScore" size="sm" /></view>
@@ -315,14 +330,19 @@ function goBack() {
     </view>
 
     <view class="bottom-bar">
+      <text v-if="tradeNotice" class="trade-notice">{{ tradeNotice }}</text>
+      <view class="bottom-tools">
       <view class="tool yb-pressable" @click="startPurchase"><wd-icon name="search" size="20px" /><text>求购</text></view>
       <view class="tool yb-pressable" @click="go('/pages/cart/index')"><wd-icon name="cart" size="20px" /><text>购物车</text></view>
       <view class="tool yb-pressable" :class="{ 'tool--disabled': favoriting }" @click="favorite"><wd-icon name="star" size="20px" /><text>{{ favoriting ? '收藏中' : '收藏' }}</text></view>
       <view class="quantity">
         <text @click="qty = Math.max(1, qty - 1)">−</text><text>{{ qty }}</text><text @click="increaseQty">+</text>
       </view>
+      </view>
+      <view class="bottom-actions">
       <wd-button plain :disabled="!canAdd" @click="canAdd ? addToCart() : showTradeUnavailable()">加购</wd-button>
       <wd-button type="primary" :disabled="!canBuy || buying" :loading="buying" @click="canBuy ? buyNow() : showTradeUnavailable()">立即购买</wd-button>
+      </view>
     </view>
   </view>
   <EmptyState v-else-if="!isRealProduct" title="商品链接已失效" description="此商品链接已不可用，请从首页或分类重新选择商品。" action-text="返回" @action="goBack" />
@@ -332,9 +352,10 @@ function goBack() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding: 0 0 calc(152rpx + env(safe-area-inset-bottom)); }
+.detail-page { min-height: 100%; padding: 0 0 calc(224rpx + env(safe-area-inset-bottom)); }
+.detail-page.has-trade-notice { padding-bottom: calc(304rpx + env(safe-area-inset-bottom)); }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
-.section-notice { display:block; margin-bottom:16rpx; color:#a85a00; font-size:22rpx; }
+.section-notice { display:block; margin-bottom:16rpx; color:#8b5300; font-size:24rpx; }
 .nav { position: fixed; top: env(safe-area-inset-top); left: 0; z-index: 20; padding: 24rpx; }
 .nav-btn { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.96); box-shadow:var(--yb-shadow-card); }
 .gallery { height: 750rpx; background: #edece6; }
@@ -342,31 +363,40 @@ function goBack() {
 .gallery-image--placeholder { box-sizing: border-box; padding: 96rpx; }
 .gallery-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #86909c; font-size: 24rpx; }
 .content-sheet { position: relative; z-index: 2; margin-top: -48rpx; padding: 40rpx 32rpx; border-radius: 40rpx 40rpx 0 0; background: #fff; }
-.category { display: inline-block; padding: 6rpx 16rpx; border-radius: 8rpx; background: #fafaf7; color: #6b7385; font-size: 20rpx; }
+.category { display: inline-block; padding: 6rpx 16rpx; border-radius: 8rpx; background: #fafaf7; color: var(--yb-muted); font-size: 24rpx; }
 .title { display: block; margin-top: 16rpx; color: #0f111a; font-size: 40rpx; font-weight: 700; line-height: 1.35; }
 .summary { display: block; margin-top: 8rpx; color: #6b7385; font-size: 24rpx; line-height: 1.5; }
-.rating-summary { display: flex; align-items: center; gap: 8rpx; margin-top: 16rpx; color: #6b7385; font-size: 22rpx; }
-.price-block { margin-top: 24rpx; padding: 28rpx; border-radius: 16rpx; background: #f6efe4; }
-.price-main { display: block; color: #0f111a; font-size: 60rpx; font-weight: 700; font-family: ui-monospace, monospace; }
-.price-sub { display: block; margin-top: 8rpx; color: #6b7385; font-size: 24rpx; }
-.fee-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(184,147,90,0.2); color: #6b7385; font-size: 22rpx; }
+.rating-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; margin-top: 16rpx; color: #6b7385; font-size: 24rpx; }
+.price-block { margin-top: 24rpx; padding: 28rpx; border-radius: 16rpx; background: var(--yb-bg); }
+.price-main { display: block; color: var(--yb-brand); font-size: 52rpx; font-weight: 700; font-family: var(--yb-font-body); overflow-wrap: anywhere; }
+.price-sub { display: block; margin-top: 8rpx; color: var(--yb-muted); font-size: 24rpx; }
+.fee-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid var(--yb-border); color: var(--yb-muted); font-size: 24rpx; }
 .fee-with-tip { display: flex; align-items: center; gap: 4rpx; }
-.overseas-warn { margin-top: 20rpx; padding: 20rpx; border-left: 6rpx solid #e74c3c; border-radius: 8rpx; background: rgba(231,76,60,0.08); color: #e74c3c; font-size: 24rpx; }
+.service-info { margin-top: 24rpx; }
+.service-row { display: flex; gap: 24rpx; font-size: 26rpx; line-height: 1.6; }
+.service-label { flex: none; color: var(--yb-muted); }
+.service-value { color: var(--yb-ink); }
+.overseas-warn { display: flex; flex-direction: column; gap: 6rpx; margin-top: 16rpx; padding: 20rpx; border-radius: 12rpx; background: var(--yb-warning-soft, #fff7e8); color: #8b5300; font-size: 24rpx; line-height: 1.6; }
+.warning-title { font-weight: 600; }
+.warning-note { color: #805b24; }
+.trade-notice { color: #805b24; font-size: 24rpx; line-height: 1.5; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
-.tag { padding: 8rpx 16rpx; border: 1rpx solid #edece6; border-radius: 8rpx; background: #fafaf7; color: #1d2129; font-size: 22rpx; }
+.tag { padding: 8rpx 16rpx; border: 1rpx solid #edece6; border-radius: 8rpx; background: #fafaf7; color: #1d2129; font-size: 24rpx; }
 .seller-section { display: flex; align-items: center; gap: 20rpx; margin-top: 32rpx; padding: 24rpx; border: 1rpx solid #edece6; border-radius: 16rpx; background: #fafaf7; }
 .seller-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #f6efe4; }
 .seller-avatar.placeholder { display: flex; align-items: center; justify-content: center; color: #b8935a; font-size: 32rpx; font-weight: 700; }
 .seller-info { flex: 1; }
 .seller-head { display: flex; align-items: center; gap: 12rpx; }
 .seller-name { font-size: 28rpx; font-weight: 700; color: #0f111a; }
-.seller-sub { display: block; margin-top: 6rpx; color: #6b7385; font-size: 22rpx; }
+.seller-sub { display: block; margin-top: 6rpx; color: #6b7385; font-size: 24rpx; }
 .section { margin-top: 36rpx; padding-top: 28rpx; border-top: 1rpx solid #edece6; }
 .section-title { display: block; margin-bottom: 16rpx; color: #0f111a; font-size: 30rpx; font-weight: 700; }
 .review-row { padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
 .review-text, .description { display: block; margin-top: 8rpx; color: #1d2129; font-size: 24rpx; line-height: 1.7; white-space: pre-wrap; }
-.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx calc(6rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
-.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 76rpx; min-height: 72rpx; color: #6b7385; font-size: 22rpx; }.tool--disabled { opacity: .55; pointer-events: none; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:72rpx; padding:0 8rpx; white-space:nowrap; }
-.quantity { display: flex; flex-shrink:0; align-items: center; min-width:156rpx; padding: 0; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:52rpx; min-height:72rpx; }
+.bottom-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 20; display: flex; flex-direction: column; gap: 12rpx; padding: 12rpx 24rpx calc(6rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid var(--yb-border); background: #fff; }
+.tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 84rpx; min-height: 84rpx; color: #6b7385; font-size: 24rpx; }.tool--disabled { opacity: .55; pointer-events: none; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:88rpx; padding:0 16rpx; white-space:nowrap; }
+.bottom-tools { display: flex; align-items: center; width: 100%; gap: 20rpx; }
+.bottom-actions { display: flex; width: 100%; gap: 16rpx; }
+.quantity { margin-left: auto; display: flex; flex-shrink:0; align-items: center; min-width:156rpx; padding: 0; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:52rpx; min-height:72rpx; }
 </style>

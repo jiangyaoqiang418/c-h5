@@ -26,7 +26,11 @@ export function formatAmount(value: string | number | null | undefined, opts: Fo
   if (value === undefined || value === null || value === '') return fallback;
   const num = typeof value === 'string' ? Number(value) : value;
   if (!Number.isFinite(num)) return fallback;
-  const fixed = num.toFixed(decimals);
+  // Tiny nonzero balances must remain visible; this affects presentation only.
+  const displayDecimals = opts.decimals == null && num !== 0 && Math.abs(num) < 0.01
+    ? Math.min(18, Math.max(decimals, Math.ceil(-Math.log10(Math.abs(num))) + 1))
+    : decimals;
+  const fixed = num.toFixed(displayDecimals);
   let out = fixed;
   if (thousands) {
     const [intPart, decPart] = fixed.split('.');

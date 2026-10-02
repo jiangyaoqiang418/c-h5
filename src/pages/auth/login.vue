@@ -104,7 +104,7 @@ async function submitOAuth(payload: OAuthLoginParams) {
 </script>
 
 <template>
-  <view class="login-page" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.login})` }">
+  <view class="login-page" >
     <view class="login-content">
       <view class="hero">
         <image class="logo-mark" :src="UI_ASSETS.icons.favicon" mode="aspectFit" />
@@ -138,7 +138,7 @@ async function submitOAuth(payload: OAuthLoginParams) {
   width: 90%;
   max-width: 640rpx;
   margin: auto;
-  transform: translateY(-6vh);
+
 }
 .hero {
   display: flex;
@@ -158,13 +158,12 @@ async function submitOAuth(payload: OAuthLoginParams) {
   font-weight: 700;
 }
 .form-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 248, 0.96));
-  border: 1rpx solid rgba(255, 38, 60, 0.14);
+  background: var(--yb-surface);
+  border: 1rpx solid var(--yb-border);
   border-radius: 24rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 24rpx 64rpx rgba(153, 31, 42, 0.16);
-  backdrop-filter: blur(12px);
+  box-shadow: var(--yb-shadow-card);
 }
 .login-input {
   --wot-cell-padding: 12px;

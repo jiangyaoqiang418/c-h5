@@ -218,6 +218,14 @@ onUnload(() => { pageActive = false; loadVersion++; clearReturnTimer(); });
 const selectedAddr = computed(() => addresses.value.find(a => String(a.id) === String(selectedAddrId.value)));
 const available = computed(() => Number(walletStore.summary?.available || 0));
 const balanceEnough = computed(() => available.value >= Number(grandTotal.value));
+const submitHint = computed(() => {
+  if (paymentReceiptFailed.value) return '原付款记录暂无法读取，请先刷新核对，避免重复付款。';
+  if (!hasOnlyRealItems.value) return '商品信息已失效，请返回购物车调整后继续。';
+  if (!selectedAddr.value) return '请先选择收货地址。';
+  if (!agreed.value) return '请阅读并勾选下方协议后提交订单。';
+  if (!walletSelected.value && !balanceEnough.value) return '当前余额不足，付款前需核对最新余额。';
+  return walletSelected.value ? '提交后核对原支付单，再在钱包内确认转账。' : '提交后仍需支付密码确认付款。';
+});
 
 function chooseAddress() {
   if (submitting.value || !pageActive || !userStore.realUserId) return;
@@ -468,7 +476,7 @@ async function resumePending(pending: PendingCheckout) {
       <text class="block-title">本次付款结果</text>
       <text>{{ paymentReceiptMessage(currentPaymentReceipt) }}</text>
       <view v-for="item in (currentPaymentReceipt.result || currentPaymentReceipt.currentResult)?.items || []" :key="item.orderId">
-        <text>{{ item.orderNo || item.orderId }} · U {{ item.amount }} · {{ item.success ? '已付款' : item.status === 'CANCELED' ? '已取消' : '未付款' }}{{ item.message ? `：${item.message}` : '' }}</text>
+        <text>{{ item.orderNo || item.orderId }} · {{ formatUsdt(item.amount) }} · {{ item.success ? '已付款' : item.status === 'CANCELED' ? '已取消' : '未付款' }}{{ item.message ? `：${item.message}` : '' }}</text>
       </view>
       <wd-button plain size="small" :disabled="submitting || paymentReceiptFailed" @click="resumePending(currentPending)">{{ currentPaymentReceipt.retryable ? '确认剩余付款' : '刷新付款状态' }}</wd-button>
       <wd-button plain size="small" :disabled="submitting" @click="go('/pages/order/list')">查看订单</wd-button>
@@ -479,7 +487,7 @@ async function resumePending(pending: PendingCheckout) {
       <wd-button plain size="small" @click="go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(currentPending.orderGroupNo!)}`)">查看原支付单</wd-button>
     </view>
     <view class="block">
-      <text class="block-title">1. 收货地址</text>
+      <text class="block-title">收货地址</text>
       <view v-if="selectedAddr" class="addr">
         <text class="receiver">{{ selectedAddr.receiverName }} · {{ selectedAddr.receiverPhone }}</text>
         <text class="detail">{{ selectedAddr.province }} {{ selectedAddr.city }} {{ selectedAddr.district }} {{ selectedAddr.detail }}</text>
@@ -492,7 +500,7 @@ async function resumePending(pending: PendingCheckout) {
     </view>
 
     <view class="block">
-      <text class="block-title">2. 商品清单 ({{ items.length }})</text>
+      <text class="block-title">商品清单 ({{ items.length }})</text>
       <view v-for="item in items" :key="item.key" class="goods-row">
         <image
           :src="item.product?.cover || UI_ASSETS.placeholders.product"
@@ -512,7 +520,7 @@ async function resumePending(pending: PendingCheckout) {
     </view>
 
     <view class="block">
-      <text class="block-title">3. 金额明细</text>
+      <text class="block-title">金额明细</text>
       <view class="amount-row">
         <text class="am-lbl">商品合计</text>
         <view class="am-val">
@@ -536,21 +544,22 @@ async function resumePending(pending: PendingCheckout) {
         <text class="am-lbl">应付总额</text>
         <view class="am-val">
           <text class="am-cny total-big">{{ formatUsdt(grandTotal) }}</text>
-          <text class="am-usdt">≈ {{ formatCny(grandTotal) }} · {{ priceSet(grandTotal).rateLabel }}</text>
+          <text class="am-usdt">≈ {{ formatCny(grandTotal) }}</text>
+          <text class="am-rate">{{ priceSet(grandTotal).rateLabel }}</text>
         </view>
       </view>
     </view>
 
     <view class="block">
-      <text class="block-title">4. 支付方式</text>
-      <wd-radio-group v-if="walletPayEntryEnabled && walletChains.some(chain => chain.enabled)" v-model="paymentMethod" class="payment-options">
-        <wd-radio value="balance">站内余额支付</wd-radio>
-        <wd-radio value="wallet">USDT 钱包直付</wd-radio>
+      <text class="block-title">支付方式</text>
+      <wd-radio-group v-if="walletPayEntryEnabled && walletChains.some(chain => chain.enabled)" v-model="paymentMethod" class="payment-options yb-choice-group">
+        <wd-radio shape="dot" icon-placement="left" value="balance">站内余额支付</wd-radio>
+        <wd-radio shape="dot" icon-placement="left" value="wallet">USDT 钱包直付</wd-radio>
       </wd-radio-group>
       <view v-if="walletSelected" class="wallet-chain-options">
         <text class="chain-label">选择支付链</text>
-        <wd-radio-group v-model="selectedChain" inline>
-          <wd-radio v-for="chain in walletChains.filter(item => item.enabled)" :key="chain.chain" :value="chain.chain">
+        <wd-radio-group v-model="selectedChain" class="yb-choice-group" inline>
+          <wd-radio shape="dot" icon-placement="left" v-for="chain in walletChains.filter(item => item.enabled)" :key="chain.chain" :value="chain.chain">
             {{ chain.label || chain.chain }} · {{ chain.network }}
           </wd-radio>
         </wd-radio-group>
@@ -558,7 +567,7 @@ async function resumePending(pending: PendingCheckout) {
       </view>
       <text v-if="walletChainsError" class="chain-tip">{{ walletChainsError }}</text>
       <view v-if="!walletSelected" class="pay-row">
-        <text>钱包可用余额：U {{ formatAmount(available.toFixed(2)) }}</text>
+        <text>钱包可用余额：{{ formatAmount(available.toFixed(2)) }} USDT</text>
         <text v-if="!balanceEnough" class="insufficient">· 余额不足</text>
       </view>
     </view>
@@ -568,6 +577,7 @@ async function resumePending(pending: PendingCheckout) {
         <text>我已阅读并同意《用户协议》《隐私政策》</text>
       </wd-checkbox>
     </view>
+    <text class="submit-hint">{{ submitHint }}</text>
 
     <view class="footer-space" />
 
@@ -577,14 +587,14 @@ async function resumePending(pending: PendingCheckout) {
         <text class="total-val">{{ formatUsdt(grandTotal) }}</text>
         <text class="total-usdt">≈ {{ formatCny(grandTotal) }}</text>
       </view>
-      <wd-button type="primary" size="large" :loading="submitting" :disabled="!agreed || !hasOnlyRealItems" @click="submit">提交订单</wd-button>
+      <wd-button type="primary" size="large" :loading="submitting" :disabled="!agreed || !hasOnlyRealItems || paymentReceiptFailed" @click="submit">提交订单</wd-button>
     </view>
     </template>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.checkout-page { min-height:100%; padding:20rpx 24rpx calc(164rpx + env(safe-area-inset-bottom)); }
+.checkout-page { min-height:100%; padding:20rpx 24rpx calc(192rpx + env(safe-area-inset-bottom)); }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .block {
   background: #fff;
@@ -594,12 +604,10 @@ async function resumePending(pending: PendingCheckout) {
 }
 .block-title {
   display: block;
-  font-size: 26rpx;
+  font-size: 30rpx;
   font-weight: 600;
   color: #1d2129;
   margin-bottom: 16rpx;
-  padding-left: 16rpx;
-  border-left: 6rpx solid var(--yb-brand);
 }
 .addr {
   padding: 16rpx 0;
@@ -619,6 +627,7 @@ async function resumePending(pending: PendingCheckout) {
   font-size: 24rpx;
   color: #4e5969;
   margin: 4rpx 0 12rpx;
+  overflow-wrap: anywhere;
 }
 .goods-row {
   display: flex;
@@ -649,15 +658,22 @@ async function resumePending(pending: PendingCheckout) {
 }
 .goods-seller {
   display: block;
-  font-size: 20rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
   margin-top: 4rpx;
 }
 .goods-amount {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 4rpx;
+  max-width: 38%;
   text-align: right;
   font-size: 24rpx;
   color: #4e5969;
 }
+.goods-price-cny { color: var(--yb-ink); font-weight: 600; }
+.goods-price-usdt { color: var(--yb-muted); font-size: 24rpx; }
 .goods-price {
   display: block;
   color: #f53f3f;
@@ -679,6 +695,11 @@ async function resumePending(pending: PendingCheckout) {
   margin-top: 8rpx;
   padding-top: 16rpx;
 }
+.am-lbl { flex-shrink: 0; white-space: nowrap; }
+.am-val { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; gap: 4rpx; text-align: right; }
+.am-usdt, .am-rate, .total-usdt { font-size: 24rpx; font-weight: 400; color: var(--yb-muted); }
+.am-rate { font-size: 24rpx; }
+.total-usdt { display: block; }
 .with-tip { display: flex; align-items: center; gap: 4rpx; }
 .pay-row {
   font-size: 26rpx;
@@ -687,7 +708,8 @@ async function resumePending(pending: PendingCheckout) {
 .payment-options { display: flex; flex-direction: column; gap: 12rpx; }
 .wallet-chain-options { padding-top: 20rpx; }
 .chain-label { display: block; margin-bottom: 12rpx; font-size: 24rpx; font-weight: 600; }
-.chain-tip { display: block; margin-top: 12rpx; color: #86909c; font-size: 22rpx; line-height: 1.5; }
+.chain-tip { display: block; margin-top: 12rpx; color: var(--yb-muted); font-size: 24rpx; line-height: 1.5; }
+.submit-hint { display: block; margin: 20rpx 8rpx 12rpx; color: var(--yb-muted); font-size: 24rpx; line-height: 1.6; }
 .insufficient {
   color: #f53f3f;
   margin-left: 8rpx;
@@ -710,15 +732,18 @@ async function resumePending(pending: PendingCheckout) {
 }
 .total-block {
   flex: 1;
+  min-width: 0;
 }
 .total-label {
   font-size: 24rpx;
   color: #4e5969;
 }
 .total-val {
+  display: block;
   font-size: 36rpx;
   font-weight: 700;
-  color: #f53f3f;
-  font-family: ui-monospace, monospace;
+  color: var(--yb-brand);
+  font-family: var(--yb-font-body);
+  overflow-wrap: anywhere;
 }
 </style>

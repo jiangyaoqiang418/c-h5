@@ -31,6 +31,7 @@ let loadToken = 0;
 let retryReset = true;
 const operating = ref(false);
 const pendingShelf = ref<Record<string, Api.RealProduct.ProductStatus>>({});
+const expandedComments = ref<string[]>([]);
 const deletedIds = new Set<string>();
 const page = usePageOperation(() => {
   loadToken++;
@@ -42,10 +43,15 @@ const page = usePageOperation(() => {
   loadFailed.value = false;
   operating.value = false;
   pendingShelf.value = {};
+  expandedComments.value = [];
   deletedIds.clear();
   retryReset = true;
 });
 const actions = (product: Api.RealProduct.ProductDTO) => buyerProductActions(product, userStore.realUserId);
+function toggleComment(productId: Api.RealProduct.ProductDTO['id']) {
+  const key = String(productId);
+  expandedComments.value = expandedComments.value.includes(key) ? expandedComments.value.filter(item => item !== key) : [...expandedComments.value, key];
+}
 
 const TABS: { key: Api.RealProduct.ProductQueryStatus | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
@@ -265,15 +271,19 @@ onReachBottom(() => {
               >
                 {{ product.status === 'ON_SALE' ? '下架' : '上架' }}
               </wd-button>
-              <wd-button v-if="actions(product).remove" plain size="small" :disabled="operating || loading || loadFailed || !!pendingShelf[String(product.id)]" @click.stop="changeProduct(product, 'remove')">删除</wd-button>
+              <wd-button v-if="actions(product).remove" type="error" plain size="small" :disabled="operating || loading || loadFailed || !!pendingShelf[String(product.id)]" @click.stop="changeProduct(product, 'remove')">删除</wd-button>
             </view>
-            <text v-if="product.reviewComment" class="review-comment">审核意见：{{ product.reviewComment }}</text>
+            <view v-if="product.reviewComment" class="comment-section" @click.stop="toggleComment(product.id)">
+              <text class="review-comment" :class="{ 'review-comment--rejected': product.status === 'REJECTED', 'review-comment--collapsed': !expandedComments.includes(String(product.id)) }">审核意见：{{ product.reviewComment }}</text>
+              <text class="comment-toggle">{{ expandedComments.includes(String(product.id)) ? '收起审核意见' : '查看完整审核意见' }}</text>
+            </view>
           </view>
         </view>
       </view>
       <EmptyState v-else-if="loadFailed" title="商品列表加载失败" description="请稍后重试" />
       <EmptyState v-else-if="!loading && !userStore.currentUser" title="请先登录查看商品" description="当前尚未读取账号商品数据" action-text="登录或重试" @action="load()" />
-      <EmptyState v-else-if="!loading" title="暂无商品" />
+      <EmptyState v-else-if="!loading && activeKey !== 'all'" title="当前状态暂无商品" description="可切换其他状态，查看现有商品记录。" action-text="查看全部商品" @action="activeKey = 'all'" />
+      <EmptyState v-else-if="!loading" title="还没有商品记录" description="通过下方发布商品入口填写并提交，已有审核流程保持不变。" />
       <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     </view>
 
@@ -288,7 +298,7 @@ onReachBottom(() => {
 .list { padding: 20rpx 24rpx; }
 .focus-hint { display:block; margin-bottom:16rpx; font-size:24rpx; color:#4e5969; line-height:1.6; }
 .product-card.focused { border-color:var(--yb-brand); background:var(--yb-brand-soft, #fff7f4); }
-.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:24rpx; }
 .product-card {
   display: flex;
   gap: 16rpx;
@@ -298,15 +308,17 @@ onReachBottom(() => {
   border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .cover { width: 160rpx; height: 160rpx; border-radius: 12rpx; background: #f5f5f2; flex-shrink: 0; }
-.cover.placeholder { display: flex; align-items: center; justify-content: center; color: #c9cdd4; font-size: 20rpx; }
+.cover.placeholder { display: flex; align-items: center; justify-content: center; color: var(--yb-muted); font-size: 24rpx; }
 .info { flex: 1; min-width: 0; }
-.title { display: block; font-size: 26rpx; font-weight: 600; line-height: 1.4; color: #1d2129; }
-.category { display: block; margin-top: 4rpx; font-size: 22rpx; color: #86909c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.meta { display: flex; justify-content: space-between; align-items: center; margin-top: 10rpx; }
-.price { font-size: 30rpx; color: #f53f3f; font-weight: 700; font-family: ui-monospace, monospace; }
-.stock { font-size: 22rpx; color: #4e5969; }
-.card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 10rpx; }
-.review-comment { display: block; margin-top: 10rpx; font-size: 22rpx; line-height: 1.5; color: #f53f3f; }
+.title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 26rpx; font-weight: 600; line-height: 1.4; color: #1d2129; }
+.category { display: block; margin-top: 4rpx; font-size: 24rpx; color: var(--yb-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta { display: flex; flex-wrap: wrap; gap: 8rpx 16rpx; justify-content: space-between; align-items: center; margin-top: 10rpx; }
+.price { font-size: 30rpx; color: var(--yb-brand); font-weight: 700; font-family: ui-monospace, monospace; }
+.stock { font-size: 24rpx; color: #4e5969; }
+.card-foot { display: flex; flex-wrap: wrap; gap: 12rpx; align-items: center; justify-content: space-between; margin-top: 10rpx; }
+.review-comment { display: block; margin-top: 10rpx; font-size: 24rpx; line-height: 1.5; color: var(--yb-muted); }
+.review-comment--collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.comment-toggle { display: flex; align-items: center; min-height: 84rpx; color: var(--yb-muted); font-size: 24rpx; }
 .publish-bar {
   position: fixed; right: 0; bottom: 0; left: 0; z-index: 20;
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
@@ -317,4 +329,5 @@ onReachBottom(() => {
   border-radius: var(--yb-radius-md); background: var(--yb-brand); color: #fff;
   font-size: 28rpx; font-weight: 600;
 }
+.review-comment--rejected { color: #b42318; }
 </style>

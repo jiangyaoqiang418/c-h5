@@ -38,7 +38,8 @@ const TABS: { key: string; label: string; status?: Api.RealOrder.RefundStatus }[
 const statusLabel: Record<Api.RealOrder.RefundStatus, string> = {
   APPLYING: '待审核', AGREED: '已同意', REJECTED: '已驳回', CANCELED: '已撤销'
 };
-const emptyDescription = computed(() => userStore.isBuyerActive ? '顾客发起的仅退款会显示在这里' : '可在待发货或待收货订单中申请仅退款');
+const emptyDescription = computed(() => activeKey.value !== 'all' ? '当前筛选状态没有返回记录，可切换其他状态查看。'
+  : userStore.isBuyerActive ? '顾客发起的仅退款记录会显示在这里。' : '符合当前条件的订单可在订单页申请仅退款，已有申请会显示在这里。');
 const pager = usePagedList<Api.RealOrder.OrderRefundDTO>({
   key: item => item.refundId,
   preserveOnReset: true,
@@ -52,6 +53,11 @@ const list = pager.list;
 const hasMore = pager.hasMore;
 const loading = computed(() => reading.value || pager.loading.value);
 const loadFailed = computed(() => initFailed.value || pager.loadFailed.value);
+function formatTime(value?: string | number) {
+  if (value == null || value === '') return '';
+  const date = /^\d+$/.test(String(value)) ? new Date(Number(value)) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+}
 function refreshReceipts() {
   if (!userStore.realUserId) return;
   try {
@@ -161,8 +167,8 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
               <text class="reason">退款原因：{{ item.reason || '未填写' }}</text>
               <text class="counterpart">{{ userStore.isBuyerActive ? '顾客' : '买手' }}：{{ userStore.isBuyerActive ? (item.buyerName || '—') : (item.sellerName || '—') }}</text>
             </view>
-            <text class="amount">{{ item.amount == null ? '—' : formatUsdt(item.amount) }}</text>
           </view>
+          <view class="record-foot"><text class="record-time">{{ formatTime(item.reviewedAt || item.canceledAt || item.appliedAt) }}</text><text class="amount">退款金额 {{ item.amount == null ? '—' : formatUsdt(item.amount) }}</text></view>
           <view v-if="!userStore.isBuyerActive && item.status === 'APPLYING'" class="actions" @click.stop>
             <wd-button plain size="small" :disabled="!canCancel(item)" @click="cancel(item)">撤销申请</wd-button>
           </view>
@@ -184,14 +190,18 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
 .refund-card { margin-bottom: 20rpx; padding: 24rpx; border-radius: var(--yb-radius-lg); background: var(--yb-surface); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .head, .body, .actions { display: flex; }
 .head { justify-content: space-between; align-items: center; padding-bottom: 16rpx; border-bottom: 1rpx dashed #f2f3f5; }
-.code { min-width: 0; overflow: hidden; color: #4e5969; font-family: ui-monospace, monospace; font-size: 22rpx; text-overflow: ellipsis; white-space: nowrap; }
-.status { flex-shrink: 0; margin-left: 16rpx; background: var(--yb-warning-soft); color: #a76f22; }
-.status-agreed { background: var(--yb-success-soft); color: var(--yb-success); }
-.status-rejected, .status-canceled { background: #f2f3f5; color: var(--yb-muted); }
+.code { min-width: 0; overflow: hidden; color: #4e5969; font-family: var(--yb-font-body); font-size: 24rpx; text-overflow: ellipsis; white-space: nowrap; }
+.status { flex-shrink: 0; margin-left: 16rpx; background: var(--yb-warning-soft); color: #805b24; }
+.status-agreed { background: var(--yb-success-soft); color: #08765e; }
+.status-rejected { background: var(--yb-danger-soft); color: #b42318; }
+.status-canceled { background: #f2f3f5; color: var(--yb-muted); }
 .body { gap: 16rpx; padding-top: 16rpx; }
-.cover { width: 128rpx; height: 128rpx; flex-shrink: 0; border-radius: var(--yb-radius-md); }
+.cover { width: 112rpx; height: 112rpx; flex-shrink: 0; border-radius: var(--yb-radius-md); }
 .info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
-.title { display:-webkit-box; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-size:26rpx; line-height:1.45; font-weight:500; color:#1d2129; }.reason, .counterpart { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:22rpx; color:#86909c; }
-.amount { flex-shrink: 0; color: #0f111a; font-family: ui-monospace, monospace; font-size: 28rpx; font-weight: 700; }
+.title { display:-webkit-box; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-size:26rpx; line-height:1.45; font-weight:500; color:#1d2129; }.reason, .counterpart { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:24rpx; color:var(--yb-muted); }
+.amount { flex-shrink: 0; color: #0f111a; font-family: var(--yb-font-body); font-size: 28rpx; font-weight: 700; }
+.record-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12rpx; margin-top: 16rpx; align-items: baseline; }
+.record-time { color: var(--yb-muted); font-size: 24rpx; }
+.record-foot .amount { flex-shrink: 1; overflow-wrap: anywhere; }
 .actions { justify-content: flex-end; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx dashed #f2f3f5; }
 </style>

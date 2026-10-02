@@ -245,7 +245,7 @@ async function open(c: Category) {
 <style lang="scss" scoped>
 .msg-page {
   min-height: 100%;
-  background: #FAFAF7;
+  background: var(--yb-bg);
   padding: 20rpx 24rpx;
 }
 .summary {
@@ -273,7 +273,7 @@ async function open(c: Category) {
   transition: background 0.15s;
 }
 .cat-row:last-child { border-bottom: none; }
-.cat-row:active { background: #FAFAF7; }
+.cat-row:active { background: var(--yb-bg); }
 .cat-row.disabled { opacity: 0.5; }
 
 .cat-left {
@@ -284,7 +284,7 @@ async function open(c: Category) {
   width: 84rpx;
   height: 84rpx;
   border-radius: 50%;
-  background: #FAFAF7;
+  background: var(--yb-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -323,7 +323,7 @@ async function open(c: Category) {
   letter-spacing: -0.5rpx;
 }
 .cat-preview {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #86909C;
   overflow: hidden;
   text-overflow: ellipsis;

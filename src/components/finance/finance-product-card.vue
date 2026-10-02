@@ -99,7 +99,7 @@ function goDetail() {
   letter-spacing: -0.5rpx;
 }
 .ef-meta {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #86909C;
 }
 .ef-right {
@@ -114,13 +114,13 @@ function goDetail() {
   gap: 4rpx;
 }
 .ef-apy-label {
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 600;
   color: #86909C;
   letter-spacing: 1rpx;
 }
 .ef-apy {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 40rpx;
   font-weight: 700;
   color: #00A88A;
@@ -130,13 +130,13 @@ function goDetail() {
 }
 .ef-deposit {
   background: transparent;
-  color: #B8935A;
-  border: 2rpx solid #B8935A;
-  border-radius: 999rpx;
+  color: var(--yb-ink-2);
+  border: 1rpx solid var(--yb-hairline-2);
+  border-radius: 16rpx;
   padding: 24rpx 0;
   font-size: 28rpx;
   font-weight: 700;
-  letter-spacing: 2rpx;
+  letter-spacing: 0;
   text-align: center;
   width: 100%;
 }

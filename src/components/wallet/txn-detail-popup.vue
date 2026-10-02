@@ -24,6 +24,7 @@ function copy(text?: string) {
   <wd-popup
     :model-value="visible"
     position="bottom"
+    :safe-area-inset-bottom="true"
     :close-on-click-modal="true"
     closable
     @update:model-value="(v: boolean) => $emit('update:visible', v)"
@@ -31,8 +32,8 @@ function copy(text?: string) {
     <view v-if="txn && meta" class="detail-popup">
       <view class="head">
         <text class="type-tag">{{ txn.typeText || meta.label }}</text>
-        <text class="amount" :class="txn.direction">{{ sign }}{{ formatAmount(txn.amount) }} U</text>
-        <text class="balance">{{ txn.direction === 'transfer' ? '转入后余额' : '余额' }} U {{ formatAmount(txn.balanceAfter) }}</text>
+        <text class="amount" :class="txn.direction">{{ sign }}{{ formatAmount(txn.amount) }} USDT</text>
+        <text class="balance">变动后余额 {{ formatAmount(txn.balanceAfter) }} USDT</text>
       </view>
       <view class="rows">
         <view class="row"><text class="lbl">流水编号</text><text>#{{ txn.id }}</text></view>
@@ -78,22 +79,22 @@ function copy(text?: string) {
   color: var(--yb-brand);
   padding: 4rpx 16rpx;
   border-radius: 8rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
 }
 .amount {
   overflow-wrap: anywhere;
   display: block;
   font-size: 56rpx;
   font-weight: 700;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   margin: 16rpx 0 8rpx;
 }
 .amount.in { color: #00b42a; }
 .amount.out { color: #f53f3f; }
 .balance {
   overflow-wrap: anywhere;
-  font-size: 22rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
 .rows {
   padding-top: 16rpx;
@@ -109,7 +110,7 @@ function copy(text?: string) {
 }
 .lbl {
   flex-shrink: 0;
-  color: #86909c;
+  color: var(--yb-muted);
 }
 .mono {
   font-family: ui-monospace, monospace;

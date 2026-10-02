@@ -8,6 +8,7 @@ const emit = defineEmits<{ (e: 'update:modelValue', value: string): void; (e: 'u
 const instance = getCurrentInstance();
 const editorContext = ref<any>();
 const uploading = ref(false);
+const moreTools = ref(false);
 let ready = false;
 let currentHtml = sanitizeRichText(props.modelValue);
 
@@ -57,20 +58,23 @@ async function setLink() {
 <template>
   <view class="rich-editor" :class="{ disabled }">
     <view class="toolbar">
-      <button size="mini" @click="format('bold')">加粗</button><button size="mini" @click="format('italic')">斜体</button>
-      <button size="mini" @click="format('underline')">下划线</button><button size="mini" @click="format('header', 'H2')">标题</button>
-      <button size="mini" @click="format('list', 'bullet')">列表</button><button size="mini" @click="format('blockquote')">引用</button>
-      <button size="mini" @click="setLink">链接</button><button size="mini" :loading="uploading" @click="insertImage">图片</button>
-      <button size="mini" @click="editorContext?.undo()">撤销</button><button size="mini" @click="editorContext?.redo()">重做</button>
+      <button size="mini" @click="format('bold')">加粗</button><button size="mini" @click="format('header', 'H2')">标题</button>
+      <button size="mini" @click="format('list', 'bullet')">列表</button><button size="mini" :loading="uploading" @click="insertImage">图片</button>
+      <button size="mini" :aria-expanded="moreTools" @click="moreTools = !moreTools">{{ moreTools ? '收起工具' : '更多' }}</button>
+      <template v-if="moreTools">
+        <button size="mini" @click="format('italic')">斜体</button><button size="mini" @click="format('underline')">下划线</button>
+        <button size="mini" @click="format('blockquote')">引用</button><button size="mini" @click="setLink">链接</button>
+        <button size="mini" @click="editorContext?.undo()">撤销</button><button size="mini" @click="editorContext?.redo()">重做</button>
+      </template>
     </view>
-    <editor id="product-rich-editor" class="editor" placeholder="请输入商品详情" show-img-size show-img-resize show-img-toolbar @ready="onReady" @input="onInput" />
-    <text class="tip">支持标题、列表、链接和图片，图片会先上传后插入，最多 30 张。</text>
+    <editor id="product-rich-editor" class="editor" placeholder="介绍商品特点、规格与使用说明，可插入图片补充细节。" show-img-size show-img-resize show-img-toolbar @ready="onReady" @input="onInput" />
+    <text class="tip">图片上传后会插入正文，最多 30 张。</text>
   </view>
 </template>
 
 <style scoped>
 .rich-editor { overflow: hidden; border: 1rpx solid #e5e6eb; border-radius: var(--yb-radius-md); background: #fff; }
 .disabled { opacity: .65; pointer-events: none; }.toolbar { display: flex; flex-wrap: wrap; gap: 8rpx; padding: 12rpx; border-bottom: 1rpx solid #e5e6eb; background: #f7f8fa; }
-.toolbar button { margin: 0; font-size: 22rpx; line-height: 48rpx; }.editor { min-height: 320rpx; padding: 20rpx; font-size: 26rpx; line-height: 1.7; }
-.tip { display: block; padding: 0 20rpx 14rpx; color: #86909c; font-size: 21rpx; }
+.toolbar button { display: flex; align-items: center; justify-content: center; margin: 0; min-height: 88rpx; padding: 8rpx 16rpx; border: 1rpx solid var(--yb-border); border-radius: 12rpx; background: #fff; box-shadow: none; font-size: 24rpx; line-height: 1.4; } .toolbar button::after { border: none; }.editor { min-height: 320rpx; padding: 20rpx; font-size: 26rpx; line-height: 1.7; }
+.tip { display: block; padding: 0 20rpx 14rpx; color: var(--yb-muted); font-size: 24rpx; }
 </style>

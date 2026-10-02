@@ -34,9 +34,11 @@ const categoryTree = ref<CategoryNode[]>([]);
 const categoryPickerOpen = ref(false);
 const categoryLoading = ref(false);
 const categoryError = ref('');
+const categoryHelpOpen = ref(false);
 let categorySequence = 0;
 const loading = ref(true);
 const loadFailed = ref(false);
+const formInitialized = ref(false);
 let loadSequence = 0;
 
 const form = reactive({
@@ -55,8 +57,10 @@ const form = reactive({
 const page = usePageOperation(() => {
   loadSequence++;
   categorySequence++; categoryLoading.value = false; categoryError.value = '';
+  categoryHelpOpen.value = false;
   loading.value = false;
   loadFailed.value = true;
+  formInitialized.value = false;
   step.value = 0;
   submitting.value = false;
   uploading.value = false;
@@ -105,7 +109,10 @@ async function load() {
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '发布资格或分类加载失败', icon: 'none' });
   } finally {
-    if (operation.sameSession() && sequence === loadSequence) loading.value = false;
+    if (operation.sameSession() && sequence === loadSequence) {
+      loading.value = false;
+      if (!loadFailed.value && userStore.currentUser && userStore.canSwitchToBuyer && !receipt.value && !receiptFailed.value) formInitialized.value = true;
+    }
   }
 }
 async function refreshCategories(parentCurrent: () => boolean = () => true) {
@@ -206,6 +213,27 @@ function canNext(): boolean {
   if (step.value === 2) return form.images.length >= 1;
   return true;
 }
+const navigationHint = computed(() => {
+  if (submitting.value) return '正在提交商品，请稍候。';
+  if (uploading.value) return '图片正在上传，完成后可继续。';
+  if (step.value >= 3 || canNext()) return '';
+  if (step.value === 0) {
+    const missing = [];
+    if (!form.title.trim()) missing.push('商品标题');
+    if (!categories.value.some(item => item.id === form.categoryId)) missing.push('有效分类');
+    if (!form.brief.trim()) missing.push('商品简介');
+    return `请补充${missing.join('、')}后继续。`;
+  }
+  if (step.value === 1) {
+    const corrections = [];
+    if (!Number.isFinite(Number(form.price)) || Number(form.price) <= 0) corrections.push('售价须大于 0');
+    if (!Number.isFinite(Number(form.shippingFee)) || Number(form.shippingFee) < 0) corrections.push('运费须为 0 或正数');
+    if (!Number.isFinite(Number(form.taxFee)) || Number(form.taxFee) < 0) corrections.push('税费须为 0 或正数');
+    if (!Number.isSafeInteger(Number(form.stock)) || Number(form.stock) < 0) corrections.push('库存须为 0 或正整数');
+    return `${corrections.join('；')}。`;
+  }
+  return '至少添加 1 张商品图片后继续。';
+});
 
 async function submit() {
   if (!page.visible.value || !canPublish.value || submitting.value || uploading.value || submitted.value) return;
@@ -276,8 +304,9 @@ async function submit() {
     <EmptyState title="暂不具备商品发布资格" description="请先完成买手资格和实名认证" :action-text="userStore.currentUser?.isBuyer ? '前往实名认证' : '前往买手申请'" @action="go(userStore.currentUser?.isBuyer ? '/pages/kyc/index' : '/pages/buyer/apply')" />
     <wd-button block plain @click="load">刷新资格</wd-button>
   </view>
-  <view v-else class="create-page yb-page">
-    <wd-steps :active="step">
+  <!-- 已授权表单保持实例，避免页面激活时加载状态销毁 textarea 的 ResizeSensor。 -->
+  <view v-if="formInitialized && userStore.currentUser && userStore.canSwitchToBuyer && !receipt && !receiptFailed" v-show="!loading && !loadFailed" class="create-page yb-page">
+    <wd-steps :active="step" align-center>
       <wd-step title="基本信息" />
       <wd-step title="价格库存" />
       <wd-step title="商品图片" />
@@ -285,16 +314,18 @@ async function submit() {
     </wd-steps>
 
     <view class="content">
-      <view v-if="step === 0" class="form">
-        <wd-input v-model="form.title" label="商品标题" placeholder="请输入商品标题" :maxlength="128" />
+      <view v-show="step === 0" class="form">
+        <view class="text-field"><text class="field-label">商品标题 <text class="required-note">必填</text></text><wd-input v-model="form.title" placeholder="写清品牌、商品名称与主要规格" :maxlength="128" /></view>
         <wd-cell title="分类" :value="categories.length ? categoryName : '暂不可选'" :is-link="!!categories.length" @click="pickCategory" />
-        <view class="category-hint"><text>{{ categoryError || (categories.length ? '申请的分类已通过？刷新后重新选择' : '分类暂不可用，请刷新后选择') }}</text><wd-button plain size="small" :loading="categoryLoading" :disabled="loading || submitting || uploading" @click="refreshCategories()">刷新分类</wd-button></view>
-        <wd-textarea v-model="form.brief" label="商品简介" placeholder="30 字以内" :max-length="30" show-word-limit />
-        <view class="field-label">详细描述</view>
+        <view v-if="categoryError || !categories.length || categoryHelpOpen" class="category-hint"><text>{{ categoryError || (categories.length ? '已申请的分类通过后，可刷新列表重新选择。' : '分类暂不可用，请刷新后选择') }}</text><wd-button plain size="small" :loading="categoryLoading" :disabled="loading || submitting || uploading" @click="refreshCategories()">刷新分类</wd-button></view>
+        <view v-else class="category-help" @click="categoryHelpOpen = true">找不到已申请的分类？</view>
+        <view class="text-field"><text class="field-label">商品简介 <text class="required-note">必填</text></text><wd-textarea auto-height v-model="form.brief" placeholder="30 字以内，简要介绍商品特点" :maxlength="30" show-word-limit /></view>
+        <view class="field-label">图文详情 <text class="optional-note">选填</text></view>
+        <text class="field-help">补充规格、材质与使用说明；未填写时沿用商品简介。</text>
         <RichTextEditor v-model="form.description" :disabled="submitting" @uploading="uploading = $event" />
       </view>
 
-      <view v-if="step === 1" class="form">
+      <view v-show="step === 1" class="form">
         <wd-input v-model="form.price" label="售价 (USDT)" type="digit" />
         <wd-input v-model="form.shippingFee" label="运费 (USDT)" type="digit" />
         <wd-input v-model="form.taxFee" label="税费 (USDT)" type="digit" />
@@ -312,21 +343,21 @@ async function submit() {
         </wd-cell>
       </view>
 
-      <view v-if="step === 2" class="form">
+      <view v-show="step === 2" class="form">
         <text class="hint">至少 1 张，最多 6 张</text>
         <view class="image-grid">
           <view v-for="(image, index) in form.images" :key="String(image.id)" class="image-cell">
             <image :src="image.url" mode="aspectFill" class="image" />
             <view class="remove" @click="removeImage(index)"><wd-icon name="close" size="13px" color="#fff" /></view>
           </view>
-          <view v-if="form.images.length < 6" class="add" @click="chooseImages"><wd-icon name="add" size="22px" /><text>{{ uploading ? '上传中' : '添加图片' }}</text></view>
+          <view v-if="form.images.length < 6" class="add" @click="chooseImages"><wd-icon name="add" size="22px" /><text class="upload-caption">{{ uploading ? '上传中' : '添加图片' }}</text></view>
         </view>
       </view>
 
-      <view v-if="step === 3" class="summary">
+      <view v-show="step === 3" class="summary">
         <view class="row"><text class="label">标题</text><text>{{ form.title }}</text></view>
         <view class="row"><text class="label">分类</text><text>{{ categoryName }}</text></view>
-        <view class="row"><text class="label">售价</text><text>U {{ form.price }}</text></view>
+        <view class="row"><text class="label">售价</text><text>{{ form.price }} USDT</text></view>
         <view class="row"><text class="label">库存</text><text>{{ form.stock }}</text></view>
         <view class="row"><text class="label">图片</text><text>{{ form.images.length }} 张</text></view>
         <text class="submit-tip">提交后商品进入平台审核，审核通过后才可上架销售。</text>
@@ -334,10 +365,13 @@ async function submit() {
     </view>
 
     <view class="nav-bar">
+      <text v-if="navigationHint" class="navigation-hint" aria-live="polite">{{ navigationHint }}</text>
+      <view class="nav-actions">
       <wd-button v-if="submittedId != null" type="primary" @click="go(`/pages/buyer/product-detail?id=${encodeURIComponent(String(submittedId))}`, true)">查看提交结果</wd-button>
       <wd-button v-if="step > 0" plain :disabled="submitting || uploading" @click="step--">上一步</wd-button>
       <wd-button v-if="step < 3" type="primary" :disabled="!canNext() || submitting || uploading" @click="step++">下一步</wd-button>
       <wd-button v-else type="primary" :loading="submitting" :disabled="submitted || uploading" @click="submit">{{ submitted ? '已提交' : '提交审核' }}</wd-button>
+      </view>
     </view>
   </view>
   <CategoryPicker v-model="categoryPickerOpen" :tree="categoryTree" :selected-id="form.categoryId" @select="selectCategory" />
@@ -346,29 +380,36 @@ async function submit() {
 
 <style lang="scss" scoped>
 .category-hint { padding:12rpx 24rpx; display:flex; align-items:center; justify-content:space-between; gap:12rpx; color:var(--yb-muted); font-size:24rpx; }
-.field-label { padding: 20rpx 0 12rpx; color: #4e5969; font-size: 26rpx; }
+.field-label { display:block; padding:20rpx 0 12rpx; color:var(--yb-ink); font-size:26rpx; font-weight:600; }
+.required-note, .optional-note { margin-left:8rpx; font-size:24rpx; font-weight:400; color:var(--yb-muted); }
+.field-help { display:block; margin-bottom:16rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
+.text-field :deep(.wd-input__inner), .text-field :deep(.wd-textarea__inner) { text-align:left; }
+.text-field :deep(.wd-input), .text-field :deep(.wd-textarea) { padding-left:0; padding-right:0; }
+.category-help { display:flex; align-items:center; min-height:88rpx; padding:0 24rpx; color:var(--yb-muted); font-size:24rpx; }
 .publish-page { min-height:100%; }
 .receipt-panel { display:flex; flex-direction:column; gap:16rpx; margin:24rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); font-size:26rpx; }
-.create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx 200rpx; }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }
-.hint { display: block; margin-bottom: 16rpx; font-size: 22rpx; color: #86909c; }
+.create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(280rpx + env(safe-area-inset-bottom)); }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }
+.hint { display:block; margin-bottom:16rpx; font-size:24rpx; color:var(--yb-muted); }
 .image-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .image-cell, .add { width: 200rpx; height: 200rpx; }
 .image-cell { position: relative; }
 .image { width: 100%; height: 100%; border-radius: 8rpx; }
 .remove {
-  position: absolute; top: 4rpx; right: 4rpx; display: flex; align-items: center; justify-content: center;
-  width:36rpx; height:36rpx; border-radius:50%; background:rgba(0,0,0,.55); color:#fff;
+  position:absolute; top:0; right:0; display:flex; align-items:center; justify-content:center;
+  width:88rpx; height:88rpx; color:#fff;
 }
+.remove::before { content:''; position:absolute; width:40rpx; height:40rpx; border-radius:50%; background:rgba(0,0,0,.55); }.remove :deep(.wd-icon) { position:relative; }
 .add {
   display: flex; align-items: center; justify-content: center; box-sizing: border-box;
   flex-direction:column; gap:8rpx; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); background:#f7f8fa; color:#86909c; font-size:20rpx;
 }
 .summary .row { display: flex; justify-content: space-between; gap: 24rpx; padding: 18rpx 0; border-bottom: 1rpx solid #f2f3f5; font-size: 24rpx; }
-.label { flex-shrink: 0; color: #86909c; }
-.submit-tip { display: block; margin-top: 20rpx; color: #ff7d00; font-size: 22rpx; line-height: 1.6; }
+.upload-caption { color:var(--yb-muted); font-size:24rpx; }
+.label { flex-shrink:0; color:var(--yb-muted); }
+.submit-tip { display:block; margin-top:20rpx; color:var(--yb-ink-2); font-size:24rpx; line-height:1.6; }
 .nav-bar {
-  position: fixed; right: 0; bottom: 0; left: 0; display: flex; gap: 12rpx;
+  position:fixed; right:0; bottom:0; left:0; display:flex; flex-direction:column; gap:12rpx;
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f2f3f5; background: #fff;
 }
-.nav-bar > * { flex: 1; }
+.navigation-hint { display:block; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }.nav-actions { display:flex; gap:12rpx; }.nav-actions > * { flex:1; }
 </style>

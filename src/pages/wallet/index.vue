@@ -8,7 +8,6 @@ import TxnDetailPopup from '@/components/wallet/txn-detail-popup.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore, useWalletStore } from '@/stores';
 import { fetchWalletLedger, type WalletTxnView } from '@/service/api/wallet';
-import { UI_ASSETS } from '@/constants/ui-assets';
 import { getAccessToken } from '@/service/request/token';
 import { useNavigationGuards } from '@/utils/navigate';
 
@@ -20,6 +19,7 @@ const walletLoadFailed = ref(false);
 const recentLoadFailed = ref(false);
 const profileFailed = ref(false);
 const popupOpen = ref(false);
+const expandedBuckets = ref(false);
 const drawerTxn = ref<WalletTxnView>();
 const { requireLogin } = useNavigationGuards();
 let loadSequence = 0;
@@ -131,17 +131,17 @@ function bucketLabel(key: string): string {
     <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看钱包" description="登录后可查看资产与资金流水" action-text="登录" @action="login" />
     <template v-else>
     <!-- Hero (白底 BiyaPay 风) -->
-    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.chain})` }">
+    <view class="hero">
       <view class="nav">
         <view class="nav-btn" @click="goBack">
           <view class="chev" />
         </view>
         <text class="nav-title">我的钱包</text>
       </view>
-      <text class="hero-eyebrow">TOTAL ASSETS · USDT</text>
+      <text class="hero-eyebrow">总资产</text>
       <view class="hero-total">
-        <text class="unit">U</text>
         <text class="num" :class="{ 'num-long': formatAmount(walletStore.totalAssets).length > 12 }">{{ formatAmount(walletStore.totalAssets) }}</text>
+        <text class="unit">USDT</text>
       </view>
       <text class="hero-sub">
         参考 ≈ <text class="cny-num">¥{{ cnyEquiv }}</text>  · 参考汇率 1 USDT = ¥{{ cnyRate.toFixed(2) }}
@@ -164,11 +164,11 @@ function bucketLabel(key: string): string {
 
     <!-- 资产桶（vertical list） -->
     <view class="section">
-      <text class="sec-eyebrow">ASSET BUCKETS</text>
+
       <text class="sec-title">资产分布</text>
       <view class="bucket-list">
         <view
-          v-for="b in bucketsWithPct"
+          v-for="b in (expandedBuckets ? bucketsWithPct : bucketsWithPct.filter(item => item.key === 'available'))"
           :key="b.key"
           class="bucket-row"
         >
@@ -180,17 +180,17 @@ function bucketLabel(key: string): string {
           </view>
           <view class="row-right">
             <view class="row-amount">
-              <text class="amt-unit">U</text>
-              <text class="amt-num">{{ formatAmount(b.value, { decimals: 2 }) }}</text>
+              <text class="amt-num">{{ formatAmount(b.value) }}</text>
+              <text class="amt-unit">USDT</text>
             </view>
             <text class="row-pct">{{ b.pct.toFixed(1) }}%</text>
           </view>
         </view>
       </view>
+      <view class="bucket-toggle" @click="expandedBuckets = !expandedBuckets">{{ expandedBuckets ? '收起资产明细' : '展开全部资产明细' }} <wd-icon :name="expandedBuckets ? 'arrow-up' : 'arrow-down'" size="14px" /></view>
     </view>
 
     <view class="section">
-      <text class="sec-eyebrow">FUND ORDERS</text>
       <text class="sec-title">充提记录</text>
       <view class="record-links">
         <view class="record-link" @click="go('/pages/wallet/recharge-list')">
@@ -208,7 +208,7 @@ function bucketLabel(key: string): string {
     <view class="section">
       <view class="section-bar">
         <view>
-          <text class="sec-eyebrow">RECENT TRANSACTIONS</text>
+
           <text class="sec-title">最近交易</text>
         </view>
         <view class="more" @click="go('/pages/wallet/history')">查看全部 <wd-icon name="arrow-right" size="12px" /></view>
@@ -231,7 +231,7 @@ function bucketLabel(key: string): string {
   background: #FAFAF7;
   padding-bottom: 40rpx;
 }
-.page-loading { padding: 120rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
+.page-loading { padding: 120rpx 0; text-align: center; color: var(--yb-muted); font-size: 24rpx; }
 
 /* Hero */
 .hero {
@@ -273,9 +273,9 @@ function bucketLabel(key: string): string {
 }
 .hero-eyebrow {
   display: block;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 700;
-  letter-spacing: 3rpx;
+  letter-spacing: 0;
   color: rgba(255,255,255,.64);
   margin-bottom: 12rpx;
 }
@@ -287,24 +287,24 @@ function bucketLabel(key: string): string {
 }
 .hero-total .unit {
   flex-shrink: 0;
-  font-family: ui-monospace, monospace;
-  font-size: 36rpx;
+  font-family: var(--yb-font-body);
+  font-size: 26rpx;
   font-weight: 600;
   color: rgba(255,255,255,.76);
 }
 .hero-total .num {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   word-break: break-all;
-  font-family: ui-monospace, monospace;
-  font-size: 88rpx;
+  font-family: var(--yb-font-body);
+  font-size: 64rpx;
   font-weight: 700;
   color: #fff;
-  letter-spacing: -3rpx;
+  letter-spacing: -1rpx;
   line-height: 1.15;
 }
 .hero-total .num-long {
-  font-size: 60rpx;
+  font-size: 48rpx;
 }
 .hero-sub {
   display: block;
@@ -312,7 +312,7 @@ function bucketLabel(key: string): string {
   color: rgba(255,255,255,.76);
 }
 .cny-num {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   color: #fff;
   font-weight: 600;
 }
@@ -360,7 +360,7 @@ function bucketLabel(key: string): string {
   display: block;
   font-size: 18rpx;
   font-weight: 700;
-  letter-spacing: 3rpx;
+  letter-spacing: 0;
   color: #6B7385;
   margin-bottom: 4rpx;
 }
@@ -429,28 +429,29 @@ function bucketLabel(key: string): string {
   color: #0F111A;
 }
 .amt-unit {
-  font-family: ui-monospace, monospace;
-  font-size: 20rpx;
+  font-family: var(--yb-font-body);
+  font-size: 24rpx;
   font-weight: 600;
   color: #6B7385;
 }
 .amt-num {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 30rpx;
   font-weight: 700;
   letter-spacing: -0.5rpx;
 }
 .row-pct {
-  font-family: ui-monospace, monospace;
-  font-size: 20rpx;
-  color: #A8ADB8;
+  font-family: var(--yb-font-body);
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
 .record-links { border-top: 1rpx solid #edece6; }
 .record-link { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; border-bottom: 1rpx solid #edece6; }
 .record-link:last-child { border-bottom: none; }
 .record-title { display: block; font-size: 26rpx; font-weight: 600; color: #0f111a; }
-.record-sub { display: block; margin-top: 6rpx; font-size: 22rpx; color: #86909c; }
+.record-sub { display: block; margin-top: 6rpx; font-size: 24rpx; color: var(--yb-muted); }
 .record-arrow { font-size: 40rpx; color: #c9cdd4; }
+.bucket-toggle { display: flex; align-items: center; justify-content: center; min-height: 88rpx; color: var(--yb-muted); font-size: 26rpx; gap: 12rpx; }
 </style>

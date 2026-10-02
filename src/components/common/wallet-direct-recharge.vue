@@ -12,12 +12,18 @@ import { isMissingOperationRecord } from '@/utils/storage';
 import WalletBrowserEntry from './wallet-browser-entry.vue';
 
 const props = defineProps<{ chain: string; disabled?: boolean }>();
+const emit = defineEmits<{ networkInfo: [value: { chain: string; network: string; toAddress: string; tokenContract: string; minAmount: string; minConfirmations: number } | undefined] }>();
+const expanded = ref(false);
 const user = useUserStore();
 const amount = ref('100'), walletKey = ref(''), error = ref('');
 const busy = ref(false), loading = ref(false);
 interface RechargeTerms extends WalletTransferParams { decimals: number; minAmount: string; minConfirmations: number }
 interface Progress { attempt: string; terms: RechargeTerms; amount: string; fromAddress: string; txHash?: string }
 const terms = ref<RechargeTerms>();
+watch(terms, value => emit('networkInfo', value ? {
+  chain: value.chain, network: value.network, toAddress: value.toAddress, tokenContract: value.tokenContract,
+  minAmount: value.minAmount, minConfirmations: value.minConfirmations
+} : undefined), { flush: 'sync' });
 const progress = ref<Progress>();
 const recordBlocked = ref(false);
 const wallets = computed(() => availableWallets(props.chain));
@@ -76,7 +82,7 @@ async function load() {
     }
   } finally { if (currentSequence === sequence) loading.value = false; }
 }
-watch([() => props.chain, () => props.disabled, () => user.realUserId], () => { sequence++; if (!busy.value) void load(); });
+watch([() => props.chain, () => props.disabled, () => user.realUserId], () => { sequence++; emit('networkInfo', undefined); if (!busy.value) void load(); });
 onShow(load);
 async function transfer() {
   if (busy.value || loading.value || !terms.value || !walletKey.value || props.disabled || progress.value || recordBlocked.value) return;
@@ -136,10 +142,10 @@ function copy(value: string) { if (page.visible.value) uni.setClipboardData({ da
 </script>
 <template>
   <view class="direct-recharge">
-    <text class="title">钱包直接充值</text>
+    <view class="section-toggle" @click="expanded = !expanded"><text class="title">可选：使用钱包转账</text><view class="toggle-action"><text>{{ expanded ? '收起' : '展开' }}</text><wd-icon :name="expanded ? 'arrow-up' : 'arrow-down'" size="16px" /></view></view>
     <text class="tip">在钱包内打开本页并确认转账；平台确认到账后才增加余额，不会自动创建申报单。</text>
     <text v-if="error" class="warning">{{ error }}</text>
-    <wd-button v-if="!terms && !busy" plain size="small" :loading="loading" :disabled="disabled" @click="load">重新读取钱包配置</wd-button>
+    <text v-if="recordBlocked" class="warning">本机充值记录待核对，暂不能再次转账。</text>
     <view v-if="progress" class="progress">
       <text class="warning">上一笔充值已发起，请先核对结果，勿重复转账。</text>
       <text selectable>{{ progress.terms.chain }} · {{ progress.terms.network }} · {{ progress.amount }} USDT</text>
@@ -150,19 +156,25 @@ function copy(value: string) { if (page.visible.value) uni.setClipboardData({ da
       <wd-button plain size="small" :disabled="busy" @click="go('/pages/wallet/history')">查看钱包流水</wd-button>
       <wd-button plain size="small" :disabled="busy" @click="acknowledge">已核对本笔充值</wd-button>
     </view>
-    <template v-else-if="terms && !recordBlocked">
-      <text class="tip">{{ terms.chain }} · {{ terms.network }}，最低 {{ terms.minAmount }} USDT，至少 {{ terms.minConfirmations }} 个确认。</text>
-      <wd-input v-model="amount" label="直充金额" type="digit" :disabled="busy" placeholder="USDT" />
-      <template v-if="wallets.length">
-        <wd-radio-group v-model="walletKey" :disabled="busy"><wd-radio v-for="item in wallets" :key="item.key" :value="item.key">{{ item.label }}</wd-radio></wd-radio-group>
-        <wd-button block type="primary" :loading="busy" :disabled="disabled" @click="transfer">连接钱包并充值</wd-button>
+    <view v-show="expanded" class="transfer-body">
+      <wd-button v-if="!terms && !busy" plain size="small" :loading="loading" :disabled="disabled" @click="load">重新读取钱包配置</wd-button>
+      <template v-if="!progress && terms && !recordBlocked">
+        <text class="tip">{{ terms.chain }} · {{ terms.network }}，最低 {{ terms.minAmount }} USDT，至少 {{ terms.minConfirmations }} 个确认。</text>
+        <wd-input v-model="amount" label="直充金额" type="digit" :disabled="busy" placeholder="USDT" />
+        <template v-if="wallets.length">
+          <wd-radio-group v-model="walletKey" :disabled="busy"><wd-radio v-for="item in wallets" :key="item.key" :value="item.key">{{ item.label }}</wd-radio></wd-radio-group>
+          <wd-button block plain :loading="busy" :disabled="disabled" @click="transfer">连接钱包并充值</wd-button>
+        </template>
+        <WalletBrowserEntry v-else :chain="chain" path="/pages/wallet/deposit" />
       </template>
-      <WalletBrowserEntry v-else :chain="chain" path="/pages/wallet/deposit" />
-    </template>
+    </view>
   </view>
 </template>
 <style scoped>
 .direct-recharge { padding:24rpx; margin-bottom:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; }
 .title { font-size:28rpx; font-weight:600; }.tip, .warning { display:block; margin:16rpx 0; font-size:24rpx; line-height:1.6; }
-.tip { color:#86909c; }.warning { color:#ff7d00; }.progress { display:flex; flex-direction:column; gap:16rpx; font-size:24rpx; }.value { word-break:break-all; }
+.tip { color:var(--yb-muted); }.warning { color:#9a5700; }.progress { display:flex; flex-direction:column; gap:16rpx; font-size:24rpx; }.value { word-break:break-all; }
+.section-toggle { display:flex; align-items:center; justify-content:space-between; gap:16rpx; min-height:88rpx; }
+.toggle-action { display:flex; align-items:center; justify-content:flex-end; gap:8rpx; min-width:88rpx; font-size:24rpx; color:var(--yb-muted); flex-shrink:0; }
+.transfer-body { padding-top:8rpx; }
 </style>

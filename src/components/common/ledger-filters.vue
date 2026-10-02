@@ -6,6 +6,7 @@ type Filters = Pick<Api.RealWallet.WalletLedgerPageQuery, 'balanceType' | 'keywo
 const emit = defineEmits<{ (event: 'apply', value: Filters): void }>();
 const expanded = ref(false);
 const applied = ref(false);
+const summary = ref('不限筛选条件');
 const draft = reactive({ balanceType: 'ALL', keyword: '', behaviorCodes: [] as string[], earned: 'ALL', startDate: '', endDate: '' });
 const buckets = [
   { value: 'ALL', label: '全部账户' }, { value: 'AVAILABLE', label: '可用余额' }, { value: 'NON_WITHDRAWABLE', label: '不可提现' },
@@ -37,6 +38,14 @@ function apply(reset = false) {
     }
     emit('apply', filters);
     applied.value = Object.values(filters).some(value => value !== undefined);
+    const labels = [
+      props.mode === 'wallet' && draft.balanceType !== 'ALL' ? buckets.find(item => item.value === draft.balanceType)?.label : '',
+      props.mode === 'wallet' ? draft.keyword.trim() : '',
+      props.mode === 'points' && draft.earned !== 'ALL' ? draft.earned === 'true' ? '加分' : '扣分' : '',
+      props.mode === 'points' && draft.behaviorCodes.length ? `已选 ${draft.behaviorCodes.length} 项行为` : '',
+      draft.startDate || draft.endDate ? `${draft.startDate || '不限'} 至 ${draft.endDate || '不限'}` : ''
+    ].filter(Boolean);
+    summary.value = labels.join(' · ') || '不限筛选条件';
     expanded.value = false;
   } catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '筛选条件无效', icon: 'none' }); }
 }
@@ -44,7 +53,7 @@ function apply(reset = false) {
 
 <template>
   <view class="ledger-filters">
-    <wd-button plain size="small" :disabled="disabled" @click="expanded = !expanded">{{ expanded ? '收起筛选' : applied ? '筛选 · 已生效' : '筛选' }}</wd-button>
+    <view class="filter-toolbar"><text class="filter-summary">{{ summary }}</text><wd-button plain size="small" :disabled="disabled" @click="expanded = !expanded">{{ expanded ? '收起' : applied ? '筛选 · 已生效' : '筛选' }}</wd-button></view>
     <view v-show="expanded">
     <template v-if="mode === 'wallet'">
       <wd-picker v-model="draft.balanceType" label="账户类型" :columns="buckets" :disabled="disabled" />
@@ -63,8 +72,11 @@ function apply(reset = false) {
 </template>
 
 <style scoped>
-.ledger-filters { padding:16rpx; margin-bottom:20rpx; background:#fff; border-radius:var(--yb-radius-lg); }
+.ledger-filters { padding: 8rpx 24rpx; background: var(--yb-surface); border-bottom: 1rpx solid var(--yb-border); }
+.filter-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 88rpx; }
+.filter-summary { flex: 1; min-width: 0; color: var(--yb-muted); font-size: 24rpx; overflow-wrap: anywhere; }
+.filter-toolbar :deep(.wd-button) { flex-shrink: 0; }
 .date-row { display:flex; justify-content:space-between; gap:16rpx; padding:24rpx 30rpx; font-size:28rpx; }
-.hint { display:block; margin:12rpx 24rpx; font-size:22rpx; color:var(--yb-muted); }
+.hint { display:block; margin:12rpx 24rpx; font-size:24rpx; color:var(--yb-muted); }
 .actions { display:flex; justify-content:flex-end; gap:16rpx; margin-top:12rpx; }
 </style>

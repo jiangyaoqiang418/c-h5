@@ -6,6 +6,7 @@ interface Props {
   icon: string;
   color?: string;
   delta?: number;
+  description?: string;
 }
 withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
 </script>
@@ -14,7 +15,8 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   <view class="kpi-card" :style="{ '--c': color }">
     <view class="head">
       <view class="icon-wrap">
-        <wd-icon :name="icon" size="19px" :color="color" />
+        <image v-if="icon.startsWith('/')" :src="icon" class="icon-image" mode="aspectFit" />
+        <wd-icon v-else :name="icon" size="19px" :color="color" />
       </view>
       <view v-if="delta != null" class="delta" :class="{ up: delta >= 0, down: delta < 0 }">
         <text class="arrow">{{ delta >= 0 ? '↑' : '↓' }}</text>
@@ -26,6 +28,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
       <text v-if="unit" class="unit">{{ unit }}</text>
     </view>
     <text class="label">{{ label }}</text>
+    <text v-if="description" class="description">{{ description }}</text>
   </view>
 </template>
 
@@ -52,11 +55,13 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   width: 56rpx;
   height: 56rpx;
   border-radius: 14rpx;
-  background: color-mix(in srgb, var(--c) 12%, #FFFFFF);
+  background: var(--yb-bg);
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.icon-image { width: 56rpx; height: 56rpx; }
+.description { font-size: 24rpx; line-height: 1.5; color: var(--yb-muted); }
 .delta {
   display: inline-flex;
   align-items: center;
@@ -65,7 +70,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   border-radius: 999rpx;
   font-size: 20rpx;
   font-weight: 600;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
 }
 .delta.up {
   background: rgba(0, 168, 138, 0.1);
@@ -76,7 +81,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   color: #E74C3C;
 }
 .arrow {
-  font-size: 22rpx;
+  font-size: 24rpx;
 }
 .value-row {
   display: flex;
@@ -85,7 +90,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   margin-top: 8rpx;
 }
 .value {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 44rpx;
   font-weight: 700;
   color: #0F111A;
@@ -95,13 +100,13 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   text-overflow: ellipsis;
 }
 .unit {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #6B7385;
   font-weight: 500;
 }
 .label {
   display: block;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #6B7385;
 }
 </style>

@@ -48,7 +48,7 @@ function goDetail() {
         </view>
       </view>
       <view class="reward">
-        <text class="reward-label">悬赏</text>
+        <text class="reward-label">预算</text>
         <view class="reward-amount">
           <text class="unit">U</text>
           <text class="num">{{ formatAmount(request.budgetAmount) }}</text>
@@ -104,7 +104,7 @@ function goDetail() {
 .status-pill {
   background: rgba(91, 92, 231, 0.08);
   color: #5B5CE7;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
 }
 .status-pill[data-status='pushing'] {
   background: rgba(0, 168, 138, 0.1);
@@ -127,7 +127,7 @@ function goDetail() {
   min-width: 0;
 }
 .cat {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #6B7385;
   display: flex;
   align-items: center;
@@ -162,7 +162,7 @@ function goDetail() {
   padding: 4rpx 14rpx;
   background: #FAFAF7;
   border-radius: 999rpx;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #1D2129;
   display: inline-flex;
   align-items: center;
@@ -174,18 +174,20 @@ function goDetail() {
 }
 .reward {
   padding: 20rpx 24rpx;
-  background: linear-gradient(135deg, rgba(91, 92, 231, 0.08) 0%, transparent 100%);
+  background: var(--yb-bg);
   border: 1rpx solid rgba(91, 92, 231, 0.15);
   border-radius: 16rpx;
   text-align: right;
-  min-width: 180rpx;
+  min-width: 140rpx;
+  max-width: 45%;
+  overflow-wrap: anywhere;
 }
 .reward-label {
   display: block;
-  font-size: 18rpx;
+  font-size: 24rpx;
   color: #5B5CE7;
   font-weight: 600;
-  letter-spacing: 3rpx;
+  letter-spacing: 0;
   text-transform: uppercase;
   margin-bottom: 6rpx;
 }
@@ -197,13 +199,13 @@ function goDetail() {
   color: #5B5CE7;
 }
 .reward-amount .unit {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 22rpx;
   font-weight: 600;
 }
 .reward-amount .num {
-  font-family: ui-monospace, monospace;
-  font-size: 44rpx;
+  font-family: var(--yb-font-body);
+  font-size: 36rpx;
   font-weight: 700;
   letter-spacing: -1rpx;
 }
@@ -236,4 +238,7 @@ function goDetail() {
   justify-content: flex-end;
   margin-top: 16rpx;
 }
+.status-pill[data-status='cancelled'], .status-pill[data-status='expired'] { background: var(--yb-bg); color: var(--yb-muted); }
+.status-pill[data-status='pending_audit'] { background: var(--yb-warning-soft); color: #996014; }
+.status-pill[data-status='rejected'] { background: var(--yb-danger-soft); color: var(--yb-danger); }
 </style>

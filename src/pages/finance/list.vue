@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatAmount } from '@/utils/format-bridge';
 import { computed, ref } from 'vue';
 import { onHide, onShow } from '@dcloudio/uni-app';
 import { fetchFinanceOverview, fetchFinanceProducts } from '@/service/api/finance';
@@ -94,7 +95,7 @@ function goDeposit() { if (page.visible.value) uni.pageScrollTo({ selector: '.li
       <template v-if="overview">
         <EarnHero :balance="String(overview.holdingPrincipal)" :best-apy="productsLoadFailed ? 0 : bestApy" :on-deposit="goDeposit" :on-withdraw="() => go('/pages/finance/my-lockups')" />
         <EarnChartCard :earnings="String(overview.totalInterest)" />
-        <view class="summary">待结算收益 U {{ overview.pendingInterest }} · 预计到期收益 U {{ overview.expectedInterest }}</view>
+        <view class="summary">待结算收益 U {{ formatAmount(overview.pendingInterest) }} · 预计到期收益 U {{ formatAmount(overview.expectedInterest) }}</view>
       </template>
       <view v-else class="summary">资产及收益尚未读取，金额 —</view>
       <view class="list-section">

@@ -24,8 +24,8 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
       <text class="time">{{ new Date(txn.createdAt).toLocaleString() }}</text>
     </view>
     <view class="right">
-      <text class="amount" :style="{ color: amountColor }">{{ sign }}{{ formatAmount(txn.amount) }} U</text>
-      <text class="balance">{{ txn.direction === 'transfer' ? '转入后余额' : '余' }} {{ formatAmount(txn.balanceAfter) }}</text>
+      <text class="amount" :style="{ color: amountColor }">{{ sign }}{{ formatAmount(txn.amount) }} USDT</text>
+      <text class="balance">变动后余额 {{ formatAmount(txn.balanceAfter) }} USDT</text>
     </view>
   </view>
 </template>
@@ -45,16 +45,16 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
 }
 .type {
   display: inline-block;
-  background: #fff1f2;
-  color: var(--yb-brand);
+  background: var(--yb-bg);
+  color: var(--yb-muted);
   padding: 2rpx 12rpx;
   border-radius: 4rpx;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 500;
 }
 .desc {
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: 26rpx;
@@ -63,13 +63,13 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
 }
 .time {
   display: block;
-  font-size: 20rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
   margin-top: 4rpx;
 }
 .right {
   text-align: right;
-  flex: 1;
+  flex: 0.9;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -77,12 +77,12 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
   display: block;
   font-size: 28rpx;
   font-weight: 700;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
 }
 .balance {
   display: block;
-  font-size: 20rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
   margin-top: 4rpx;
 }
 </style>

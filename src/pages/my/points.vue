@@ -4,7 +4,6 @@ import { onHide, onReachBottom, onShow } from '@dcloudio/uni-app';
 import EmptyState from '@/components/common/empty-state.vue';
 import LedgerFilters from '@/components/common/ledger-filters.vue';
 import { useUserStore } from '@/stores';
-import { UI_ASSETS } from '@/constants/ui-assets';
 import { usePageOperation } from '@/utils/page-operation';
 import {
   fetchPointAppeals,
@@ -197,7 +196,7 @@ function formatDate(value?: string | number): string {
 
 <template>
   <view class="points-page yb-page yb-page--full-bleed">
-    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.points})` }">
+    <view class="hero" >
       <text class="hero-label">当前积分</text>
       <text class="hero-amount">{{ balance }}</text>
       <text class="hero-hint">完成订单、好评、求购可获得积分</text>
@@ -230,7 +229,7 @@ function formatDate(value?: string | number): string {
           </view>
         </view>
       </view>
-      <EmptyState v-else-if="!loading" title="暂无流水" />
+      <EmptyState v-else-if="!loading" title="暂无积分流水" :description="Object.values(filters).some(value => value !== undefined) ? '当前筛选条件没有匹配记录，可调整或重置筛选。' : '积分变动后会在这里记录，具体条件可查看积分规则。'" />
     </view>
 
     <view v-else-if="activeKey === 'appeal'" class="list">
@@ -251,7 +250,7 @@ function formatDate(value?: string | number): string {
           </view>
         </view>
       </view>
-      <EmptyState v-else-if="!loading" title="暂无申诉记录" />
+      <EmptyState v-else-if="!loading" title="暂无申诉记录" description="符合申诉条件的积分扣减可从积分流水中发起申诉。" />
     </view>
 
     <view v-else class="list">
@@ -268,11 +267,11 @@ function formatDate(value?: string | number): string {
 
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载积分数据</text></view>
 
-    <wd-popup v-model="appealPopup" position="bottom" :safe-area-inset-bottom="true">
+    <wd-popup v-model="appealPopup" position="bottom" closable :safe-area-inset-bottom="true">
       <view class="popup">
         <text class="popup-title">申诉积分扣减</text>
         <text v-if="appealLog" class="popup-meta">{{ labelOf(appealLog.behavior) }} · {{ appealLog.change }}</text>
-        <wd-textarea v-model="appealReason" placeholder="请说明申诉理由（≥ 5 字）" :max-length="200" />
+        <wd-textarea auto-height v-model="appealReason" placeholder="请说明申诉理由（≥ 5 字）" :maxlength="200" />
         <wd-button type="primary" block class="popup-btn" :loading="submitting" :disabled="submitting" @click="submitAppeal">提交申诉</wd-button>
       </view>
     </wd-popup>
@@ -282,16 +281,16 @@ function formatDate(value?: string | number): string {
 <style lang="scss" scoped>
 .points-page { min-height: 100%; }
 .hero {
-  background-color: #2a175d;
+  background-color: var(--yb-surface);
   background-size: cover;
   background-position: center;
-  color: #fff;
+  color: var(--yb-ink);
   padding: 48rpx 32rpx;
   text-align: center;
 }
-.hero-label { display: block; font-size: 22rpx; opacity: 0.8; }
-.hero-amount { display: block; font-size: 80rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0; }
-.hero-hint { display: block; font-size: 22rpx; opacity: 0.8; }
+.hero-label { display: block; font-size: 26rpx; color: var(--yb-muted); }
+.hero-amount { display: block; font-size: 64rpx; font-weight: 700; font-family: var(--yb-font-body); margin: 12rpx 0; }
+.hero-hint { display: block; font-size: 24rpx; color: var(--yb-muted); }
 .list { padding: 24rpx; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
 .log-row {
@@ -307,20 +306,20 @@ function formatDate(value?: string | number): string {
 }
 .log-main { display: flex; flex-direction: column; }
 .log-title { font-size: 26rpx; font-weight: 600; }
-.log-time { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
+.log-time { font-size: 24rpx; color: var(--yb-muted); margin-top: 4rpx; }
 .log-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4rpx; }
-.log-change { font-size: 28rpx; font-weight: 700; font-family: ui-monospace, monospace; }
+.log-change { font-size: 28rpx; font-weight: 700; font-family: var(--yb-font-body); }
 .log-change.pos { color: #00b42a; }
 .log-change.neg { color: #f53f3f; }
 .appeal-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48rpx;
+  min-height: 88rpx;
   padding: 0 18rpx;
   border: 1rpx solid rgba(250, 36, 60, 0.28);
-  border-radius: var(--yb-radius-pill);
-  font-size: 22rpx;
+  border-radius: var(--yb-radius-sm);
+  font-size: 24rpx;
   color: var(--yb-brand);
 }
 .appeal-tag { color: #a76f22; background: var(--yb-warning-soft); }

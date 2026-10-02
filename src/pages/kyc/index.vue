@@ -24,15 +24,20 @@ const receipt = ref<KycCreateReceipt>();
 const receiptFailed = ref(false);
 const detail = ref<Api.RealKyc.DetailVO | null>(null);
 const schema = ref<Api.RealKyc.Schema>();
+const photoStates = reactive<Record<UploadField, 'loading' | 'ready' | 'failed'>>({ idCardFront: 'loading', idCardBack: 'loading', holdingPhoto: 'loading' });
 const detailPhotos = computed(() => {
   const record = detail.value;
   if (!record) return [];
   return [
-    { label: '证件正面', url: record.idCardFront, visible: true },
-    { label: '证件反面', url: record.idCardBack, visible: !!record.idCardBack || record.idCardBackFileId != null || schema.value?.idCardBackRequired === true },
-    { label: '手持证件照', url: record.holdingPhoto, visible: !!record.holdingPhoto || record.holdingPhotoFileId != null || schema.value?.holdingPhotoRequired === true }
-  ].filter(photo => photo.visible);
+    { field: 'idCardFront' as UploadField, label: '证件正面', url: record.idCardFront, referenced: !!record.idCardFront || record.idCardFrontFileId != null, visible: true },
+    { field: 'idCardBack' as UploadField, label: '证件反面', url: record.idCardBack, referenced: !!record.idCardBack || record.idCardBackFileId != null, visible: !!record.idCardBack || record.idCardBackFileId != null || schema.value?.idCardBackRequired === true },
+    { field: 'holdingPhoto' as UploadField, label: '手持证件照', url: record.holdingPhoto, referenced: !!record.holdingPhoto || record.holdingPhotoFileId != null, visible: !!record.holdingPhoto || record.holdingPhotoFileId != null || schema.value?.holdingPhotoRequired === true }
+  ].filter(photo => photo.visible).map(photo => ({ ...photo, state: photo.url ? photoStates[photo.field] : photo.referenced ? 'failed' : 'missing' }));
 });
+function updatePhotoState(field: UploadField, url: string | null | undefined, state: 'ready' | 'failed') {
+  if (!page.visible.value || !url || detail.value?.[field] !== url) return;
+  photoStates[field] = state;
+}
 const step = ref(0);
 const form = reactive({
   realName: '',
@@ -158,6 +163,7 @@ async function load() {
       record = { ...record, idCardFront: front, idCardBack: back, holdingPhoto: holding };
     }
     if (valid()) {
+      Object.assign(photoStates, { idCardFront: 'loading', idCardBack: 'loading', holdingPhoto: 'loading' });
       detail.value = record;
     }
   } catch (error) {
@@ -234,15 +240,20 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载认证状态</text></view>
     <view v-else-if="loadFailed" class="error-card"><text class="title">认证状态加载失败</text><text class="description">请检查网络后重新加载。</text><wd-button type="primary" block @click="load">重新加载</wd-button></view>
     <template v-else>
-      <view class="status-card" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.account})` }"><KycStatusTag :status="status" /><text class="title">{{ statusTitle }}</text><text v-if="detail?.reviewRemark" class="review-remark">审核意见：{{ detail.reviewRemark }}</text><text v-else-if="detailLoadFailed" class="review-remark">历史认证资料暂不可查看，请联系平台处理。</text></view>
+      <view class="status-card" :class="`status-card--${status}`"><KycStatusTag :status="status" /><text class="title">{{ statusTitle }}</text><text v-if="detail?.reviewRemark" class="review-remark" :class="{ 'review-remark--rejected': status === 'rejected' }">审核意见：{{ detail.reviewRemark }}</text><text v-else-if="detailLoadFailed" class="review-remark">历史认证资料暂不可查看，请联系平台处理。</text></view>
       <view v-if="detail" class="record-card">
         <view class="record-row"><text class="label">姓名</text><text>{{ detail.realName || '-' }}</text></view><view class="record-row"><text class="label">证件类型</text><text>{{ detail.idType === 'PASSPORT' ? '护照' : '身份证' }}</text></view><view class="record-row"><text class="label">证件号码</text><text>{{ detail.idNo || '-' }}</text></view><view class="record-row"><text class="label">提交时间</text><text>{{ formatTime(detail.submittedAt) }}</text></view><view v-if="detail.expireAt" class="record-row"><text class="label">有效期至</text><text>{{ formatTime(detail.expireAt) }}</text></view>
         <view class="image-row">
-          <view v-for="photo in detailPhotos" :key="photo.label" class="record-photo">
-            <image v-if="photo.url" :src="photo.url" mode="aspectFill" />
-            <view v-else class="photo-empty"><text>{{ photo.label }}</text><text>暂无图片</text></view>
+          <view v-for="photo in detailPhotos" :key="`${photo.field}-${photo.url || ''}`" class="record-photo">
+            <view class="photo-preview">
+              <image v-if="photo.url && photo.state !== 'failed'" :src="photo.url" mode="aspectFill" @load="updatePhotoState(photo.field, photo.url, 'ready')" @error="updatePhotoState(photo.field, photo.url, 'failed')" />
+              <view v-if="photo.state === 'loading'" class="photo-loading"><wd-loading size="32rpx" /><text>加载中</text></view>
+              <view v-else-if="photo.state === 'failed' || photo.state === 'missing'" class="photo-empty"><text>{{ photo.state === 'failed' ? '材料暂无法预览' : '暂无可展示影像' }}</text></view>
+            </view>
+            <text class="photo-label">{{ photo.label }}</text>
           </view>
         </view>
+        <view v-if="detailPhotos.some(photo => photo.state === 'failed')" class="photo-note"><text>材料预览状态不代表认证结果，请以审核状态为准。</text><wd-button plain size="small" :disabled="!!uploading || submitting" @click="load">重新读取</wd-button></view>
       </view>
       <view v-if="schema?.noticeText" class="record-card">{{ schema.noticeText }}</view>
       <wd-button v-if="canStartAnother" block plain @click="startAnother">重新申请</wd-button>
@@ -259,7 +270,11 @@ onShow(() => { if (!uploading.value && !submitting.value) load(); });
 </template>
 
 <style lang="scss" scoped>
-.record-photo { width:31%; min-width:0; }.image-row .record-photo image { width:100%; }.photo-empty { height:160rpx; border-radius:8rpx; background:var(--yb-bg); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:8rpx; color:#86909c; font-size:22rpx; }
-.document-hint { display:block; margin-bottom:20rpx; color:#86909c; font-size:24rpx; }
-.kyc-page { min-height: 100%; box-sizing: border-box; padding: 24rpx 24rpx 180rpx; background: var(--yb-bg); }.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:#86909c; }.status-card,.record-card,.form-card,.error-card { margin-bottom:20rpx; padding:24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.status-card { background-color:#10131f; background-size:cover; background-position:center; color:#fff; }.status-card .title { color:#fff; }.title { display:block; margin-top:12rpx; font-size:28rpx; font-weight:600; color:#1d2129; }.review-remark { display:block; margin-top:16rpx; color:#f53f3f; font-size:24rpx; }.record-row { display:flex; justify-content:space-between; gap:24rpx; padding:18rpx 0; border-bottom:1rpx solid #f2f3f5; font-size:24rpx; }.label { color:#86909c; }.image-row { display:flex; gap:12rpx; margin-top:20rpx; }.image-row image { width:31%; height:160rpx; border-radius:8rpx; }.upload-list { display:flex; flex-direction:column; gap:16rpx; margin-top:24rpx; }.upload-card { min-height:150rpx; padding:16rpx; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); display:flex; flex-direction:column; gap:12rpx; color:#86909c; font-size:24rpx; }.upload-card image { width:100%; height:220rpx; border-radius:var(--yb-radius-md); }.summary { display:flex; flex-direction:column; gap:16rpx; padding-top:24rpx; font-size:24rpx; }.nav-bar { display:flex; gap:12rpx; margin-top:24rpx; }.nav-bar > * { flex:1; }
+.record-photo { flex:1; min-width:0; }.photo-preview { position:relative; height:160rpx; border-radius:8rpx; overflow:hidden; background:var(--yb-bg); }.image-row .record-photo image { width:100%; height:100%; }.photo-empty, .photo-loading { height:100%; padding:12rpx; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:8rpx; color:var(--yb-muted); font-size:24rpx; text-align:center; line-height:1.5; }.photo-loading { position:absolute; inset:0; background:var(--yb-bg); }.photo-label { display:block; margin-top:12rpx; color:var(--yb-ink-2); font-size:24rpx; text-align:center; }.photo-note { display:flex; flex-direction:column; align-items:flex-start; gap:16rpx; margin-top:20rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
+.document-hint { display:block; margin-bottom:20rpx; color:var(--yb-muted); font-size:24rpx; }
+.kyc-page { min-height: 100%; box-sizing: border-box; padding: 24rpx 24rpx 180rpx; background: var(--yb-bg); }.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); }.status-card,.record-card,.form-card,.error-card { margin-bottom:20rpx; padding:24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.status-card { background:var(--yb-surface); color:var(--yb-ink); }.status-card .title { color:var(--yb-ink); }.title { display:block; margin-top:12rpx; font-size:28rpx; font-weight:600; color:#1d2129; }.review-remark { display:block; margin-top:16rpx; color:var(--yb-muted); font-size:24rpx; }.record-row { display:flex; justify-content:space-between; gap:24rpx; padding:18rpx 0; border-bottom:1rpx solid #f2f3f5; font-size:24rpx; }.label { color:var(--yb-muted); }.image-row { display:flex; gap:12rpx; margin-top:20rpx; }.image-row image { width:31%; height:160rpx; border-radius:8rpx; }.upload-list { display:flex; flex-direction:column; gap:16rpx; margin-top:24rpx; }.upload-card { min-height:150rpx; padding:16rpx; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); display:flex; flex-direction:column; gap:12rpx; color:var(--yb-muted); font-size:24rpx; }.upload-card image { width:100%; height:220rpx; border-radius:var(--yb-radius-md); }.summary { display:flex; flex-direction:column; gap:16rpx; padding-top:24rpx; font-size:24rpx; }.nav-bar { display:flex; gap:12rpx; margin-top:24rpx; }.nav-bar > * { flex:1; }
+.review-remark--rejected { color: var(--yb-danger); }
+.status-card--approved { background: var(--yb-success-soft); }
+.status-card--pending { background: var(--yb-warning-soft); }
+.status-card--rejected { background: var(--yb-danger-soft); }
 </style>

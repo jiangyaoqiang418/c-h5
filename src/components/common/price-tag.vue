@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { priceSet, formatUsdt, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
+import { formatAmount } from '@/utils/format-bridge';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 
 interface Props {
@@ -25,11 +26,12 @@ const set = computed(() => priceSet(props.price));
   <view class="price-tag" :class="size">
     <!-- 主：USDT 大字 -->
     <view class="main-line">
-      <text class="usdt-value">{{ set.usdt }}</text>
+      <text class="usdt-value">{{ formatAmount(price) }}</text>
+      <text class="usdt-unit">USDT</text>
     </view>
     <!-- 副 1：CNY 折算 -->
     <view class="sub-line">
-      <text class="approx">≈ </text>
+      <text class="approx">参考约 </text>
       <text class="cny-value">{{ set.cny }}</text>
     </view>
     <!-- 副 2：汇率 -->
@@ -66,50 +68,55 @@ const set = computed(() => priceSet(props.price));
 .main-line {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8rpx;
 }
 .usdt-value {
-  color: #0F111A;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--yb-brand);
   font-weight: 700;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   letter-spacing: -1rpx;
   font-variant-numeric: tabular-nums;
 }
+.usdt-unit { color: var(--yb-brand); font-size: 24rpx; font-weight: 500; }
 .sub-line {
-  color: #6B7385;
+  color: var(--yb-muted);
   margin-top: 4rpx;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-variant-numeric: tabular-nums;
 }
 .approx {
-  color: #A8ADB8;
+  color: var(--yb-muted);
 }
 .cny-value {
-  color: #6B7385;
+  color: var(--yb-muted);
   font-weight: 600;
 }
 .rate-line {
-  color: #A8ADB8;
-  font-family: ui-monospace, monospace;
+  color: var(--yb-muted);
+  font-family: var(--yb-font-body);
   font-variant-numeric: tabular-nums;
   margin-top: 2rpx;
 }
 /* sizes */
 .price-tag.sm .usdt-value { font-size: 30rpx; }
-.price-tag.sm .sub-line   { font-size: 18rpx; }
-.price-tag.sm .rate-line  { font-size: 16rpx; }
+.price-tag.sm .sub-line   { font-size: 24rpx; }
+.price-tag.sm .rate-line  { font-size: 24rpx; }
 .price-tag.md .usdt-value { font-size: 44rpx; }
-.price-tag.md .sub-line   { font-size: 22rpx; }
-.price-tag.md .rate-line  { font-size: 18rpx; }
-.price-tag.lg .usdt-value { font-size: 72rpx; }
+.price-tag.md .sub-line   { font-size: 24rpx; }
+.price-tag.md .rate-line  { font-size: 24rpx; }
+.price-tag.lg .usdt-value { font-size: 56rpx; }
 .price-tag.lg .sub-line   { font-size: 26rpx; }
-.price-tag.lg .rate-line  { font-size: 22rpx; }
+.price-tag.lg .rate-line  { font-size: 24rpx; }
 
 /* Fees strip */
 .fees-strip {
   padding-top: 16rpx;
   margin-top: 16rpx;
   border-top: 1rpx solid #EDECE6;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #1D2129;
 }
 .fee-item {
@@ -121,7 +128,7 @@ const set = computed(() => priceSet(props.price));
 }
 .fee-num {
   color: #0F111A;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

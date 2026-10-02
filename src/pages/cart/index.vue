@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { onHide, onShow, onUnload } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go, useNavigationGuards } from '@/utils/navigate';
@@ -12,6 +12,8 @@ const { requireLogin } = useNavigationGuards();
 const cart = useCartStore();
 const items = computed(() => cart.enrichedItems);
 const openingCheckout = ref(false);
+const managing = ref(false);
+watch(() => cart.scope, () => { managing.value = false; });
 let pageVersion = 0;
 let visible = true;
 onShow(() => { visible = true; pageVersion++; cart.init(); openingCheckout.value = false; });
@@ -80,6 +82,7 @@ async function goCheckout() {
   <view class="cart-page yb-page yb-page--full-bleed h5-tab-page" :class="{ 'has-items': items.length > 0 }">
     <wd-button v-if="cart.legacyAvailable" block plain @click="restoreLegacy">发现旧版购物车，确认归属后恢复</wd-button>
     <template v-if="items.length">
+      <view class="cart-toolbar"><text>共 {{ items.length }} 件商品</text><wd-button plain size="small" @click="managing = !managing">{{ managing ? '完成管理' : '管理' }}</wd-button></view>
       <view class="list">
         <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">
           <view class="check yb-pressable" @click="cart.setSelected(item.key, !item.selected)">
@@ -96,6 +99,7 @@ async function goCheckout() {
           <view class="info">
             <text class="title">{{ item.product?.title || '商品已删除' }}</text>
             <text class="seller">{{ item.product?.sellerName || '—' }}</text>
+            <text v-if="!item.available" class="invalid-note">当前不可结算，请调整商品</text>
             <view class="price-row">
               <view class="price-block">
                 <text class="price-cny">{{ formatUsdt(item.product?.price || 0) }}</text>
@@ -112,7 +116,7 @@ async function goCheckout() {
               </view>
             </view>
           </view>
-          <view class="del yb-pressable" @click="remove(item.key)"><wd-icon name="delete" size="20px" color="#FFFFFF" /></view>
+          <view v-if="managing" class="del yb-pressable" aria-label="移除商品" @click="remove(item.key)"><wd-icon name="delete" size="20px" color="var(--yb-muted)" /></view>
         </view>
       </view>
 
@@ -126,7 +130,7 @@ async function goCheckout() {
           <text class="amount-cny">{{ formatUsdt(cart.grandTotal) }}</text>
           <text class="amount-usdt">≈ {{ formatCny(cart.grandTotal) }}</text>
         </view>
-        <wd-button type="primary" :disabled="cart.selectedQty === 0" @click="goCheckout">结算</wd-button>
+        <wd-button type="primary" :loading="openingCheckout" :disabled="cart.selectedQty === 0" @click="goCheckout">结算{{ cart.selectedQty ? `（${cart.selectedQty}）` : '' }}</wd-button>
       </view>
     </template>
 
@@ -142,6 +146,7 @@ async function goCheckout() {
 
 <style lang="scss" scoped>
 .cart-page { padding: 0; }
+.cart-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 16rpx 24rpx 0; color: var(--yb-muted); font-size: 24rpx; }
 .cart-page.has-items {
   /* 仅预留结算栏本身的高度，tabBar 已由窗口层扣除。 */
   padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
@@ -160,12 +165,11 @@ async function goCheckout() {
   overflow: hidden;
   box-shadow: var(--yb-shadow-card);
 }
-.row.invalid {
-  opacity: 0.55;
-}
+.row.invalid { background: #fafafb; }
+.invalid-note { display: block; color: var(--yb-danger); font-size: 24rpx; margin: 4rpx 0; }
 .check {
-  width: 44rpx;
-  height: 44rpx;
+  width: 84rpx;
+  min-height: 88rpx;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -175,7 +179,7 @@ async function goCheckout() {
   width: 32rpx;
   height: 32rpx;
   border-radius: 50%;
-  border: 2rpx solid var(--yb-border-strong);
+  border: 2rpx solid var(--yb-hairline-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -208,53 +212,56 @@ async function goCheckout() {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: var(--yb-font-md);
-  color: var(--yb-text);
+  font-size: var(--yb-fs-body);
+  color: var(--yb-ink);
   line-height: 1.45;
   margin-bottom: 8rpx;
 }
 .seller {
   display: block;
-  font-size: var(--yb-font-xs);
-  color: var(--yb-text-tertiary);
+  font-size: var(--yb-fs-caption);
+  color: var(--yb-muted);
   margin-bottom: 8rpx;
 }
 .price-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
 }
 .price-block {
   display: flex;
   flex-direction: column;
 }
 .price-cny {
-  color: var(--yb-text);
+  color: var(--yb-brand);
   font-weight: 700;
-  font-size: var(--yb-font-lg);
-  font-family: var(--yb-font-mono);
+  font-size: var(--yb-fs-body);
+  font-family: var(--yb-font-body);
   letter-spacing: -0.5rpx;
   font-variant-numeric: tabular-nums;
 }
 .price-usdt {
-  font-size: var(--yb-font-xs);
-  color: var(--yb-text-tertiary);
-  font-family: var(--yb-font-mono);
+  font-size: var(--yb-fs-caption);
+  color: var(--yb-muted);
+  font-family: var(--yb-font-body);
   margin-top: 4rpx;
 }
 .qty {
   display: flex;
   align-items: center;
-  background: var(--yb-bg-muted);
+  background: var(--yb-bg);
   border-radius: var(--yb-radius-sm);
+  margin-left: auto;
 }
 .qty-btn {
-  width: 44rpx;
-  height: 44rpx;
+  width: 84rpx;
+  min-height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--yb-text-secondary);
+  color: var(--yb-ink-2);
 }
 .qty-symbol {
   font-size: 32rpx;
@@ -264,17 +271,17 @@ async function goCheckout() {
 .qty-val {
   width: 48rpx;
   text-align: center;
-  font-size: var(--yb-font-sm);
+  font-size: var(--yb-fs-body-sm);
 }
 .del {
   display: flex;
   align-self: stretch;
   align-items: center;
   justify-content: center;
-  width: 72rpx;
+  width: 84rpx;
   flex-shrink: 0;
   margin: -16rpx 0 -16rpx 0;
-  background: var(--yb-brand);
+  background: var(--yb-bg);
 }
 .bottom-bar {
   position: fixed;
@@ -298,6 +305,7 @@ async function goCheckout() {
   align-items: center;
   flex-shrink: 0;
   gap: 10rpx;
+  min-height: 88rpx;
 }
 .all-check .dot {
   width: 36rpx;
@@ -308,37 +316,39 @@ async function goCheckout() {
 }
 .all-check .dot.on { border-color: var(--yb-brand); background: var(--yb-brand); }
 .all-check .label {
-  font-size: var(--yb-font-sm);
+  font-size: var(--yb-fs-body-sm);
 }
 .amount-block {
   flex: 1;
+  min-width: 0;
   text-align: right;
   display: flex;
   flex-direction: column;
   gap: 2rpx;
 }
 .amount-label {
-  font-size: var(--yb-font-xs);
-  color: var(--yb-text-tertiary);
+  font-size: var(--yb-fs-caption);
+  color: var(--yb-muted);
 }
 .amount-cny {
-  color: var(--yb-text);
+  color: var(--yb-brand);
   font-weight: 700;
-  font-size: var(--yb-font-xl);
-  font-family: var(--yb-font-mono);
+  font-size: var(--yb-fs-title-sm);
+  font-family: var(--yb-font-body);
+  overflow-wrap: anywhere;
   letter-spacing: -0.5rpx;
   font-variant-numeric: tabular-nums;
 }
 .amount-usdt {
-  font-size: var(--yb-font-xs);
-  color: var(--yb-text-tertiary);
-  font-family: var(--yb-font-mono);
+  font-size: var(--yb-fs-caption);
+  color: var(--yb-muted);
+  font-family: var(--yb-font-body);
 }
-.bottom-bar :deep(.wd-button) { min-width: 132rpx; height: 72rpx; padding: 0 24rpx; }
+.bottom-bar :deep(.wd-button) { min-width: 132rpx; min-height: 88rpx; padding: 0 24rpx; }
 .meta {
   display: block;
-  font-size: 20rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
   margin-top: 4rpx;
 }
 </style>

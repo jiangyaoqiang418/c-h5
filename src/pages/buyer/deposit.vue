@@ -9,13 +9,15 @@ import { RequestError } from '@/service/request';
 import { formatAmount } from '@/utils/format-bridge';
 import { fetchBuyerDepositLedger, fetchBuyerDepositSummary, payBuyerDeposit, refundBuyerDeposit } from '@/service/api/buyer';
 import { useUserStore } from '@/stores';
-import { UI_ASSETS } from '@/constants/ui-assets';
 import PayPasswordPopup from '@/components/common/pay-password-popup.vue';
 
 const userStore = useUserStore();
 const { requireLogin } = useNavigationGuards();
 const submitting = ref(false);
 const summary = ref<Api.RealUser.BuyerDepositSummary>();
+const summaryLoading = ref(true);
+const summaryLoadFailed = ref(false);
+let summarySequence = 0;
 const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 
 const payPopup = ref(false);
@@ -27,6 +29,10 @@ const pendingLoadFailed = ref(false);
 const retryReset = ref(true);
 let popupVersion = 0;
 const page = usePageOperation(() => {
+  summarySequence++;
+  summary.value = undefined;
+  summaryLoading.value = false;
+  summaryLoadFailed.value = false;
   payPopup.value = false;
   refundPopup.value = false;
   amountInput.value = '';
@@ -69,10 +75,20 @@ const { list: ledgers, loadFailed, loading, hasMore, total, load, invalidate, pa
   }
 });
 onShow(loadPage);
-onHide(() => { invalidate(); payPopup.value = false; refundPopup.value = false; });
+onHide(() => { summarySequence++; summaryLoading.value = false; invalidate(); payPopup.value = false; refundPopup.value = false; });
 onReachBottom(() => refreshRecords(false));
 
 const currentBalance = computed(() => summary.value?.depositBalance);
+const qualificationText = computed(() => {
+  if (summaryLoading.value) return '正在核对上架资格';
+  if (!userStore.currentUser) return '登录后核对上架资格';
+  if (!userStore.currentUser.isBuyer) return '当前账号尚未成为买手';
+  if (summaryLoadFailed.value || !summary.value) return '上架资格待核对';
+  if (summary.value.depositExempt === true) return '当前买手免押';
+  if (summary.value.listable === true) return '当前可上架';
+  if (summary.value.listable === false) return '当前不可上架';
+  return '上架资格待核对';
+});
 
 function sameRequest(value: PendingDeposit | undefined, request: PendingDeposit) {
   return value?.idempotencyKey === request.idempotencyKey && value.action === request.action && value.amount === request.amount;
@@ -99,15 +115,22 @@ async function refreshRecords(reset = true) {
 async function loadPage() {
   if (!page.visible.value || submitting.value) return;
   const operation = page.capture();
+  const sequence = ++summarySequence;
+  const current = () => operation.isCurrent() && sequence === summarySequence;
+  summaryLoading.value = true;
+  summaryLoadFailed.value = false;
   try {
     if (!await requireLogin('/pages/buyer/deposit') || !operation.isCurrent()) return;
     try { readPending(); }
     catch (error) { uni.showToast({ title: error instanceof Error ? error.message : '原请求读取失败', icon: 'none' }); }
     const [summaryResult] = await Promise.all([fetchBuyerDepositSummary(), refreshRecords()]);
-    if (operation.isCurrent()) summary.value = summaryResult;
+    if (current()) summary.value = summaryResult;
   } catch (error) {
-    if (operation.isCurrent()) uni.showToast({ title: error instanceof Error ? error.message : '保证金信息加载失败', icon: 'none' });
-  }
+    if (current()) {
+      summaryLoadFailed.value = true;
+      uni.showToast({ title: error instanceof Error ? error.message : '保证金信息加载失败', icon: 'none' });
+    }
+  } finally { if (current()) summaryLoading.value = false; }
 }
 
 function createIdempotencyKey(): string {
@@ -230,17 +253,19 @@ function formatTime(value: string | number): string {
 <template>
   <view class="dep-page yb-page">
     <PayPasswordPopup ref="payPasswordPopup" />
-    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.buyer})` }">
+    <view class="hero" >
       <text class="hero-label">保证金总额 (USDT)</text>
-      <text class="hero-amount">U {{ currentBalance == null ? '—' : formatAmount(currentBalance) }}</text>
+      <text class="hero-amount">{{ currentBalance == null ? '—' : formatAmount(currentBalance) }}</text>
 
       <view class="meter">
         <view class="meter-info">
-          <text>{{ summary?.depositExempt ? '当前买手免押' : summary?.listable ? '当前可上架' : '当前不可上架' }}</text>
+          <text>{{ qualificationText }}</text>
           <text>已加载 {{ ledgers.length }} / {{ total }} 条记录</text>
         </view>
       </view>
 
+      <text v-if="summaryLoadFailed" class="balance-note">保证金信息读取失败，请刷新核对；下方已有金额为上次读取结果。</text>
+      <text v-else-if="!summaryLoading && currentBalance == null" class="balance-note">保证金金额暂未读取，请刷新核对。</text>
       <view class="hero-cells">
         <view class="cell">
           <text class="cell-lbl">订单占用</text>
@@ -261,7 +286,7 @@ function formatTime(value: string | number): string {
     <view class="section">
       <text v-if="!userStore.currentUser" class="empty-text">请先登录查看保证金记录</text>
       <text v-else-if="!userStore.currentUser.isBuyer" class="empty-text">当前账号尚未成为买手</text>
-      <wd-button block plain :loading="loading" :disabled="submitting" @click="loadPage">{{ userStore.currentUser ? '刷新并核对流水' : '登录或重试' }}</wd-button>
+      <wd-button block plain :loading="summaryLoading || loading" :disabled="submitting" @click="loadPage">{{ userStore.currentUser ? '刷新并核对流水' : '登录或重试' }}</wd-button>
       <text class="section-title">押金流水</text>
       <view v-if="ledgers.length">
         <view v-for="t in ledgers" :key="String(t.id)" class="txn-row">
@@ -271,8 +296,8 @@ function formatTime(value: string | number): string {
             <text class="txn-time">{{ formatTime(t.createdAt) }}</text>
           </view>
           <view class="txn-side">
-            <text class="txn-amount">U {{ formatAmount(t.amount) }}</text>
-            <text class="txn-balance">余额 {{ formatAmount(t.balanceAfter) }}</text>
+            <text class="txn-amount">{{ formatAmount(t.amount) }} USDT</text>
+            <text class="txn-balance">变动后余额 {{ formatAmount(t.balanceAfter) }} USDT</text>
           </view>
         </view>
       </view>
@@ -282,7 +307,7 @@ function formatTime(value: string | number): string {
       <wd-button v-if="userStore.currentUser?.isBuyer && (hasMore || loadFailed)" block plain :loading="loading" :disabled="submitting" @click="refreshRecords(loadFailed ? retryReset : false)">{{ loadFailed ? '加载失败，点击重试' : '加载更多' }}</wd-button>
     </view>
 
-    <wd-popup v-model="payPopup" position="bottom" :safe-area-inset-bottom="true">
+    <wd-popup v-model="payPopup" position="bottom" closable :safe-area-inset-bottom="true">
       <view class="popup">
         <text class="popup-title">缴纳保证金</text>
         <wd-input v-model="amountInput" label="金额 (USDT)" type="digit" :disabled="submitting || !!pending" />
@@ -291,7 +316,7 @@ function formatTime(value: string | number): string {
       </view>
     </wd-popup>
 
-    <wd-popup v-model="refundPopup" position="bottom" :safe-area-inset-bottom="true">
+    <wd-popup v-model="refundPopup" position="bottom" closable :safe-area-inset-bottom="true">
       <view class="popup">
         <text class="popup-title">退还保证金</text>
         <text class="popup-hint">仅可退未被在途订单冻结的部分，实际可退金额以申请时核实结果为准。</text>
@@ -303,29 +328,30 @@ function formatTime(value: string | number): string {
 </template>
 
 <style lang="scss" scoped>
-.dep-page { min-height:100%; }.hero { background-color:#10131f; background-size:cover; background-position:center; color:#fff; padding:48rpx 28rpx 32rpx; }
-.hero-label { display: block; font-size: 22rpx; opacity: 0.8; }
-.hero-amount { display: block; font-size: 64rpx; font-weight: 700; font-family: ui-monospace, monospace; margin: 12rpx 0 24rpx; }
-.meter-info { display: flex; justify-content: space-between; font-size: 22rpx; margin-top: 8rpx; opacity: 0.85; }
+.dep-page { min-height:100%; }.hero { background-color:var(--yb-surface); background-size:cover; background-position:center; color:var(--yb-ink); padding:32rpx 28rpx 32rpx; }
+.hero-label { display: block; font-size: 24rpx; color: var(--yb-muted); }
+.hero-amount { display: block; font-size: 64rpx; font-weight: 700; font-family: var(--yb-font-body); margin: 12rpx 0 24rpx; overflow-wrap:anywhere; }
+.meter-info { display: flex; justify-content: space-between; gap: 16rpx; font-size: 24rpx; margin-top: 8rpx; color: var(--yb-muted); }
+.balance-note { display: block; margin-top: 16rpx; font-size: 24rpx; color: var(--yb-muted); }
 .hero-cells { display: flex; gap: 16rpx; margin-top: 24rpx; }
-.cell { flex:1; background:rgba(255,255,255,.12); border:1rpx solid rgba(255,255,255,.16); border-radius:var(--yb-radius-md); padding:16rpx; }
-.cell-lbl { display: block; font-size: 22rpx; opacity: 0.8; }
-.cell-val { display: block; font-size: 32rpx; font-weight: 700; font-family: ui-monospace, monospace; margin-top: 4rpx; }
+.cell { flex:1; min-width:0; background:var(--yb-bg); border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-md); padding:16rpx; }
+.cell-lbl { display: block; font-size: 24rpx; color: var(--yb-muted); }
+.cell-val { display: block; font-size: 32rpx; font-weight: 700; font-family: var(--yb-font-body); margin-top: 4rpx; overflow-wrap:anywhere; }
 .hero-actions { display: flex; gap: 12rpx; margin-top: 24rpx; }
 .hero-actions > * { flex: 1; }
 .section { background:#fff; margin:24rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .section-title { display: block; font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; }
 .txn-row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
-.txn-main { display: flex; flex-direction: column; }
+.txn-main { display: flex; flex-direction: column; min-width:0; flex:1; }
 .txn-title { font-size: 24rpx; }
-.txn-remark { font-size: 22rpx; color: #4e5969; margin-top: 4rpx; }
-.txn-time { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
-.txn-side { display: flex; flex-direction: column; align-items: flex-end; }
-.txn-amount { font-size: 28rpx; font-weight: 700; font-family: ui-monospace, monospace; }
-.txn-balance { font-size: 22rpx; color: #86909c; margin-top: 4rpx; }
-.empty-text { display: block; text-align: center; color: #86909c; padding: 32rpx 0; font-size: 24rpx; }
+.txn-remark { font-size: 24rpx; color: var(--yb-muted); margin-top: 4rpx; }
+.txn-time { font-size: 24rpx; color: var(--yb-muted); margin-top: 4rpx; }
+.txn-side { display: flex; flex-direction: column; align-items: flex-end; min-width:0; flex:1; text-align:right; overflow-wrap:anywhere; }
+.txn-amount { font-size: 28rpx; font-weight: 700; font-family: var(--yb-font-body); }
+.txn-balance { font-size: 24rpx; color: var(--yb-muted); margin-top: 4rpx; }
+.empty-text { display: block; text-align: center; color: var(--yb-muted); padding: 32rpx 0; font-size: 24rpx; }
 .popup { padding: 24rpx; }
 .popup-title { display: block; font-size: 30rpx; font-weight: 600; margin-bottom: 16rpx; }
-.popup-hint { display: block; font-size: 22rpx; color: #86909c; margin-bottom: 16rpx; }
+.popup-hint { display: block; font-size: 24rpx; color: var(--yb-muted); line-height: 1.6; margin-bottom: 16rpx; }
 .popup-btn { margin-top: 16rpx; }
 </style>

@@ -462,7 +462,8 @@ async function submitShipping() {
       </view>
       <EmptyState v-else-if="loadFailed" title="订单列表加载失败" description="请稍后重试" />
       <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看订单" description="当前尚未读取账号订单" action-text="登录或重试" @action="retry" />
-      <EmptyState v-else title="该状态下没有订单" description="完成购物后这里会显示" />
+      <EmptyState v-else-if="activeKey !== 'all'" title="当前状态暂无订单" description="可切换其他状态，查看已有订单与处理进度。" action-text="查看全部订单" @action="activeKey = 'all'" />
+      <EmptyState v-else :title="userStore.isBuyerActive ? '暂无卖出订单' : '暂无购买订单'" :description="userStore.isBuyerActive ? '你的卖出订单会显示在这里。' : '成功创建的购买订单会显示在这里。'" />
       <wd-button v-if="loadFailed" block plain :disabled="busy" :loading="loading" @click="retry">加载失败，点击重试</wd-button>
       <view v-else-if="orders.length" class="pagination" @click="!busy && load(false)">{{ loading ? '加载中…' : pageNo * 30 < total ? '加载更多订单' : '已加载全部订单' }}</view>
     </view>
@@ -493,6 +494,6 @@ async function submitShipping() {
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .shipping-popup { padding: 32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background: #fff; }
 .shipping-title { display: block; font-size: 32rpx; font-weight: 700; color: #1d2129; }
-.shipping-order { display: block; margin: 12rpx 0 20rpx; font-size: 22rpx; color: #86909c; font-family: ui-monospace, monospace; }
-.voucher-field { padding:20rpx 32rpx; }.voucher-label { display:block; margin-bottom:12rpx; color:#4e5969; font-size:26rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-cell,.voucher-add { width:160rpx; height:160rpx; }.voucher-cell { position:relative; }.voucher-image { width:100%; height:100%; border-radius:var(--yb-radius-md); }.voucher-remove { position:absolute; top:4rpx; right:4rpx; display:flex; align-items:center; justify-content:center; width:36rpx; height:36rpx; border-radius:50%; background:rgba(0,0,0,.55); }.voucher-add { display:flex; flex-direction:column; gap:6rpx; align-items:center; justify-content:center; box-sizing:border-box; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); background:#f7f8fa; color:#86909c; font-size:20rpx; }
+.shipping-order { display: block; margin: 12rpx 0 20rpx; font-size: 24rpx; color: var(--yb-muted); font-family: ui-monospace, monospace; }
+.voucher-field { padding:20rpx 32rpx; }.voucher-label { display:block; margin-bottom:12rpx; color:#4e5969; font-size:26rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-cell,.voucher-add { width:160rpx; height:160rpx; }.voucher-cell { position:relative; }.voucher-image { width:100%; height:100%; border-radius:var(--yb-radius-md); }.voucher-remove { position:absolute; top:4rpx; right:4rpx; display:flex; align-items:center; justify-content:center; width:36rpx; height:36rpx; border-radius:50%; background:rgba(0,0,0,.55); }.voucher-add { display:flex; flex-direction:column; gap:6rpx; align-items:center; justify-content:center; box-sizing:border-box; border:2rpx dashed #c9cdd4; border-radius:var(--yb-radius-md); background:#f7f8fa; color:var(--yb-muted); font-size:24rpx; }
 </style>

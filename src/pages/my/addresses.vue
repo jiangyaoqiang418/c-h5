@@ -23,6 +23,9 @@ const loading = ref(false);
 const loadFailed = ref(false);
 const popupOpen = ref(false);
 const smartText = ref('');
+const smartOpen = ref(false);
+const countryPickerOpen = ref(false);
+const countrySearch = ref('');
 const saving = ref(false);
 const selectionMode = ref(false);
 const selectedId = ref('');
@@ -74,6 +77,9 @@ const page = usePageOperation(() => {
   list.value = [];
   popupOpen.value = false;
   smartText.value = '';
+  smartOpen.value = false;
+  countryPickerOpen.value = false;
+  countrySearch.value = '';
   selectedId.value = '';
   receipt.value = undefined;
   receiptFailed.value = false;
@@ -84,7 +90,7 @@ const page = usePageOperation(() => {
   Object.assign(form, { receiverName: '', receiverPhone: '', countryCode: '', provinceCode: '', cityCode: '', districtCode: '', province: '', city: '', district: '', detail: '', isDefault: false });
   editingId.value = undefined;
 });
-watch(popupOpen, () => { formVersion++; }, { flush: 'sync' });
+watch(popupOpen, open => { formVersion++; if (!open) countryPickerOpen.value = false; }, { flush: 'sync' });
 
 function refreshReceipt() {
   try {
@@ -145,6 +151,7 @@ async function openNew() {
   editingId.value = undefined;
   Object.assign(form, { receiverName: '', receiverPhone: '', countryCode: '', provinceCode: '', cityCode: '', districtCode: '', province: '', city: '', district: '', detail: '', isDefault: false });
   smartText.value = '';
+  smartOpen.value = false;
   popupOpen.value = true;
   try {
     countries.value = await fetchCountries();
@@ -164,6 +171,7 @@ async function openEdit(address: AddressRecord) {
     province: address.province, city: address.city, district: address.district, detail: address.detail, isDefault: address.isDefault
   });
   smartText.value = '';
+  smartOpen.value = false;
   popupOpen.value = true;
   try {
     countries.value = await fetchCountries();
@@ -185,6 +193,10 @@ async function openEdit(address: AddressRecord) {
 }
 
 const selectedCountry = computed(() => countries.value.find(item => item.code === form.countryCode));
+const filteredCountries = computed(() => {
+  const keyword = countrySearch.value.trim().toLocaleLowerCase();
+  return keyword ? countries.value.filter(item => `${item.name} ${item.code}`.toLocaleLowerCase().includes(keyword)) : countries.value;
+});
 const selectedProvince = computed(() => provinces.value.find(item => item.code === form.provinceCode));
 const selectedCity = computed(() => cities.value.find(item => item.code === form.cityCode));
 const hasRegion = computed(() => selectedCountry.value?.hasRegion === true);
@@ -194,11 +206,27 @@ async function chooseFrom<T extends { name: string }>(items: T[], title: string)
   if (!items.length) { uni.showToast({ title: `${title}暂无可选数据`, icon: 'none' }); return; }
   try { const result = await uni.showActionSheet({ itemList: items.map(item => item.name) }); return items[result.tapIndex]; } catch { return; }
 }
-async function chooseCountry() {
-  const item = await chooseFrom(countries.value, '国家/地区'); if (!item) return;
+function chooseCountry() {
+  if (!page.visible.value || blocked.value || !popupOpen.value) return;
+  if (!countries.value.length) return uni.showToast({ title: '国家/地区暂无可选数据', icon: 'none' });
+  countrySearch.value = '';
+  countryPickerOpen.value = true;
+}
+async function selectCountry(item: Api.RealAddress.CountryVO) {
+  if (!page.visible.value || blocked.value || !popupOpen.value || !countryPickerOpen.value || !countries.value.includes(item)) return;
+  const operation = page.capture();
+  const version = formVersion;
+  countryPickerOpen.value = false;
   Object.assign(form, { countryCode: item.code, provinceCode: '', cityCode: '', districtCode: '', province: '', city: '', district: '' });
   provinces.value = []; cities.value = []; districts.value = [];
-  if (item.hasRegion) provinces.value = await fetchRegionChildren(item.code);
+  if (item.hasRegion) {
+    try {
+      const records = await fetchRegionChildren(item.code);
+      if (operation.isCurrent() && popupOpen.value && version === formVersion && form.countryCode === item.code) provinces.value = records;
+    } catch {
+      if (operation.isCurrent() && popupOpen.value && version === formVersion && form.countryCode === item.code) uni.showToast({ title: '地区加载失败，请重新选择国家/地区', icon: 'none' });
+    }
+  }
 }
 async function chooseProvince() {
   const item = await chooseFrom(provinces.value, '省/州'); if (!item) return;
@@ -344,24 +372,26 @@ async function onLongPress(a: AddressRecord) {
           <wd-tag v-if="selectionMode && selectedId === String(a.id)" type="success" size="small">本单已选</wd-tag>
         </view>
         <text class="addr">{{ a.province }} {{ a.city }} {{ a.district }} {{ a.detail }}</text>
-        <view v-if="!a.isDefault" class="set-default" @click.stop="setDefault(a)">设为默认</view>
-        <view v-if="selectionMode" class="set-default">点击选择此地址（不修改默认地址）</view>
+        <view class="card-actions"><view v-if="!a.isDefault" class="set-default" @click.stop="setDefault(a)">设为默认</view><view class="edit-address" @click.stop="openEdit(a)">编辑</view></view>
+        <text v-if="selectionMode" class="selection-hint">点击卡片选择此地址，不修改默认地址</text>
       </view>
     </view>
     <EmptyState v-else-if="loadFailed" title="地址加载失败" description="请重新读取，不代表没有地址" action-text="重试" @action="load" />
     <EmptyState v-else-if="!userStore.currentUser" title="请先登录查看地址" action-text="登录" @action="login" />
     <EmptyState v-else title="暂无地址" />
 
-    <view class="fab" @click="openNew"><wd-icon name="add" size="17px" /><text>新增地址</text></view>
+    <view class="add-bar"><wd-button type="primary" block :disabled="blocked" @click="openNew">新增地址</wd-button></view>
 
     <wd-popup v-model="popupOpen" position="bottom" :safe-area-inset-bottom="true">
       <view class="popup">
-        <text class="popup-title">{{ editingId ? '编辑收货地址' : '新增收货地址' }}</text>
+        <view class="popup-header"><text class="popup-title">{{ editingId ? '编辑收货地址' : '新增收货地址' }}</text><view class="popup-close" aria-label="关闭地址编辑" @click="popupOpen = false"><wd-icon name="close" size="20px" /></view></view>
+        <scroll-view scroll-y class="popup-body">
         <!-- 智能识别 -->
         <view class="smart-fill">
+          <view class="smart-toggle" @click="smartOpen = !smartOpen"><text>粘贴地址快捷填写</text><text>{{ smartOpen ? '收起' : '展开' }}</text></view>
+          <template v-if="smartOpen">
           <view class="smart-head">
-            <view class="smart-title"><wd-icon name="copy" size="16px" /><text>粘贴地址智能识别</text></view>
-            <text class="smart-hint">支持"姓名 手机 省市区 详细地址"格式</text>
+            <text class="smart-hint">支持“姓名 手机 省市区 详细地址”，识别后请核对。</text>
           </view>
           <textarea
             v-model="smartText"
@@ -377,12 +407,11 @@ async function onLongPress(a: AddressRecord) {
               <text>识别填入</text>
             </view>
           </view>
+          </template>
         </view>
 
-        <view class="divider"><text>手动填写 / 修改</text></view>
-
-        <wd-input v-model="form.receiverName" :disabled="blocked" label="收件人" placeholder="姓名" />
-        <wd-input v-model="form.receiverPhone" :disabled="blocked" label="手机号" placeholder="11 位" />
+        <view class="text-field"><text class="field-label">收件人 <text class="field-note">必填</text></text><wd-input v-model="form.receiverName" :disabled="blocked" placeholder="收件人姓名" /></view>
+        <view class="text-field"><text class="field-label">联系电话 <text class="field-note">必填</text></text><wd-input v-model="form.receiverPhone" :disabled="blocked" placeholder="收件人联系电话" /></view>
         <wd-cell title="国家/地区" :value="selectedCountry?.name || '请选择'" is-link @click="chooseCountry" />
         <template v-if="hasRegion">
           <wd-cell title="省/州" :value="regionName(provinces, form.provinceCode)" is-link @click="chooseProvince" />
@@ -390,15 +419,26 @@ async function onLongPress(a: AddressRecord) {
           <wd-cell v-if="needDistrict" title="区/县" :value="regionName(districts, form.districtCode)" is-link @click="chooseDistrict" />
         </template>
         <template v-else>
-          <wd-input v-model="form.province" :disabled="blocked" label="省/州" />
-          <wd-input v-model="form.city" :disabled="blocked" label="城市" />
-          <wd-input v-model="form.district" :disabled="blocked" label="区/县" />
+          <view class="text-field"><text class="field-label">省/州 <text class="field-note">必填</text></text><wd-input v-model="form.province" :disabled="blocked" placeholder="所在省或州" /></view>
+          <view class="text-field"><text class="field-label">城市 <text class="field-note">必填</text></text><wd-input v-model="form.city" :disabled="blocked" placeholder="所在城市" /></view>
+          <view class="text-field"><text class="field-label">区/县 <text class="field-note">选填</text></text><wd-input v-model="form.district" :disabled="blocked" placeholder="所在区或县" /></view>
         </template>
-        <wd-textarea v-model="form.detail" :disabled="blocked" placeholder="详细地址" :max-length="80" />
+        <view class="text-field"><text class="field-label">详细地址 <text class="field-note">必填</text></text><wd-textarea auto-height v-model="form.detail" :disabled="blocked" placeholder="街道、门牌号与楼栋等详细信息" :maxlength="80" /></view>
         <wd-cell title="设为默认">
           <wd-switch v-model="form.isDefault" :disabled="blocked" />
         </wd-cell>
+        </scroll-view>
         <wd-button type="primary" block class="save-btn" :loading="saving" :disabled="blocked" @click="save">保存</wd-button>
+      </view>
+    </wd-popup>
+    <wd-popup v-model="countryPickerOpen" position="bottom" :z-index="20" :safe-area-inset-bottom="true">
+      <view class="country-picker">
+        <view class="popup-header"><text class="popup-title">选择国家/地区</text><view class="popup-close" aria-label="关闭国家选择" @click="countryPickerOpen = false"><wd-icon name="close" size="20px" /></view></view>
+        <wd-input v-model="countrySearch" clearable placeholder="搜索国家/地区名称或代码" />
+        <scroll-view scroll-y class="country-list">
+          <view v-for="country in filteredCountries" :key="country.code" class="country-option" @click="selectCountry(country)"><text>{{ country.name }}</text><text class="country-code">{{ country.code }}</text><text v-if="country.code === form.countryCode" class="country-selected">已选</text></view>
+          <view v-if="!filteredCountries.length" class="country-empty">没有匹配的国家/地区，请换个关键词。</view>
+        </scroll-view>
       </view>
     </wd-popup>
   </view>
@@ -406,57 +446,49 @@ async function onLongPress(a: AddressRecord) {
 
 <style lang="scss" scoped>
 .addr-page { min-height: 100%; background: var(--yb-bg); padding: 20rpx 24rpx; padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
-.loading { padding: 80rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
+.loading { padding: 80rpx 0; text-align: center; color:var(--yb-muted); font-size: 24rpx; }
 .card {
   background: #fff;
   border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
   padding: 24rpx;
   margin-bottom: 16rpx;
 }
-.row { display: flex; align-items: center; gap: 16rpx; }
+.row { display: flex; align-items: center; flex-wrap:wrap; gap: 16rpx; }
 .name { font-size: 28rpx; font-weight: 600; }
 .phone { font-size: 24rpx; color: #4e5969; }
 .addr { display: block; font-size: 24rpx; color: #4e5969; margin-top: 12rpx; line-height: 1.5; }
-.set-default { display: inline-block; margin-top: 16rpx; padding: 8rpx 16rpx; background: #fff1f2; border-radius: 8rpx; color: var(--yb-brand); font-size: 22rpx; }
-.fab {
-  position: fixed; right: 28rpx; bottom: calc(28rpx + env(safe-area-inset-bottom));
-  display:flex; align-items:center; gap:8rpx;
-  background: var(--yb-brand); color: #fff;
-  padding: 20rpx 32rpx; border-radius: 48rpx;
-  font-size: 26rpx;
-  box-shadow: 0 8rpx 24rpx rgba(250,36,60,0.28);
-}
-.popup { padding: 24rpx; max-height: 80vh; overflow-y: auto; }
-.popup-title { display: block; font-size: 30rpx; font-weight: 700; padding: 16rpx 24rpx; }
+.card-actions { display:flex; align-items:center; justify-content:flex-end; gap:24rpx; margin-top:12rpx; border-top:1rpx solid var(--yb-border); }
+.set-default, .edit-address { display:flex; align-items:center; justify-content:center; min-width:88rpx; min-height:88rpx; font-size:24rpx; color:var(--yb-ink-2); }
+.set-default { margin-right:auto; }.selection-hint { display:block; color:var(--yb-muted); font-size:24rpx; }
+.add-bar { position:fixed; right:0; bottom:0; left:0; padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); border-top:1rpx solid var(--yb-border); background:#fff; }
+.popup { display: flex; flex-direction: column; padding: 0 24rpx 24rpx; height: 1180rpx; max-height: 85vh; box-sizing: border-box; }
+.popup-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 104rpx; gap: 12rpx; }
+.popup-close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; }
+.popup-body { flex: 1; min-height: 0; width: 100%; }
+.save-btn { flex-shrink: 0; }
+.popup-title { display: block; font-size: 30rpx; font-weight: 700; padding: 16rpx 0; }
 
 /* 智能识别 */
 .smart-fill {
-  background: linear-gradient(135deg, #fff2f2 0%, #f8f1ea 100%);
-  border: 1rpx solid #f0d8d5;
+  background: var(--yb-bg);
+  border: 1rpx solid var(--yb-border);
   border-radius: 20rpx;
-  padding: 24rpx;
-  margin: 0 24rpx 24rpx;
+  padding: 0 20rpx;
+  margin: 0 0 20rpx;
 }
+.smart-toggle { display:flex; align-items:center; justify-content:space-between; min-height:88rpx; gap:16rpx; font-size:24rpx; color:var(--yb-ink-2); }
 .smart-head {
   margin-bottom: 16rpx;
 }
-.smart-title {
-  display:flex;
-  align-items:center;
-  gap:8rpx;
-  font-size: 26rpx;
-  font-weight: 700;
-  color: var(--yb-brand);
-}
 .smart-hint {
   display: block;
-  font-size: 20rpx;
-  color: #86909C;
+  font-size: 24rpx;
+  color:var(--yb-muted);
   margin-top: 4rpx;
 }
 .smart-area {
   width: 100%;
-  min-height: 160rpx;
+  height: 112rpx; min-height: 112rpx;
   background: #FFFFFF;
   border: 1rpx solid var(--yb-border);
   border-radius: 12rpx;
@@ -473,8 +505,8 @@ async function onLongPress(a: AddressRecord) {
 }
 .smart-btn {
   flex: 1;
-  height: 72rpx;
-  border-radius: 40rpx;
+  min-height: 88rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -484,32 +516,24 @@ async function onLongPress(a: AddressRecord) {
 .smart-btn.ghost { gap:8rpx; }
 .smart-btn.ghost {
   background: #FFFFFF;
-  color: var(--yb-brand);
-  border: 1rpx solid var(--yb-brand);
+  color: var(--yb-ink-2);
+  border: 1rpx solid var(--yb-border);
 }
 .smart-btn.primary {
-  background: var(--yb-brand);
-  color: #FFFFFF;
+  background: #FFFFFF;
+  color: var(--yb-ink-2);
+  border: 1rpx solid var(--yb-border);
 }
-
-/* Divider */
-.divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 12rpx 24rpx;
-  font-size: 22rpx;
-  color: #86909C;
-  position: relative;
-}
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 1rpx;
-  background: #EDECE6;
-  margin: 0 16rpx;
-}
+.smart-actions { padding-bottom:20rpx; }
+.text-field { padding:20rpx 0; border-bottom:1rpx solid var(--yb-border); }
+.field-label { display:block; margin-bottom:12rpx; color:var(--yb-ink); font-size:26rpx; font-weight:600; }
+.field-note { margin-left:8rpx; color:var(--yb-muted); font-size:24rpx; font-weight:400; }
+.text-field :deep(.wd-input), .text-field :deep(.wd-textarea) { padding:0; }
+.text-field :deep(.wd-input__inner), .text-field :deep(.wd-textarea__inner) { text-align:left; }
+.country-picker { display:flex; flex-direction:column; height:900rpx; padding:0 24rpx 24rpx; box-sizing:border-box; }
+.country-list { flex:1; min-height:0; margin-top:16rpx; }
+.country-option { display:flex; align-items:center; gap:16rpx; min-height:96rpx; padding:0 16rpx; border-bottom:1rpx solid var(--yb-border); font-size:28rpx; }
+.country-code { margin-left:auto; font-size:24rpx; color:var(--yb-muted); }.country-selected { color:var(--yb-brand); font-size:24rpx; }.country-empty { padding:48rpx 24rpx; color:var(--yb-muted); font-size:26rpx; line-height:1.6; }
 
 .save-btn { margin: 24rpx; }
 </style>

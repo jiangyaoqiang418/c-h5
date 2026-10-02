@@ -171,12 +171,13 @@ async function cancel() {
       <text class="code">{{ request.code }}</text>
       <text class="title">{{ request.productTitle }}</text>
       <view class="cat"><wd-icon name="goods" size="14px" /><text>{{ request.categoryPath }}</text></view>
+      <text v-if="request.categoryPath === '分类暂不可用'" class="category-note">分类名称暂无法匹配，请查看下方商品需求。</text>
     </view>
 
     <view class="meta">
       <view class="meta-cell">
         <text class="lbl">预算</text>
-        <text class="val budget">U {{ formatAmount(request.budgetAmount) }}</text>
+        <text class="val budget">{{ formatAmount(request.budgetAmount) }} <text class="amount-unit">USDT</text></text>
       </view>
       <view class="meta-cell">
         <text class="lbl">期望发货</text>
@@ -234,9 +235,9 @@ async function cancel() {
 }
 .code {
   display: block;
-  font-family: ui-monospace, monospace;
-  font-size: 22rpx;
-  color: #86909c;
+  font-family: var(--yb-font-body);
+  font-size: 24rpx;
+  color:var(--yb-muted);
   margin: 12rpx 0;
 }
 .title {
@@ -248,10 +249,12 @@ async function cancel() {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #86909c;
   margin-top: 8rpx;
 }
+.cat text { color:var(--yb-muted); }
+.category-note { display:block; margin-top:12rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }.amount-unit { font-size:24rpx; font-weight:400; }
 .meta {
   background: #fff;
   margin-top: 20rpx;
@@ -265,8 +268,8 @@ async function cancel() {
 }
 .lbl {
   display: block;
-  font-size: 22rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color:var(--yb-muted);
 }
 .val {
   display: block;
@@ -277,7 +280,7 @@ async function cancel() {
 .val.budget {
   font-size: 36rpx;
   color: #f53f3f;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
 }
 .section {
   background: #fff;
@@ -292,6 +295,9 @@ async function cancel() {
   margin-bottom: 16rpx;
 }
 .appeal {
+  display:block;
+  overflow-wrap:break-word;
+  white-space:pre-wrap;
   font-size: 24rpx;
   color: #4e5969;
   line-height: 1.6;
@@ -302,18 +308,19 @@ async function cancel() {
   align-items: center;
 }
 .push-hint {
-  font-size: 22rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color:var(--yb-muted);
 }
 .log-row {
   display: flex;
+  flex-direction:column;
   gap: 12rpx;
-  align-items: center;
+  align-items: flex-start;
   padding: 12rpx 0;
 }
 .log-text {
-  font-size: 22rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color:var(--yb-muted);
 }
 .bottom-bar {
   position: fixed;

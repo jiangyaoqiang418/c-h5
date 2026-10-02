@@ -104,10 +104,10 @@ onHide(() => { loadSequence++; loading.value = false; businessStats.value = unde
 
 const kpis = computed(() => {
   return [
-    { label: '在售商品', value: productsLoadFailed.value ? '—' : productTotal.value, unit: '件', icon: 'goods', color: '#5B5CE7' },
-    { label: '卖出订单', value: ordersLoadFailed.value ? '—' : orderTotal.value, unit: '单', icon: 'cart', color: '#B8935A' },
-    { label: '可接求购', value: requestsLoadFailed.value ? '—' : requestTotal.value, unit: '单', icon: 'search', color: '#00A88A' },
-    { label: '保证金余额', value: depositLoadFailed.value || depositBalance.value == null ? '—' : formatAmount(depositBalance.value), unit: 'U', icon: 'shield', color: '#7C5CFC' }
+    { label: '在售商品', value: loading.value || !user.value || productsLoadFailed.value ? '—' : productTotal.value, unit: '件', icon: UI_ASSETS.placeholders.product, color: '#5B5CE7', description: '当前在售商品数量', url: '/pages/buyer/products?tab=ON_SALE' },
+    { label: '卖出订单', value: loading.value || !user.value || ordersLoadFailed.value ? '—' : orderTotal.value, unit: '单', icon: UI_ASSETS.illustrations.status, color: '#B8935A', description: '全部卖出订单', url: '/pages/order/list' },
+    { label: '可接求购', value: loading.value || !user.value || requestsLoadFailed.value ? '—' : requestTotal.value, unit: '单', icon: UI_ASSETS.illustrations.purchase, color: '#00A88A', description: '求购大厅当前总数', url: '/pages/purchase/hall' },
+    { label: '保证金余额', value: loading.value || !user.value || depositLoadFailed.value || depositBalance.value == null ? '—' : formatAmount(depositBalance.value), unit: 'USDT', icon: UI_ASSETS.illustrations.buyerDeposit, color: '#7C5CFC', description: '查看保证金明细', url: '/pages/buyer/deposit' }
   ];
 });
 
@@ -116,49 +116,40 @@ const kpis = computed(() => {
 <template>
   <view class="dash-page">
     <!-- Hero -->
-    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.buyer})` }">
-      <view class="hero-glow"></view>
+    <view class="hero">
+
       <view class="hero-top">
         <image v-if="userAvatar" :src="userAvatar" class="hero-avatar" />
         <view class="hero-user">
-          <text class="hero-eyebrow">BUYER STUDIO</text>
+          <text class="hero-eyebrow">买手工作台</text>
           <view class="hero-name-row">
             <text class="hero-name">{{ user?.nickname || '买手' }}</text>
           </view>
-        </view>
-      </view>
-      <view class="hero-stats">
-        <view class="stat">
-          <text class="stat-label">卖出订单</text>
-          <text class="stat-val">{{ ordersLoadFailed ? '—' : orderTotal }}</text>
-        </view>
-        <view class="stat">
-          <text class="stat-label">在售商品</text>
-          <text class="stat-val">{{ productsLoadFailed ? '—' : productTotal }}</text>
-        </view>
-        <view class="stat">
-          <text class="stat-label">可接求购</text>
-          <text class="stat-val">{{ requestsLoadFailed ? '—' : requestTotal }}</text>
-        </view>
-        <view class="stat">
-          <text class="stat-label">保证金</text>
-          <text class="stat-val">{{ depositLoadFailed || depositBalance == null ? '—' : formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>
 
     <!-- 固定四项指标在手机端完整展示，不使用横向滚动。 -->
     <view class="kpi-row">
-      <BuyerKpiCard v-for="k in kpis" :key="k.label" v-bind="k" />
+      <BuyerKpiCard v-for="k in kpis" :key="k.label" :label="k.label" :value="k.value" :unit="k.unit" :icon="k.icon" :color="k.color" :description="k.description" @click="go(k.url)" />
+    </view>
+
+    <view class="section work-entry-section">
+      <text class="section-title">工作入口</text>
+      <view class="work-entries">
+        <view class="work-entry" @click="go('/pages/order/list?status=PAID')"><text class="entry-title">待发货订单</text><text>核对并填写发货</text><wd-icon name="arrow-right" size="14px" /></view>
+        <view class="work-entry" @click="go('/pages/aftersale/list')"><text class="entry-title">售后记录</text><text>查看当前处理进度</text><wd-icon name="arrow-right" size="14px" /></view>
+        <view class="work-entry" @click="go('/pages/buyer/products?tab=PENDING')"><text class="entry-title">商品审核</text><text>查看送审状态</text><wd-icon name="arrow-right" size="14px" /></view>
+      </view>
     </view>
 
     <!-- 进行中订单 -->
     <view v-if="user?.isBuyer" class="section business-stats">
       <view class="section-bar"><text class="section-title">经营数据</text><text class="stats-note">全部时间</text></view>
-      <view v-if="businessStats">
-        <view>评价率 {{ businessStats.reviewRate }}%（有效评价 {{ businessStats.reviewedOrderCount }} / 完成订单 {{ businessStats.completedOrderCount }}）</view>
-        <view>客诉率 {{ businessStats.complaintRate }}%（售后 {{ businessStats.refundCount }} / 下单 {{ businessStats.orderCount }}）</view>
-        <view>平均发货 {{ businessStats.avgShipDurationHours }} 小时（{{ businessStats.shippedOrderCount }} 笔有效样本）</view>
+      <view v-if="businessStats" class="stats-card">
+        <view class="stats-row"><view><text class="stats-label">评价率</text><text class="stats-note">有效评价 {{ businessStats.reviewedOrderCount }} / 完成订单 {{ businessStats.completedOrderCount }}</text></view><text class="stats-value">{{ businessStats.reviewRate }}%</text></view>
+        <view class="stats-row"><view><text class="stats-label">客诉率</text><text class="stats-note">售后 {{ businessStats.refundCount }} / 下单 {{ businessStats.orderCount }}</text></view><text class="stats-value">{{ businessStats.complaintRate }}%</text></view>
+        <view class="stats-row"><view><text class="stats-label">平均发货</text><text class="stats-note">{{ businessStats.shippedOrderCount }} 笔有效样本</text></view><text class="stats-value">{{ businessStats.avgShipDurationHours }} 小时</text></view>
         <text class="stats-note">评价按评价时间、完成订单按完成时间统计。</text>
       </view>
       <wd-button v-else-if="statsFailed" plain size="small" :loading="loading" @click="load">经营数据加载失败，重试</wd-button>
@@ -167,24 +158,28 @@ const kpis = computed(() => {
     <view class="section">
       <view class="section-bar">
         <view class="title-group">
-          <view class="sec-tag primary"><text>ORDERS</text></view>
+
           <text class="section-title">最近卖出订单</text>
         </view>
         <view class="more" @click="go('/pages/order/list')"><text>全部</text><wd-icon name="arrow-right" size="14px" /></view>
       </view>
+      <text class="section-caption">仅展示最近 5 条记录，全部订单请进入列表查看。</text>
       <view v-if="orders.length">
-        <BuyerOrderCard v-for="o in orders" :key="String(o.id)" :order="o" :show-actions="false" />
+        <view v-for="o in orders" :key="String(o.id)" class="recent-order" :class="{ 'recent-order--pending': o.rawStatus === 'PAID' }">
+          <view v-if="o.rawStatus === 'PAID'" class="pending-note"><text>此订单待发货</text><text class="pending-link" @click="go('/pages/order/list?status=PAID')">前往待发货列表</text></view>
+          <BuyerOrderCard :order="o" :show-actions="false" />
+        </view>
       </view>
       <EmptyState v-else-if="ordersLoadFailed" title="卖出订单加载失败" description="请稍后重试" />
       <view v-else-if="loading" class="section-loading">卖出订单加载中…</view>
-      <EmptyState v-else title="暂无卖出订单" description="去求购大厅接单赚取收益" />
+      <EmptyState v-else title="暂无卖出订单" description="你的卖出订单会显示在这里，可前往现有求购大厅查看需求。" action-text="查看求购大厅" @action="go('/pages/purchase/hall')" />
     </view>
 
     <!-- 可接求购 -->
     <view class="section">
       <view class="section-bar">
         <view class="title-group">
-          <view class="sec-tag gold"><text>CLAIMABLE</text></view>
+
           <text class="section-title">可接求购</text>
         </view>
         <view class="more" @click="go('/pages/purchase/hall')"><text>前往大厅</text><wd-icon name="arrow-right" size="14px" /></view>
@@ -194,14 +189,14 @@ const kpis = computed(() => {
       </view>
       <EmptyState v-else-if="requestsLoadFailed" title="求购大厅加载失败" description="请稍后重试" />
       <view v-else-if="loading" class="section-loading">求购数据加载中…</view>
-      <EmptyState v-else title="暂无可接求购" description="新求购按 VIP 阶梯推送" />
+      <EmptyState v-else title="暂无可接求购" description="当前求购大厅没有返回可接记录，请稍后查看。" />
     </view>
 
     <!-- 押金 -->
     <view class="deposit-card" @click="go('/pages/buyer/deposit')">
       <view class="deposit-head">
         <view class="title-group">
-          <view class="sec-tag gold"><text>DEPOSIT</text></view>
+
           <text class="section-title">押金概况</text>
         </view>
         <view class="more"><text>押金管理</text><wd-icon name="arrow-right" size="14px" /></view>
@@ -209,8 +204,8 @@ const kpis = computed(() => {
       <view class="deposit-total">
         <text class="dep-label">当前保证金余额</text>
         <view class="dep-amount">
-          <text class="unit">U</text>
-          <text class="num">{{ depositLoadFailed || depositBalance == null ? '—' : formatAmount(depositBalance) }}</text>
+          <text class="unit">USDT</text>
+          <text class="num">{{ loading || !user || depositLoadFailed || depositBalance == null ? '—' : formatAmount(depositBalance) }}</text>
         </view>
       </view>
     </view>
@@ -220,8 +215,23 @@ const kpis = computed(() => {
 </template>
 
 <style lang="scss" scoped>
+.work-entry-section > .section-title { display: block; margin-bottom: 16rpx; }
+.work-entries, .stats-card { border: 1rpx solid var(--yb-border); background: var(--yb-surface); border-radius: var(--yb-radius-lg); padding: 4rpx 24rpx; }
+.work-entry { display: flex; align-items: center; gap: 16rpx; min-height: 96rpx; border-bottom: 1rpx solid var(--yb-border); font-size: 24rpx; color: var(--yb-muted); }
+.work-entry:last-child { border-bottom: 0; }
+.entry-title { flex: 1; color: var(--yb-ink); font-size: 26rpx; font-weight: 500; }
+.stats-row { display: flex; align-items: center; gap: 16rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
+.stats-row > view { flex: 1; min-width: 0; }
+.stats-label, .stats-row .stats-note { display: block; }
+.stats-label { font-size: 26rpx; font-weight: 500; color: var(--yb-ink); }
+.stats-value { color: var(--yb-ink); font-size: 30rpx; font-weight: 600; text-align: right; max-width: 40%; overflow-wrap: anywhere; }
+.stats-card > .stats-note { display: block; margin: 16rpx 0; line-height: 1.6; }
+.section-caption { display: block; margin-bottom: 16rpx; color: var(--yb-muted); font-size: 24rpx; line-height: 1.6; }
+.recent-order--pending { border-left: 4rpx solid var(--yb-brand); border-radius: var(--yb-radius-lg); overflow: hidden; }
+.pending-note { display: flex; align-items: center; justify-content: space-between; min-height: 80rpx; padding: 0 20rpx; color: var(--yb-brand); background: var(--yb-brand-soft); font-size: 24rpx; }
+.pending-link { display: flex; align-items: center; min-height: 80rpx; }
 .business-stats { font-size:26rpx; line-height:1.8; }
-.stats-note { font-size:22rpx; color:var(--yb-muted); }
+.stats-note { font-size:24rpx; color:var(--yb-muted); }
 .dash-page {
   min-height: 100%;
   background: #FAFAF7;
@@ -231,28 +241,19 @@ const kpis = computed(() => {
 /* Hero */
 .hero {
   position: relative;
-  background-color: #10131f;
+  background-color: var(--yb-surface);
   background-size: cover;
   background-position: center;
-  color: #FFFFFF;
-  padding: 48rpx 32rpx 32rpx;
+  color: var(--yb-ink);
+  padding: 28rpx 32rpx;
   overflow: hidden;
-}
-.hero-glow {
-  position: absolute;
-  top: -50%;
-  right: -30%;
-  width: 600rpx;
-  height: 600rpx;
-  background: radial-gradient(circle, rgba(184, 147, 90, 0.25) 0%, transparent 70%);
-  pointer-events: none;
 }
 .hero-top {
   position: relative;
   display: flex;
   align-items: center;
   gap: 20rpx;
-  margin-bottom: 40rpx;
+  margin-bottom: 0;
 }
 .hero-avatar {
   width: 120rpx;
@@ -266,10 +267,10 @@ const kpis = computed(() => {
 }
 .hero-eyebrow {
   display: block;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 700;
-  letter-spacing: 3rpx;
-  color: #D4A574;
+  letter-spacing: 0;
+  color: var(--yb-muted);
   margin-bottom: 6rpx;
 }
 .hero-name-row {
@@ -282,36 +283,7 @@ const kpis = computed(() => {
   font-weight: 700;
   letter-spacing: -1rpx;
 }
-.strong { color: #FFFFFF; font-weight: 700; }
-.hero-stats {
-  position: relative;
-  display: flex;
-  gap: 16rpx;
-}
-.stat {
-  flex: 1;
-  min-width: 0;
-  padding: 16rpx;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1rpx solid rgba(255, 255, 255, 0.12);
-  border-radius: 16rpx;
-}
-.stat-label {
-  display: block;
-  font-size: 18rpx;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2rpx;
-  text-transform: uppercase;
-  margin-bottom: 8rpx;
-}
-.stat-val {
-  display: block;
-  font-family: ui-monospace, monospace;
-  font-size: 32rpx;
-  font-weight: 700;
-  letter-spacing: -1rpx;
-}
-
+.strong { color: var(--yb-ink); font-weight: 700; }
 .kpi-row {
   display: flex;
   flex-wrap: wrap;
@@ -323,7 +295,7 @@ const kpis = computed(() => {
 .section {
   margin: 24rpx 32rpx 0;
 }
-.section-loading { padding: 48rpx 0; text-align: center; color: #86909c; font-size: 22rpx; }
+.section-loading { padding: 48rpx 0; text-align: center; color: var(--yb-muted); font-size: 24rpx; }
 .section-bar {
   display: flex;
   justify-content: space-between;
@@ -361,8 +333,8 @@ const kpis = computed(() => {
   display: flex;
   align-items: center;
   gap: 4rpx;
-  font-size: 22rpx;
-  color: #6B7385;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
 
 /* Deposit card */
@@ -397,7 +369,7 @@ const kpis = computed(() => {
 }
 .progress-label {
   display: block;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #6B7385;
   margin-top: 8rpx;
   font-family: ui-monospace, monospace;
@@ -408,9 +380,9 @@ const kpis = computed(() => {
   align-items: baseline;
 }
 .dep-label {
-  font-size: 22rpx;
-  color: #6B7385;
-  letter-spacing: 2rpx;
+  font-size: 24rpx;
+  color: var(--yb-muted);
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 .dep-amount {

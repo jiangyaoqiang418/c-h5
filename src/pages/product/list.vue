@@ -31,6 +31,10 @@ function submitSearch() {
   querySnapshot = { keyword: keyword.value.trim() || undefined, categoryId: categoryId.value, sortBy: sortMap[sortKey.value] };
   return load(true);
 }
+function clearSearch() {
+  keyword.value = '';
+  return submitSearch();
+}
 
 onLoad(query => {
   if (query?.keyword) keyword.value = String(query.keyword);
@@ -122,7 +126,8 @@ function onSortChange(v: string) {
       <ProductCard v-for="p in list" :key="p.id" :product="p" />
     </view>
     <EmptyState v-else-if="loadFailed" title="商品列表加载失败" description="请稍后重试" />
-    <EmptyState v-else-if="!loading" title="没有找到符合条件的商品" description="尝试调整搜索条件" />
+    <EmptyState v-else-if="!loading && querySnapshot.keyword" title="没有找到符合条件的商品" description="可清除搜索词，保留当前分类与排序继续查看。" action-text="清除搜索词" @action="clearSearch" />
+    <EmptyState v-else-if="!loading" title="当前没有可展示的商品" description="当前分类或列表没有返回商品，可稍后查看。" />
 
     <view v-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     <wd-button v-else-if="loadFailed" block plain @click="load(false)">加载失败，点击重试</wd-button>
@@ -197,7 +202,7 @@ function onSortChange(v: string) {
 .loading, .no-more {
   text-align: center;
   padding: 32rpx;
-  color: #86909c;
+  color: var(--yb-muted);
   font-size: 24rpx;
 }
 .loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; }

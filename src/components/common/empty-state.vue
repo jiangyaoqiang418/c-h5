@@ -8,9 +8,10 @@ interface Props {
   actionText?: string;
   variant?: 'empty' | 'error';
   image?: string;
+  showIllustration?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), { variant: 'empty' });
+const props = withDefaults(defineProps<Props>(), { variant: 'empty', showIllustration: false });
 const emit = defineEmits<{ (e: 'action'): void }>();
 
 const illustration = computed(() => props.image || (
@@ -20,7 +21,7 @@ const illustration = computed(() => props.image || (
 
 <template>
   <view class="empty-state">
-    <image :src="illustration" mode="aspectFit" class="illustration" />
+    <image v-if="showIllustration || image" :src="illustration" mode="aspectFit" class="illustration" />
     <text class="title">{{ title }}</text>
     <text v-if="description" class="desc">{{ description }}</text>
     <view v-if="actionText" class="action yb-pressable" @click="emit('action')">
@@ -35,7 +36,7 @@ const illustration = computed(() => props.image || (
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 112rpx 32rpx;
+  padding: 80rpx 32rpx;
   text-align: center;
 }
 
@@ -63,7 +64,7 @@ const illustration = computed(() => props.image || (
 .action {
   display: inline-flex;
   align-items: center;
-  min-height: 80rpx;
+  min-height: 88rpx;
   margin-top: 32rpx;
   padding: 0 28rpx;
   border-radius: var(--yb-radius-lg);

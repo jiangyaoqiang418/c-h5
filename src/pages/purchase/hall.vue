@@ -13,7 +13,6 @@ import AudienceSegment from '@/components/common/audience-segment.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { fetchHall } from '@/service/api/purchase';
-import { UI_ASSETS } from '@/constants/ui-assets';
 
 const { requireLogin } = useNavigationGuards();
 
@@ -140,10 +139,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
 
 <template>
   <view class="hall-page yb-page h5-tab-page">
-    <view class="hero" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.purchase})` }">
-      <text class="hero-eyebrow">PURCHASE HALL · REAL-TIME</text>
-      <text class="hero-title">求购大厅</text>
-      <text class="hero-sub">USDT 担保 · 全球买手 · 24h 接单</text>
+    <view class="hero" >
       <view class="hero-row">
         <AudienceSegment />
         <view class="hero-actions">
@@ -151,6 +147,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
           <wd-button type="primary" size="small" :disabled="opening || claiming" @click="goCreate"><wd-icon name="add" size="15px" /> 发起</wd-button>
         </view>
       </view>
+      <text class="hero-sub">USDT 担保 · 全球买手 · 24h 接单</text>
     </view>
 
     <view v-if="canClaim" class="tip">
@@ -180,8 +177,8 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
       <EmptyState
         v-else-if="!loading"
         title="暂无求购任务"
-        description="发起求购让全球买手为您代购"
-        action-text="发起求购"
+         :description="canClaim ? '当前条件下没有可展示的求购任务，可调整筛选或稍后刷新。' : '发起求购让全球买手为您代购'"
+        :action-text="canClaim ? '' : '发起求购'"
         @action="goCreate"
       />
       <wd-button v-if="userStore.currentUser && (hasMore || loadFailed)" block plain :loading="reading" :disabled="claiming" @click="load(loadFailed ? retryReset : false)">{{ loadFailed ? '加载失败，点击重试' : '加载更多' }}</wd-button>
@@ -191,34 +188,19 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
 
 <style lang="scss" scoped>
 .hero {
-  background-color: #10131f;
+  background-color: var(--yb-surface);
   background-size: cover;
   background-position: center;
-  color: #fff;
-  padding: 44rpx 28rpx 32rpx;
+  color: var(--yb-ink);
+  padding: 20rpx 24rpx;
   position: relative;
   overflow: hidden;
-}
-.hero-eyebrow {
-  display: block;
-  font-size: 20rpx;
-  font-weight: 700;
-  letter-spacing: 3rpx;
-  color: rgba(255, 255, 255, 0.66);
-  margin-bottom: 12rpx;
-}
-.hero-title {
-  display: block;
-  font-size: 48rpx;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -1rpx;
 }
 .hero-sub {
   display: block;
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.76);
-  margin: 8rpx 0 24rpx;
+  color: var(--yb-muted);
+  margin-top: 16rpx;
 }
 .hero-row {
   display: flex;
@@ -248,7 +230,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
   gap: 10rpx;
 }
 .list {
-  padding: 24rpx;
+  padding: 16rpx 24rpx 24rpx;
 }
 .hall-loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 </style>

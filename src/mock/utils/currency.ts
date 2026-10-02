@@ -5,7 +5,7 @@
  *   import { formatCny, formatUsdt, priceSet, getUsdtCnyRate, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
  *
  *   formatCny(3199) → '¥22,955.82'
- *   formatUsdt(3199) → 'U 3,199.00'
+ *   formatUsdt(3199) → '3,199.00 USDT'
  *   priceSet(3199) → { cny, cnyRaw, usdt, usdtRaw, rate, rateLabel }
  */
 import { EXCHANGE_RATES } from '../mock/data/fund-exchange-rates';
@@ -36,10 +36,10 @@ export function formatCny(usdt: string | number | null | undefined): string {
   return '¥' + formatAmount(cny.toFixed(2));
 }
 
-/** U 前缀 + 千位分隔 */
+/** 千位分隔 + 明确的 USDT 单位，仅用于展示 */
 export function formatUsdt(v: string | number | null | undefined): string {
   if (v == null || v === '') return '—';
-  return 'U ' + formatAmount(v);
+  return formatAmount(v) + ' USDT';
 }
 
 /** ¥ 前缀（仅数字部分带千位分隔）—— 用于已知 CNY 数值直接显示 */
@@ -55,7 +55,7 @@ export function formatCnyRaw(cny: string | number | null | undefined): string {
  * priceSet(3199) → {
  *   cny: '¥22,955.82',
  *   cnyRaw: '22955.82',
- *   usdt: 'U 3,199.00',
+ *   usdt: '3,199.00 USDT',
  *   usdtRaw: '3199',
  *   rate: 7.18,
  *   rateLabel: '1 USDT = ¥7.18'

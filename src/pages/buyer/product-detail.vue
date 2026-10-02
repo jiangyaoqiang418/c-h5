@@ -149,7 +149,7 @@ onShow(() => { if (!operating.value) return load(); });
         <text class="price">U {{ formatAmount(product.price) }}</text>
       </view>
 
-      <view v-if="product.reviewComment" class="section review-section">
+      <view v-if="product.reviewComment" class="section review-section" :class="{ 'review-section--rejected': product.status === 'REJECTED' }">
         <text class="section-title">审核意见</text>
         <text class="review-text">{{ product.reviewComment }}</text>
       </view>
@@ -192,12 +192,13 @@ onShow(() => { if (!operating.value) return load(); });
 .stock { font-size: 22rpx; color: #86909c; }
 .title { display: block; margin-top: 16rpx; font-size: 32rpx; font-weight: 700; line-height: 1.4; color: #1d2129; }
 .brief { display: block; margin-top: 8rpx; font-size: 24rpx; color: #86909c; }
-.price { display: block; margin-top: 20rpx; font-size: 42rpx; font-weight: 700; color: #f53f3f; font-family: ui-monospace, monospace; }
+.price { display: block; margin-top: 20rpx; font-size: 42rpx; font-weight: 700; color: #f53f3f; font-family: var(--yb-font-body); }
 .section-title { display: block; margin-bottom: 12rpx; font-size: 28rpx; font-weight: 600; color: #1d2129; }
 .row { display: flex; justify-content: space-between; gap: 24rpx; padding: 18rpx 0; border-bottom: 1rpx solid #f7f8fa; font-size: 24rpx; }
 .row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 .label { flex-shrink: 0; color: #86909c; }
-.review-section { background: #fff7e6; }
+.review-section { background: #f8f9fb; }
+.review-section--rejected { background: #fff2f2; }
 .review-text, .description { display: block; font-size: 24rpx; line-height: 1.7; color: #4e5969; white-space: pre-wrap; }
 .bottom-bar {
   position: fixed; right: 0; bottom: 0; left: 0; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));

@@ -272,7 +272,9 @@ watch(activeKey, changeFilter, { flush: 'sync' });
           </view>
         </view>
         <view v-else-if="activeKey !== 'reviewable' && list.length"><ReviewCard v-for="r in list" :key="r.reviewId" :review="r" :received="activeKey === 'received'" :delete-disabled="!canAct(r, 'delete')" :reply-disabled="!canAct(r, 'reply')" :appeal-disabled="!canAct(r, 'appeal')" @delete="remove" @reply="reply" @appeal="appeal" /></view>
-        <EmptyState v-else title="暂无评价" />
+        <EmptyState v-else-if="activeKey === 'reviewable'" title="暂无待评价订单" description="符合当前评价资格的订单才会显示在这里，可在订单页核对状态与评价资格。" action-text="查看我的订单" @action="go('/pages/order/list')" />
+        <EmptyState v-else-if="activeKey === 'sent'" title="你还没有发出评价" description="成功提交的评价会显示在这里。" />
+        <EmptyState v-else title="暂无收到的评价" description="与你相关的评价会显示在这里。" />
       </template>
       <text v-if="loadFailed && records.length">刷新失败，当前显示上次数据，写操作已暂停。</text>
       <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="retry">加载失败，点击重试</wd-button>
@@ -282,6 +284,6 @@ watch(activeKey, changeFilter, { flush: 'sync' });
 </template>
 
 <style lang="scss" scoped>
-.review-list { min-height:100%; }.list { padding:24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
-.reviewable-card { display:flex; gap:16rpx; align-items:center; background:#fff; padding:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); margin-bottom:16rpx; }.cover { width:96rpx; height:96rpx; border-radius:var(--yb-radius-md); background:#f2f3f5; }.reviewable-main { flex:1; min-width:0; }.title, .order-no { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.title { color:#1d2129; font-size:27rpx; font-weight:600; }.order-no { color:#86909c; font-size:22rpx; margin-top:8rpx; }
+.review-list { min-height:100%; }.list { padding:24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:var(--yb-muted); font-size:24rpx; }
+.reviewable-card { display:flex; gap:16rpx; align-items:center; background:#fff; padding:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); margin-bottom:16rpx; }.cover { width:96rpx; height:96rpx; border-radius:var(--yb-radius-md); background:#f2f3f5; }.reviewable-main { flex:1; min-width:0; }.title, .order-no { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.title { color:#1d2129; font-size:27rpx; font-weight:600; }.order-no { color:var(--yb-muted); font-size:24rpx; margin-top:8rpx; }
 </style>

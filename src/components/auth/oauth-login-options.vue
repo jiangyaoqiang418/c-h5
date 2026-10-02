@@ -5,6 +5,7 @@ import { fetchOAuthConfig, type OAuthLoginParams } from '@/service/api/auth';
 const props = defineProps<{ disabled?: boolean }>();
 const emit = defineEmits<{ login: [payload: OAuthLoginParams] }>();
 const available = ref(false);
+const loginError = ref('');
 const instance = Math.random().toString(36).slice(2);
 const googleId = `google-login-${instance}`;
 const telegramId = `telegram-login-${instance}`;
@@ -51,6 +52,7 @@ function renderTelegram(username: string) {
   const script = document.createElement('script');
   script.async = true;
   script.src = 'https://telegram.org/js/telegram-widget.js?22';
+  script.onerror = () => { loginError.value = 'Telegram 登录暂不可用，请使用邮箱登录。'; };
   script.dataset.telegramLogin = username.replace(/^@/, '');
   script.dataset.size = 'large';
   script.dataset.radius = '6';
@@ -73,7 +75,8 @@ onMounted(async () => {
     const jobs: Promise<void>[] = [];
     if (hasGoogle) jobs.push(renderGoogle(config.googleClientId!));
     if (hasTelegram) renderTelegram(config.telegramBotUsername!);
-    await Promise.allSettled(jobs);
+    const results = await Promise.allSettled(jobs);
+    if (results.some(result => result.status === 'rejected')) loginError.value = '部分第三方登录服务暂不可用，请使用邮箱登录。';
   } catch {
     available.value = false;
   }
@@ -93,10 +96,13 @@ onBeforeUnmount(() => {
     <view class="divider"><text>其他登录方式</text></view>
     <view :id="googleId" class="oauth-control" />
     <view :id="telegramId" class="oauth-control" />
+    <text class="oauth-note">{{ loginError || '第三方登录由 Google / Telegram 提供。遇到组件错误或无法连接时，可使用上方邮箱登录。' }}</text>
   </view>
   <!-- #endif -->
 </template>
 
 <style scoped>
 .divider{display:flex;align-items:center;gap:20rpx;color:#86909c;font-size:22rpx;margin:28rpx 0 20rpx}.divider::before,.divider::after{content:'';height:1rpx;background:#e5e6eb;flex:1}.oauth-control{display:flex;justify-content:center;min-height:0;margin-top:16rpx;overflow:hidden}.oauth-control:empty{display:none}
+.oauth-note{display:block;margin-top:16rpx;color:var(--yb-muted);font-size:24rpx;line-height:1.5}
+.divider { color: var(--yb-muted); font-size: 24rpx; }
 </style>

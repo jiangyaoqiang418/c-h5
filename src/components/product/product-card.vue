@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { productImageUrl } from '@shared/utils/image';
 import { formatCny, formatUsdt } from '@shared/utils/currency';
 import { go } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 interface Props {
+  layout?: 'grid' | 'list';
   product: Api.Product.ProductRecord | Api.RealProduct.ProductDTO | Api.RealProduct.ProductListVO;
 }
 const props = defineProps<Props>();
@@ -26,6 +27,7 @@ const cover = computed(() => {
   return '';
 });
 const isRealProduct = computed(() => isReal(props.product));
+watch(cover, () => { imgError.value = false; });
 const overseas = computed(() => isReal(props.product) ? !!props.product.overseasClearance : !!props.product.overseasCustoms);
 const categoryLabel = computed(() => (
   'categoryPath' in props.product
@@ -47,7 +49,7 @@ function goDetail() {
 </script>
 
 <template>
-  <view class="p-card" @click="goDetail">
+  <view class="p-card" :class="{ 'p-card--list': layout === 'list' }" @click="goDetail">
     <view class="cover-wrap">
       <image v-if="cover && !imgError" :src="cover" mode="aspectFill" class="cover" @error="onImgError" />
       <image v-else :src="UI_ASSETS.placeholders.product" mode="aspectFit" class="cover image-fallback" />
@@ -106,12 +108,12 @@ function goDetail() {
   left: 14rpx;
   padding: 4rpx 14rpx;
   border-radius: 999rpx;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 500;
 }
 .badge.overseas {
-  background: rgba(184, 147, 90, 0.92);
-  color: var(--yb-surface);
+  background: #fff7e8;
+  color: #805b24;
 }
 .sold-out {
   position: absolute;
@@ -132,8 +134,8 @@ function goDetail() {
   gap: 6rpx;
 }
 .brand {
-  font-size: 18rpx;
-  letter-spacing: 2rpx;
+  font-size: 24rpx;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--yb-muted);
 }
@@ -142,7 +144,7 @@ function goDetail() {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 600;
   line-height: 1.4;
   color: var(--yb-ink);
@@ -156,34 +158,43 @@ function goDetail() {
   margin-top: 8rpx;
 }
 .cny {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 34rpx;
   font-weight: 700;
-  color: var(--yb-ink);
+  color: var(--yb-brand);
   letter-spacing: -1rpx;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .usdt {
-  font-family: ui-monospace, monospace;
-  font-size: 18rpx;
+  font-family: var(--yb-font-body);
+  font-size: 24rpx;
   color: var(--yb-muted);
   font-weight: 500;
 }
 .bottom {
   display: flex;
   justify-content: space-between;
-  font-size: 20rpx;
-  color: var(--yb-faint);
+  font-size: 24rpx;
+  color: var(--yb-muted);
   margin-top: 4rpx;
 }
 .seller {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 50%;
+  max-width: 65%;
 }
 .sales {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
 }
+.p-card--list { display: flex; padding: 16rpx; gap: 16rpx; }
+.p-card--list .cover-wrap { width: 152rpx; height: 152rpx; flex-shrink: 0; border-radius: 12rpx; }
+.p-card--list .info { flex: 1; min-width: 0; padding: 0; gap: 4rpx; }
+.p-card--list .brand { display: none; }
+.p-card--list .title { min-height: 0; font-size: 26rpx; }
+.p-card--list .cny { font-size: 30rpx; }
+.p-card--list .bottom { font-size: 24rpx; gap: 8rpx; }
+.p-card--list .badge { top: 0; left: 0; padding: 4rpx 6rpx; font-size: 24rpx; border-radius: 0 0 8rpx 0; }
 </style>

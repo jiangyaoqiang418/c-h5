@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Editor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -12,13 +12,17 @@ import { sanitizeRichText } from '@/utils/rich-text';
 const props = withDefaults(defineProps<{ modelValue: string; disabled?: boolean }>(), { disabled: false });
 const emit = defineEmits<{ (e: 'update:modelValue', value: string): void; (e: 'uploading', value: boolean): void }>();
 const uploading = ref(false);
+const moreTools = ref(false);
+const contentEmpty = ref(true);
+const showPlaceholder = computed(() => contentEmpty.value && !props.disabled);
 const editor = new Editor({
   content: sanitizeRichText(props.modelValue), editable: !props.disabled,
   extensions: [StarterKit.configure({ link: false, underline: false }), Underline, Image.configure({ inline: false, allowBase64: false }), Link.configure({ openOnClick: false }), TableKit],
-  onUpdate: ({ editor: current }) => emit('update:modelValue', sanitizeRichText(current.getHTML()))
+  onUpdate: ({ editor: current }) => { contentEmpty.value = current.isEmpty; emit('update:modelValue', sanitizeRichText(current.getHTML())); }
 });
+contentEmpty.value = editor.isEmpty;
 watch(() => props.disabled, value => editor.setEditable(!value));
-watch(() => props.modelValue, value => { const next = sanitizeRichText(value); if (next !== editor.getHTML()) editor.commands.setContent(next, { emitUpdate: false }); });
+watch(() => props.modelValue, value => { const next = sanitizeRichText(value); if (next !== editor.getHTML()) editor.commands.setContent(next, { emitUpdate: false }); contentEmpty.value = editor.isEmpty; });
 onBeforeUnmount(() => editor.destroy());
 
 function setLink() {
@@ -45,18 +49,23 @@ async function uploadImage() {
 
 <template>
   <view class="rich-editor" :class="{ disabled }"><view class="toolbar">
-    <button type="button" @click="editor.chain().focus().toggleBold().run()">加粗</button><button type="button" @click="editor.chain().focus().toggleItalic().run()">斜体</button>
-    <button type="button" @click="editor.chain().focus().toggleUnderline().run()">下划线</button><button type="button" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">标题</button>
-    <button type="button" @click="editor.chain().focus().toggleBulletList().run()">列表</button><button type="button" @click="editor.chain().focus().toggleBlockquote().run()">引用</button>
-    <button type="button" @click="setLink">链接</button><button type="button" @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()">表格</button>
-    <button v-if="editor.isActive('table')" type="button" @click="editor.chain().focus().addRowAfter().run()">加行</button><button v-if="editor.isActive('table')" type="button" @click="editor.chain().focus().addColumnAfter().run()">加列</button>
-    <button type="button" :disabled="uploading" @click="uploadImage">{{ uploading ? '上传中' : '图片' }}</button><button type="button" @click="editor.chain().focus().undo().run()">撤销</button><button type="button" @click="editor.chain().focus().redo().run()">重做</button>
-  </view><EditorContent :editor="editor" class="editor-content" /><text class="tip">支持图文、链接和表格，图片会先上传后插入。</text></view>
+    <button type="button" @click="editor.chain().focus().toggleBold().run()">加粗</button><button type="button" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">标题</button>
+    <button type="button" @click="editor.chain().focus().toggleBulletList().run()">列表</button><button type="button" :disabled="uploading" @click="uploadImage">{{ uploading ? '上传中' : '图片' }}</button>
+    <button type="button" :aria-expanded="moreTools" @click="moreTools = !moreTools">{{ moreTools ? '收起工具' : '更多' }}</button>
+    <template v-if="moreTools">
+      <button type="button" @click="editor.chain().focus().toggleItalic().run()">斜体</button><button type="button" @click="editor.chain().focus().toggleUnderline().run()">下划线</button>
+      <button type="button" @click="editor.chain().focus().toggleBlockquote().run()">引用</button><button type="button" @click="setLink">链接</button>
+      <button type="button" @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()">表格</button>
+      <button v-if="editor.isActive('table')" type="button" @click="editor.chain().focus().addRowAfter().run()">加行</button><button v-if="editor.isActive('table')" type="button" @click="editor.chain().focus().addColumnAfter().run()">加列</button>
+      <button type="button" @click="editor.chain().focus().undo().run()">撤销</button><button type="button" @click="editor.chain().focus().redo().run()">重做</button>
+    </template>
+  </view><view class="editor-body"><EditorContent :editor="editor" class="editor-content" /><text v-if="showPlaceholder" class="editor-placeholder">介绍商品特点、规格与使用说明，可插入图片补充细节。</text></view><text class="tip">图片上传后会插入正文，最多 30 张。</text></view>
 </template>
 
 <style scoped>
 .rich-editor { overflow: hidden; border: 1rpx solid #e5e6eb; border-radius: var(--yb-radius-md); background: #fff; }.disabled { opacity: .65; pointer-events: none; }
-.toolbar { display:flex; flex-wrap:wrap; gap:8rpx; padding:12rpx; border-bottom:1rpx solid #e5e6eb; background:#f7f8fa; }.toolbar button { margin:0; padding:6rpx 14rpx; border:1rpx solid #c9cdd4; border-radius:6rpx; background:#fff; font-size:22rpx; }
+.toolbar { display:flex; flex-wrap:wrap; gap:8rpx; padding:12rpx; border-bottom:1rpx solid #e5e6eb; background:#f7f8fa; }.toolbar button { display: flex; align-items: center; justify-content: center; margin: 0; min-height: 88rpx; padding: 8rpx 16rpx; border: 1rpx solid var(--yb-border); border-radius: 12rpx; background: #fff; box-shadow: none; font-size: 24rpx; line-height: 1.4; } .toolbar button::after { border: none; }
 .editor-content :deep(.tiptap) { min-height:320rpx; padding:20rpx; outline:none; font-size:26rpx; line-height:1.7; }.editor-content :deep(img) { max-width:100%; height:auto; }.editor-content :deep(table) { width:100%; border-collapse:collapse; }.editor-content :deep(th), .editor-content :deep(td) { min-width:100rpx; padding:10rpx; border:1rpx solid #c9cdd4; }
-.tip { display:block; padding:0 20rpx 14rpx; color:#86909c; font-size:21rpx; }
+.editor-body { position: relative; }.editor-placeholder { position:absolute; top:20rpx; left:20rpx; right:20rpx; pointer-events:none; color:var(--yb-muted); font-size:26rpx; line-height:1.7; }
+.tip { display:block; padding:0 20rpx 14rpx; color:var(--yb-muted); font-size:24rpx; }
 </style>

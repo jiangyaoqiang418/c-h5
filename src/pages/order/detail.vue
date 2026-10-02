@@ -35,6 +35,24 @@ const loading = ref(true);
 const loadFailed = ref(false);
 const id = ref<Api.RealOrder.LongId>();
 const logistics = ref<Api.RealOrder.LogisticsDTO>();
+const logisticsDetailsExpanded = ref(false);
+const latestTrack = computed(() => [...(logistics.value?.tracks || [])].sort((a, b) => {
+  const time = (value?: string | number) => value == null ? 0 : /^\d+$/.test(String(value)) ? Number(value) : new Date(value).getTime();
+  return (time(b.occurredAt) || 0) - (time(a.occurredAt) || 0);
+})[0]);
+const orderStateDescription = computed(() => {
+  if (!order.value) return '';
+  const descriptions: Record<Api.RealOrder.OrderStatus, string> = {
+    CREATED: '订单已提交，等待付款。',
+    PAID: '订单已付款，等待买手发货。',
+    SHIPPED: '买手已发货，可查看物流进度和收货信息。',
+    COMPLETED: '交易已完成，订单与物流资料可继续查看。',
+    CANCELED: '订单已取消。',
+    REFUND_REVIEW: '退款申请处理中，请查看售后记录核对进度。',
+    REFUNDED: '订单已退款，请结合退款记录与资金流水核对。'
+  };
+  return descriptions[order.value.rawStatus] || '请以当前订单状态和可执行操作为准。';
+});
 const logisticsStatusLabel = computed(() => order.value?.rawStatus === 'CANCELED'
   && (!logistics.value?.logisticsStatus || logistics.value.logisticsStatus === 'PENDING_SHIPMENT')
   && !logistics.value?.trackingNo && !logistics.value?.tracks.length
@@ -46,6 +64,13 @@ const logisticsSubmitting = ref(false);
 const operating = ref(false);
 const isCustomer = computed(() => !!order.value && orderRole(order.value, userStore.realUserId) === 'customer');
 const isSeller = computed(() => !!order.value && orderRole(order.value, userStore.realUserId) === 'seller');
+const showActionsBar = computed(() => isCustomer.value && !!order.value && (
+  ['PENDING_PAYMENT', 'IN_TRANSIT', 'COMPLETED', 'PROCURING'].includes(order.value.status)
+  || order.value.rawStatus === 'SHIPPED' && order.value.receiveExtendable === true
+));
+const inlineReviewNotice = computed(() => showActionsBar.value && order.value?.status === 'COMPLETED'
+  && order.value.reviewEligibility?.reviewable === false
+  && !(order.value.rawStatus === 'SHIPPED' && order.value.receiveExtendable === true));
 let loadSequence = 0;
 let popupVersion = 0;
 const changeReceipts = ref<OrderChangeReceipt[]>([]);
@@ -68,6 +93,7 @@ const page = usePageOperation(() => {
   loadSequence++; popupVersion++;
   paymentSelectorVisible.value = false; paymentSelectorOrder.value = undefined;
   order.value = undefined; logistics.value = undefined;
+  logisticsDetailsExpanded.value = false;
   loading.value = false; loadFailed.value = false; logisticsLoadFailed.value = false;
   operating.value = false; logisticsSubmitting.value = false;
   changeReceipts.value = []; changeReceiptFailed.value = false; logisticsReceipt.value = undefined; logisticsReceiptFailed.value = false;
@@ -187,6 +213,14 @@ async function reload() {
 }
 
 function previewPurchaseVoucher(url: string) { if (logistics.value) uni.previewImage({ urls: logistics.value.purchaseVouchers, current: url }); }
+function previewShipVoucher(url: string) { if (logistics.value) uni.previewImage({ urls: logistics.value.shipVouchers, current: url }); }
+function copyTrackingNo() {
+  if (logistics.value?.trackingNo) uni.setClipboardData({ data: logistics.value.trackingNo });
+}
+function showLogisticsDetails() {
+  logisticsDetailsExpanded.value = true;
+  uni.pageScrollTo({ selector: '#logistics-details', duration: 250 });
+}
 
 function formatTime(value?: string | number): string {
   if (value === undefined || value === null || value === '') return '';
@@ -347,7 +381,7 @@ function submitException() { return submitLogistics('exception'); }
   <PayPasswordPopup ref="payPasswordPopup" />
   <OrderCancelPopup ref="cancelPopup" />
   <OrderPaymentSelector v-model="paymentSelectorVisible" :order="paymentSelectorOrder" @balance="payBalance" />
-  <view v-if="order" class="detail-page yb-page">
+  <view v-if="order" class="detail-page yb-page" :class="{ 'has-actions': showActionsBar && !inlineReviewNotice }">
     <view v-if="isCustomer && walletPayError" class="section">{{ walletPayError }}</view>
     <view v-if="isCustomer && walletPay" class="section">
       <text class="section-title">钱包支付进度</text>
@@ -359,18 +393,29 @@ function submitException() { return submitLogistics('exception'); }
       <text class="section-title">付款结果</text>
       <text>{{ paymentReceiptMessage(paymentReceipt) }}</text>
       <view v-for="item in (paymentReceipt.result || paymentReceipt.currentResult)?.items || []" :key="item.orderId">
-        <text>{{ item.orderNo || item.orderId }} · U {{ item.amount }} · {{ item.success ? '已付款' : item.status === 'CANCELED' ? '已取消' : '未付款' }}{{ item.message ? `：${item.message}` : '' }}</text>
+        <text>{{ item.orderNo || item.orderId }} · {{ formatUsdt(item.amount) }} · {{ item.success ? '已付款' : item.status === 'CANCELED' ? '已取消' : '未付款' }}{{ item.message ? `：${item.message}` : '' }}</text>
       </view>
       <wd-button plain size="small" :disabled="busy" :loading="loading" @click="reload">刷新付款状态</wd-button>
     </view>
     <view class="hero">
       <OrderStatusTag :status="order.status" />
-      <text class="code">{{ order.code }}</text>
-      <text v-if="order.createdAt" class="time">{{ formatTime(order.createdAt) }}</text>
+      <text class="state-description">{{ orderStateDescription }}</text>
+      <text class="code">订单号 {{ order.code }}</text>
+      <text v-if="order.createdAt" class="time">下单时间 {{ formatTime(order.createdAt) }}</text>
     </view>
 
     <view class="section">
       <text class="section-title">订单进度</text>
+      <view v-if="logistics" class="logistics-summary">
+        <view class="summary-head"><text class="summary-state">物流 · {{ logisticsStatusLabel }}</text><text class="summary-carrier">{{ logistics.carrierName || logistics.carrier || '' }}</text></view>
+        <text v-if="latestTrack" class="latest-description">{{ latestTrack.description || latestTrack.statusText || latestTrack.status }}</text>
+        <text v-if="latestTrack" class="latest-meta">{{ [formatTime(latestTrack.occurredAt), latestTrack.location, latestTrack.sourceText || (latestTrack.source === 'MANUAL' ? '人工登记' : latestTrack.source === 'CARRIER_SYNC' ? '承运商同步' : latestTrack.source)].filter(Boolean).join(' · ') }}</text>
+        <view v-if="logistics.trackingNo" class="tracking-summary"><text>运单号 {{ logistics.trackingNo }}</text><wd-button size="small" plain @click="copyTrackingNo">复制</wd-button></view>
+        <text v-if="logistics.eta" class="latest-meta">预计送达 {{ formatTime(logistics.eta) }}</text>
+        <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
+        <wd-button plain block size="small" @click="showLogisticsDetails">查看完整物流资料与凭证</wd-button>
+      </view>
+      <text v-else-if="logisticsLoadFailed" class="section-note">物流信息读取失败，订单进度仍可查看，请刷新重试。</text>
       <view v-if="isCustomer && order.rawStatus === 'SHIPPED' && order.autoConfirmAt" class="amt-row"><text class="amt-lbl">自动收货时间</text><text>{{ formatTime(order.autoConfirmAt) }}</text></view>
       <view v-if="isCustomer && order.rawStatus === 'SHIPPED' && order.receiveExtendCount != null" class="amt-row"><text class="amt-lbl">已延长收货</text><text>{{ order.receiveExtendCount }} 次</text></view>
       <OrderTimeline :order="order" :logistics="logistics" />
@@ -441,15 +486,28 @@ function submitException() { return submitLogistics('exception'); }
       </view>
     </view>
 
-    <view v-if="logistics" class="section">
-      <text class="section-title">物流信息</text>
-      <view class="amt-row"><text class="amt-lbl">状态</text><text>{{ logisticsStatusLabel }}</text></view>
-       <view v-if="logistics.carrierName || logistics.carrier" class="amt-row"><text class="amt-lbl">承运商</text><text>{{ logistics.carrierName || logistics.carrier }}</text></view>
+    <view v-if="logistics" id="logistics-details" class="section">
+      <view class="section-heading" @click="logisticsDetailsExpanded = !logisticsDetailsExpanded"><text class="section-title">物流资料与凭证</text><view class="expand-label"><text>{{ logisticsDetailsExpanded ? '收起' : '展开' }}</text><wd-icon :name="logisticsDetailsExpanded ? 'arrow-up' : 'arrow-down'" size="14px" /></view></view>
+      <view v-if="logisticsDetailsExpanded">
+       <view class="amt-row"><text class="amt-lbl">物流状态</text><text>{{ logisticsStatusLabel }}</text></view>
+       <view v-if="logistics.carrierName || logistics.carrier" class="amt-row"><text class="amt-lbl">承运商</text><text>{{ logistics.carrierName || logistics.carrier }}{{ logistics.carrierName && logistics.carrier && logistics.carrierName !== logistics.carrier ? `（${logistics.carrier}）` : '' }}</text></view>
+       <view class="amt-row"><text class="amt-lbl">关联订单 ID</text><text>{{ logistics.orderId }}</text></view>
+       <view v-if="logistics.orderNo" class="amt-row"><text class="amt-lbl">关联订单号</text><text>{{ logistics.orderNo }}</text></view>
        <view v-if="logistics.trackingNo" class="amt-row"><text class="amt-lbl">运单号</text><text>{{ logistics.trackingNo }}</text></view>
        <view v-if="logistics.purchaseNo" class="amt-row"><text class="amt-lbl">采购单号</text><text>{{ logistics.purchaseNo }}</text></view>
        <view v-if="logistics.eta" class="amt-row"><text class="amt-lbl">预计送达</text><text>{{ formatTime(logistics.eta) }}</text></view>
-       <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
+       <view v-if="logistics.shippedAt" class="amt-row"><text class="amt-lbl">发货登记时间</text><text>{{ formatTime(logistics.shippedAt) }}</text></view>
+       <view v-if="logistics.completedAt" class="amt-row"><text class="amt-lbl">完成登记时间</text><text>{{ formatTime(logistics.completedAt) }}</text></view>
+       <view v-if="logistics.shippingFee != null || logistics.taxFee != null" class="shipment-fees">
+         <text class="voucher-title">发货登记费用</text>
+         <view v-if="logistics.shippingFee != null" class="amt-row"><text class="amt-lbl">登记运费</text><text>{{ formatUsdt(logistics.shippingFee) }}</text></view>
+         <view v-if="logistics.taxFee != null" class="amt-row"><text class="amt-lbl">登记税费</text><text>{{ formatUsdt(logistics.taxFee) }}</text></view>
+         <text class="section-note">发货登记信息独立展示，订单计费请查看金额明细。</text>
+       </view>
+       <view v-if="logistics.shippedRemark" class="voucher-section"><text class="voucher-title">发货备注</text><text class="shipment-remark">{{ logistics.shippedRemark }}</text></view>
        <view v-if="logistics.purchaseVouchers.length" class="voucher-section"><text class="voucher-title">采购凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.purchaseVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" @click="previewPurchaseVoucher(url)" /></view></view>
+       <view v-if="logistics.shipVouchers.length" class="voucher-section"><text class="voucher-title">发货凭证</text><view class="voucher-grid"><image v-for="(url, index) in logistics.shipVouchers" :key="`${url}-${index}`" :src="url" mode="aspectFill" class="voucher-image" @click="previewShipVoucher(url)" /></view></view>
+      </view>
        <view v-if="isSeller && order.status === 'IN_TRANSIT'" class="logistics-actions">
          <wd-button size="small" plain :disabled="logisticsDisabled" @click="openTrackPopup">更新物流轨迹</wd-button>
          <wd-button size="small" type="error" plain :disabled="logisticsDisabled" @click="openExceptionPopup">标记物流异常</wd-button>
@@ -460,7 +518,7 @@ function submitException() { return submitLogistics('exception'); }
       <text>物流信息加载失败，请稍后重试。</text>
     </view>
 
-    <wd-popup v-model="trackPopupVisible" position="bottom" :safe-area-inset-bottom="true">
+    <wd-popup v-model="trackPopupVisible" position="bottom" closable :safe-area-inset-bottom="true">
       <view class="logistics-popup">
         <text class="popup-title">更新物流轨迹</text>
         <wd-cell title="物流状态"><wd-radio-group v-model="trackForm.status" inline><wd-radio value="IN_TRANSIT">运输中</wd-radio><wd-radio value="DELIVERING">派送中</wd-radio><wd-radio value="SIGNED">已签收</wd-radio><wd-radio value="EXCEPTION">异常</wd-radio></wd-radio-group></wd-cell>
@@ -471,7 +529,7 @@ function submitException() { return submitLogistics('exception'); }
       </view>
     </wd-popup>
 
-    <wd-popup v-model="exceptionPopupVisible" position="bottom" :safe-area-inset-bottom="true">
+    <wd-popup v-model="exceptionPopupVisible" position="bottom" closable :safe-area-inset-bottom="true">
       <view class="logistics-popup">
         <text class="popup-title">标记物流异常</text>
         <wd-input v-model="exceptionForm.exception" label="异常说明" placeholder="请说明异常情况" />
@@ -480,7 +538,7 @@ function submitException() { return submitLogistics('exception'); }
       </view>
     </wd-popup>
 
-    <view v-if="isCustomer" class="actions-bar">
+    <view v-if="showActionsBar" class="actions-bar" :class="{ 'actions-bar--inline': inlineReviewNotice }">
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" type="primary" @click="pay">立即付款</wd-button>
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" plain @click="cancel">取消订单</wd-button>
       <wd-button v-if="order.status === 'IN_TRANSIT'" :disabled="actionsDisabled" type="primary" @click="confirm">确认收货</wd-button>
@@ -496,7 +554,8 @@ function submitException() { return submitLogistics('exception'); }
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height:100%; padding:20rpx 24rpx calc(164rpx + env(safe-area-inset-bottom)); }
+.detail-page { min-height:100%; padding:20rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); }
+.detail-page.has-actions { padding-bottom: calc(240rpx + env(safe-area-inset-bottom)); }
 .hero {
   background: linear-gradient(135deg, #fff 0%, #fff4f4 100%);
   padding: 32rpx;
@@ -505,6 +564,20 @@ function submitException() { return submitLogistics('exception'); }
   gap: 12rpx;
   border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
+.state-description { color: var(--yb-ink); font-size: 28rpx; line-height: 1.6; }
+.logistics-summary { padding: 20rpx; margin-bottom: 24rpx; border-radius: var(--yb-radius-md); background: var(--yb-bg); }
+.summary-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12rpx; margin-bottom: 12rpx; }
+.summary-state { font-size: 27rpx; font-weight: 600; color: var(--yb-ink); }
+.summary-carrier, .latest-meta, .section-note { color: var(--yb-muted); font-size: 24rpx; line-height: 1.6; }
+.latest-description { display: block; color: var(--yb-ink); font-size: 26rpx; line-height: 1.6; }
+.latest-meta, .section-note { display: block; margin: 8rpx 0 16rpx; overflow-wrap: anywhere; }
+.tracking-summary { display: flex; align-items: center; gap: 16rpx; margin: 12rpx 0; font-size: 24rpx; color: var(--yb-muted); }
+.tracking-summary > text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; min-height: 84rpx; }
+.section-heading .section-title { margin-bottom: 0; }
+.expand-label { display: flex; align-items: center; gap: 8rpx; font-size: 24rpx; color: var(--yb-muted); }
+.shipment-fees { margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid var(--yb-border); }
+.shipment-remark { display: block; color: var(--yb-ink); font-size: 26rpx; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .section + .hero { margin-top: 20rpx; }
 .code {
   font-family: ui-monospace, monospace;
@@ -512,8 +585,8 @@ function submitException() { return submitLogistics('exception'); }
   color: #1d2129;
 }
 .time {
-  font-size: 22rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
 .section {
   background: #fff;
@@ -553,15 +626,19 @@ function submitException() { return submitLogistics('exception'); }
 }
 .goods-info {
   flex: 1;
+  min-width: 0;
 }
 .g-title {
   display: block;
   font-size: 26rpx;
 }
+.g-price-block { flex: none; max-width: 42%; text-align: right; overflow-wrap: anywhere; }
+.g-price-cny, .g-price-usdt { display: block; font-size: 26rpx; }
+.g-price-usdt { color: var(--yb-muted); font-size: 24rpx; margin-top: 8rpx; }
 .g-seller {
   display: block;
-  font-size: 22rpx;
-  color: #86909c;
+  font-size: 24rpx;
+  color: var(--yb-muted);
   margin: 4rpx 0;
 }
 .g-price {
@@ -575,7 +652,12 @@ function submitException() { return submitLogistics('exception'); }
   padding: 8rpx 0;
   font-size: 24rpx;
   color: #4e5969;
+  gap: 24rpx;
 }
+.amt-lbl { flex: none; }
+.amt-row > text:last-child, .amt-val { min-width: 0; max-width: 68%; text-align: right; overflow-wrap: anywhere; }
+.amt-val > text { display: block; }
+.amt-usdt { margin-top: 4rpx; color: var(--yb-muted); font-size: 24rpx; }
 .amt-row.total {
   font-weight: 700;
   color: #f53f3f;
@@ -595,7 +677,7 @@ function submitException() { return submitLogistics('exception'); }
   font-size: 26rpx;
   color: #1d2129;
 }
-.logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#f53f3f; background:#fff2f0; font-size:24rpx; line-height:1.5; }
+.logistics-exception { display:block; margin-top:12rpx; padding:16rpx; color:#b42318; background:#fff2f0; font-size:24rpx; line-height:1.5; }
 .page-loading { display:flex; flex-direction:column; align-items:center; gap:16rpx; padding:120rpx 0; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }.logistics-load-failed { color:#a85a00; font-size:24rpx; }
 .voucher-section { margin-top:20rpx; }.voucher-title { display:block; margin-bottom:12rpx; color:#4e5969; font-size:24rpx; }.voucher-grid { display:flex; flex-wrap:wrap; gap:12rpx; }.voucher-image { width:160rpx; height:160rpx; border-radius:8rpx; }
 .logistics-actions { display:flex; justify-content:flex-end; gap:12rpx; margin-top:20rpx; }.logistics-popup { padding:32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); background:#fff; }.popup-title { display:block; margin-bottom:20rpx; color:#1d2129; font-size:32rpx; font-weight:700; }
@@ -611,5 +693,20 @@ function submitException() { return submitLogistics('exception'); }
   display: flex;
   gap: 12rpx;
   justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.actions-bar--inline {
+  position: static;
+  margin-top: 20rpx;
+  padding: 24rpx;
+  border: 1rpx solid var(--yb-border);
+  border-radius: var(--yb-radius-lg);
+}
+.actions-bar--inline :deep(.wd-button) {
+  width: 100%;
+  height: auto;
+  min-height: 88rpx;
+  white-space: normal;
+  line-height: 1.6;
 }
 </style>

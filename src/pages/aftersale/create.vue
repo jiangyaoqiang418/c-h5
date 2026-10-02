@@ -22,6 +22,7 @@ const reapplying = ref(false);
 const orderId = ref('');
 const loading = ref(true);
 const loadFailed = ref(false);
+const unavailableReason = ref('');
 const userStore = useUserStore();
 const eligible = computed(() => !!order.value && orderRole(order.value, userStore.realUserId) === 'customer' && ['PAID', 'SHIPPED'].includes(order.value.rawStatus));
 const canReapply = computed(() => page.visible.value && !loading.value && !loadFailed.value && !receiptFailed.value && eligible.value
@@ -40,6 +41,7 @@ const page = usePageOperation(() => {
   reapplying.value = false;
   loading.value = false;
   loadFailed.value = true;
+  unavailableReason.value = '';
   form.reason = '';
 });
 
@@ -73,6 +75,7 @@ async function load() {
   const valid = () => operation.isCurrent() && sequence === loadSequence;
   loading.value = true;
   loadFailed.value = false;
+  unavailableReason.value = '';
   try {
     await userStore.init();
     if (!valid()) return;
@@ -84,7 +87,8 @@ async function load() {
     refreshReceipt();
     const record = await fetchOrderDetail(orderId.value);
     if (!valid()) return;
-    if (String(record.id) !== orderId.value || orderRole(record, userStore.realUserId) !== 'customer') throw new Error('订单不匹配或不属于当前顾客');
+    if (String(record.id) !== orderId.value) throw new Error('订单不匹配，请从订单列表重新进入');
+    if (orderRole(record, userStore.realUserId) !== 'customer') { unavailableReason.value = '仅购买此订单的顾客可以发起退款，请从自己的购买订单进入。'; return; }
     order.value = record;
     if (receipt.value && !receiptFailed.value) {
       await reconcileRefundCreation(orderId.value, userStore.realUserId!, valid);
@@ -150,6 +154,7 @@ async function submit() {
   </view>
   <wd-button v-if="receiptFailed" block plain :disabled="submitting" @click="load">本机申请记录读取失败，点击重新核对</wd-button>
   <view v-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载可退款订单</text></view>
+  <EmptyState v-else-if="unavailableReason" title="当前订单不可申请退款" :description="unavailableReason" action-text="返回订单列表" @action="go('/pages/order/list', true)" />
   <EmptyState v-else-if="loadFailed" title="可退款订单加载失败" description="请重新加载订单后继续" action-text="重新加载" @action="load" />
   <view v-else-if="order && eligible && !submitted">
     <view class="step">
@@ -159,7 +164,7 @@ async function submit() {
 
     <view class="step">
       <text class="step-title">退款原因</text>
-      <wd-textarea v-model="form.reason" :disabled="submitting || receiptFailed" placeholder="请说明退款原因" :max-length="512" show-word-limit />
+      <wd-textarea auto-height v-model="form.reason" :disabled="submitting || receiptFailed" placeholder="请说明退款原因" :maxlength="512" show-word-limit />
     </view>
 
     <wd-button type="primary" block class="submit" :loading="submitting" :disabled="submitted || receiptFailed" @click="submit">提交申请</wd-button>

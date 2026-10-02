@@ -21,6 +21,7 @@ const receipt = ref<PurchaseCreateReceipt>();
 const receiptFailed = ref(false);
 const loading = ref(true);
 const loadFailed = ref(false);
+const formInitialized = ref(false);
 let loadSequence = 0;
 
 const categoryNames = ref<string[]>([]);
@@ -56,6 +57,7 @@ const page = usePageOperation(() => {
   uploading.value = false;
   loading.value = false;
   loadFailed.value = true;
+  formInitialized.value = false;
   addresses.value = [];
   categoryNames.value = [];
   categoryIds.value = [];
@@ -114,7 +116,10 @@ async function load() {
     loadFailed.value = true;
     uni.showToast({ title: error instanceof Error ? error.message : '求购数据加载失败', icon: 'none' });
   } finally {
-    if (operation.sameSession() && sequence === loadSequence) loading.value = false;
+    if (operation.sameSession() && sequence === loadSequence) {
+      loading.value = false;
+      if (userStore.currentUser && !receipt.value && !receiptFailed.value) formInitialized.value = true;
+    }
   }
 }
 onShow(load);
@@ -255,9 +260,11 @@ async function submit() {
     <wd-button v-if="loadFailed" block plain :loading="loading" @click="load">求购数据加载失败，点击重试</wd-button>
     <view v-if="loading && !receipt" class="notice">正在加载求购信息…</view>
     <EmptyState v-else-if="!userStore.currentUser && !loadFailed" title="请先登录" description="登录后发起求购或核对提交结果" action-text="去登录" @action="requireLogin('/pages/purchase/create')" />
-    <template v-else-if="userStore.currentUser && !receipt && !receiptFailed">
+    <!-- 加载只隐藏已创建表单；失败继续保留字段，并沿用 formDisabled 暂停操作。 -->
+    <view v-if="formInitialized && userStore.currentUser && !receipt && !receiptFailed" v-show="!loading">
+    <text class="form-intro">填写商品需求与预算，必填项完成后提交。</text>
     <view class="form-card">
-      <wd-input v-model="form.productTitle" :disabled="formDisabled" label="商品标题" placeholder="如 iPhone 16 Pro Max 256GB" />
+      <view class="text-field"><text class="field-label">商品标题 <text class="field-note">必填</text></text><wd-input v-model="form.productTitle" :disabled="formDisabled" placeholder="如 iPhone 16 Pro Max 256GB" /></view>
       <wd-cell title="商品分类" :value="categoryIds.length ? form.categoryName || '请选择' : '暂不可选'" :is-link="!formDisabled && !!categoryIds.length" @click="selectCategory" />
       <view v-if="!loading && !loadFailed && !categoryIds.length" class="category-hint">分类暂不可用，选择后才可提交。<wd-button plain size="small" @click="load">重试</wd-button></view>
       <wd-cell title="收货地址" :value="addresses.find(address => String(address.id) === form.addressId)?.detail || '请选择'" is-link @click="selectAddress" />
@@ -266,16 +273,16 @@ async function submit() {
       <wd-cell title="海外过关">
         <wd-switch v-model="form.overseasCustoms" :disabled="formDisabled" />
       </wd-cell>
-      <wd-cell title="售后类型" :value="form.aftersaleType">
-        <wd-radio-group v-model="form.aftersaleType" :disabled="formDisabled" inline>
-          <wd-radio value="7day-no-reason">7天无理由</wd-radio>
-          <wd-radio value="shop-warranty">店保</wd-radio>
-          <wd-radio value="national-warranty">国保</wd-radio>
-          <wd-radio value="none">无</wd-radio>
+      <view class="choice-field"><text class="choice-label">售后类型</text>
+        <wd-radio-group v-model="form.aftersaleType" :disabled="formDisabled" class="yb-choice-group" inline>
+          <wd-radio shape="dot" icon-placement="left" value="7day-no-reason">7天无理由</wd-radio>
+          <wd-radio shape="dot" icon-placement="left" value="shop-warranty">店保</wd-radio>
+          <wd-radio shape="dot" icon-placement="left" value="national-warranty">国保</wd-radio>
+          <wd-radio shape="dot" icon-placement="left" value="none">无</wd-radio>
         </wd-radio-group>
-      </wd-cell>
-      <wd-textarea v-model="form.productDescription" :disabled="formDisabled" label="商品描述" placeholder="可选" :max-length="200" />
-      <wd-textarea v-model="form.appeal" :disabled="formDisabled" label="求购说明" placeholder="≥ 10 字，详细要求" :max-length="500" show-word-limit />
+      </view>
+      <view class="text-field"><text class="field-label">商品描述 <text class="field-note">选填</text></text><wd-textarea auto-height v-model="form.productDescription" :disabled="formDisabled" placeholder="补充型号、颜色与规格，最多 200 字" :maxlength="200" /></view>
+      <view class="text-field"><text class="field-label">求购说明 <text class="field-note">必填 · 至少 10 字</text></text><wd-textarea auto-height v-model="form.appeal" :disabled="formDisabled" placeholder="说明需要购买的商品及具体要求" :maxlength="500" show-word-limit /></view>
       <view class="image-field">
         <text class="image-label">参考图片（可选，最多 4 张）</text>
         <view class="image-grid">
@@ -288,7 +295,7 @@ async function submit() {
       </view>
     </view>
     <wd-button type="primary" block class="submit-btn" :loading="submitting" :disabled="formDisabled || !categoryIds.length" @click="submit">{{ uploading ? '图片上传中' : '提交求购' }}</wd-button>
-    </template>
+    </view>
     <CategoryPicker v-model="categoryPickerOpen" :tree="categoryTree" :selected-id="form.categoryId" @select="onCategorySelected" />
   </view>
 </template>
@@ -314,6 +321,16 @@ async function submit() {
 .image-cell, .add { width: 180rpx; height: 180rpx; }
 .image-cell { position: relative; }
 .image { width: 100%; height: 100%; border-radius: 12rpx; }
-.remove { position: absolute; top: 4rpx; right: 4rpx; display: flex; align-items: center; justify-content: center; width: 36rpx; height: 36rpx; border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 26rpx; }
+.remove { position:absolute; top:0; right:0; display:flex; align-items:center; justify-content:center; width:88rpx; height:88rpx; color:#fff; font-size:26rpx; }.remove::before { content:''; position:absolute; width:40rpx; height:40rpx; border-radius:50%; background:rgba(0,0,0,.55); }.remove :deep(.wd-icon) { position:relative; }
 .add { display: flex; align-items: center; justify-content: center; box-sizing: border-box; border: 2rpx dashed #b9bdc7; border-radius: 12rpx; background: #f5f5f2; color: var(--yb-brand); font-size: 24rpx; }
+.choice-field { padding: 20rpx 32rpx 24rpx; }
+.choice-field :deep(.yb-choice-group) { display: flex; flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 12rpx; }
+.choice-field :deep(.wd-radio) { flex: 0 0 calc(50% - 6rpx); width: calc(50% - 6rpx); min-width: 0; margin: 0 !important; min-height: 88rpx; }
+.choice-label { display: block; margin-bottom: 16rpx; font-size: 26rpx; color: var(--yb-ink-2); }
+.form-intro { display:block; margin-bottom:16rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
+.text-field { padding:20rpx 32rpx; border-bottom:1rpx solid var(--yb-border); }
+.field-label { display:block; margin-bottom:12rpx; color:var(--yb-ink); font-size:26rpx; font-weight:600; }
+.field-note { margin-left:8rpx; color:var(--yb-muted); font-size:24rpx; font-weight:400; }
+.text-field :deep(.wd-input), .text-field :deep(.wd-textarea) { padding:0; }
+.text-field :deep(.wd-input__inner), .text-field :deep(.wd-textarea__inner) { text-align:left; }
 </style>

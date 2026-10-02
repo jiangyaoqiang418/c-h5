@@ -154,7 +154,7 @@ function goMessages() {
 
 <template>
   <view class="my-page h5-tab-page">
-    <view class="user-card" :style="{ backgroundImage: `url(${UI_ASSETS.backgrounds.account})` }">
+    <view class="user-card" >
       <view v-if="user" class="bell-btn" @click="goMessages">
         <wd-icon name="chat" size="20px" />
         <view v-if="unreadCount > 0" class="bell-dot">{{ unreadCount > 99 ? '99+' : unreadCount }}</view>
@@ -166,7 +166,7 @@ function goMessages() {
           <view class="name-row">
             <text class="name">{{ user.nickname }}</text>
             <VipBadge v-if="vipLevel" :level="vipLevel" />
-            <KycStatusTag :status="user.kycStatus" light />
+            <KycStatusTag :status="user.kycStatus" />
           </view>
           <view class="tag-row">
             <text class="email">{{ user.email || '未绑定邮箱' }}</text>
@@ -190,8 +190,8 @@ function goMessages() {
         <view class="stat stat--asset">
           <text class="stat-lbl">总资产</text>
           <view class="stat-val stat-val--asset">
-            <text class="stat-unit">U</text>
-            <text>{{ formatAmount(totalAssets) }}</text>
+            <text class="stat-number">{{ formatAmount(totalAssets) }}</text>
+            <text class="stat-unit">USDT</text>
           </view>
         </view>
         <view class="stat stat--secondary">
@@ -252,10 +252,10 @@ function goMessages() {
   min-height: 100%;
 }
 .user-card {
-  background-color: #10131f;
+  background-color: var(--yb-surface);
   background-size: cover;
   background-position: center;
-  color: #fff;
+  color: var(--yb-ink);
   padding: 36rpx 28rpx 28rpx;
   position: relative;
 }
@@ -270,7 +270,7 @@ function goMessages() {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--yb-ink);
 }
 .bell-dot {
   position: absolute;
@@ -336,7 +336,7 @@ function goMessages() {
   margin-top: 6rpx;
 }
 .email {
-  font-size: 22rpx;
+  font-size: 24rpx;
   opacity: 0.85;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -351,9 +351,9 @@ function goMessages() {
   display: flex;
   margin-top: 24rpx;
   padding: 18rpx 20rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  border: 1rpx solid var(--yb-border);
   border-radius: var(--yb-radius-md);
-  background: rgba(4, 15, 39, 0.34);
+  background: var(--yb-bg);
   gap: 16rpx;
   box-sizing: border-box;
 }
@@ -366,35 +366,36 @@ function goMessages() {
 .stats-row--three .stat--asset { flex-grow: 1.75; }
 .stat--secondary {
   padding-left: 16rpx;
-  border-left: 1rpx solid rgba(255, 255, 255, 0.16);
+  border-left: 1rpx solid var(--yb-hairline-2);
 }
 .stat-val {
   display: flex;
   align-items: baseline;
   min-width: 0;
   margin-top: 4rpx;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: 28rpx;
   font-weight: 700;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 .stat-val--asset {
   font-size: 30rpx;
   letter-spacing: -0.02em;
   gap: 8rpx;
+  flex-wrap: wrap;
 }
+.stat-number { min-width:0; max-width:100%; overflow-wrap:anywhere; }
 .stat-unit {
   flex-shrink: 0;
-  font-size: 22rpx;
-  opacity: 0.78;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
 .stat-lbl {
   display: block;
-  font-size: 20rpx;
+  font-size: 24rpx;
   opacity: 0.78;
   line-height: 1.3;
 }
@@ -425,7 +426,7 @@ function goMessages() {
   display: flex;
   align-items: center;
   gap: 4rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #86909c;
 }
 .order-tabs {
@@ -443,11 +444,11 @@ function goMessages() {
   font-size: 32rpx;
   font-weight: 700;
   color: #0F111A;
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
 }
 .ot-lbl {
   display: block;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #86909c;
   margin-top: 4rpx;
 }
@@ -465,7 +466,7 @@ function goMessages() {
   box-sizing: border-box;
 }
 .cell {
-  width: 20%;
+  width: 25%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -485,7 +486,7 @@ function goMessages() {
   color: var(--yb-brand);
 }
 .cell-label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #4e5969;
   text-align: center;
 }

@@ -186,7 +186,7 @@ onShow(() => { if (!submitting.value) load(); });
           v-model="form.reason"
           label="申请说明"
           placeholder="请说明您的采购经验、擅长品类或服务优势"
-          :max-length="500"
+          :maxlength="500"
           show-word-limit
         />
         <wd-button type="primary" block :disabled="!canSubmit || submitting" :loading="submitting" class="submit-btn" @click="submit">
