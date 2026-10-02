@@ -337,7 +337,7 @@ function formatDate(value?: string | number): string {
 .status-pending { color: #a76f22; background: var(--yb-warning-soft); }
 .status-approved { color: var(--yb-success); background: var(--yb-success-soft); }
 .status-rejected { color: var(--yb-danger); background: var(--yb-danger-soft); }
-.appeal-score { display: block; margin-top: 8rpx; font-size: 22rpx; color: #86909c; }
+.appeal-score { display:block; margin-top:8rpx; font-size:24rpx; color:var(--yb-muted); }
 .appeal-reason { display: block; margin-top: 12rpx; font-size: 24rpx; color: #4e5969; line-height: 1.6; }
 .appeal-review {
   display: block;
@@ -345,11 +345,11 @@ function formatDate(value?: string | number): string {
   padding: 16rpx;
   border-radius: 8rpx;
   background: #f7f8fa;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #4e5969;
   line-height: 1.5;
 }
-.appeal-times { display: flex; flex-direction: column; gap: 4rpx; margin-top: 12rpx; font-size: 20rpx; color: #86909c; }
+.appeal-times { display:flex; flex-direction:column; gap:4rpx; margin-top:12rpx; font-size:24rpx; color:var(--yb-muted); }
 .rule-row {
   background: #fff;
   border-radius: var(--yb-radius-lg);
@@ -359,10 +359,10 @@ function formatDate(value?: string | number): string {
   box-shadow:var(--yb-shadow-card);
 }
 .rule-title { display: block; font-size: 26rpx; font-weight: 600; }
-.rule-desc { display: block; font-size: 22rpx; color: #4e5969; margin: 8rpx 0; }
-.rule-meta { display: flex; gap: 16rpx; font-size: 22rpx; color: #86909c; align-items: center; }
-.popup { padding: 24rpx; }
+.rule-desc { display:block; font-size:24rpx; color:var(--yb-ink-2); margin:8rpx 0; line-height:1.6; }
+.rule-meta { display:flex; flex-wrap:wrap; gap:8rpx 16rpx; font-size:24rpx; color:var(--yb-muted); align-items:center; }
+.popup { padding:24rpx; --wot-textarea-padding:0; }
 .popup-title { display: block; font-size: 30rpx; font-weight: 600; margin-bottom: 8rpx; }
-.popup-meta { display: block; font-size: 22rpx; color: #86909c; margin-bottom: 16rpx; }
+.popup-meta { display:block; font-size:24rpx; color:var(--yb-muted); margin-bottom:16rpx; }
 .popup-btn { margin-top: 16rpx; }
 </style>

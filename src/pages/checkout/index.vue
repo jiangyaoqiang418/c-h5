@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
+import PriceTag from '@/components/common/price-tag.vue';
 import { formatAmount } from '@/utils/format-bridge';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import EmptyState from '@/components/common/empty-state.vue';
@@ -487,11 +488,10 @@ async function resumePending(pending: PendingCheckout) {
       <wd-button plain size="small" @click="go(`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(currentPending.orderGroupNo!)}`)">查看原支付单</wd-button>
     </view>
     <view class="block">
-      <text class="block-title">收货地址</text>
+      <view class="block-heading"><text class="block-title">收货地址</text><wd-button v-if="selectedAddr" plain size="small" @click="chooseAddress">更换地址</wd-button></view>
       <view v-if="selectedAddr" class="addr">
         <text class="receiver">{{ selectedAddr.receiverName }} · {{ selectedAddr.receiverPhone }}</text>
         <text class="detail">{{ selectedAddr.province }} {{ selectedAddr.city }} {{ selectedAddr.district }} {{ selectedAddr.detail }}</text>
-        <wd-button plain size="small" @click="chooseAddress">更换地址</wd-button>
       </view>
       <view v-else class="addr empty">
         <text>暂无地址</text>
@@ -510,11 +510,10 @@ async function resumePending(pending: PendingCheckout) {
         <view class="goods-info">
           <text class="goods-title">{{ item.product?.title }}</text>
           <text class="goods-seller">买手 · {{ item.product?.sellerName }}</text>
-        </view>
-        <view class="goods-amount">
-          <text class="goods-qty">×{{ item.qty }}</text>
-          <text class="goods-price-cny">{{ formatUsdt(item.lineTotal) }}</text>
-          <text class="goods-price-usdt">≈ {{ formatCny(item.lineTotal) }}</text>
+          <view class="goods-amount">
+            <text class="goods-qty">×{{ item.qty }}</text>
+            <PriceTag :price="item.lineTotal" size="sm" :show-rate="false" />
+          </view>
         </view>
       </view>
     </view>
@@ -584,8 +583,7 @@ async function resumePending(pending: PendingCheckout) {
     <view class="bottom-bar">
       <view class="total-block">
         <text class="total-label">应付：</text>
-        <text class="total-val">{{ formatUsdt(grandTotal) }}</text>
-        <text class="total-usdt">≈ {{ formatCny(grandTotal) }}</text>
+        <PriceTag :price="grandTotal" size="sm" :show-rate="false" />
       </view>
       <wd-button type="primary" size="large" :loading="submitting" :disabled="!agreed || !hasOnlyRealItems || paymentReceiptFailed" @click="submit">提交订单</wd-button>
     </view>
@@ -600,8 +598,10 @@ async function resumePending(pending: PendingCheckout) {
   background: #fff;
   margin-bottom: 20rpx;
   padding: 24rpx;
-  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
+  border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg);
 }
+.block-heading { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 16rpx; }
+.block-heading .block-title { margin-bottom: 0; }
 .block-title {
   display: block;
   font-size: 30rpx;
@@ -610,7 +610,7 @@ async function resumePending(pending: PendingCheckout) {
   margin-bottom: 16rpx;
 }
 .addr {
-  padding: 16rpx 0;
+  padding: 0;
 }
 .addr.empty {
   display: flex;
@@ -626,7 +626,7 @@ async function resumePending(pending: PendingCheckout) {
   display: block;
   font-size: 24rpx;
   color: #4e5969;
-  margin: 4rpx 0 12rpx;
+  margin: 8rpx 0 0;
   overflow-wrap: anywhere;
 }
 .goods-row {
@@ -653,8 +653,9 @@ async function resumePending(pending: PendingCheckout) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #1d2129;
+  line-height: 1.5;
 }
 .goods-seller {
   display: block;
@@ -664,16 +665,15 @@ async function resumePending(pending: PendingCheckout) {
 }
 .goods-amount {
   display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  gap: 4rpx;
-  max-width: 38%;
-  text-align: right;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8rpx 16rpx;
+  margin-top: 12rpx;
   font-size: 24rpx;
   color: #4e5969;
 }
-.goods-price-cny { color: var(--yb-ink); font-weight: 600; }
-.goods-price-usdt { color: var(--yb-muted); font-size: 24rpx; }
+.goods-amount :deep(.price-tag) { min-width: 0; max-width: 100%; }
 .goods-price {
   display: block;
   color: #f53f3f;
@@ -686,6 +686,7 @@ async function resumePending(pending: PendingCheckout) {
   padding: 8rpx 0;
   font-size: 24rpx;
   color: #4e5969;
+  gap: 24rpx;
 }
 .amount-row.total {
   font-weight: 700;
@@ -696,10 +697,9 @@ async function resumePending(pending: PendingCheckout) {
   padding-top: 16rpx;
 }
 .am-lbl { flex-shrink: 0; white-space: nowrap; }
-.am-val { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; gap: 4rpx; text-align: right; }
-.am-usdt, .am-rate, .total-usdt { font-size: 24rpx; font-weight: 400; color: var(--yb-muted); }
+.am-val { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; max-width: 68%; gap: 4rpx; text-align: right; overflow-wrap: anywhere; }
+.am-usdt, .am-rate { font-size: 24rpx; font-weight: 400; color: var(--yb-muted); }
 .am-rate { font-size: 24rpx; }
-.total-usdt { display: block; }
 .with-tip { display: flex; align-items: center; gap: 4rpx; }
 .pay-row {
   font-size: 26rpx;
@@ -714,7 +714,7 @@ async function resumePending(pending: PendingCheckout) {
   color: #f53f3f;
   margin-left: 8rpx;
 }
-.agree-row { background:#fff; padding:24rpx; font-size:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.agree-row { padding:16rpx 0; font-size:24rpx; }
 .footer-space { display: none; }
 .bottom-bar {
   position: fixed;
@@ -737,13 +737,5 @@ async function resumePending(pending: PendingCheckout) {
 .total-label {
   font-size: 24rpx;
   color: #4e5969;
-}
-.total-val {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 700;
-  color: var(--yb-brand);
-  font-family: var(--yb-font-body);
-  overflow-wrap: anywhere;
 }
 </style>

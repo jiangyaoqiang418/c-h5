@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Editor, EditorContent } from '@tiptap/vue-3';
+import type { Editor as CoreEditor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -15,12 +16,23 @@ const uploading = ref(false);
 const moreTools = ref(false);
 const contentEmpty = ref(true);
 const showPlaceholder = computed(() => contentEmpty.value && !props.disabled);
+const formatStates = ref<Record<string, boolean>>({});
+function updateFormatStates(current: CoreEditor) {
+  formatStates.value = {
+    bold: current.isActive('bold'), heading: current.isActive('heading', { level: 2 }),
+    list: current.isActive('bulletList'), italic: current.isActive('italic'),
+    underline: current.isActive('underline'), blockquote: current.isActive('blockquote'),
+    link: current.isActive('link'), table: current.isActive('table')
+  };
+}
 const editor = new Editor({
   content: sanitizeRichText(props.modelValue), editable: !props.disabled,
   extensions: [StarterKit.configure({ link: false, underline: false }), Underline, Image.configure({ inline: false, allowBase64: false }), Link.configure({ openOnClick: false }), TableKit],
-  onUpdate: ({ editor: current }) => { contentEmpty.value = current.isEmpty; emit('update:modelValue', sanitizeRichText(current.getHTML())); }
+  onUpdate: ({ editor: current }) => { contentEmpty.value = current.isEmpty; emit('update:modelValue', sanitizeRichText(current.getHTML())); },
+  onTransaction: ({ editor: current }) => updateFormatStates(current)
 });
 contentEmpty.value = editor.isEmpty;
+updateFormatStates(editor);
 watch(() => props.disabled, value => editor.setEditable(!value));
 watch(() => props.modelValue, value => { const next = sanitizeRichText(value); if (next !== editor.getHTML()) editor.commands.setContent(next, { emitUpdate: false }); contentEmpty.value = editor.isEmpty; });
 onBeforeUnmount(() => editor.destroy());
@@ -49,13 +61,13 @@ async function uploadImage() {
 
 <template>
   <view class="rich-editor" :class="{ disabled }"><view class="toolbar">
-    <button type="button" @click="editor.chain().focus().toggleBold().run()">加粗</button><button type="button" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">标题</button>
-    <button type="button" @click="editor.chain().focus().toggleBulletList().run()">列表</button><button type="button" :disabled="uploading" @click="uploadImage">{{ uploading ? '上传中' : '图片' }}</button>
-    <button type="button" :aria-expanded="moreTools" @click="moreTools = !moreTools">{{ moreTools ? '收起工具' : '更多' }}</button>
+    <button type="button" :class="{ active: formatStates.bold }" :aria-pressed="formatStates.bold" @click="editor.chain().focus().toggleBold().run()">加粗</button><button type="button" :class="{ active: formatStates.heading }" :aria-pressed="formatStates.heading" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()">标题</button>
+    <button type="button" :class="{ active: formatStates.list }" :aria-pressed="formatStates.list" @click="editor.chain().focus().toggleBulletList().run()">列表</button><button type="button" :disabled="uploading" @click="uploadImage">{{ uploading ? '上传中' : '图片' }}</button>
+    <button type="button" :class="{ active: moreTools }" :aria-expanded="moreTools" @click="moreTools = !moreTools">{{ moreTools ? '收起工具' : '更多' }}</button>
     <template v-if="moreTools">
-      <button type="button" @click="editor.chain().focus().toggleItalic().run()">斜体</button><button type="button" @click="editor.chain().focus().toggleUnderline().run()">下划线</button>
-      <button type="button" @click="editor.chain().focus().toggleBlockquote().run()">引用</button><button type="button" @click="setLink">链接</button>
-      <button type="button" @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()">表格</button>
+      <button type="button" :class="{ active: formatStates.italic }" :aria-pressed="formatStates.italic" @click="editor.chain().focus().toggleItalic().run()">斜体</button><button type="button" :class="{ active: formatStates.underline }" :aria-pressed="formatStates.underline" @click="editor.chain().focus().toggleUnderline().run()">下划线</button>
+      <button type="button" :class="{ active: formatStates.blockquote }" :aria-pressed="formatStates.blockquote" @click="editor.chain().focus().toggleBlockquote().run()">引用</button><button type="button" :class="{ active: formatStates.link }" :aria-pressed="formatStates.link" @click="setLink">链接</button>
+      <button type="button" :class="{ active: formatStates.table }" @click="editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()">表格</button>
       <button v-if="editor.isActive('table')" type="button" @click="editor.chain().focus().addRowAfter().run()">加行</button><button v-if="editor.isActive('table')" type="button" @click="editor.chain().focus().addColumnAfter().run()">加列</button>
       <button type="button" @click="editor.chain().focus().undo().run()">撤销</button><button type="button" @click="editor.chain().focus().redo().run()">重做</button>
     </template>
@@ -68,4 +80,5 @@ async function uploadImage() {
 .editor-content :deep(.tiptap) { min-height:320rpx; padding:20rpx; outline:none; font-size:26rpx; line-height:1.7; }.editor-content :deep(img) { max-width:100%; height:auto; }.editor-content :deep(table) { width:100%; border-collapse:collapse; }.editor-content :deep(th), .editor-content :deep(td) { min-width:100rpx; padding:10rpx; border:1rpx solid #c9cdd4; }
 .editor-body { position: relative; }.editor-placeholder { position:absolute; top:20rpx; left:20rpx; right:20rpx; pointer-events:none; color:var(--yb-muted); font-size:26rpx; line-height:1.7; }
 .tip { display:block; padding:0 20rpx 14rpx; color:var(--yb-muted); font-size:24rpx; }
+.toolbar button.active { border-color:var(--yb-brand); background:var(--yb-brand-soft); color:var(--yb-brand); font-weight:600; }
 </style>

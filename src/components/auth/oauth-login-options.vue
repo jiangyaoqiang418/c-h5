@@ -105,4 +105,5 @@ onBeforeUnmount(() => {
 .divider{display:flex;align-items:center;gap:20rpx;color:#86909c;font-size:22rpx;margin:28rpx 0 20rpx}.divider::before,.divider::after{content:'';height:1rpx;background:#e5e6eb;flex:1}.oauth-control{display:flex;justify-content:center;min-height:0;margin-top:16rpx;overflow:hidden}.oauth-control:empty{display:none}
 .oauth-note{display:block;margin-top:16rpx;color:var(--yb-muted);font-size:24rpx;line-height:1.5}
 .divider { color: var(--yb-muted); font-size: 24rpx; }
+.oauth-options,.oauth-control { width:100%; min-width:0; box-sizing:border-box; }
 </style>

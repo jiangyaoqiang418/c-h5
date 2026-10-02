@@ -34,6 +34,14 @@ const page = usePageOperation(() => {
 });
 const canSubmit = computed(() => page.visible.value && stateReady.value && userStore.currentUser?.loginPasswordSet === false
   && valid.value && !checking.value && !loading.value && !saved.value);
+const submitHint = computed(() => {
+  if (loading.value) return '正在保存登录密码，请稍候。';
+  if (checking.value || stateError.value || !stateReady.value || saved.value) return '';
+  if (needsEmail.value && !/^\S+@\S+\.\S+$/.test(form.email.trim())) return '请填写有效的登录邮箱。';
+  if (form.password.length < 6 || form.password.length > 64) return '登录密码需为 6–64 位。';
+  if (form.password !== form.confirmPassword) return '两次输入的登录密码需一致。';
+  return '';
+});
 onHide(clearForm);
 
 function safeTarget(value: unknown) {
@@ -139,8 +147,9 @@ async function submit() {
     <wd-input v-else :model-value="userStore.currentUser?.email || ''" label="邮箱" readonly />
     <wd-input v-model="form.password" label="登录密码" type="password" placeholder="6-64位" />
     <wd-input v-model="form.confirmPassword" label="确认密码" type="password" />
+    <text v-if="submitHint" class="form-hint" aria-live="polite">{{ submitHint }}</text>
     <wd-button type="primary" block :disabled="!canSubmit" :loading="loading" @click="submit">{{ saved ? '已保存' : '保存' }}</wd-button>
   </view></view>
 </template>
 
-<style scoped>.page{padding:24rpx}.card{background:#fff;border:1rpx solid var(--yb-border);border-radius:var(--yb-radius-lg);padding:28rpx}.title{display:block;font-size:34rpx;font-weight:700}.desc{display:block;color:#86909c;font-size:24rpx;line-height:1.5;margin:12rpx 0 20rpx}.error{display:block;color:#cf1322;font-size:24rpx;margin-bottom:12rpx}</style>
+<style scoped>.page{padding:24rpx}.card{background:#fff;border:1rpx solid var(--yb-border);border-radius:var(--yb-radius-lg);padding:28rpx;--wot-input-padding:0}.title{display:block;font-size:34rpx;font-weight:700}.desc{display:block;color:var(--yb-muted);font-size:24rpx;line-height:1.6;margin:12rpx 0 20rpx}.form-hint{display:block;margin:20rpx 0;color:var(--yb-muted);font-size:24rpx;line-height:1.6}.error{display:block;color:#cf1322;font-size:24rpx;margin-bottom:12rpx}</style>

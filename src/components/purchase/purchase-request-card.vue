@@ -40,18 +40,15 @@ function goDetail() {
       <view class="left">
         <view class="cat"><wd-icon name="goods" size="13px" /> <text>{{ request.categoryPath }}</text></view>
         <text class="title">{{ request.productTitle }}</text>
-        <text v-if="request.appeal" class="appeal">"{{ request.appeal }}"</text>
+        <view class="reward">
+          <text class="reward-label">预算</text>
+          <view class="reward-amount"><text class="num">{{ formatAmount(request.budgetAmount) }}</text><text class="unit">USDT</text></view>
+        </view>
+        <text v-if="request.appeal" class="appeal">{{ request.appeal }}</text>
         <view class="chips">
           <view class="chip"><wd-icon name="clock" size="12px" /> <text>{{ request.expectedDays }} 天</text></view>
           <view class="chip"><wd-icon name="shield" size="12px" /> <text>{{ aftersaleMeta.label }}</text></view>
           <view v-if="request.overseasCustoms" class="chip gold"><wd-icon name="location" size="12px" /> <text>海外</text></view>
-        </view>
-      </view>
-      <view class="reward">
-        <text class="reward-label">预算</text>
-        <view class="reward-amount">
-          <text class="unit">U</text>
-          <text class="num">{{ formatAmount(request.budgetAmount) }}</text>
         </view>
       </view>
     </view>
@@ -63,7 +60,7 @@ function goDetail() {
       驳回原因：{{ request.auditNote }}
     </view>
 
-    <view class="actions" @click.stop>
+    <view v-if="(mode === 'hall' && canClaim && request.status === 'pushing') || (mode === 'mine' && ['pending_audit', 'pushing'].includes(request.status))" class="actions" @click.stop>
       <wd-button
         v-if="mode === 'hall' && canClaim && request.status === 'pushing'"
         type="primary"
@@ -139,14 +136,12 @@ function goDetail() {
   color: #0F111A;
   letter-spacing: -0.5rpx;
   line-height: 1.35;
+  overflow-wrap:break-word;
 }
 .appeal {
   font-size: 24rpx;
   color: #6B7385;
-  font-style: italic;
-  padding-left: 16rpx;
-  border-left: 4rpx solid #EDECE6;
-  margin-top: 8rpx;
+  line-height:1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -173,35 +168,32 @@ function goDetail() {
   color: #B8935A;
 }
 .reward {
-  padding: 20rpx 24rpx;
-  background: var(--yb-bg);
-  border: 1rpx solid rgba(91, 92, 231, 0.15);
-  border-radius: 16rpx;
-  text-align: right;
-  min-width: 140rpx;
-  max-width: 45%;
+  display:flex;
+  flex-direction:row;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:8rpx 16rpx;
   overflow-wrap: anywhere;
 }
 .reward-label {
   display: block;
   font-size: 24rpx;
-  color: #5B5CE7;
-  font-weight: 600;
+  color: var(--yb-muted);
+  font-weight: 400;
   letter-spacing: 0;
   text-transform: uppercase;
-  margin-bottom: 6rpx;
 }
 .reward-amount {
   display: flex;
   align-items: baseline;
   gap: 4rpx;
-  justify-content: flex-end;
-  color: #5B5CE7;
+  flex-wrap:wrap;
+  color:var(--yb-brand);
 }
 .reward-amount .unit {
   font-family: var(--yb-font-body);
-  font-size: 22rpx;
-  font-weight: 600;
+  font-size:24rpx;
+  font-weight:400;
 }
 .reward-amount .num {
   font-family: var(--yb-font-body);
@@ -214,7 +206,7 @@ function goDetail() {
   background: rgba(0, 168, 138, 0.08);
   color: #00A88A;
   border-radius: 12rpx;
-  font-size: 22rpx;
+  font-size:24rpx;
   margin-top: 16rpx;
 }
 .claimed .strong {
@@ -230,7 +222,7 @@ function goDetail() {
   border-radius: 12rpx;
   background: #fff2f0;
   color: #d4380d;
-  font-size: 22rpx;
+  font-size:24rpx;
   line-height: 1.5;
 }
 .actions {

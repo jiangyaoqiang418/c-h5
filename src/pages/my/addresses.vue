@@ -456,7 +456,7 @@ async function onLongPress(a: AddressRecord) {
 .row { display: flex; align-items: center; flex-wrap:wrap; gap: 16rpx; }
 .name { font-size: 28rpx; font-weight: 600; }
 .phone { font-size: 24rpx; color: #4e5969; }
-.addr { display: block; font-size: 24rpx; color: #4e5969; margin-top: 12rpx; line-height: 1.5; }
+.addr { display:block; font-size:24rpx; color:#4e5969; margin-top:12rpx; line-height:1.5; overflow-wrap:break-word; }
 .card-actions { display:flex; align-items:center; justify-content:flex-end; gap:24rpx; margin-top:12rpx; border-top:1rpx solid var(--yb-border); }
 .set-default, .edit-address { display:flex; align-items:center; justify-content:center; min-width:88rpx; min-height:88rpx; font-size:24rpx; color:var(--yb-ink-2); }
 .set-default { margin-right:auto; }.selection-hint { display:block; color:var(--yb-muted); font-size:24rpx; }
@@ -464,7 +464,7 @@ async function onLongPress(a: AddressRecord) {
 .popup { display: flex; flex-direction: column; padding: 0 24rpx 24rpx; height: 1180rpx; max-height: 85vh; box-sizing: border-box; }
 .popup-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 104rpx; gap: 12rpx; }
 .popup-close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; }
-.popup-body { flex: 1; min-height: 0; width: 100%; }
+.popup-body { flex: 1; min-height: 0; width: 100%; --wot-input-padding:0; --wot-textarea-padding:0; --wot-cell-padding:0; }
 .save-btn { flex-shrink: 0; }
 .popup-title { display: block; font-size: 30rpx; font-weight: 700; padding: 16rpx 0; }
 
@@ -530,10 +530,10 @@ async function onLongPress(a: AddressRecord) {
 .field-note { margin-left:8rpx; color:var(--yb-muted); font-size:24rpx; font-weight:400; }
 .text-field :deep(.wd-input), .text-field :deep(.wd-textarea) { padding:0; }
 .text-field :deep(.wd-input__inner), .text-field :deep(.wd-textarea__inner) { text-align:left; }
-.country-picker { display:flex; flex-direction:column; height:900rpx; padding:0 24rpx 24rpx; box-sizing:border-box; }
+.country-picker { display:flex; flex-direction:column; height:900rpx; max-height:85vh; padding:0 24rpx 24rpx; box-sizing:border-box; --wot-input-padding:0; }
 .country-list { flex:1; min-height:0; margin-top:16rpx; }
 .country-option { display:flex; align-items:center; gap:16rpx; min-height:96rpx; padding:0 16rpx; border-bottom:1rpx solid var(--yb-border); font-size:28rpx; }
 .country-code { margin-left:auto; font-size:24rpx; color:var(--yb-muted); }.country-selected { color:var(--yb-brand); font-size:24rpx; }.country-empty { padding:48rpx 24rpx; color:var(--yb-muted); font-size:26rpx; line-height:1.6; }
 
-.save-btn { margin: 24rpx; }
+.save-btn { margin-top:24rpx; }
 </style>

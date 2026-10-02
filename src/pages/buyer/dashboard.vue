@@ -204,8 +204,8 @@ const kpis = computed(() => {
       <view class="deposit-total">
         <text class="dep-label">当前保证金余额</text>
         <view class="dep-amount">
-          <text class="unit">USDT</text>
           <text class="num">{{ loading || !user || depositLoadFailed || depositBalance == null ? '—' : formatAmount(depositBalance) }}</text>
+          <text class="unit">USDT</text>
         </view>
       </view>
     </view>
@@ -217,10 +217,10 @@ const kpis = computed(() => {
 <style lang="scss" scoped>
 .work-entry-section > .section-title { display: block; margin-bottom: 16rpx; }
 .work-entries, .stats-card { border: 1rpx solid var(--yb-border); background: var(--yb-surface); border-radius: var(--yb-radius-lg); padding: 4rpx 24rpx; }
-.work-entry { display: flex; align-items: center; gap: 16rpx; min-height: 96rpx; border-bottom: 1rpx solid var(--yb-border); font-size: 24rpx; color: var(--yb-muted); }
+.work-entry { display: flex; align-items: center; gap: 16rpx; min-height: 88rpx; border-bottom: 1rpx solid var(--yb-border); font-size: 24rpx; color: var(--yb-muted); }
 .work-entry:last-child { border-bottom: 0; }
 .entry-title { flex: 1; color: var(--yb-ink); font-size: 26rpx; font-weight: 500; }
-.stats-row { display: flex; align-items: center; gap: 16rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
+.stats-row { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; border-bottom: 1rpx solid var(--yb-border); }
 .stats-row > view { flex: 1; min-width: 0; }
 .stats-label, .stats-row .stats-note { display: block; }
 .stats-label { font-size: 26rpx; font-weight: 500; color: var(--yb-ink); }
@@ -234,7 +234,7 @@ const kpis = computed(() => {
 .stats-note { font-size:24rpx; color:var(--yb-muted); }
 .dash-page {
   min-height: 100%;
-  background: #FAFAF7;
+  background: var(--yb-bg);
   padding-bottom: 60rpx;
 }
 
@@ -245,7 +245,7 @@ const kpis = computed(() => {
   background-size: cover;
   background-position: center;
   color: var(--yb-ink);
-  padding: 28rpx 32rpx;
+  padding: 24rpx;
   overflow: hidden;
 }
 .hero-top {
@@ -256,14 +256,15 @@ const kpis = computed(() => {
   margin-bottom: 0;
 }
 .hero-avatar {
-  width: 120rpx;
-  height: 120rpx;
+  width: 88rpx;
+  height: 88rpx;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   border: 3rpx solid rgba(255, 255, 255, 0.2);
 }
 .hero-user {
   flex: 1;
+  min-width: 0;
 }
 .hero-eyebrow {
   display: block;
@@ -282,18 +283,20 @@ const kpis = computed(() => {
   font-size: 40rpx;
   font-weight: 700;
   letter-spacing: -1rpx;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .strong { color: var(--yb-ink); font-weight: 700; }
 .kpi-row {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
-  padding: 24rpx 32rpx 8rpx;
+  padding: 20rpx 24rpx 0;
 }
 
 /* Section */
 .section {
-  margin: 24rpx 32rpx 0;
+  margin: 20rpx 24rpx 0;
 }
 .section-loading { padding: 48rpx 0; text-align: center; color: var(--yb-muted); font-size: 24rpx; }
 .section-bar {
@@ -335,22 +338,22 @@ const kpis = computed(() => {
   gap: 4rpx;
   font-size: 24rpx;
   color: var(--yb-muted);
+  min-height: 84rpx;
 }
 
 /* Deposit card */
 .deposit-card {
-  margin: 24rpx 32rpx 0;
-  padding: 28rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 20rpx;
   background: #FFFFFF;
-  border: 1rpx solid #EDECE6;
-  border-radius: 32rpx;
-  box-shadow: 0 4rpx 16rpx rgba(15, 17, 26, 0.04);
+  border: 1rpx solid var(--yb-border);
+  border-radius: var(--yb-radius-lg);
 }
 .deposit-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24rpx;
+  margin-bottom: 12rpx;
 }
 .deposit-progress {
   margin-bottom: 20rpx;
@@ -390,18 +393,24 @@ const kpis = computed(() => {
   align-items: baseline;
   gap: 4rpx;
   color: #0F111A;
+  min-width: 0;
+  max-width: 66%;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .dep-amount .unit {
-  font-family: ui-monospace, monospace;
+  font-family: var(--yb-font-body);
   font-size: 24rpx;
-  color: #B8935A;
+  color: var(--yb-muted);
   font-weight: 600;
 }
 .dep-amount .num {
-  font-family: ui-monospace, monospace;
-  font-size: 48rpx;
+  font-family: var(--yb-font-body);
+  font-size: 36rpx;
   font-weight: 700;
   letter-spacing: -1rpx;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .footer-space { height: 40rpx; }
 </style>

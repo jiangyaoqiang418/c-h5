@@ -22,6 +22,9 @@ const illustration = computed(() => props.image || (
 <template>
   <view class="empty-state">
     <image v-if="showIllustration || image" :src="illustration" mode="aspectFit" class="illustration" />
+    <view v-else class="state-icon" :class="{ 'state-icon--error': variant === 'error' }">
+      <wd-icon :name="variant === 'error' ? 'info-circle' : 'search'" size="48rpx" />
+    </view>
     <text class="title">{{ title }}</text>
     <text v-if="description" class="desc">{{ description }}</text>
     <view v-if="actionText" class="action yb-pressable" @click="emit('action')">
@@ -46,6 +49,20 @@ const illustration = computed(() => props.image || (
   margin-bottom: 28rpx;
 }
 
+.state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 104rpx;
+  height: 104rpx;
+  margin-bottom: 24rpx;
+  border: 1rpx solid var(--yb-hairline-2);
+  border-radius: 32rpx;
+  background: var(--yb-surface);
+  color: var(--yb-muted);
+}
+.state-icon--error { color: var(--yb-danger); background: var(--yb-danger-soft); border-color: transparent; }
+
 .title {
   color: var(--yb-ink);
   font-size: var(--yb-fs-title-sm);
@@ -64,10 +81,10 @@ const illustration = computed(() => props.image || (
 .action {
   display: inline-flex;
   align-items: center;
-  min-height: 88rpx;
+  min-height: 44px;
   margin-top: 32rpx;
   padding: 0 28rpx;
-  border-radius: var(--yb-radius-lg);
+  border-radius: var(--yb-radius-sm);
   background: var(--yb-brand);
   color: var(--yb-surface);
   font-size: var(--yb-fs-body);

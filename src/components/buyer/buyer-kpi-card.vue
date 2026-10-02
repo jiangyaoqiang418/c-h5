@@ -36,7 +36,7 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
 .kpi-card {
   background: #FFFFFF;
   border-radius: 24rpx;
-  padding: 24rpx;
+  padding: 20rpx;
   flex: 1 1 calc(50% - 8rpx);
   min-width: 0;
   box-sizing: border-box;
@@ -87,26 +87,27 @@ withDefaults(defineProps<Props>(), { color: '#5B5CE7' });
   display: flex;
   align-items: baseline;
   gap: 4rpx;
+  flex-wrap: wrap;
   margin-top: 8rpx;
 }
 .value {
   font-family: var(--yb-font-body);
-  font-size: 44rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #0F111A;
   letter-spacing: -1rpx;
   line-height: 1.1;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .unit {
   font-size: 24rpx;
-  color: #6B7385;
+  color: var(--yb-muted);
   font-weight: 500;
 }
 .label {
   display: block;
   font-size: 24rpx;
-  color: #6B7385;
+  color: var(--yb-muted);
 }
 </style>

@@ -916,7 +916,7 @@ function messageText(message: Api.RealNotify.Message) {
   try {
     const card = parseOrderCard(message.content) || {};
     const title = card.productTitle || card.orderNo || '订单消息';
-    const detail = card.statusText || (card.amount == null ? '' : `金额 ${card.amount} U`);
+    const detail = card.statusText || (card.amount == null ? '' : `金额 ${card.amount} USDT`);
     return detail ? `${title} · ${detail}` : title;
   } catch {
     return message.content || '订单消息';
@@ -937,12 +937,13 @@ function readText(message: Api.RealNotify.Message) {
 </script>
 
 <template>
-  <view v-if="loading" class="state-loading">订单群加载中…</view>
+  <view v-if="loading" class="state-loading">{{ supportMode ? '客服会话加载中…' : '订单群加载中…' }}</view>
   <view v-else-if="conversation" class="page">
-    <view class="header"><text class="title">{{ headerTitle }}</text><text class="meta">{{ headerMeta }}</text></view>
-    <scroll-view v-if="conversation.type === 'ORDER_GROUP'" scroll-x class="orders">
-      <view class="orders-inner"><view v-for="item in relatedOrders" :key="String(item.orderId)" class="order-chip" @click="openRelatedOrder(item.orderId)">{{ item.orderNo || item.orderId }} · {{ item.orderStatusText || item.orderStatus }}</view><view class="order-action" @click="toggleHistoryOrders">{{ ordersLoading ? '加载中…' : includeHistoryOrders ? '只看进行中' : '查看历史订单' }}</view><view class="order-action intervention" :class="{ disabled: conversation.interveneStatus !== 'NONE' || interventionLoading }" @click="applyIntervention">{{ conversation.interveneStatus === 'REQUESTED' ? '等待客服接入' : conversation.interveneStatus === 'HANDLING' ? '客服处理中' : '申请平台介入' }}</view></view>
-    </scroll-view>
+    <view class="header"><text v-if="!supportMode && conversation.type !== 'SUPPORT'" class="title">{{ headerTitle }}</text><text class="meta">{{ headerMeta }}</text></view>
+    <view v-if="conversation.type === 'ORDER_GROUP'" class="order-context">
+      <scroll-view v-if="relatedOrders.length" scroll-x class="orders"><view class="orders-inner"><view v-for="item in relatedOrders" :key="String(item.orderId)" class="order-chip" @click="openRelatedOrder(item.orderId)">{{ item.orderNo || item.orderId }} · {{ item.orderStatusText || item.orderStatus }}</view></view></scroll-view>
+      <view class="order-actions"><view class="order-action" @click="toggleHistoryOrders">{{ ordersLoading ? '加载中…' : includeHistoryOrders ? '只看进行中' : '查看历史订单' }}</view><view class="order-action intervention" :class="{ disabled: conversation.interveneStatus !== 'NONE' || interventionLoading }" @click="applyIntervention">{{ conversation.interveneStatus === 'REQUESTED' ? '等待客服接入' : conversation.interveneStatus === 'HANDLING' ? '客服处理中' : '申请平台介入' }}</view></view>
+    </view>
     <view v-if="historyLoadFailed" class="realtime-notice" @click="retryHistory">消息加载失败，点击重新加载</view>
     <view v-if="realtimeState !== 'ready'" class="realtime-notice">
       <text>{{ realtimeState === 'connecting' ? '正在连接实时服务…' : '实时连接暂不可用，消息仍可发送并在刷新后同步。' }}</text>
@@ -953,11 +954,13 @@ function readText(message: Api.RealNotify.Message) {
       <view v-for="message in messages" :id="messageAnchor(message.id)" :key="message.id" class="row" :class="side(message)">
         <view v-if="side(message) !== 'center'" class="sender"><text>{{ message.senderName || (isMine(message) ? '我' : '成员') }}</text><text v-if="message.senderRole" class="role-tag" :class="String(message.senderRole).toLowerCase()">{{ roleText(message.senderRole) }}</text></view>
         <view class="bubble" :class="side(message)"><image v-if="message.msgType === 'IMAGE' && message.mediaUrl && !message.recalled" :src="message.mediaUrl" mode="widthFix" class="message-image" /><video v-else-if="message.msgType === 'VIDEO' && message.mediaUrl && !message.recalled" :id="videoDomId(message.id)" :src="message.mediaUrl" :poster="message.coverUrl || undefined" controls :show-center-play-btn="true" class="message-video" /><text v-else-if="message.msgType === 'VOICE' && !message.recalled" class="voice-message" @click="playVoice(message)">{{ playingVoiceId === String(message.id) ? '播放中…' : '语音消息' }}{{ message.duration ? ` · ${message.duration} 秒` : '' }}</text><text v-else>{{ messageText(message) }}</text></view>
-        <text v-if="recallingId === String(message.id)" class="delivery">撤回处理中…</text>
-        <text v-else-if="canRecall(message)" class="recall" @click="recallMessage(message)">撤回</text>
-        <text v-if="message.pending" class="delivery">发送中</text>
-        <text v-else-if="message.failed" class="delivery retry" @click="retryMessage(message)">发送失败，点击重试</text>
-        <text v-else-if="readText(message)" class="delivery">{{ readText(message) }}</text>
+        <view class="message-status">
+          <text v-if="recallingId === String(message.id)" class="delivery">撤回处理中…</text>
+          <text v-else-if="canRecall(message)" class="recall" @click="recallMessage(message)">撤回</text>
+          <text v-if="message.pending" class="delivery">发送中</text>
+          <text v-else-if="message.failed" class="delivery retry" @click="retryMessage(message)">发送失败，点击重试</text>
+          <text v-else-if="readText(message)" class="delivery">{{ readText(message) }}</text>
+        </view>
       </view>
       <view v-if="!messages.length && !historyLoadFailed" class="empty">暂无历史消息</view>
     </scroll-view>
@@ -999,4 +1002,6 @@ function readText(message: Api.RealNotify.Message) {
 .role-tag.customer { color: #1554d1; }
 .role-tag.admin { color: #8b5300; }
 .send { min-height: 88rpx; min-width: 88rpx; }
+.order-context { flex-shrink:0; background:var(--yb-surface); border-bottom:1rpx solid var(--yb-border); }.orders { border-bottom:0; }.order-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:12rpx; padding:0 24rpx 12rpx; }.order-chip { border-radius:var(--yb-radius-md); }.order-action { border-radius:var(--yb-radius-md); }
+.title,.meta { overflow-wrap:anywhere; }.header .meta:first-child { margin-top:0; }.message-status { display:flex; align-items:center; gap:12rpx; max-width:100%; }.message-status:empty { display:none; }.message-status .delivery,.message-status .recall { margin-top:0; }.message-status .delivery { overflow-wrap:anywhere; }.row.right .message-status { justify-content:flex-end; }
 </style>

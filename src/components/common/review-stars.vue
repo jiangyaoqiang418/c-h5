@@ -41,7 +41,14 @@ function onClick(i: number) {
   gap: 4rpx;
 }
 .stars.input .star {
-  padding: 4rpx;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  width:88rpx;
+  height:88rpx;
+  padding:0;
+  box-sizing:border-box;
 }
 .star {
   color: #EDECE6;

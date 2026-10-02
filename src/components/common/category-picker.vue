@@ -57,8 +57,8 @@ function select(item: { id: string; name: string }) {
 <template>
   <wd-popup :model-value="modelValue" position="bottom" :safe-area-inset-bottom="true" @update:model-value="emit('update:modelValue', $event)">
     <view class="picker">
-      <view class="head"><text class="title">选择分类</text><text class="close" @click="close">关闭</text></view>
-      <wd-input v-model="keyword" clearable placeholder="搜索分类名称" />
+      <view class="head"><text class="title">选择分类</text><view class="close" @click="close">关闭</view></view>
+      <wd-input v-model="keyword" class="search-field" clearable placeholder="搜索分类名称" />
       <view v-if="!keyword" class="crumbs">
         <text class="crumb" @click="path = []">全部</text>
         <template v-for="(node, index) in path" :key="node.id">
@@ -67,7 +67,7 @@ function select(item: { id: string; name: string }) {
       </view>
       <scroll-view scroll-y class="list">
         <template v-if="keyword">
-          <wd-cell v-for="item in searchResults" :key="item.id" :title="item.name" clickable @click="select(item)" />
+          <wd-cell v-for="item in searchResults" :key="item.id" :title="item.name" :custom-class="item.id === selectedId ? 'is-selected' : ''" clickable @click="select(item)" />
           <view v-if="!searchResults.length" class="empty">没有匹配的分类</view>
         </template>
         <template v-else>
@@ -75,10 +75,11 @@ function select(item: { id: string; name: string }) {
             v-if="current"
             :title="`选择当前分类：${current.name}`"
             value="选择"
+            :custom-class="String(current.id) === selectedId ? 'is-selected' : ''"
             clickable
             @click="select({ id: String(current.id), name: path.map(item => item.name).join(' / ') })"
           />
-          <wd-cell v-for="node in enabledNodes" :key="node.id" :title="node.name" :value="node.children?.some(child => child.enabled === true) && node.level < 5 ? '下一级' : '选择'" is-link clickable @click="enter(node)" />
+          <wd-cell v-for="node in enabledNodes" :key="node.id" :title="node.name" :value="node.children?.some(child => child.enabled === true) && node.level < 5 ? '下一级' : '选择'" :custom-class="String(node.id) === selectedId ? 'is-selected' : ''" is-link clickable @click="enter(node)" />
           <view v-if="!enabledNodes.length && !current" class="empty">暂无可选分类</view>
         </template>
       </scroll-view>
@@ -87,12 +88,16 @@ function select(item: { id: string; name: string }) {
 </template>
 
 <style scoped>
-.picker { height: 72vh; padding: 24rpx; background: #fff; }
-.head { display: flex; justify-content: space-between; align-items: center; padding: 8rpx 12rpx 24rpx; }
+.picker { display:flex; flex-direction:column; height:72vh; max-height:85vh; padding:0 24rpx 24rpx; box-sizing:border-box; background:#fff; --wot-input-padding:0; --wot-cell-padding:0; }
+.head { display:flex; justify-content:space-between; align-items:center; flex-shrink:0; min-height:104rpx; gap:16rpx; }
 .title { font-size: 32rpx; font-weight: 700; }
-.close, .crumb { color: var(--yb-brand); font-size: 24rpx; }
-.crumbs { display: flex; flex-wrap: wrap; gap: 10rpx; padding: 20rpx 12rpx; }
+.search-field { flex-shrink:0; }
+.close, .crumb { display:inline-flex; align-items:center; justify-content:center; min-height:88rpx; padding:0 8rpx; box-sizing:border-box; color:var(--yb-brand); font-size:24rpx; }
+.close { min-width:88rpx; }
+.crumbs { display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; flex-shrink:0; gap:0 8rpx; padding:8rpx 0; }
 .split { color: #c9cdd4; }
-.list { height: calc(72vh - 190rpx); }
-.empty { padding: 80rpx 0; text-align: center; color: #86909c; font-size: 24rpx; }
+.list { flex:1; min-height:0; margin-top:12rpx; }
+.picker :deep(.wd-cell.is-selected) { background:var(--yb-brand-soft); }
+.picker :deep(.wd-cell.is-selected .wd-cell__title) { color:var(--yb-brand); font-weight:600; }
+.empty { padding:80rpx 0; text-align:center; color:var(--yb-muted); font-size:24rpx; }
 </style>

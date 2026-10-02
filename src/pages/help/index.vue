@@ -65,6 +65,7 @@ const AGREEMENT_LINKS: { kind: Api.Cms.AgreementKind; label: string }[] = [
 .support-title { display: block; color: var(--yb-ink); font-size: 32rpx; font-weight: 600; }
 .support-note { display: block; margin-top: 12rpx; color: var(--yb-muted); font-size: 26rpx; line-height: 1.6; }
 .support-actions { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 24rpx; }
+.support-actions :deep(.wd-button) { flex:1; min-width:0; }
 .agreements { background: #fff; margin-top: 20rpx; padding: 24rpx; border: 1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow: var(--yb-shadow-card); }
 .ag-title { display: block; font-size: 26rpx; font-weight: 600; margin-bottom: 16rpx; color: #4e5969; }
 .demo-notice { display: block; margin: 16rpx 0; color: var(--yb-muted); font-size: 24rpx; line-height: 1.6; }
@@ -73,7 +74,7 @@ const AGREEMENT_LINKS: { kind: Api.Cms.AgreementKind; label: string }[] = [
 .popup-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; min-height: 104rpx; border-bottom: 1rpx solid var(--yb-border); gap: 16rpx; }
 .popup-close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; }
 .popup-body { flex: 1; min-height: 0; width: 100%; }
-.popup-title { display: block; font-size: 32rpx; font-weight: 700; }
+.popup-title { display: block; flex:1; min-width:0; overflow-wrap:anywhere; font-size: 32rpx; font-weight: 700; }
 .popup-meta { display: block; font-size: 24rpx; color: var(--yb-muted); margin: 8rpx 0 24rpx; }
 .popup-content { font-size: 26rpx; color: #4e5969; line-height: 1.7; white-space: pre-wrap; }
 .agreement-line { margin-bottom: 20rpx; overflow-wrap: anywhere; }

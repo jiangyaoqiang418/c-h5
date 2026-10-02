@@ -88,12 +88,12 @@ async function proceed() {
         <wd-button block type="primary" @click="viewOriginal">查看原支付进度</wd-button>
       </template>
       <template v-else>
-        <wd-radio-group v-model="method">
-          <wd-radio value="balance">站内余额支付</wd-radio>
-          <wd-radio v-if="walletPayEntryEnabled && chains.length" value="chain">USDT 链上支付</wd-radio>
+        <wd-radio-group v-model="method" class="yb-choice-group">
+          <wd-radio shape="dot" icon-placement="left" value="balance">站内余额支付</wd-radio>
+          <wd-radio shape="dot" icon-placement="left" v-if="walletPayEntryEnabled && chains.length" value="chain">USDT 链上支付</wd-radio>
         </wd-radio-group>
         <text class="tip">余额支付需输入支付密码；余额不足可先充值。</text>
-        <wd-radio-group v-if="method === 'chain'" v-model="chain"><wd-radio v-for="item in chains" :key="item.chain" :value="item.chain">{{ item.label || item.chain }}</wd-radio></wd-radio-group>
+        <wd-radio-group v-if="method === 'chain'" v-model="chain" class="yb-choice-group"><wd-radio shape="dot" icon-placement="left" v-for="item in chains" :key="item.chain" :value="item.chain">{{ item.label || item.chain }}</wd-radio></wd-radio-group>
         <text v-if="method === 'chain'" class="tip">按本组全部待付款订单的剩余金额付款，需在钱包内确认并准备 Gas 币。</text>
         <text v-if="chainError" class="error">{{ chainError }}</text>
         <wd-button block type="primary" :loading="busy" @click="proceed">继续付款</wd-button>
@@ -106,5 +106,5 @@ async function proceed() {
 .payment-selector { padding: 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
 .title { font-size: 32rpx; font-weight: 600; }
 .tip, .error { font-size: 24rpx; line-height: 1.6; }
-.tip { color: #86909c; }.error { color: #f53f3f; }
+.tip { color: var(--yb-muted); }.error { color: #b42318; }
 </style>

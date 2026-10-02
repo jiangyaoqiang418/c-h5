@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { onHide, onShow, onUnload } from '@dcloudio/uni-app';
-import { formatCny, formatUsdt } from '@shared/utils/currency';
+import PriceTag from '@/components/common/price-tag.vue';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useCartStore } from '@/stores';
@@ -82,7 +82,7 @@ async function goCheckout() {
   <view class="cart-page yb-page yb-page--full-bleed h5-tab-page" :class="{ 'has-items': items.length > 0 }">
     <wd-button v-if="cart.legacyAvailable" block plain @click="restoreLegacy">发现旧版购物车，确认归属后恢复</wd-button>
     <template v-if="items.length">
-      <view class="cart-toolbar"><text>共 {{ items.length }} 件商品</text><wd-button plain size="small" @click="managing = !managing">{{ managing ? '完成管理' : '管理' }}</wd-button></view>
+      <view class="cart-toolbar"><text>共 {{ items.length }} 种商品</text><wd-button plain size="small" @click="managing = !managing">{{ managing ? '完成管理' : '管理' }}</wd-button></view>
       <view class="list">
         <view v-for="item in items" :key="item.key" class="row" :class="{ invalid: !item.available }">
           <view class="check yb-pressable" @click="cart.setSelected(item.key, !item.selected)">
@@ -102,8 +102,8 @@ async function goCheckout() {
             <text v-if="!item.available" class="invalid-note">当前不可结算，请调整商品</text>
             <view class="price-row">
               <view class="price-block">
-                <text class="price-cny">{{ formatUsdt(item.product?.price || 0) }}</text>
-                <text class="price-usdt">≈ {{ formatCny(item.product?.price || 0) }}</text>
+                <PriceTag v-if="item.product && item.product.price != null" :price="item.product?.price || 0" size="sm" :show-rate="false" />
+                <text v-else class="price-unknown">价格待确认</text>
               </view>
                 <view class="qty" @click.stop>
                 <view class="qty-btn yb-pressable" @click="cart.update(item.key, item.qty - 1)">
@@ -127,8 +127,7 @@ async function goCheckout() {
         </view>
         <view class="amount-block">
           <text class="amount-label">合计</text>
-          <text class="amount-cny">{{ formatUsdt(cart.grandTotal) }}</text>
-          <text class="amount-usdt">≈ {{ formatCny(cart.grandTotal) }}</text>
+          <PriceTag :price="cart.grandTotal" size="sm" :show-rate="false" />
         </view>
         <wd-button type="primary" :loading="openingCheckout" :disabled="cart.selectedQty === 0" @click="goCheckout">结算{{ cart.selectedQty ? `（${cart.selectedQty}）` : '' }}</wd-button>
       </view>
@@ -233,21 +232,10 @@ async function goCheckout() {
 .price-block {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
 }
-.price-cny {
-  color: var(--yb-brand);
-  font-weight: 700;
-  font-size: var(--yb-fs-body);
-  font-family: var(--yb-font-body);
-  letter-spacing: -0.5rpx;
-  font-variant-numeric: tabular-nums;
-}
-.price-usdt {
-  font-size: var(--yb-fs-caption);
-  color: var(--yb-muted);
-  font-family: var(--yb-font-body);
-  margin-top: 4rpx;
-}
+.price-unknown { color: var(--yb-muted); font-size: 24rpx; }
 .qty {
   display: flex;
   align-items: center;
@@ -308,10 +296,10 @@ async function goCheckout() {
   min-height: 88rpx;
 }
 .all-check .dot {
-  width: 36rpx;
-  height: 36rpx;
-  border: 3rpx solid #8f99a8;
-  border-radius: 8rpx;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #667085;
+  border-radius: 50%;
   background: var(--yb-surface);
 }
 .all-check .dot.on { border-color: var(--yb-brand); background: var(--yb-brand); }
@@ -330,20 +318,7 @@ async function goCheckout() {
   font-size: var(--yb-fs-caption);
   color: var(--yb-muted);
 }
-.amount-cny {
-  color: var(--yb-brand);
-  font-weight: 700;
-  font-size: var(--yb-fs-title-sm);
-  font-family: var(--yb-font-body);
-  overflow-wrap: anywhere;
-  letter-spacing: -0.5rpx;
-  font-variant-numeric: tabular-nums;
-}
-.amount-usdt {
-  font-size: var(--yb-fs-caption);
-  color: var(--yb-muted);
-  font-family: var(--yb-font-body);
-}
+.amount-block :deep(.main-line) { justify-content: flex-end; }
 .bottom-bar :deep(.wd-button) { min-width: 132rpx; min-height: 88rpx; padding: 0 24rpx; }
 .meta {
   display: block;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { formatCny, formatUsdt } from '@shared/utils/currency';
+import PriceTag from '@/components/common/price-tag.vue';
 import { go } from '@/utils/navigate';
 import OrderStatusTag from './order-status-tag.vue';
 import { UI_ASSETS } from '@/constants/ui-assets';
@@ -50,7 +50,7 @@ function goDetail() {
     </view>
     <view class="amount">
       <text class="amount-label">订单合计</text>
-      <view class="amount-values"><text class="amount-cny">{{ formatUsdt(order.totalAmount) }}</text><text class="amount-usdt">参考 ≈ {{ formatCny(order.totalAmount) }}</text></view>
+      <PriceTag class="amount-values" :price="order.totalAmount" size="sm" :show-rate="false" />
     </view>
     <view v-if="hasActions" class="actions" @click.stop>
       <wd-button
@@ -181,19 +181,8 @@ function goDetail() {
 }
 .amount-label { color: var(--yb-muted); font-size: 24rpx; flex: none; }
 .amount-values { min-width: 0; text-align: right; display: flex; flex-direction: column; gap: 4rpx; overflow-wrap: anywhere; }
-.amount-cny {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #0F111A;
-  font-family: var(--yb-font-body);
-  letter-spacing: -0.5rpx;
-  font-variant-numeric: tabular-nums;
-}
-.amount-usdt {
-  font-size: 24rpx;
-  color: #6B7385;
-  font-family: var(--yb-font-body);
-}
+.amount-values :deep(.main-line) { justify-content: flex-end; }
+.amount-values :deep(.usdt-value), .amount-values :deep(.usdt-unit) { color: var(--yb-ink); }
 .actions {
   display: flex;
   justify-content: flex-end;

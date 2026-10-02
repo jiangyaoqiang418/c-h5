@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app';
-import { formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
+import { formatUsdt, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
 import { fetchCategoryTree, type CategoryNode } from '@/service/api/category';
 import { favoriteProduct, fetchStorefrontProductDetail, recordProductBrowse } from '@/service/api/product';
 import { fetchReviewSummary, fetchSellerRating, fetchStorefrontReviews } from '@/service/api/review';
@@ -11,6 +11,7 @@ import ReviewStars from '@/components/common/review-stars.vue';
 import InfoTooltip from '@/components/common/info-tooltip.vue';
 import EmptyState from '@/components/common/empty-state.vue';
 import RichTextContent from '@/components/common/rich-text-content.vue';
+import PriceTag from '@/components/common/price-tag.vue';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
 const { requireLogin } = useNavigationGuards();
@@ -275,15 +276,8 @@ function goBack() {
       <text class="title">{{ product.title }}</text>
       <text v-if="product.summary" class="summary">{{ product.summary }}</text>
 
-      <view v-if="realSellerRating" class="rating-summary">
-        <text>买手评分</text>
-        <ReviewStars :score="Number(realSellerRating.averageScore ?? realSellerRating.avgScore ?? 0)" size="sm" show-score />
-        <text>· {{ realSellerRating.total ?? realSellerRating.totalCount ?? 0 }} 评价</text>
-      </view>
-
       <view class="price-block">
-        <text class="price-main">{{ priceSet(product.price).usdt }}</text>
-        <text class="price-sub">参考 ≈ {{ priceSet(product.price).cny }}</text>
+        <PriceTag :price="product.price" size="lg" :show-rate="false" />
         <view class="fee-row">
           <text>运费 {{ formatUsdt(product.shippingFee) }}</text>
           <view class="fee-with-tip"><text>税费 {{ formatUsdt(product.tax) }}</text><InfoTooltip :text="TAX_TOOLTIP_TEXT" :size="24" /></view>
@@ -310,6 +304,11 @@ function goBack() {
         <view class="seller-info">
           <view class="seller-head"><text class="seller-name">{{ product.sellerName }}</text></view>
           <text class="seller-sub">买手信息以平台资料为准</text>
+          <view v-if="realSellerRating" class="rating-summary">
+            <text>买手评分</text>
+            <ReviewStars :score="Number(realSellerRating.averageScore ?? realSellerRating.avgScore ?? 0)" size="sm" show-score />
+            <text>· {{ realSellerRating.total ?? realSellerRating.totalCount ?? 0 }} 评价</text>
+          </view>
         </view>
       </view>
 
@@ -362,14 +361,12 @@ function goBack() {
 .gallery-image { width: 100%; height: 100%; }
 .gallery-image--placeholder { box-sizing: border-box; padding: 96rpx; }
 .gallery-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #86909c; font-size: 24rpx; }
-.content-sheet { position: relative; z-index: 2; margin-top: -48rpx; padding: 40rpx 32rpx; border-radius: 40rpx 40rpx 0 0; background: #fff; }
+.content-sheet { position: relative; z-index: 2; margin-top: -24rpx; padding: 28rpx 24rpx; border-radius: 28rpx 28rpx 0 0; background: #fff; }
 .category { display: inline-block; padding: 6rpx 16rpx; border-radius: 8rpx; background: #fafaf7; color: var(--yb-muted); font-size: 24rpx; }
-.title { display: block; margin-top: 16rpx; color: #0f111a; font-size: 40rpx; font-weight: 700; line-height: 1.35; }
+.title { display: block; margin-top: 16rpx; color: #0f111a; font-size: 36rpx; font-weight: 700; line-height: 1.45; }
 .summary { display: block; margin-top: 8rpx; color: #6b7385; font-size: 24rpx; line-height: 1.5; }
-.rating-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; margin-top: 16rpx; color: #6b7385; font-size: 24rpx; }
-.price-block { margin-top: 24rpx; padding: 28rpx; border-radius: 16rpx; background: var(--yb-bg); }
-.price-main { display: block; color: var(--yb-brand); font-size: 52rpx; font-weight: 700; font-family: var(--yb-font-body); overflow-wrap: anywhere; }
-.price-sub { display: block; margin-top: 8rpx; color: var(--yb-muted); font-size: 24rpx; }
+.rating-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; color: var(--yb-muted); font-size: 24rpx; }
+.price-block { margin-top: 16rpx; }
 .fee-row { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid var(--yb-border); color: var(--yb-muted); font-size: 24rpx; }
 .fee-with-tip { display: flex; align-items: center; gap: 4rpx; }
 .service-info { margin-top: 24rpx; }
@@ -382,14 +379,14 @@ function goBack() {
 .trade-notice { color: #805b24; font-size: 24rpx; line-height: 1.5; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
 .tag { padding: 8rpx 16rpx; border: 1rpx solid #edece6; border-radius: 8rpx; background: #fafaf7; color: #1d2129; font-size: 24rpx; }
-.seller-section { display: flex; align-items: center; gap: 20rpx; margin-top: 32rpx; padding: 24rpx; border: 1rpx solid #edece6; border-radius: 16rpx; background: #fafaf7; }
+.seller-section { display: flex; align-items: flex-start; gap: 16rpx; margin-top: 24rpx; padding: 20rpx 0; border-top: 1rpx solid var(--yb-border); border-bottom: 1rpx solid var(--yb-border); }
 .seller-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: #f6efe4; }
 .seller-avatar.placeholder { display: flex; align-items: center; justify-content: center; color: #b8935a; font-size: 32rpx; font-weight: 700; }
-.seller-info { flex: 1; }
+.seller-info { flex: 1; min-width: 0; }
 .seller-head { display: flex; align-items: center; gap: 12rpx; }
 .seller-name { font-size: 28rpx; font-weight: 700; color: #0f111a; }
 .seller-sub { display: block; margin-top: 6rpx; color: #6b7385; font-size: 24rpx; }
-.section { margin-top: 36rpx; padding-top: 28rpx; border-top: 1rpx solid #edece6; }
+.section { margin-top: 24rpx; padding-top: 20rpx; border-top: 1rpx solid var(--yb-border); }
 .section-title { display: block; margin-bottom: 16rpx; color: #0f111a; font-size: 30rpx; font-weight: 700; }
 .review-row { padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .review-head { display: flex; align-items: center; justify-content: space-between; font-size: 24rpx; }
@@ -398,5 +395,5 @@ function goBack() {
 .tool { display: flex; flex-direction: column; flex-shrink: 0; align-items: center; justify-content: center; min-width: 84rpx; min-height: 84rpx; color: #6b7385; font-size: 24rpx; }.tool--disabled { opacity: .55; pointer-events: none; }.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:88rpx; padding:0 16rpx; white-space:nowrap; }
 .bottom-tools { display: flex; align-items: center; width: 100%; gap: 20rpx; }
 .bottom-actions { display: flex; width: 100%; gap: 16rpx; }
-.quantity { margin-left: auto; display: flex; flex-shrink:0; align-items: center; min-width:156rpx; padding: 0; border-radius: 8rpx; background: #f5f5f2; font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:52rpx; min-height:72rpx; }
+.quantity { margin-left: auto; display: flex; flex-shrink:0; align-items: center; min-width:252rpx; padding: 0; border-radius: 8rpx; background: var(--yb-bg); font-size: 24rpx; }.quantity > text { display:flex; flex:1; align-items:center; justify-content:center; min-width:84rpx; min-height:84rpx; }
 </style>

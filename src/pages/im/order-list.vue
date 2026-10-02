@@ -24,7 +24,7 @@ function contactSupport() { go('/pages/im/real-order-group?support=1'); }
 
 <template>
   <view class="list-page yb-page">
-    <wd-button block class="mb-16rpx" @click="contactSupport">联系平台客服</wd-button>
+    <view class="support-entry"><wd-button block @click="contactSupport">联系平台客服</wd-button></view>
     <view v-if="groups.length" class="list">
       <view v-for="g in groups" :key="g.id" class="conversation" @click="open(g)">
         <view class="avatar">{{ (g.productTitle || g.title || '订').slice(0, 1) }}</view>
@@ -51,12 +51,13 @@ function contactSupport() { go('/pages/im/real-order-group?support=1'); }
   padding: 20rpx 24rpx;
 }
 .loading { padding: 80rpx 0; text-align: center; color: var(--yb-muted); }
+.support-entry { margin-bottom: 20rpx; }
 .conversation { display: flex; gap: 16rpx; padding: 24rpx; margin-bottom: 16rpx; background: #fff; border: 1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); box-shadow: var(--yb-shadow-card); }
 .avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #1d2027; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32rpx; flex-shrink: 0; }
 .info { flex: 1; min-width: 0; }
 .name, .preview, .meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name { font-size: 28rpx; color: #1d2129; font-weight: 500; }
-.preview { font-size: 24rpx; color: #86909c; margin-top: 4rpx; }
-.meta { font-size: 20rpx; color: #c9cdd4; margin-top: 4rpx; }
+.preview { font-size: 24rpx; color: var(--yb-muted); margin-top: 8rpx; }
+.meta { font-size: 24rpx; color: var(--yb-muted); margin-top: 8rpx; }
 .right { flex-shrink: 0; }
 </style>

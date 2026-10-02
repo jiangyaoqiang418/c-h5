@@ -170,7 +170,7 @@ function onSortChange(v: string) {
   background: var(--yb-surface);
   border-bottom: 1rpx solid var(--yb-border);
   position: sticky;
-  top: 92rpx;
+  top: 96rpx;
   z-index: 9;
 }
 /* #ifdef H5 */

@@ -138,7 +138,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
 </script>
 
 <template>
-  <view class="hall-page yb-page h5-tab-page">
+  <view class="hall-page yb-page yb-page--full-bleed h5-tab-page">
     <view class="hero" >
       <view class="hero-row">
         <AudienceSegment />
@@ -221,7 +221,7 @@ const loginToHall = async () => { if (await requireLogin('/pages/purchase/hall')
   background: #fff5f6;
   color: #b91b31;
   padding: 16rpx 20rpx;
-  font-size: var(--yb-font-xs);
+  font-size: var(--yb-fs-body-sm);
   margin: 24rpx 24rpx 0;
   border-radius: var(--yb-radius-md);
   border: 1rpx solid #ffd5db;

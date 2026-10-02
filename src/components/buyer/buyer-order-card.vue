@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { productImageUrl } from '@shared/utils/image';
-import { formatCny, formatUsdt } from '@shared/utils/currency';
+import PriceTag from '@/components/common/price-tag.vue';
 import { go } from '@/utils/navigate';
 import OrderStatusTag from '@/components/order/order-status-tag.vue';
 
@@ -45,18 +45,17 @@ function goDetail() {
         <view class="addr"><wd-icon name="location" size="12px" /><text>{{ order.shippingAddress }}</text></view>
       </view>
     </view>
-    <view class="footer" @click.stop>
+    <view class="footer">
       <view class="amount-block">
-        <text class="amount-label">收入</text>
-        <text class="amount-cny">{{ formatUsdt(order.totalAmount) }}</text>
-        <text class="amount-usdt">≈ {{ formatCny(order.totalAmount) }}</text>
+        <text class="amount-label">订单金额</text>
+        <PriceTag :price="order.totalAmount" size="sm" :show-rate="false" />
       </view>
       <view v-if="showActions" class="actions">
         <wd-button
           v-if="order.status === 'PROCURING'"
           type="primary"
           size="small"
-          @click="$emit('upload-proof', order)"
+          @click.stop="$emit('upload-proof', order)"
         >
           上传采购截图
         </wd-button>
@@ -64,7 +63,7 @@ function goDetail() {
           v-else-if="order.status === 'PROCURED'"
           type="primary"
           size="small"
-          @click="$emit('upload-shipping', order)"
+          @click.stop="$emit('upload-shipping', order)"
         >
           上传发货
         </wd-button>
@@ -79,34 +78,37 @@ function goDetail() {
 .bo-card {
   background: #FFFFFF;
   border-radius: 24rpx;
-  padding: 28rpx;
+  padding: 20rpx;
   margin-bottom: 16rpx;
-  border: 1rpx solid #EDECE6;
-  box-shadow: 0 4rpx 12rpx rgba(15, 17, 26, 0.04);
+  border: 1rpx solid var(--yb-border);
+  box-shadow: var(--yb-shadow-card);
 }
 .head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 16rpx;
-  border-bottom: 1rpx solid #EDECE6;
+  padding-bottom: 12rpx;
+  border-bottom: 1rpx solid var(--yb-border);
 }
 .code {
-  font-size: 22rpx;
-  color: #0F111A;
-  font-family: ui-monospace, monospace;
-  font-weight: 600;
-  letter-spacing: 1rpx;
+  font-size: 24rpx;
+  color: var(--yb-muted);
+  font-family: var(--yb-font-body);
+  min-width: 0;
+  margin-right: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .body {
   display: flex;
-  gap: 20rpx;
-  padding: 20rpx 0;
+  gap: 16rpx;
+  padding: 16rpx 0;
 }
 .cover {
-  width: 140rpx;
-  height: 140rpx;
-  border-radius: 16rpx;
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: var(--yb-radius-md);
   flex-shrink: 0;
 }
 .info {
@@ -121,7 +123,7 @@ function goDetail() {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #0F111A;
   font-weight: 600;
   letter-spacing: -0.5rpx;
@@ -129,56 +131,55 @@ function goDetail() {
 .meta-chips {
   display: flex;
   gap: 8rpx;
+  min-width: 0;
 }
 .chip {
   padding: 3rpx 12rpx;
   background: #FAFAF7;
   border-radius: 999rpx;
-  font-size: 20rpx;
-  color: #6B7385;
+  font-size: 24rpx;
+  color: var(--yb-muted);
   display: inline-flex;
   align-items: center;
   gap: 4rpx;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
+.chip > text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .addr {
   display: flex;
   align-items: center;
   gap: 5rpx;
-  font-size: 22rpx;
-  color: #A8ADB8;
+  font-size: 24rpx;
+  color: var(--yb-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.addr > text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.addr :deep(.wd-icon), .chip :deep(.wd-icon) { flex-shrink:0; }
 .footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #EDECE6;
+  padding-top: 12rpx;
+  border-top: 1rpx solid var(--yb-border);
+  gap: 16rpx;
+  flex-wrap: wrap;
 }
 .amount-block {
   display: flex;
   flex-direction: column;
   gap: 2rpx;
+  min-width: 0;
+  max-width: 100%;
 }
 .amount-label {
-  font-size: 20rpx;
-  color: #6B7385;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
-.amount-cny {
-  font-family: ui-monospace, monospace;
-  font-size: 34rpx;
-  font-weight: 700;
-  color: #00A88A;
-  letter-spacing: -0.5rpx;
-  font-variant-numeric: tabular-nums;
-}
-.amount-usdt {
-  font-family: ui-monospace, monospace;
-  font-size: 20rpx;
-  color: #6B7385;
-}
+.amount-block :deep(.usdt-value), .amount-block :deep(.usdt-unit) { color: var(--yb-ink); }
 .actions {
   display: flex;
   gap: 8rpx;
@@ -191,7 +192,7 @@ function goDetail() {
   background: rgba(91, 92, 231, 0.1);
   color: #5B5CE7;
   border-radius: 999rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 500;
 }
 .status-note.success {

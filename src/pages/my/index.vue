@@ -250,6 +250,7 @@ function goMessages() {
 <style lang="scss" scoped>
 .my-page {
   min-height: 100%;
+  padding-bottom: 24rpx;
 }
 .user-card {
   background-color: var(--yb-surface);
@@ -258,13 +259,16 @@ function goMessages() {
   color: var(--yb-ink);
   padding: 36rpx 28rpx 28rpx;
   position: relative;
+  border-bottom: 1rpx solid var(--yb-hairline);
 }
 .bell-btn {
   position: absolute;
-  top: 32rpx;
-  right: 32rpx;
-  width: 64rpx;
-  height: 64rpx;
+  top: 24rpx;
+  right: 20rpx;
+  width: 84rpx;
+  min-width: 44px;
+  height: 84rpx;
+  min-height: 44px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
   display: flex;
@@ -310,6 +314,7 @@ function goMessages() {
 .avatar {
   width: 104rpx;
   height: 104rpx;
+  flex-shrink: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
   border: 2rpx solid rgba(255, 255, 255, 0.48);
@@ -322,12 +327,14 @@ function goMessages() {
   display: flex;
   gap: 8rpx;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .name {
   font-size: 32rpx;
   font-weight: 700;
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .tag-row {
   display: flex;
@@ -336,6 +343,8 @@ function goMessages() {
   margin-top: 6rpx;
 }
 .email {
+  display: block;
+  min-width: 0;
   font-size: 24rpx;
   opacity: 0.85;
   overflow: hidden;
@@ -351,9 +360,9 @@ function goMessages() {
   display: flex;
   margin-top: 24rpx;
   padding: 18rpx 20rpx;
-  border: 1rpx solid var(--yb-border);
+  border: 1rpx solid var(--yb-hairline);
   border-radius: var(--yb-radius-md);
-  background: var(--yb-bg);
+  background: linear-gradient(110deg, var(--yb-brand-soft), var(--yb-bg));
   gap: 16rpx;
   box-sizing: border-box;
 }
@@ -404,20 +413,21 @@ function goMessages() {
 /* Sections */
 .section {
   background: #fff;
-  margin: 24rpx 24rpx 0;
+  margin: 24rpx var(--yb-page-padding) 0;
   border-radius: var(--yb-radius-lg);
   border: 1rpx solid var(--yb-border);
-  padding: 20rpx;
+  padding: 24rpx;
   box-shadow: var(--yb-shadow-card);
 }
 .section-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8rpx 12rpx 16rpx;
+  min-height: 44px;
+  padding-bottom: 8rpx;
 }
 .section-title {
-  font-size: 28rpx;
+  font-size: var(--yb-fs-body-lg);
   font-weight: 700;
   color: #0F111A;
   letter-spacing: -0.5rpx;
@@ -427,7 +437,8 @@ function goMessages() {
   align-items: center;
   gap: 4rpx;
   font-size: 24rpx;
-  color: #86909c;
+  min-height: 44px;
+  color: var(--yb-muted);
 }
 .order-tabs {
   display: flex;
@@ -449,7 +460,7 @@ function goMessages() {
 .ot-lbl {
   display: block;
   font-size: 24rpx;
-  color: #86909c;
+  color: var(--yb-muted);
   margin-top: 4rpx;
 }
 .cell-grid {
@@ -491,13 +502,13 @@ function goMessages() {
   text-align: center;
 }
 .logout-btn {
-  margin: 24rpx 20rpx;
+  margin: 24rpx var(--yb-page-padding);
   background: #fff;
   border-radius: 20rpx;
-  border: 1rpx solid #EDECE6;
+  border: 1rpx solid var(--yb-hairline);
   padding: 28rpx;
   text-align: center;
-  color: #f53f3f;
+  color: var(--yb-brand);
   font-size: 28rpx;
 }
 </style>

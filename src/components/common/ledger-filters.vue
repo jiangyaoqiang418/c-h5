@@ -72,11 +72,12 @@ function apply(reset = false) {
 </template>
 
 <style scoped>
-.ledger-filters { padding: 8rpx 24rpx; background: var(--yb-surface); border-bottom: 1rpx solid var(--yb-border); }
+.ledger-filters { padding: 8rpx 24rpx 16rpx; margin-bottom:20rpx; background: var(--yb-surface); border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); --wot-cell-padding:0px; --wot-input-padding:0px; }
 .filter-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 88rpx; }
 .filter-summary { flex: 1; min-width: 0; color: var(--yb-muted); font-size: 24rpx; overflow-wrap: anywhere; }
 .filter-toolbar :deep(.wd-button) { flex-shrink: 0; }
-.date-row { display:flex; justify-content:space-between; gap:16rpx; padding:24rpx 30rpx; font-size:28rpx; }
-.hint { display:block; margin:12rpx 24rpx; font-size:24rpx; color:var(--yb-muted); }
+.date-row { display:flex; justify-content:space-between; gap:16rpx; padding:24rpx 0; font-size:28rpx; }
+.hint { display:block; margin:12rpx 0; font-size:24rpx; color:var(--yb-muted); line-height:1.5; }
+.ledger-filters :deep(.wd-input__label) { margin-right:12px; }
 .actions { display:flex; justify-content:flex-end; gap:16rpx; margin-top:12rpx; }
 </style>

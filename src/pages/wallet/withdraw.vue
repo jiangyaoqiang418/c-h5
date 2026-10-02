@@ -207,6 +207,7 @@ async function confirmWithdraw() {
 }
 .choice-field { padding: 12rpx 0 24rpx; }
 .choice-label { display: block; margin-bottom: 16rpx; font-size: 26rpx; color: var(--yb-ink-2); }
+.form-card { --wot-input-padding:0px; }
 .field-label { display:block; margin:20rpx 0 8rpx; color:var(--yb-ink); font-size:26rpx; }
 .field-error { display:block; margin:8rpx 0 16rpx; color:var(--yb-danger); font-size:24rpx; line-height:1.5; }
 .submit-hint,.balance-note { display:block; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }

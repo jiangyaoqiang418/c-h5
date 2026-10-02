@@ -131,8 +131,7 @@ function openOrder() {
   <view v-if="refund" class="as-detail yb-page">
     <wd-button v-if="loadFailed" block plain :loading="loading" :disabled="operating" @click="reload">详情刷新失败，点击重试（当前为上次记录）</wd-button>
     <view class="hero">
-      <text class="status" :class="`status--${refund.status}`">{{ status }}</text>
-      <text class="type">仅退款</text>
+      <view class="status-heading"><text class="status" :class="`status--${refund.status}`">{{ status }}</text><text class="type">仅退款</text></view>
       <text class="status-description">{{ statusDescription }}</text>
       <text class="code">退款单号 {{ refund.refundBizNo || refund.refundId }}</text>
     </view>
@@ -158,8 +157,8 @@ function openOrder() {
     </view>
 
     <view class="section actions">
-      <wd-button block plain :disabled="operating" @click="openOrder">查看关联订单</wd-button>
-      <wd-button v-if="canCancel" block plain type="warning" class="mt" :loading="operating" @click="cancel">撤销申请</wd-button>
+      <wd-button plain size="small" :disabled="operating" @click="openOrder">查看关联订单</wd-button>
+      <wd-button v-if="canCancel" plain type="warning" size="small" :loading="operating" @click="cancel">撤销申请</wd-button>
     </view>
   </view>
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载仅退款详情</text></view>
@@ -170,12 +169,13 @@ function openOrder() {
 
 <style lang="scss" scoped>
 .status-description { display: block; margin-top: 12rpx; color: var(--yb-muted); font-size: 26rpx; line-height: 1.6; }
+.status-heading { display:flex; align-items:baseline; justify-content:space-between; gap:16rpx; }
 .review-remark { display: block; color: var(--yb-ink); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 26rpx; line-height: 1.7; }
 .row > text:first-child { flex: none; }
 .row > text:last-child { min-width: 0; overflow-wrap: anywhere; }
 .as-detail { min-height: 100%; padding:24rpx; }.hero, .section { background:#fff; padding:24rpx; border-radius:var(--yb-radius-lg); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }.section { margin-top:20rpx; }.section + .hero { margin-top:20rpx; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
-.status { display: block; color: #8b5300; font-size: 36rpx; font-weight: 700; }.status--AGREED { color: #08765e; } .status--REJECTED { color: #b42318; } .status--CANCELED { color: var(--yb-muted); } .type { display: block; margin-top: 8rpx; color: #1d2129; font-size: 28rpx; }.code { display: block; margin-top: 12rpx; color: var(--yb-muted); font-family: ui-monospace, monospace; font-size: 24rpx; }
+.status { display: block; color: #8b5300; font-size: 36rpx; font-weight: 700; }.status--AGREED { color: #08765e; } .status--REJECTED { color: #b42318; } .status--CANCELED { color: var(--yb-muted); } .type { color: var(--yb-muted); font-size: 24rpx; }.code { display: block; margin-top: 12rpx; color: var(--yb-muted); font-family: ui-monospace, monospace; font-size: 24rpx; overflow-wrap:anywhere; }
 .section-title { display: block; margin-bottom: 18rpx; color: #1d2129; font-size: 26rpx; font-weight: 600; }.row { display: flex; justify-content: space-between; gap: 24rpx; margin-top: 14rpx; color: var(--yb-muted); font-size: 24rpx; }.value, .mono { max-width: 68%; color: #4e5969; text-align: right; }.mono { font-family: ui-monospace, monospace; }.amount { color: var(--yb-brand); font-family: var(--yb-font-body); font-size: 28rpx; font-weight: 700; }
-.evidence { display: flex; flex-wrap: wrap; gap: 12rpx; }.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }.actions { padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); }.mt { margin-top: 12rpx; }
+.evidence { display: flex; flex-wrap: wrap; gap: 12rpx; }.ev-img { width: 160rpx; height: 160rpx; border-radius: 8rpx; }.section.actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:12rpx; padding:16rpx 0 calc(24rpx + env(safe-area-inset-bottom)); border:0; background:transparent; box-shadow:none; }
 </style>

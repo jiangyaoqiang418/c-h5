@@ -205,7 +205,7 @@ function bucketLabel(key: string): string {
     </view>
 
     <!-- 最近交易 -->
-    <view class="section">
+    <view class="section recent-section">
       <view class="section-bar">
         <view>
 
@@ -228,8 +228,8 @@ function bucketLabel(key: string): string {
 <style lang="scss" scoped>
 .wallet-page {
   min-height: 100%;
-  background: #FAFAF7;
-  padding-bottom: 40rpx;
+  background: var(--yb-bg);
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
 }
 .page-loading { padding: 120rpx 0; text-align: center; color: var(--yb-muted); font-size: 24rpx; }
 
@@ -249,8 +249,8 @@ function bucketLabel(key: string): string {
   margin-bottom: 24rpx;
 }
 .nav-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -333,7 +333,7 @@ function bucketLabel(key: string): string {
   border: 1rpx solid rgba(255,255,255,.16);
   border-radius: 20rpx;
   color: #fff;
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 600;
 }
 .action-btn.primary {
@@ -347,14 +347,15 @@ function bucketLabel(key: string): string {
   background: #FFFFFF;
   margin: 20rpx 24rpx;
   border-radius: 24rpx;
-  border: 1rpx solid #EDECE6;
-  padding: 28rpx;
+  border: 1rpx solid var(--yb-border);
+  padding: 24rpx;
 }
 .section-bar {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 20rpx;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
 }
 .sec-eyebrow {
   display: block;
@@ -376,13 +377,17 @@ function bucketLabel(key: string): string {
   display: flex;
   align-items: center;
   gap: 4rpx;
-  font-size: 22rpx;
-  color: #6B7385;
+  min-height: 88rpx;
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
+.section-bar .sec-title { margin-bottom: 0; }
+.recent-section :deep(.txn-row) { padding-right: 0; padding-left: 0; }
 
 /* Bucket rows */
 .bucket-list {
-  border-top: 1rpx solid #EDECE6;
+  border-top: 1rpx solid var(--yb-border);
 }
 .bucket-row {
   display: flex;
@@ -390,7 +395,7 @@ function bucketLabel(key: string): string {
   align-items: center;
   gap: 20rpx;
   padding: 24rpx 0;
-  border-bottom: 1rpx solid #EDECE6;
+  border-bottom: 1rpx solid var(--yb-border);
 }
 .bucket-row:last-child { border-bottom: none; }
 .row-left {
@@ -403,7 +408,7 @@ function bucketLabel(key: string): string {
   width: 56rpx;
   height: 56rpx;
   border-radius: 16rpx;
-  background: #FAFAF7;
+  background: var(--yb-bg);
   display: flex;
   align-items: center;
   justify-content: center;

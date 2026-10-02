@@ -132,7 +132,7 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
     <view v-if="audienceConfigs.length" class="table-wrap">
       <view v-if="featuredConfigs.length" class="comparison-toggle" @click="fullComparisonOpen = !fullComparisonOpen"><text>完整权益对照</text><text>{{ fullComparisonOpen ? '收起' : '展开' }}</text></view>
       <scroll-view v-if="!featuredConfigs.length || fullComparisonOpen" scroll-x class="comparison-scroll">
-        <view class="comparison-table">
+        <view class="comparison-table" :style="{ width: `${220 + audienceConfigs.length * 136}rpx` }">
           <view class="th">
             <text class="th-cell label-col">权益项</text>
             <view v-for="c in audienceConfigs" :key="c.level" class="th-cell" :class="{ 'current-level': configIsCurrent(c) }"><text>{{ configTitle(c) }}</text><text v-if="configIsCurrent(c)" class="current-badge">当前</text></view>
@@ -156,13 +156,15 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 </template>
 
 <style lang="scss" scoped>
-.vip-page { min-height: 100%; padding-bottom: 32rpx; }
+.vip-page { min-height:100%; padding:20rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); }
 .hero {
   background-color: var(--yb-surface);
   background-size: cover;
   background-position: center;
   color: var(--yb-ink);
-  padding: 48rpx 32rpx;
+  padding:24rpx;
+  border:1rpx solid var(--yb-border);
+  border-radius:var(--yb-radius-lg);
 }
 .hero-title { display: block; font-size: 36rpx; font-weight: 700; }
 .my-card {
@@ -177,21 +179,21 @@ function benefitValue(c: Api.Vip.LevelConfig, key: string): string | number {
 .my-info { display: flex; flex-direction: column; }
 .my-points { font-size: 32rpx; font-weight: 600; }
 .my-next { font-size:24rpx; color:var(--yb-muted); margin-top:4rpx; }
-.segment-wrap { margin:20rpx 24rpx 0; padding:16rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
-.table-wrap { overflow:hidden; background:#fff; margin:20rpx 24rpx 0; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
-.featured-levels { display:flex; flex-direction:column; gap:16rpx; margin:20rpx 24rpx 0; }
+.segment-wrap { margin-top:20rpx; padding:8rpx 0; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.table-wrap { overflow:hidden; background:#fff; margin-top:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.featured-levels { display:flex; flex-direction:column; gap:16rpx; margin-top:20rpx; }
 .benefit-card { padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; }
 .benefit-card--current { border-color:var(--yb-brand); }.benefit-header { display:flex; align-items:center; gap:12rpx; }.benefit-title { font-size:32rpx; font-weight:700; }.level-label { padding:4rpx 12rpx; border-radius:8rpx; background:var(--yb-bg); font-size:24rpx; color:var(--yb-ink-2); white-space:nowrap; }.threshold { display:block; margin-top:8rpx; color:var(--yb-muted); font-size:24rpx; }
 .benefit-row { display:flex; justify-content:space-between; gap:24rpx; padding-top:16rpx; color:var(--yb-ink-2); font-size:26rpx; }.benefit-value { flex-shrink:0; color:var(--yb-ink); font-weight:600; font-variant-numeric:tabular-nums; }
-.comparison-toggle { display:flex; align-items:center; justify-content:space-between; gap:24rpx; min-height:96rpx; padding:0 24rpx; font-size:26rpx; color:var(--yb-ink-2); }.comparison-table { min-width:660rpx; }.comparison-scroll { width:100%; }.config-note { display:block; padding:16rpx 24rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
-.th, .tr { display: flex; padding: 16rpx 24rpx; }
+.comparison-toggle { display:flex; align-items:center; justify-content:space-between; gap:24rpx; min-height:96rpx; padding:0 24rpx; font-size:26rpx; color:var(--yb-ink-2); }.comparison-table { min-width:100%; }.comparison-scroll { width:100%; }.config-note { display:block; padding:16rpx 24rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
+.th, .tr { display:flex; padding:16rpx 0; }
 .tr:nth-child(even) { background: #fafbfc; }
 .th { background: #f5f5f2; }
-.th-cell, .td { flex: 1; text-align: center; font-size: 24rpx; }
-.th-cell { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8rpx; font-weight:600; color:var(--yb-ink-2); white-space:nowrap; }
+.th-cell, .td { flex:1; min-width:136rpx; padding:0 12rpx; box-sizing:border-box; text-align:center; font-size:24rpx; overflow-wrap:break-word; }
+.th-cell { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8rpx; font-weight:600; color:var(--yb-ink-2); }
 .td { color: #1d2129; }
-.label-col { flex:1.8; text-align:left; align-items:flex-start; color:var(--yb-ink-2); white-space:normal; }.current-badge { padding:2rpx 8rpx; border-radius:6rpx; background:var(--yb-brand-soft); color:var(--yb-brand); font-size:24rpx; line-height:1.4; }
-.rules { background:#fff; margin:20rpx 24rpx 0; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.label-col { flex:0 0 220rpx; min-width:220rpx; padding-left:24rpx; text-align:left; align-items:flex-start; color:var(--yb-ink-2); white-space:normal; }.current-badge { padding:2rpx 8rpx; border-radius:6rpx; background:var(--yb-brand-soft); color:var(--yb-brand); font-size:24rpx; line-height:1.4; }
+.rules { background:#fff; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .rules-title { display: block; font-size: 26rpx; font-weight: 600; margin-bottom: 16rpx; }
 .rules-text { display: block; font-size: 24rpx; color: #4e5969; line-height: 1.8; }
 .current-level { background: var(--yb-brand-soft); color: var(--yb-brand); font-weight: 600; }

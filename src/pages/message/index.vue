@@ -251,17 +251,17 @@ async function open(c: Category) {
 .summary {
   padding: 20rpx 24rpx;
   font-size: 24rpx;
-  color: #86909C;
+  color: var(--yb-muted);
   .hl {
     color: #F53F3F;
     font-weight: 700;
-    font-family: ui-monospace, monospace;
+    font-family: var(--yb-font-body);
   }
 }
 .cat-list {
   background: #FFFFFF;
-  border: 1rpx solid #EDECE6;
-  border-radius: 20rpx;
+  border: 1rpx solid var(--yb-border);
+  border-radius: var(--yb-radius-lg);
   overflow: hidden;
 }
 .cat-row {
@@ -269,7 +269,7 @@ async function open(c: Category) {
   align-items: center;
   gap: 20rpx;
   padding: 28rpx 24rpx;
-  border-bottom: 1rpx solid #EDECE6;
+  border-bottom: 1rpx solid var(--yb-border);
   transition: background 0.15s;
 }
 .cat-row:last-child { border-bottom: none; }
@@ -283,7 +283,7 @@ async function open(c: Category) {
   position: relative;
   width: 84rpx;
   height: 84rpx;
-  border-radius: 50%;
+  border-radius: 16rpx;
   background: var(--yb-bg);
   display: flex;
   align-items: center;
@@ -324,11 +324,11 @@ async function open(c: Category) {
 }
 .cat-preview {
   font-size: 24rpx;
-  color: #86909C;
+  color: var(--yb-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 380rpx;
+  max-width: 100%;
 }
 .cat-right {
   display: flex;
@@ -338,8 +338,8 @@ async function open(c: Category) {
   flex-shrink: 0;
 }
 .cat-time {
-  font-size: 20rpx;
-  color: #A8ADB8;
+  font-size: 24rpx;
+  color: var(--yb-muted);
 }
 .cat-arrow {
   font-size: 32rpx;

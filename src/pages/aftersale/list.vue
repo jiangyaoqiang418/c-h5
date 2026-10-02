@@ -187,9 +187,9 @@ watch([activeKey, () => userStore.currentAudience], changeFilter, { flush: 'sync
 .as-list-page { min-height: 100%; }
 .list { padding: 24rpx; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
-.refund-card { margin-bottom: 20rpx; padding: 24rpx; border-radius: var(--yb-radius-lg); background: var(--yb-surface); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
+.refund-card { margin-bottom: 16rpx; padding: 20rpx; border-radius: var(--yb-radius-lg); background: var(--yb-surface); border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .head, .body, .actions { display: flex; }
-.head { justify-content: space-between; align-items: center; padding-bottom: 16rpx; border-bottom: 1rpx dashed #f2f3f5; }
+.head { justify-content: space-between; align-items: center; padding-bottom: 12rpx; border-bottom: 1rpx dashed #f2f3f5; }
 .code { min-width: 0; overflow: hidden; color: #4e5969; font-family: var(--yb-font-body); font-size: 24rpx; text-overflow: ellipsis; white-space: nowrap; }
 .status { flex-shrink: 0; margin-left: 16rpx; background: var(--yb-warning-soft); color: #805b24; }
 .status-agreed { background: var(--yb-success-soft); color: #08765e; }

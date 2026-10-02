@@ -330,14 +330,15 @@ async function submit() {
         <wd-input v-model="form.shippingFee" label="运费 (USDT)" type="digit" />
         <wd-input v-model="form.taxFee" label="税费 (USDT)" type="digit" />
         <wd-input v-model="form.stock" label="库存" type="number" />
-        <wd-cell title="售后类型">
-          <wd-radio-group v-model="form.afterSaleType" inline>
-            <wd-radio value="SEVEN_DAY_NO_REASON">7天</wd-radio>
-            <wd-radio value="SHOP_WARRANTY">店保</wd-radio>
-            <wd-radio value="NATIONAL_WARRANTY">国保</wd-radio>
-            <wd-radio value="NONE">无售后</wd-radio>
+        <view class="choice-field">
+          <text class="field-label">售后类型</text>
+          <wd-radio-group v-model="form.afterSaleType" class="yb-choice-group" inline>
+            <wd-radio shape="dot" icon-placement="left" value="SEVEN_DAY_NO_REASON">7天</wd-radio>
+            <wd-radio shape="dot" icon-placement="left" value="SHOP_WARRANTY">店保</wd-radio>
+            <wd-radio shape="dot" icon-placement="left" value="NATIONAL_WARRANTY">国保</wd-radio>
+            <wd-radio shape="dot" icon-placement="left" value="NONE">无售后</wd-radio>
           </wd-radio-group>
-        </wd-cell>
+        </view>
         <wd-cell title="海外过关（不可退）">
           <wd-switch v-model="form.overseasClearance" />
         </wd-cell>
@@ -379,13 +380,16 @@ async function submit() {
 </template>
 
 <style lang="scss" scoped>
-.category-hint { padding:12rpx 24rpx; display:flex; align-items:center; justify-content:space-between; gap:12rpx; color:var(--yb-muted); font-size:24rpx; }
+.category-hint { padding:12rpx 0; display:flex; align-items:center; justify-content:space-between; gap:12rpx; color:var(--yb-muted); font-size:24rpx; }
 .field-label { display:block; padding:20rpx 0 12rpx; color:var(--yb-ink); font-size:26rpx; font-weight:600; }
 .required-note, .optional-note { margin-left:8rpx; font-size:24rpx; font-weight:400; color:var(--yb-muted); }
 .field-help { display:block; margin-bottom:16rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
 .text-field :deep(.wd-input__inner), .text-field :deep(.wd-textarea__inner) { text-align:left; }
 .text-field :deep(.wd-input), .text-field :deep(.wd-textarea) { padding-left:0; padding-right:0; }
-.category-help { display:flex; align-items:center; min-height:88rpx; padding:0 24rpx; color:var(--yb-muted); font-size:24rpx; }
+.category-help { display:flex; align-items:center; min-height:88rpx; color:var(--yb-muted); font-size:24rpx; }
+.form { --wot-input-padding:0; --wot-textarea-padding:0; --wot-cell-padding:0; }
+.choice-field :deep(.wd-radio) { flex:0 0 calc(50% - 6rpx); width:calc(50% - 6rpx); min-width:0; margin:0 !important; min-height:88rpx; }
+.choice-field { padding-bottom:20rpx; }
 .publish-page { min-height:100%; }
 .receipt-panel { display:flex; flex-direction:column; gap:16rpx; margin:24rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); font-size:26rpx; }
 .create-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(280rpx + env(safe-area-inset-bottom)); }.content { min-height:400rpx; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; box-shadow:var(--yb-shadow-card); }
@@ -406,6 +410,7 @@ async function submit() {
 .summary .row { display: flex; justify-content: space-between; gap: 24rpx; padding: 18rpx 0; border-bottom: 1rpx solid #f2f3f5; font-size: 24rpx; }
 .upload-caption { color:var(--yb-muted); font-size:24rpx; }
 .label { flex-shrink:0; color:var(--yb-muted); }
+.summary .row > text:last-child { min-width:0; overflow-wrap:break-word; text-align:right; }
 .submit-tip { display:block; margin-top:20rpx; color:var(--yb-ink-2); font-size:24rpx; line-height:1.6; }
 .nav-bar {
   position:fixed; right:0; bottom:0; left:0; display:flex; flex-direction:column; gap:12rpx;

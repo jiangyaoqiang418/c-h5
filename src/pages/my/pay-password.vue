@@ -134,7 +134,7 @@ async function submit() {
   </view></view>
 </template>
 <style scoped>
-.page{padding:24rpx}.card{background:#fff;border:1rpx solid var(--yb-border);border-radius:var(--yb-radius-lg);padding:28rpx}
+.page{padding:24rpx}.card{background:#fff;border:1rpx solid var(--yb-border);border-radius:var(--yb-radius-lg);padding:28rpx;--wot-input-padding:0}
 .intro,.form-hint{display:block;font-size:26rpx;color:var(--yb-muted);line-height:1.6;margin-bottom:24rpx}.form-hint{margin-top:20rpx}
 .state{display:flex;align-items:center;justify-content:center;gap:16rpx;padding:60rpx 0;color:var(--yb-muted);font-size:26rpx}
 .state-error{display:flex;flex-direction:column;gap:24rpx;color:var(--yb-muted);font-size:26rpx;line-height:1.6}

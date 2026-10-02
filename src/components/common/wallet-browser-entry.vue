@@ -24,5 +24,5 @@ function copy() {
   </view>
 </template>
 <style scoped>
-.wallet-entry { display: flex; flex-direction: column; gap: 16rpx; }.entry-row { display: flex; flex-wrap: wrap; gap: 12rpx; }.tip { font-size: 23rpx; color: #86909c; line-height: 1.6; }
+.wallet-entry { display: flex; flex-direction: column; gap: 16rpx; }.entry-row { display: flex; flex-wrap: wrap; gap: 12rpx; }.tip { font-size: 24rpx; color: var(--yb-muted); line-height: 1.6; }
 </style>

@@ -87,13 +87,13 @@ async function load() {
   <view class="success-page yb-page">
     <image v-if="paid && !loading && !loadFailed" class="success-icon" :src="UI_ASSETS.illustrations.homeGuarantee" mode="aspectFit" />
     <text class="title">{{ title }}</text>
-    <text v-if="order && !loadFailed && !loading" class="meta">{{ orders.length }} 笔订单 · U {{ formatAmount(total) }}</text>
+    <view v-if="order && !loadFailed && !loading" class="meta"><text>{{ orders.length }} 笔订单 · </text><text class="amount">{{ formatAmount(total) }}</text><text> USDT</text></view>
     <text v-if="!paid && !loading" class="meta">请查看订单核对状态，不要重复创建订单或重复付款。</text>
     <view class="actions">
-      <wd-button v-if="orderIds.length && !paramsInvalid" plain :loading="loading" @click="load">{{ userStore.currentUser ? '重新核对' : '登录或重试' }}</wd-button>
-      <wd-button v-if="orders.length > 1" plain @click="go('/pages/order/list')">查看全部订单</wd-button>
-      <wd-button v-if="orderId && !paramsInvalid" type="primary" @click="go(`/pages/order/detail?id=${encodeURIComponent(String(orderId))}`)">查看订单</wd-button>
-      <wd-button plain @click="go('/pages/index/index')">继续购物</wd-button>
+      <wd-button v-if="orderIds.length && !paramsInvalid" class="secondary-action" plain :loading="loading" @click="load">{{ userStore.currentUser ? '重新核对' : '登录或重试' }}</wd-button>
+      <wd-button v-if="orders.length > 1" class="secondary-action" plain @click="go('/pages/order/list')">查看全部订单</wd-button>
+      <wd-button v-if="orderId && !paramsInvalid" class="primary-action" type="primary" @click="go(`/pages/order/detail?id=${encodeURIComponent(String(orderId))}`)">查看订单</wd-button>
+      <wd-button class="secondary-action" plain @click="go('/pages/index/index')">继续购物</wd-button>
     </view>
   </view>
 </template>
@@ -105,12 +105,12 @@ async function load() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 112rpx 32rpx calc(96rpx + env(safe-area-inset-bottom));
+  padding: 64rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
 }
 .success-icon {
-  width: 168rpx;
-  height: 168rpx;
-  margin-bottom: 32rpx;
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 24rpx;
 }
 .title {
   font-size: 40rpx;
@@ -119,15 +119,20 @@ async function load() {
 }
 .meta {
   font-size: 24rpx;
-  color: #86909c;
-  margin: 16rpx 0 48rpx;
+  color: var(--yb-muted);
+  margin: 16rpx 0 24rpx;
   text-align:center;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
+.amount { font-size:32rpx; font-weight:700; color:var(--yb-ink); }
 .actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 16rpx;
   width: 100%;
   max-width: 520rpx;
 }
+.actions :deep(.secondary-action) { flex:1; min-width:240rpx; }
+.actions :deep(.primary-action) { width:100%; }
 </style>

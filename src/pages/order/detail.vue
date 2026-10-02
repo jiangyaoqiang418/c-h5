@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
-import { formatCny, formatUsdt, priceSet, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
+import { formatCny, formatUsdt, TAX_TOOLTIP_TEXT } from '@shared/utils/currency';
+import PriceTag from '@/components/common/price-tag.vue';
 import { createOrderLogisticsTrack, fetchOrderDetail, fetchOrderLogistics, markOrderLogisticsException, orderRole } from '@/service/api/order';
 import { confirmOrderGroupPayment, paymentReceiptMessage, readPaymentReceipts, reconcileOrderGroupPayment, type PaymentReceipt } from '@/utils/order-payment';
 import { changeOrderWithReceipt, orderChangeBlocks, orderChangeMessage, readOrderChangeReceipts, reconcileOrderChange, type OrderChangeReceipt } from '@/utils/order-change';
@@ -409,11 +410,10 @@ function submitException() { return submitLogistics('exception'); }
       <view v-if="logistics" class="logistics-summary">
         <view class="summary-head"><text class="summary-state">物流 · {{ logisticsStatusLabel }}</text><text class="summary-carrier">{{ logistics.carrierName || logistics.carrier || '' }}</text></view>
         <text v-if="latestTrack" class="latest-description">{{ latestTrack.description || latestTrack.statusText || latestTrack.status }}</text>
-        <text v-if="latestTrack" class="latest-meta">{{ [formatTime(latestTrack.occurredAt), latestTrack.location, latestTrack.sourceText || (latestTrack.source === 'MANUAL' ? '人工登记' : latestTrack.source === 'CARRIER_SYNC' ? '承运商同步' : latestTrack.source)].filter(Boolean).join(' · ') }}</text>
         <view v-if="logistics.trackingNo" class="tracking-summary"><text>运单号 {{ logistics.trackingNo }}</text><wd-button size="small" plain @click="copyTrackingNo">复制</wd-button></view>
         <text v-if="logistics.eta" class="latest-meta">预计送达 {{ formatTime(logistics.eta) }}</text>
         <text v-if="logistics.logisticsException" class="logistics-exception">物流异常：{{ logistics.logisticsException }}</text>
-        <wd-button plain block size="small" @click="showLogisticsDetails">查看完整物流资料与凭证</wd-button>
+        <view class="summary-tools"><wd-button plain size="small" @click="showLogisticsDetails">查看完整物流资料与凭证</wd-button></view>
       </view>
       <text v-else-if="logisticsLoadFailed" class="section-note">物流信息读取失败，订单进度仍可查看，请刷新重试。</text>
       <view v-if="isCustomer && order.rawStatus === 'SHIPPED' && order.autoConfirmAt" class="amt-row"><text class="amt-lbl">自动收货时间</text><text>{{ formatTime(order.autoConfirmAt) }}</text></view>
@@ -467,8 +467,7 @@ function submitException() { return submitLogistics('exception'); }
       <view class="amt-row total">
         <text class="amt-lbl">合计</text>
         <view class="amt-val">
-          <text class="amt-cny amt-big">{{ formatUsdt(order.totalAmount) }}</text>
-          <text class="amt-usdt">≈ {{ formatCny(order.totalAmount) }} · {{ priceSet(order.totalAmount).rateLabel }}</text>
+          <PriceTag :price="order.totalAmount" size="md" />
         </view>
       </view>
       <view v-if="order.originalAmount != null && Number(order.originalAmount) !== Number(order.totalAmount)" class="amt-row">
@@ -543,7 +542,8 @@ function submitException() { return submitLogistics('exception'); }
       <wd-button v-if="order.status === 'PENDING_PAYMENT'" :disabled="actionsDisabled" plain @click="cancel">取消订单</wd-button>
       <wd-button v-if="order.status === 'IN_TRANSIT'" :disabled="actionsDisabled" type="primary" @click="confirm">确认收货</wd-button>
       <wd-button v-if="order.rawStatus === 'SHIPPED' && order.receiveExtendable === true" :disabled="actionsDisabled" plain @click="extendReceipt">延长收货</wd-button>
-      <wd-button v-if="isCustomer && order.status === 'COMPLETED'" :disabled="actionsDisabled || order.reviewEligibility?.reviewable === false" plain @click="goReview">{{ order.reviewEligibility?.reviewable === false ? (order.reviewEligibility.reasonText || '不可评价') : order.reviewEligibility?.reviewable ? '写评价' : '核对评价资格' }}</wd-button>
+      <text v-if="inlineReviewNotice" class="review-notice">{{ order.reviewEligibility?.reasonText || '不可评价' }}</text>
+      <wd-button v-else-if="isCustomer && order.status === 'COMPLETED'" :disabled="actionsDisabled || order.reviewEligibility?.reviewable === false" plain @click="goReview">{{ order.reviewEligibility?.reviewable === false ? (order.reviewEligibility.reasonText || '不可评价') : order.reviewEligibility?.reviewable ? '写评价' : '核对评价资格' }}</wd-button>
       <wd-button v-if="['PROCURING', 'IN_TRANSIT'].includes(order.status)" :disabled="actionsDisabled" plain @click="goAftersale">申请仅退款</wd-button>
     </view>
   </view>
@@ -555,7 +555,7 @@ function submitException() { return submitLogistics('exception'); }
 
 <style lang="scss" scoped>
 .detail-page { min-height:100%; padding:20rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); }
-.detail-page.has-actions { padding-bottom: calc(240rpx + env(safe-area-inset-bottom)); }
+.detail-page.has-actions { padding-bottom: calc(144rpx + env(safe-area-inset-bottom)); }
 .hero {
   background: linear-gradient(135deg, #fff 0%, #fff4f4 100%);
   padding: 32rpx;
@@ -570,6 +570,7 @@ function submitException() { return submitLogistics('exception'); }
 .summary-state { font-size: 27rpx; font-weight: 600; color: var(--yb-ink); }
 .summary-carrier, .latest-meta, .section-note { color: var(--yb-muted); font-size: 24rpx; line-height: 1.6; }
 .latest-description { display: block; color: var(--yb-ink); font-size: 26rpx; line-height: 1.6; }
+.summary-tools { display:flex; justify-content:flex-end; margin-top:12rpx; }
 .latest-meta, .section-note { display: block; margin: 8rpx 0 16rpx; overflow-wrap: anywhere; }
 .tracking-summary { display: flex; align-items: center; gap: 16rpx; margin: 12rpx 0; font-size: 24rpx; color: var(--yb-muted); }
 .tracking-summary > text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -591,12 +592,12 @@ function submitException() { return submitLogistics('exception'); }
 .section {
   background: #fff;
   margin-top: 20rpx;
-  padding: 24rpx 32rpx;
+  padding: 24rpx;
   border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card);
 }
 .section-title {
   display: block;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 600;
   color: #1d2129;
   margin-bottom: 16rpx;
@@ -657,6 +658,7 @@ function submitException() { return submitLogistics('exception'); }
 .amt-lbl { flex: none; }
 .amt-row > text:last-child, .amt-val { min-width: 0; max-width: 68%; text-align: right; overflow-wrap: anywhere; }
 .amt-val > text { display: block; }
+.amt-val :deep(.main-line) { justify-content:flex-end; }
 .amt-usdt { margin-top: 4rpx; color: var(--yb-muted); font-size: 24rpx; }
 .amt-row.total {
   font-weight: 700;
@@ -693,20 +695,22 @@ function submitException() { return submitLogistics('exception'); }
   display: flex;
   gap: 12rpx;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
+.actions-bar :deep(.wd-button) { flex:1; min-width:0; height:auto; min-height:88rpx; padding:0 12rpx; white-space:normal; line-height:1.4; }
 .actions-bar--inline {
   position: static;
   margin-top: 20rpx;
-  padding: 24rpx;
-  border: 1rpx solid var(--yb-border);
-  border-radius: var(--yb-radius-lg);
+  padding: 12rpx 24rpx;
+  border: 0;
+  background: transparent;
 }
-.actions-bar--inline :deep(.wd-button) {
+.review-notice {
+  display: block;
   width: 100%;
-  height: auto;
-  min-height: 88rpx;
-  white-space: normal;
+  color: var(--yb-muted);
+  font-size: 24rpx;
+  text-align: center;
   line-height: 1.6;
 }
 </style>

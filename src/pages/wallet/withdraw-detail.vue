@@ -72,7 +72,7 @@ onHide(() => { loadVersion++; loading.value = false; });
   <view v-if="detail" class="detail-page yb-page">
     <view class="summary">
       <text class="status">{{ detail.statusText || detail.status }}</text>
-      <text class="amount">{{ formatAmount(detail.amount) }} USDT</text>
+      <text class="amount-label">申请金额</text><text class="amount">{{ formatAmount(detail.amount) }} <text class="unit">USDT</text></text>
       <text class="chain">转出网络 · {{ detail.chain }}</text>
     </view>
     <view class="section fund-check">
@@ -82,24 +82,31 @@ onHide(() => { loadVersion++; loading.value = false; });
     </view>
     <view class="section">
       <text v-if="loadFailed" class="block">刷新失败，暂时保留上次详情，请重试核对最新状态。</text>
-      <wd-button block plain :loading="loading" @click="load">刷新提现状态</wd-button>
+      <text class="section-title">提现申请</text>
       <view class="row"><text class="label">提现单 ID</text><text>{{ detail.id }}</text></view>
       <view v-if="detail.fee !== undefined" class="row"><text class="label">手续费</text><text>{{ formatAmount(detail.fee) }} USDT</text></view>
       <view v-if="detail.actualAmount !== undefined" class="row"><text class="label">扣费后金额</text><text>{{ formatAmount(detail.actualAmount) }} USDT</text></view>
       <view class="block"><text class="label">到账地址</text><text class="block-value">{{ detail.toAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.toAddress)">复制地址</wd-button></view>
+      <view v-if="detail.reviewComment" class="block"><text class="label">审核意见</text><text class="reason">{{ detail.reviewComment }}</text></view>
+      <view v-if="detail.failReason" class="block"><text class="label">失败原因</text><text class="reason">{{ detail.failReason }}</text></view>
+    </view>
+    <view v-if="detail.txHash || detail.payoutId || detail.payoutStatus || detail.networkFee !== undefined || detail.blockHeight !== undefined" class="section">
+      <text class="section-title">链上打款资料</text>
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
       <view v-if="detail.payoutId" class="row"><text class="label">链上打款单</text><text>{{ detail.payoutId }}</text></view>
       <view v-if="detail.payoutStatus" class="row"><text class="label">链上打款状态</text><text>{{ detail.payoutStatus }}</text></view>
       <view v-if="detail.networkFee !== undefined" class="row"><text class="label">网络手续费</text><text>{{ detail.networkFee }} {{ detail.networkFeeSymbol || 'USDT' }}</text></view>
       <view v-if="detail.blockHeight !== undefined" class="row"><text class="label">区块高度</text><text>{{ detail.blockHeight }}</text></view>
-      <view v-if="detail.reviewComment" class="block"><text class="label">审核意见</text><text class="reason">{{ detail.reviewComment }}</text></view>
-      <view v-if="detail.failReason" class="block"><text class="label">失败原因</text><text class="reason">{{ detail.failReason }}</text></view>
+    </view>
+    <view class="section">
+      <text class="section-title">时间记录</text>
       <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
       <view v-if="detail.paidAt" class="row"><text class="label">支付时间</text><text>{{ formatTime(detail.paidAt) }}</text></view>
       <view v-if="detail.submittedAt" class="row"><text class="label">已提交链上</text><text>{{ formatTime(detail.submittedAt) }}</text></view>
       <view v-if="detail.dispatchedAt" class="row"><text class="label">已派发打款</text><text>{{ formatTime(detail.dispatchedAt) }}</text></view>
       <view class="row"><text class="label">完成时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
     </view>
+    <wd-button block plain :loading="loading" @click="load">刷新提现状态</wd-button>
   </view>
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载提现详情</text></view>
   <EmptyState v-else-if="loadFailed" title="提现详情加载失败" description="请稍后重试" action-text="重试" @action="load" />
@@ -108,17 +115,17 @@ onHide(() => { loadVersion++; loading.value = false; });
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding: 20rpx 24rpx 32rpx; box-sizing: border-box; }
+.detail-page { min-height: 100%; padding: 20rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .summary, .section { margin-bottom: 20rpx; padding: 24rpx; border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); background: #fff; box-shadow:var(--yb-shadow-card); }
 .summary { text-align: center; }
 .section-title { display:block; font-size:28rpx; font-weight:600; color:var(--yb-ink); }
 .fund-note { display:block; margin:12rpx 0 20rpx; font-size:26rpx; line-height:1.6; color:var(--yb-muted); }
-.status, .chain { display: block; color: var(--yb-muted); font-size: 24rpx; }
-.amount { display: block; margin: 14rpx 0; color: #f53f3f; font-size: 52rpx; font-weight: 700; font-family: var(--yb-font-body); overflow-wrap:anywhere; }
+.status { display:block; color:var(--yb-ink); font-size:28rpx; font-weight:600; }.chain,.amount-label { display:block; color:var(--yb-muted); font-size:24rpx; }.amount-label { margin-top:20rpx; }.unit { font-size:24rpx; font-weight:400; color:var(--yb-muted); }
+.amount { display: block; margin: 8rpx 0 14rpx; color: var(--yb-ink); font-size: 52rpx; font-weight: 700; font-family: var(--yb-font-body); overflow-wrap:anywhere; }
 .row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 24rpx; }
 .row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
-.label { color: var(--yb-muted); font-size: 24rpx; }
+.label { color: var(--yb-muted); font-size: 24rpx; flex-shrink:0; }
 .block { padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
 .block-value, .reason { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 12rpx; background: #f5f5f2; font-size: 24rpx; line-height: 1.6; word-break: break-all; }
 .block-value { font-family: ui-monospace, monospace; }

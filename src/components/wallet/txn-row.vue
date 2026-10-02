@@ -24,7 +24,7 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
       <text class="time">{{ new Date(txn.createdAt).toLocaleString() }}</text>
     </view>
     <view class="right">
-      <text class="amount" :style="{ color: amountColor }">{{ sign }}{{ formatAmount(txn.amount) }} USDT</text>
+      <text class="amount" :style="{ color: amountColor }">{{ sign }}{{ formatAmount(txn.amount) }} <text class="unit">USDT</text></text>
       <text class="balance">变动后余额 {{ formatAmount(txn.balanceAfter) }} USDT</text>
     </view>
   </view>
@@ -69,16 +69,18 @@ const desc = computed(() => props.txn.remark || (props.txn.refId != null ? `关�
 }
 .right {
   text-align: right;
-  flex: 0.9;
+  flex: 0 1 46%;
+  max-width: 46%;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 .amount {
   display: block;
-  font-size: 28rpx;
+  font-size: 30rpx;
   font-weight: 700;
   font-family: var(--yb-font-body);
 }
+.unit { font-size: 24rpx; font-weight: 400; color: var(--yb-muted); }
 .balance {
   display: block;
   font-size: 24rpx;

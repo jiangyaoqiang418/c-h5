@@ -55,12 +55,12 @@ function onChange(v: 'customer' | 'buyer') {
   flex: 1;
   text-align: center;
   padding: 8rpx 24rpx;
-  min-height: 72rpx;
+  min-height: 44px;
   box-sizing: border-box;
   border-radius: 12rpx;
   font-size: 24rpx;
-  color: #4e5969;
-  transition: all 0.2s;
+  color: var(--yb-muted);
+  transition: background-color var(--yb-motion-fast), color var(--yb-motion-fast);
 }
 .seg.active {
   background: #fff;

@@ -159,7 +159,7 @@ async function submit() {
   <view v-else-if="order && eligible && !submitted">
     <view class="step">
       <text class="step-title">仅退款</text>
-      <text>退款金额以订单应付金额为准：{{ formatUsdt(order.totalAmount) }}</text>
+      <view class="refund-summary"><text class="refund-label">退款金额</text><text class="refund-amount">{{ formatUsdt(order.totalAmount) }}</text><text class="refund-hint">以订单应付金额为准</text></view>
     </view>
 
     <view class="step">
@@ -195,7 +195,11 @@ async function submit() {
   margin-bottom: 20rpx;
   border:1rpx solid var(--yb-border);
   box-shadow:var(--yb-shadow-card);
+  --wot-textarea-padding:0;
 }
+.refund-summary { display:flex; flex-direction:column; gap:8rpx; }
+.refund-label, .refund-hint { color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
+.refund-amount { color:var(--yb-ink); font-size:36rpx; font-weight:700; overflow-wrap:break-word; }
 .step-title {
   display: block;
   font-size: 26rpx;

@@ -257,7 +257,7 @@ onReachBottom(() => {
             <text class="title">{{ product.title }}</text>
             <text class="category">{{ categoryNames[String(product.categoryId)] || `分类 ${product.categoryId}` }}</text>
             <view class="meta">
-              <text class="price">U {{ formatAmount(product.price) }}</text>
+              <view class="price"><text class="price-number">{{ formatAmount(product.price) }}</text><text class="price-unit">USDT</text></view>
               <text class="stock">库存 {{ product.stock }}</text>
             </view>
             <view class="card-foot">
@@ -313,7 +313,7 @@ onReachBottom(() => {
 .title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 26rpx; font-weight: 600; line-height: 1.4; color: #1d2129; }
 .category { display: block; margin-top: 4rpx; font-size: 24rpx; color: var(--yb-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meta { display: flex; flex-wrap: wrap; gap: 8rpx 16rpx; justify-content: space-between; align-items: center; margin-top: 10rpx; }
-.price { font-size: 30rpx; color: var(--yb-brand); font-weight: 700; font-family: ui-monospace, monospace; }
+.price { display:flex; flex-wrap:wrap; align-items:baseline; gap:8rpx; min-width:0; max-width:100%; color:var(--yb-brand); font-family:var(--yb-font-body); }.price-number { min-width:0; overflow-wrap:anywhere; font-size:30rpx; font-weight:700; }.price-unit { font-size:24rpx; font-weight:500; }
 .stock { font-size: 24rpx; color: #4e5969; }
 .card-foot { display: flex; flex-wrap: wrap; gap: 12rpx; align-items: center; justify-content: space-between; margin-top: 10rpx; }
 .review-comment { display: block; margin-top: 10rpx; font-size: 24rpx; line-height: 1.5; color: var(--yb-muted); }

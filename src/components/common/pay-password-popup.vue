@@ -41,4 +41,4 @@ onUnload(() => { close(); unsubscribe(); });
 defineExpose({ request, close });
 </script>
 <template><wd-popup v-model="visible" position="bottom" :safe-area-inset-bottom="true" @close="close"><view class="popup"><text class="title">{{ title }}</text><wd-input v-model="value" type="number" password :maxlength="6" placeholder="6位数字支付密码" /><view class="actions"><wd-button plain block @click="close">取消</wd-button><wd-button type="primary" block @click="confirm">确认</wd-button></view></view></wd-popup></template>
-<style scoped>.popup{padding:32rpx}.title{display:block;font-size:30rpx;font-weight:600;margin-bottom:20rpx}.actions{display:flex;gap:16rpx;margin-top:24rpx}.actions>*{flex:1}</style>
+<style scoped>.popup{padding:32rpx;--wot-input-padding:0}.title{display:block;font-size:30rpx;font-weight:600;margin-bottom:20rpx}.actions{display:flex;gap:16rpx;margin-top:24rpx}.actions>*{flex:1}</style>

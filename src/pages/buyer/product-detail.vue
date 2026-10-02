@@ -128,7 +128,7 @@ onShow(() => { if (!operating.value) return load(); });
 </script>
 
 <template>
-  <view class="detail-page yb-page">
+  <view class="detail-page yb-page" :class="{ 'has-actions': !deleted && !loading && product && (actions.shelf || actions.remove) }">
     <EmptyState v-if="deleted" title="商品已删除" description="本次删除已成功，无需再次提交" action-text="返回商品列表" @action="go('/pages/buyer/products', true)" />
     <view v-else-if="loading" class="loading"><wd-loading size="44rpx" color="var(--yb-brand)" /><text>正在加载商品</text></view>
     <template v-else-if="product">
@@ -146,7 +146,7 @@ onShow(() => { if (!operating.value) return load(); });
         </view>
         <text class="title">{{ product.title }}</text>
         <text v-if="product.brief" class="brief">{{ product.brief }}</text>
-        <text class="price">U {{ formatAmount(product.price) }}</text>
+        <view class="price"><text class="price-number">{{ formatAmount(product.price) }}</text><text class="price-unit">USDT</text></view>
       </view>
 
       <view v-if="product.reviewComment" class="section review-section" :class="{ 'review-section--rejected': product.status === 'REJECTED' }">
@@ -158,8 +158,8 @@ onShow(() => { if (!operating.value) return load(); });
         <text class="section-title">商品信息</text>
         <view class="row"><text class="label">商品 ID</text><text>{{ product.id }}</text></view>
         <view class="row"><text class="label">分类 ID</text><text>{{ product.categoryId }}</text></view>
-        <view class="row"><text class="label">运费</text><text>U {{ formatAmount(product.shippingFee || 0) }}</text></view>
-        <view class="row"><text class="label">税费</text><text>U {{ formatAmount(product.taxFee || 0) }}</text></view>
+        <view class="row"><text class="label">运费</text><text>{{ formatAmount(product.shippingFee || 0) }} USDT</text></view>
+        <view class="row"><text class="label">税费</text><text>{{ formatAmount(product.taxFee || 0) }} USDT</text></view>
         <view class="row"><text class="label">售后</text><text>{{ afterSaleLabel }}</text></view>
         <view class="row"><text class="label">海外过关</text><text>{{ product.overseasClearance ? '是' : '否' }}</text></view>
         <view class="row"><text class="label">创建时间</text><text>{{ formatTime(product.createdAt) }}</text></view>
@@ -182,26 +182,28 @@ onShow(() => { if (!operating.value) return load(); });
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(160rpx + env(safe-area-inset-bottom)); }
-.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:#86909c; font-size:24rpx; }
+.detail-page { min-height:100%; box-sizing:border-box; padding:24rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); }.detail-page.has-actions { padding-bottom:calc(144rpx + env(safe-area-inset-bottom)); }
+.loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:24rpx; }
 .gallery { width:100%; height:600rpx; overflow:hidden; border-radius:var(--yb-radius-lg); background:#f2f3f5; }
 .gallery-image { width: 100%; height: 100%; }
 .section { margin-top:20rpx; padding:24rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
 .main-section { margin-top:20rpx; }
 .status-row { display: flex; align-items: center; justify-content: space-between; }
-.stock { font-size: 22rpx; color: #86909c; }
+.stock { font-size: 24rpx; color: var(--yb-muted); }
 .title { display: block; margin-top: 16rpx; font-size: 32rpx; font-weight: 700; line-height: 1.4; color: #1d2129; }
-.brief { display: block; margin-top: 8rpx; font-size: 24rpx; color: #86909c; }
-.price { display: block; margin-top: 20rpx; font-size: 42rpx; font-weight: 700; color: #f53f3f; font-family: var(--yb-font-body); }
+.brief { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--yb-muted); }
+.price { display:flex; flex-wrap:wrap; align-items:baseline; gap:8rpx; margin-top:16rpx; color:var(--yb-brand); font-family:var(--yb-font-body); }.price-number { min-width:0; overflow-wrap:anywhere; font-size:42rpx; font-weight:700; }.price-unit { font-size:24rpx; font-weight:500; }
 .section-title { display: block; margin-bottom: 12rpx; font-size: 28rpx; font-weight: 600; color: #1d2129; }
 .row { display: flex; justify-content: space-between; gap: 24rpx; padding: 18rpx 0; border-bottom: 1rpx solid #f7f8fa; font-size: 24rpx; }
 .row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
-.label { flex-shrink: 0; color: #86909c; }
+.label { flex-shrink: 0; color: var(--yb-muted); }
 .review-section { background: #f8f9fb; }
 .review-section--rejected { background: #fff2f2; }
 .review-text, .description { display: block; font-size: 24rpx; line-height: 1.7; color: #4e5969; white-space: pre-wrap; }
 .bottom-bar {
   position: fixed; right: 0; bottom: 0; left: 0; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid #f2f3f5; background: #fff;
+  display:flex; gap:12rpx;
 }
+.bottom-bar :deep(.wd-button) { flex:1; min-width:0; height:auto; min-height:88rpx; white-space:normal; line-height:1.4; padding:0 12rpx; }
 </style>

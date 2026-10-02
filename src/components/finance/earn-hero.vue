@@ -26,10 +26,10 @@ function handleWithdraw() {
 
 <template>
   <view class="earn-hero">
-    <text class="hero-eyebrow">在存本金 · USDT</text>
+    <text class="hero-eyebrow">在存本金</text>
     <view class="hero-total">
-      <text class="unit">U</text>
       <text class="num">{{ formatAmount(balance) }}</text>
+      <text class="unit">USDT</text>
     </view>
     <text class="hero-sub">参考 ≈ ¥{{ cnyEquiv }}</text>
     <view v-if="bestApy > 0" class="apy-badge">
@@ -53,12 +53,13 @@ function handleWithdraw() {
   background-size: cover;
   background-position: center;
   color: var(--yb-ink);
-  border-bottom: 1rpx solid rgba(255,255,255,.12);
-  padding: 32rpx 32rpx;
+  border: 1rpx solid var(--yb-border);
+  border-radius: var(--yb-radius-lg);
+  padding: 28rpx;
 }
 .hero-eyebrow {
   display: block;
-  font-size: 20rpx;
+  font-size: 24rpx;
   font-weight: 700;
   letter-spacing: 0;
   color: var(--yb-muted);
@@ -71,20 +72,24 @@ function handleWithdraw() {
   justify-content: center;
   gap: 12rpx;
   margin-bottom: 12rpx;
+  min-width: 0;
 }
 .hero-total .unit {
   font-family: var(--yb-font-body);
-  font-size: 44rpx;
+  font-size: 24rpx;
+  flex-shrink: 0;
   font-weight: 600;
   color: var(--yb-muted);
 }
 .hero-total .num {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-family: var(--yb-font-body);
   font-size: 64rpx;
   font-weight: 700;
   color: var(--yb-ink);
   letter-spacing: -1rpx;
-  line-height: 1;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 .hero-sub {
@@ -100,7 +105,7 @@ function handleWithdraw() {
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  margin: 0 auto 40rpx;
+  margin: 0 auto 24rpx;
   width: fit-content;
   padding: 12rpx 24rpx;
   background: var(--yb-bg);
@@ -120,17 +125,17 @@ function handleWithdraw() {
 }
 .action-btn {
   flex: 1;
-  height: 96rpx;
-  border-radius: 20rpx;
+  min-height: 88rpx;
+  border-radius: var(--yb-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30rpx;
+  font-size: 28rpx;
   font-weight: 700;
   background: var(--yb-bg);
   color: var(--yb-ink);
   border: 1rpx solid var(--yb-hairline-2);
-  letter-spacing: 2rpx;
+  letter-spacing: 0;
 }
 .action-btn.primary {
   background: var(--yb-brand);

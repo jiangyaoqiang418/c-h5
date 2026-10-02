@@ -44,6 +44,14 @@ const canSubmit = computed(() => (
   && form.reason.trim().length >= 10
   && form.reason.trim().length <= 500
 ));
+const submitHint = computed(() => {
+  if (submitting.value) return '正在提交申请，请稍候。';
+  if (canSubmit.value) return '';
+  if (!form.realName.trim()) return '请填写真实姓名。';
+  if (!form.contact.trim()) return '请填写联系方式。';
+  if (form.reason.trim().length < 10 || form.reason.trim().length > 500) return '申请说明需为 10–500 字。';
+  return '';
+});
 
 const statusMeta = computed(() => {
   if (application.value?.status === 'PENDING') {
@@ -182,13 +190,14 @@ onShow(() => { if (!submitting.value) load(); });
         <text class="form-tip">请填写真实信息，申请说明不少于 10 字。</text>
         <wd-input v-model="form.realName" label="真实姓名" placeholder="请输入真实姓名" />
         <wd-input v-model="form.contact" label="联系方式" placeholder="手机号、邮箱或其他联系方式" />
+        <text class="field-label">申请说明 <text class="field-note">必填 · 10–500 字</text></text>
         <wd-textarea
           v-model="form.reason"
-          label="申请说明"
           placeholder="请说明您的采购经验、擅长品类或服务优势"
           :maxlength="500"
           show-word-limit
         />
+        <text v-if="submitHint" class="submit-hint" aria-live="polite">{{ submitHint }}</text>
         <wd-button type="primary" block :disabled="!canSubmit || submitting" :loading="submitting" class="submit-btn" @click="submit">
           {{ application?.status === 'REJECTED' ? '重新提交' : '提交申请' }}
         </wd-button>
@@ -227,6 +236,10 @@ onShow(() => { if (!submitting.value) load(); });
   border:1rpx solid var(--yb-border);
   box-shadow:var(--yb-shadow-card);
 }
+.form-card { --wot-input-padding:0; --wot-textarea-padding:0; }
+.field-label { display:block; margin-top:20rpx; color:var(--yb-ink); font-size:26rpx; font-weight:600; }
+.field-note { margin-left:8rpx; color:var(--yb-muted); font-size:24rpx; font-weight:400; }
+.submit-hint { display:block; margin-top:16rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
 .status-head {
   display: flex;
   align-items: center;
@@ -255,7 +268,7 @@ onShow(() => { if (!submitting.value) load(); });
 .status-detail, .form-tip, .error-detail {
   display: block;
   margin: 12rpx 0 20rpx;
-  color: #86909c;
+  color: var(--yb-muted);
   font-size: 24rpx;
   line-height: 1.6;
 }
@@ -273,7 +286,7 @@ onShow(() => { if (!submitting.value) load(); });
 }
 .record-label {
   flex-shrink: 0;
-  color: #86909c;
+  color: var(--yb-muted);
 }
 .review-row {
   padding: 20rpx 0;

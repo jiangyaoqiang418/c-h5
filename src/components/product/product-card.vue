@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { productImageUrl } from '@shared/utils/image';
-import { formatCny, formatUsdt } from '@shared/utils/currency';
+import PriceTag from '@/components/common/price-tag.vue';
 import { go } from '@/utils/navigate';
 import { UI_ASSETS } from '@/constants/ui-assets';
 
@@ -63,10 +63,7 @@ function goDetail() {
     <view class="info">
       <text class="brand">{{ categoryLabel }}</text>
       <text class="title">{{ product.title }}</text>
-      <view class="price-row">
-        <text class="cny">{{ formatUsdt(product.price) }}</text>
-        <text class="usdt">≈ {{ formatCny(product.price) }}</text>
-      </view>
+      <PriceTag class="price-row" :price="product.price" size="sm" :show-rate="false" />
       <view class="bottom">
         <text class="seller">{{ sellerLabel }}</text>
         <text class="sales">销 {{ product.salesCount || 0 }}</text>
@@ -157,22 +154,6 @@ function goDetail() {
   gap: 2rpx;
   margin-top: 8rpx;
 }
-.cny {
-  font-family: var(--yb-font-body);
-  font-size: 34rpx;
-  font-weight: 700;
-  color: var(--yb-brand);
-  letter-spacing: -1rpx;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-.usdt {
-  font-family: var(--yb-font-body);
-  font-size: 24rpx;
-  color: var(--yb-muted);
-  font-weight: 500;
-}
 .bottom {
   display: flex;
   justify-content: space-between;
@@ -194,7 +175,6 @@ function goDetail() {
 .p-card--list .info { flex: 1; min-width: 0; padding: 0; gap: 4rpx; }
 .p-card--list .brand { display: none; }
 .p-card--list .title { min-height: 0; font-size: 26rpx; }
-.p-card--list .cny { font-size: 30rpx; }
 .p-card--list .bottom { font-size: 24rpx; gap: 8rpx; }
 .p-card--list .badge { top: 0; left: 0; padding: 4rpx 6rpx; font-size: 24rpx; border-radius: 0 0 8rpx 0; }
 </style>

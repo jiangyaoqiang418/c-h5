@@ -328,10 +328,10 @@ function formatTime(value: string | number): string {
 </template>
 
 <style lang="scss" scoped>
-.dep-page { min-height:100%; }.hero { background-color:var(--yb-surface); background-size:cover; background-position:center; color:var(--yb-ink); padding:32rpx 28rpx 32rpx; }
+.dep-page { min-height:100%; padding-top:24rpx; }.hero { background-color:var(--yb-surface); background-size:cover; background-position:center; color:var(--yb-ink); padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); }
 .hero-label { display: block; font-size: 24rpx; color: var(--yb-muted); }
 .hero-amount { display: block; font-size: 64rpx; font-weight: 700; font-family: var(--yb-font-body); margin: 12rpx 0 24rpx; overflow-wrap:anywhere; }
-.meter-info { display: flex; justify-content: space-between; gap: 16rpx; font-size: 24rpx; margin-top: 8rpx; color: var(--yb-muted); }
+.meter-info { display: flex; flex-wrap:wrap; justify-content: space-between; gap: 8rpx 16rpx; font-size: 24rpx; margin-top: 8rpx; color: var(--yb-muted); }
 .balance-note { display: block; margin-top: 16rpx; font-size: 24rpx; color: var(--yb-muted); }
 .hero-cells { display: flex; gap: 16rpx; margin-top: 24rpx; }
 .cell { flex:1; min-width:0; background:var(--yb-bg); border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-md); padding:16rpx; }
@@ -339,9 +339,9 @@ function formatTime(value: string | number): string {
 .cell-val { display: block; font-size: 32rpx; font-weight: 700; font-family: var(--yb-font-body); margin-top: 4rpx; overflow-wrap:anywhere; }
 .hero-actions { display: flex; gap: 12rpx; margin-top: 24rpx; }
 .hero-actions > * { flex: 1; }
-.section { background:#fff; margin:24rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
-.section-title { display: block; font-size: 28rpx; font-weight: 600; margin-bottom: 16rpx; }
-.txn-row { display: flex; justify-content: space-between; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
+.section { background:#fff; margin-top:20rpx; padding:24rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
+.section-title { display: block; font-size: 28rpx; font-weight: 600; margin:20rpx 0 16rpx; }
+.txn-row { display: flex; justify-content: space-between; align-items: center; gap:16rpx; padding: 16rpx 0; border-bottom: 1rpx solid #f2f3f5; }
 .txn-main { display: flex; flex-direction: column; min-width:0; flex:1; }
 .txn-title { font-size: 24rpx; }
 .txn-remark { font-size: 24rpx; color: var(--yb-muted); margin-top: 4rpx; }

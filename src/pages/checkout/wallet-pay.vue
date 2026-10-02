@@ -26,6 +26,9 @@ const errorText = ref('');
 const recoveryBlocked = ref(false);
 const minConfirmations = ref<number>();
 const wallets = computed(() => availableWallets(pay.value?.chain || ''));
+function copyValue(value?: string) {
+  if (value) uni.setClipboardData({ data: value });
+}
 const chainRetryable = computed(() => pay.value?.status === 'SUBMITTED' && pay.value.chainTx?.status === 'FAILED');
 const retryReady = computed(() => chainRetryable.value && !!pay.value?.txHash && validHash(pay.value.chain, pay.value.txHash)
   && (!progress.value?.started || !!progress.value.txHash && progress.value.txHash === pay.value.txHash));
@@ -259,15 +262,17 @@ async function restartClosed() {
       <view class="notice warning" v-else-if="pay.status === 'FAILED'">订单支付未成立，已到账资金按后端规则进入平台余额。请核对原因后使用余额支付。</view>
       <view v-if="insufficientTransfer" class="notice warning">已识别转入金额低于应付金额，到账后可能存入平台余额；最终付款结果以支付单状态为准。</view>
       <view class="card">
-        <text class="title">{{ pay.payAmount }} USDT</text>
-        <text class="subtitle">{{ pay.statusText || pay.status }} · {{ pay.chainLabel || pay.chain }} {{ pay.network }}</text>
+        <text class="payment-state">{{ pay.statusText || pay.status }}</text>
+        <view class="title"><text class="amount-number">{{ pay.payAmount }}</text><text class="amount-unit">USDT</text></view>
+        <text class="subtitle">{{ pay.chainLabel || pay.chain }} · {{ pay.network }}</text>
+        <view class="address-detail"><view class="detail-heading"><text>收款地址</text><wd-button plain size="small" @click="copyValue(pay.toAddress)">复制</wd-button></view><text selectable class="address-value">{{ pay.toAddress }}</text></view>
+        <view class="address-detail"><view class="detail-heading"><text>USDT 合约</text><wd-button plain size="small" @click="copyValue(pay.tokenContract)">复制</wd-button></view><text selectable class="address-value">{{ pay.tokenContract }}</text></view>
+        <view class="detail"><text>有效期至</text><text>{{ expiryText(pay.expireAt) }}</text></view>
+        <text class="record-title">支付与链上记录</text>
         <view class="detail"><text>支付单号</text><text selectable>{{ pay.payNo }}</text></view>
         <view class="detail"><text>订单组号</text><text selectable>{{ pay.orderGroupNo }}</text></view>
-        <view class="detail"><text>收款地址</text><text selectable class="value">{{ pay.toAddress }}</text></view>
-        <view class="detail"><text>USDT 合约</text><text selectable class="value">{{ pay.tokenContract }}</text></view>
-        <view class="detail"><text>有效期至</text><text>{{ expiryText(pay.expireAt) }}</text></view>
         <view class="detail"><text>钱包账户</text><text selectable class="value">{{ account || progress?.fromAddress || pay.fromAddress || '尚未连接' }}</text></view>
-        <view v-if="pay.txHash || progress?.txHash" class="detail"><text>交易哈希</text><text selectable class="value">{{ pay.txHash || progress?.txHash }}</text></view>
+        <view v-if="pay.txHash || progress?.txHash" class="address-detail"><view class="detail-heading"><text>交易哈希</text><wd-button plain size="small" @click="copyValue(pay.txHash || progress?.txHash)">复制</wd-button></view><text selectable class="address-value">{{ pay.txHash || progress?.txHash }}</text></view>
         <view v-if="pay.chainTx" class="detail"><text>链上进度</text><text class="value">{{ chainProgressText }}</text></view>
         <view v-if="pay.chainTx?.blockHeight != null" class="detail"><text>区块高度</text><text>{{ pay.chainTx.blockHeight }}</text></view>
         <view v-if="pay.chainTx?.transferAmount != null" class="detail"><text>已识别转入</text><text>{{ pay.chainTx.transferAmount }} USDT</text></view>
@@ -277,8 +282,8 @@ async function restartClosed() {
       <text v-if="!walletPayEntryEnabled" class="chain-tip">当前仅可查看原支付进度，钱包转账入口暂未开放。</text>
       <view v-if="walletPayEntryEnabled && (pay.status === 'PENDING' && !progress?.started || retryReady) && !recoveryBlocked" class="card action-card">
         <text class="section-title">选择当前浏览器钱包</text>
-        <wd-radio-group v-if="wallets.length" v-model="selectedWallet">
-          <wd-radio v-for="wallet in wallets" :key="wallet.key" :value="wallet.key">{{ wallet.label }}</wd-radio>
+        <wd-radio-group v-if="wallets.length" v-model="selectedWallet" class="yb-choice-group">
+          <wd-radio shape="dot" icon-placement="left" v-for="wallet in wallets" :key="wallet.key" :value="wallet.key">{{ wallet.label }}</wd-radio>
         </wd-radio-group>
         <WalletBrowserEntry v-else :chain="pay.chain" :path="`/pages/checkout/wallet-pay?orderGroupNo=${encodeURIComponent(pay.orderGroupNo)}`" />
         <wd-button type="primary" block :disabled="!selectedWallet" :loading="busy" @click="transfer">{{ retryReady ? '重新连接钱包并转账' : '连接钱包并转账' }}</wd-button>
@@ -312,15 +317,23 @@ async function restartClosed() {
 .wallet-pay-page { min-height: 100%; padding: 24rpx 24rpx calc(72rpx + env(safe-area-inset-bottom)); background: var(--yb-bg); }
 .center { display:flex; align-items:center; justify-content:center; gap:16rpx; padding:80rpx 0; color:var(--yb-muted); }
 .notice { padding:20rpx; margin-bottom:20rpx; border-radius:var(--yb-radius-lg); background:#eef6ff; color:#386bb3; font-size:24rpx; line-height:1.5; }
-.notice.warning { background:#fff7e8; color:#9e6418; }
-.card { padding:28rpx; margin-bottom:20rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); }
-.title { display:block; color:var(--yb-brand); font-size:42rpx; font-weight:700; text-align:center; }
-.subtitle { display:block; margin:8rpx 0 24rpx; text-align:center; color:#4e5969; font-size:24rpx; }
+.notice.warning { background:#fff7e8; color:#805b24; }
+.card { padding:24rpx; margin-bottom:20rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); }
+.payment-state { display:block; color:var(--yb-ink); font-size:28rpx; font-weight:600; }
+.title { display:flex; align-items:baseline; flex-wrap:wrap; gap:8rpx; margin-top:12rpx; color:var(--yb-brand); font-size:44rpx; font-weight:700; }
+.amount-number { min-width:0; overflow-wrap:anywhere; }
+.amount-unit { font-size:24rpx; font-weight:500; }
+.subtitle { display:block; margin:12rpx 0 20rpx; color:var(--yb-muted); font-size:26rpx; overflow-wrap:anywhere; }
+.address-detail { padding:16rpx 0; border-top:1rpx solid var(--yb-border); }
+.detail-heading { display:flex; justify-content:space-between; align-items:center; gap:16rpx; color:var(--yb-muted); font-size:24rpx; }
+.address-value { display:block; margin-top:8rpx; color:var(--yb-ink); font-size:26rpx; line-height:1.6; overflow-wrap:anywhere; }
+.record-title { display:block; margin:20rpx 0 12rpx; font-size:28rpx; font-weight:600; color:var(--yb-ink); }
 .detail { display:flex; justify-content:space-between; gap:24rpx; padding:14rpx 0; border-top:1rpx solid #f2f3f5; font-size:24rpx; }
-.detail > text:first-child { flex-shrink:0; color:#86909c; }
-.value { max-width:66%; overflow-wrap:anywhere; text-align:right; }
+.detail > text:first-child { flex-shrink:0; color:var(--yb-muted); }
+.detail > text:last-child { min-width:0; max-width:66%; overflow-wrap:anywhere; text-align:right; }
 .action-card { display:flex; flex-direction:column; gap:18rpx; }
-.section-title { font-size:26rpx; font-weight:600; }
-.chain-tip { display:block; color:#86909c; font-size:22rpx; line-height:1.5; }
-.footer-actions { display:flex; flex-direction:column; gap:16rpx; margin-top:28rpx; }
+.section-title { font-size:28rpx; font-weight:600; }
+.chain-tip { display:block; color:var(--yb-muted); font-size:24rpx; line-height:1.6; }
+.footer-actions { display:flex; flex-wrap:wrap; gap:12rpx; margin-top:20rpx; }
+.footer-actions :deep(.wd-button) { flex:1; min-width:240rpx; }
 </style>

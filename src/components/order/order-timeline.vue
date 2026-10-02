@@ -105,7 +105,7 @@ const hiddenException = computed(() => !expanded.value && rows.value.slice(4).so
       </view>
     </view>
     <text v-if="hiddenException" class="history-warning">历史进度含物流异常节点，可展开查看完整记录。</text>
-    <wd-button v-if="rows.length > 4 || rows.some(event => event.trackId != null)" plain block @click="expanded = !expanded">{{ expanded ? '收起进度详情' : rows.length > 4 ? `查看全部 ${rows.length} 条进度` : '查看进度详情' }}</wd-button>
+    <view class="timeline-tools"><wd-button v-if="rows.length > 4 || rows.some(event => event.trackId != null)" plain size="small" @click="expanded = !expanded">{{ expanded ? '收起进度详情' : rows.length > 4 ? `查看全部 ${rows.length} 条进度` : '查看进度详情' }}</wd-button></view>
   </view>
 </template>
 
@@ -116,7 +116,8 @@ const hiddenException = computed(() => !expanded.value && rows.value.slice(4).so
 .node { flex: none; width: 24rpx; height: 24rpx; border-radius: 50%; background: #c9cdd4; margin-top: 5rpx; }
 .node.minor { width: 12rpx; height: 12rpx; margin: 11rpx 0 6rpx; }.line { width: 2rpx; flex: 1; background: #e5e6eb; min-height: 30rpx; }
 .latest .node { background: var(--yb-brand); }.exceptional .node { background: #f53f3f; }
-.content { min-width: 0; flex: 1; padding: 0 0 32rpx 18rpx; }.title, .description, .meta, .exception-text { display: block; overflow-wrap: anywhere; line-height: 1.6; }
+.content { min-width: 0; flex: 1; padding: 0 0 24rpx 18rpx; }.title, .description, .meta, .exception-text { display: block; overflow-wrap: anywhere; line-height: 1.6; }
+.timeline-tools { display:flex; justify-content:flex-end; }
 .title { font-size: 25rpx; color: #4e5969; }.title.major { font-size: 28rpx; color: #1d2129; font-weight: 600; }
 .description { margin-top: 5rpx; font-size: 24rpx; color: #4e5969; }.meta { margin-top: 5rpx; font-size: 24rpx; color: var(--yb-muted); }
 .exception-text { margin-top: 5rpx; font-size: 24rpx; color: #b42318; }.history-warning { display: block; margin-bottom: 16rpx; color: #8b5300; font-size: 24rpx; line-height: 1.6; }

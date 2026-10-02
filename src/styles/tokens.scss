@@ -250,8 +250,8 @@ page {
 }
 
 /* Explicit opt-in for chain and service choices; leave other radio layouts intact. */
-.yb-choice-group { display: flex; flex-wrap: wrap; gap: 12rpx; width: 100%; }
-.yb-choice-group .wd-radio { display: flex !important; align-items: center; justify-content: flex-start !important; gap: 12rpx; margin: 0; min-height: 88rpx; padding: 12rpx 18rpx; border: 1rpx solid var(--yb-hairline-2); border-radius: 16rpx; background: var(--yb-surface); box-sizing: border-box; text-align: left; }
+.yb-choice-group { display: flex; flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 12rpx; width: 100%; }
+.yb-choice-group .wd-radio { display: flex !important; align-items: center; justify-content: flex-start !important; gap: 12rpx; margin: 0 !important; min-width: 0; min-height: 88rpx; padding: 12rpx 18rpx; border: 1rpx solid var(--yb-hairline-2); border-radius: 16rpx; background: var(--yb-surface); box-sizing: border-box; text-align: left; }
 .yb-choice-group .wd-radio.is-checked { border-color: var(--yb-brand); background: var(--yb-brand-soft); }
 .yb-choice-group .wd-radio.icon-placement-left { justify-content: flex-end !important; }
 .yb-choice-group .wd-radio__shape { display: inline-flex; flex-shrink: 0; float: none; margin: 0; }

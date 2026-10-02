@@ -119,19 +119,25 @@ async function cancel() {
   <view v-if="detail" class="detail-page yb-page">
     <view class="summary">
       <text class="status">{{ detail.statusText || detail.status }}</text>
-      <text class="amount">{{ formatAmount(detail.amount) }} USDT</text>
+      <text class="amount-label">申报金额</text><text class="amount">{{ formatAmount(detail.amount) }} <text class="unit">USDT</text></text>
       <text class="chain">充值链 · {{ detail.chainLabel || detail.chain }}</text>
     </view>
     <view class="section">
       <text v-if="loadFailed" class="block">详情刷新失败，暂时保留上次信息；请重试后再操作。</text>
+      <text class="section-title">充值信息</text>
       <view class="row"><text class="label">充值单 ID</text><text>{{ detail.id }}</text></view>
       <view class="block"><text class="label">平台充值地址</text><text class="block-value">{{ detail.depositAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.depositAddress)">复制地址</wd-button></view>
       <view class="block"><text class="label">转账备注</text><text class="block-value">{{ detail.memo || String(detail.id) }}</text><wd-button plain size="small" @click="copy(detail.memo || String(detail.id))">复制备注</wd-button></view>
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
+    </view>
+    <view class="section">
+      <text class="section-title">时间记录</text>
       <view class="row"><text class="label">创建时间</text><text>{{ formatTime(detail.createdAt) }}</text></view>
       <view class="row"><text class="label">到账时间</text><text>{{ formatTime(detail.confirmedAt) }}</text></view>
-      <wd-button block plain :loading="loading" :disabled="canceling" class="cancel-btn" @click="load">刷新状态</wd-button>
-      <wd-button v-if="detail.status === 'PENDING'" block plain type="error" :disabled="!canCancel" :loading="canceling" class="cancel-btn" @click="cancel">取消本次申报</wd-button>
+    </view>
+    <view class="detail-actions">
+      <wd-button block plain :loading="loading" :disabled="canceling" @click="load">刷新状态</wd-button>
+      <wd-button v-if="detail.status === 'PENDING'" block plain type="error" :disabled="!canCancel" :loading="canceling" @click="cancel">取消本次申报</wd-button>
     </view>
   </view>
   <view v-else-if="loading" class="loading"><wd-loading size="44rpx" /><text>正在加载充值详情</text></view>
@@ -141,16 +147,16 @@ async function cancel() {
 </template>
 
 <style lang="scss" scoped>
-.detail-page { min-height: 100%; padding: 20rpx 24rpx 32rpx; box-sizing: border-box; }
+.detail-page { min-height: 100%; padding: 20rpx 24rpx calc(32rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .loading { display:flex; flex-direction:column; align-items:center; padding:120rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
 .summary, .section { margin-bottom: 20rpx; padding: 24rpx; border:1rpx solid var(--yb-border); border-radius: var(--yb-radius-lg); background: #fff; box-shadow:var(--yb-shadow-card); }
 .summary { text-align: center; }
-.status, .chain { display: block; color: var(--yb-muted); font-size: 24rpx; }
-.amount { display: block; margin: 14rpx 0; color: #00b42a; font-size: 52rpx; font-weight: 700; font-family: var(--yb-font-body); overflow-wrap:anywhere; }
+.status { display:block; color:var(--yb-ink); font-size:28rpx; font-weight:600; }.chain,.amount-label { display:block; color:var(--yb-muted); font-size:24rpx; }.amount-label { margin-top:20rpx; }.unit { font-size:24rpx; font-weight:400; color:var(--yb-muted); }.section-title { display:block; margin-bottom:8rpx; color:var(--yb-ink); font-size:28rpx; font-weight:600; }
+.amount { display: block; margin: 8rpx 0 14rpx; color: var(--yb-ink); font-size: 52rpx; font-weight: 700; font-family: var(--yb-font-body); overflow-wrap:anywhere; }
 .row { display: flex; justify-content: space-between; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); font-size: 24rpx; }
 .row > text:last-child { min-width: 0; overflow-wrap: anywhere; text-align: right; }
-.label { color: var(--yb-muted); font-size: 24rpx; }
+.label { color: var(--yb-muted); font-size: 24rpx; flex-shrink:0; }
 .block { padding: 20rpx 0; border-bottom: 1rpx solid var(--yb-border); }
 .block-value { display: block; margin: 10rpx 0; padding: 14rpx; border-radius: 12rpx; background: #f5f5f2; font-size: 24rpx; font-family: ui-monospace, monospace; word-break: break-all; }
-.cancel-btn { margin-top: 20rpx; }
+.detail-actions { display:flex; flex-direction:column; gap:16rpx; }
 </style>

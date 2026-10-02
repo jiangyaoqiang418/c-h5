@@ -40,7 +40,7 @@ function formatTime(value?: string | number): string {
         @click="open(item)"
       >
         <view class="head"><text class="chain">{{ item.chain }}</text><wd-tag round :type="statusType(item.status)">{{ item.statusText || item.status }}</wd-tag></view>
-        <text class="amount">- {{ formatAmount(item.amount) }} USDT</text>
+        <text class="amount-label">申请金额</text><text class="amount">{{ formatAmount(item.amount) }} <text class="unit">USDT</text></text>
         <text class="address">{{ item.toAddress || '-' }}</text>
         <view class="foot"><text>{{ formatTime(item.createdAt) }}</text><view class="detail-link"><text>详情</text><wd-icon name="arrow-right" size="14px" color="#86909c" /></view></view>
       </view>
@@ -58,7 +58,7 @@ function formatTime(value?: string | number): string {
 .list-page { min-height:100%; padding:24rpx; box-sizing:border-box; }.record-card { margin-bottom:16rpx; padding:24rpx; border-radius:var(--yb-radius-lg); background:#fff; border:1rpx solid var(--yb-border); box-shadow:var(--yb-shadow-card); }
 .head, .foot { display: flex; align-items: center; justify-content: space-between; }
 .chain { font-size: 24rpx; font-weight: 600; color: #1d2129; }
-.amount { display: block; margin: 18rpx 0 8rpx; font-size: 36rpx; font-weight: 700; color: #f53f3f; font-family: var(--yb-font-body); overflow-wrap:anywhere; }
+.amount-label { display:block; margin-top:18rpx; font-size:24rpx; color:var(--yb-muted); }.amount { display: block; margin: 8rpx 0; font-size: 36rpx; font-weight: 700; color: var(--yb-ink); font-family: var(--yb-font-body); overflow-wrap:anywhere; }.unit { font-size:24rpx; font-weight:400; color:var(--yb-muted); }
 .address { display: block; margin-bottom: 16rpx; color: var(--yb-muted); font-size: 24rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .foot { color: var(--yb-muted); font-size: 24rpx; }
 .detail-link { display:flex; align-items:center; gap:4rpx; }

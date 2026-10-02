@@ -34,8 +34,8 @@ function apply(reset = false) {
     <wd-button plain size="small" :disabled="disabled" @click="expanded = !expanded">{{ expanded ? '收起筛选' : applied ? '筛选 · 已生效' : '筛选' }}</wd-button>
     <view v-show="expanded">
     <view class="fields">
-      <wd-input v-model="draft.minBudget" :disabled="disabled" label="最低预算 U" placeholder="不限" type="digit" />
-      <wd-input v-model="draft.maxBudget" :disabled="disabled" label="最高预算 U" placeholder="不限" type="digit" />
+      <wd-input v-model="draft.minBudget" :disabled="disabled" label="最低预算 USDT" placeholder="不限" type="digit" />
+      <wd-input v-model="draft.maxBudget" :disabled="disabled" label="最高预算 USDT" placeholder="不限" type="digit" />
       <wd-input v-model="draft.minDeliveryDays" :disabled="disabled" label="最少交付天数" placeholder="不限" type="number" />
       <wd-input v-model="draft.maxDeliveryDays" :disabled="disabled" label="最多交付天数" placeholder="不限" type="number" />
     </view>
@@ -46,6 +46,6 @@ function apply(reset = false) {
 
 <style lang="scss" scoped>
 .filters { padding:16rpx; margin-bottom:20rpx; background:#fff; border-radius:var(--yb-radius-lg); }
-.fields { display:flex; flex-direction:column; }
+.fields { display:flex; flex-direction:column; --wot-input-padding:0; }
 .actions { display:flex; justify-content:flex-end; gap:16rpx; margin-top:12rpx; }
 </style>

@@ -31,12 +31,12 @@ function goDetail() {
     <view class="ef-head" @click="goDetail">
       <view class="ef-left">
         <view class="ef-icon-wrap">
-          <wd-icon :name="productIcon" size="22px" color="#b8935a" />
+          <wd-icon :name="productIcon" size="22px" color="var(--yb-muted)" />
         </view>
         <view class="ef-info">
           <text class="ef-name">{{ product.name }}</text>
           <text class="ef-meta">
-            锁定 {{ product.lockDays }} 天 · 起投 U {{ formatAmount(product.minAmount) }}
+            锁定 {{ product.lockDays }} 天 · 起投 {{ formatAmount(product.minAmount) }} USDT
           </text>
         </view>
       </view>
@@ -55,18 +55,18 @@ function goDetail() {
 <style lang="scss" scoped>
 .ef-card {
   background: #FFFFFF;
-  border: 1rpx solid #EDECE6;
+  border: 1rpx solid var(--yb-border);
   border-radius: 24rpx;
   padding: 28rpx;
   margin-bottom: 20rpx;
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 20rpx;
 }
 .ef-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 20rpx;
 }
 .ef-left {
@@ -79,8 +79,8 @@ function goDetail() {
 .ef-icon-wrap {
   width: 80rpx;
   height: 80rpx;
-  border-radius: 50%;
-  background: #FAFAF7;
+  border-radius: 16rpx;
+  background: var(--yb-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,6 +93,7 @@ function goDetail() {
   min-width: 0;
 }
 .ef-name {
+  overflow-wrap: anywhere;
   font-size: 32rpx;
   font-weight: 700;
   color: #0F111A;
@@ -100,9 +101,11 @@ function goDetail() {
 }
 .ef-meta {
   font-size: 24rpx;
-  color: #86909C;
+  color: var(--yb-muted);
 }
 .ef-right {
+  flex-shrink: 0;
+  max-width: 40%;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -116,14 +119,15 @@ function goDetail() {
 .ef-apy-label {
   font-size: 24rpx;
   font-weight: 600;
-  color: #86909C;
+  color: var(--yb-muted);
   letter-spacing: 1rpx;
 }
 .ef-apy {
+  overflow-wrap: anywhere;
   font-family: var(--yb-font-body);
   font-size: 40rpx;
   font-weight: 700;
-  color: #00A88A;
+  color: var(--yb-ink);
   letter-spacing: -1rpx;
   line-height: 1;
   font-variant-numeric: tabular-nums;

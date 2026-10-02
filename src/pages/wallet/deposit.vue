@@ -378,7 +378,7 @@ watch(submittedId, () => { stopPolling(); detail.value = undefined; detailLoadTo
 .block-value { display: block; margin:10rpx 0; padding:16rpx; border-radius:var(--yb-radius-md); background:var(--yb-bg); color:#1d2129; font-family:ui-monospace,monospace; font-size:24rpx; word-break:break-all; }
 .warning { display: block; margin-top: 20rpx; color: #9a5700; font-size: 24rpx; line-height: 1.6; }
 .record-entry { display: flex; justify-content: space-between; color: #4e5969; font-size: 24rpx; }
-.declaration { margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--yb-border); }
+.declaration { margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--yb-border); --wot-input-padding:0px; --wot-cell-padding:12px; }
 .choice-field { padding: 12rpx 0 24rpx; }
 .choice-label { display: block; margin-bottom: 16rpx; font-size: 26rpx; color: var(--yb-ink-2); }
 .section-toggle { display:flex; align-items:center; justify-content:space-between; gap:16rpx; min-height:88rpx; }

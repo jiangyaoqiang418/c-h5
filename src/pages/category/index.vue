@@ -218,17 +218,17 @@ watch(activeCategoryId, id => load(id, true));
 .category-tree-panel { margin-top: 20rpx; padding: 20rpx; border: 1rpx solid var(--yb-hairline); border-radius: 20rpx; background: var(--yb-surface); }
 .category-tree-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
 .category-path { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 18rpx; }
-.crumb { color: var(--yb-brand); font-size: 22rpx; }
+.crumb { display: inline-flex; align-items: center; min-height: 44px; color: var(--yb-brand); font-size: var(--yb-fs-body-sm); }
 .crumb + .crumb::before { margin-right: 10rpx; color: #c9cdd4; content: '/'; }
 .category-tree-title { color: var(--yb-ink); font-size: var(--yb-fs-title-sm); font-weight: 700; }
-.category-all { display: flex; align-items: center; min-height: 40px; padding: 0 20rpx; border-radius: var(--yb-radius-pill); background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
+.category-all { display: flex; align-items: center; min-height: 44px; padding: 0 20rpx; border-radius: var(--yb-radius-sm); background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
 .category-all.active { background: var(--yb-brand); color: var(--yb-surface); }
 .category-group { margin-top: 22rpx; }
 .category-group-title { display: flex; align-items: center; justify-content: space-between; min-height: 40px; color: var(--yb-ink); font-size: var(--yb-fs-body); font-weight: 600; }
 .category-group-title > text:last-child { color: var(--yb-muted); font-size: var(--yb-fs-caption); font-weight: 400; }
 .category-group-title.active > text:first-child { color: var(--yb-brand); }
 .category-leaves { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.category-leaf { display: flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 18rpx; border: 1rpx solid var(--yb-hairline); border-radius: 14rpx; background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
+.category-leaf { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18rpx; border: 1rpx solid var(--yb-hairline); border-radius: 14rpx; background: var(--yb-bg); color: var(--yb-ink-2); font-size: var(--yb-fs-body-sm); }
 .category-leaf.active { border-color: var(--yb-brand); background: #fff5f6; color: var(--yb-brand); font-weight: 600; }
 .product-grid { display: flex; flex-wrap: wrap; margin-top: 20rpx; gap: 16rpx; }
 .product-grid > * { width: 100%; min-width: 0; }

@@ -135,8 +135,8 @@ async function submitOAuth(payload: OAuthLoginParams) {
   padding: calc(32rpx + env(safe-area-inset-top)) 32rpx calc(32rpx + env(safe-area-inset-bottom));
 }
 .login-content {
-  width: 90%;
-  max-width: 640rpx;
+  width: 100%;
+  max-width: 750rpx;
   margin: auto;
 
 }
@@ -161,12 +161,14 @@ async function submitOAuth(payload: OAuthLoginParams) {
   background: var(--yb-surface);
   border: 1rpx solid var(--yb-border);
   border-radius: 24rpx;
-  padding: 32rpx;
+  padding: 28rpx;
   margin-bottom: 24rpx;
   box-shadow: var(--yb-shadow-card);
 }
 .login-input {
   --wot-cell-padding: 12px;
+  --wot-input-padding: 0px;
+  --wot-input-cell-padding: 14px;
 }
 .oauth-warning{margin-top:20rpx;padding:18rpx 20rpx;border-radius:8rpx;background:#fff2f0;color:#cf1322;font-size:24rpx;line-height:1.5}
 .divider {

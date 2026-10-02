@@ -95,7 +95,7 @@ function goDeposit() { if (page.visible.value) uni.pageScrollTo({ selector: '.li
       <template v-if="overview">
         <EarnHero :balance="String(overview.holdingPrincipal)" :best-apy="productsLoadFailed ? 0 : bestApy" :on-deposit="goDeposit" :on-withdraw="() => go('/pages/finance/my-lockups')" />
         <EarnChartCard :earnings="String(overview.totalInterest)" />
-        <view class="summary">待结算收益 U {{ formatAmount(overview.pendingInterest) }} · 预计到期收益 U {{ formatAmount(overview.expectedInterest) }}</view>
+        <view class="summary yield-summary"><view><text class="yield-label">待结算收益</text><text class="yield-value">{{ formatAmount(overview.pendingInterest) }} <text class="unit">USDT</text></text></view><view><text class="yield-label">预计到期收益</text><text class="yield-value">{{ formatAmount(overview.expectedInterest) }} <text class="unit">USDT</text></text></view></view>
       </template>
       <view v-else class="summary">资产及收益尚未读取，金额 —</view>
       <view class="list-section">
@@ -108,4 +108,9 @@ function goDeposit() { if (page.visible.value) uni.pageScrollTo({ selector: '.li
   </view>
 </template>
 
-<style lang="scss" scoped>.finance-page { min-height:100%; padding-bottom:60rpx; }.summary { margin:0 24rpx 20rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); box-shadow:var(--yb-shadow-card); padding:20rpx; color:#4e5969; font-size:23rpx; }.list-section { padding:0 24rpx; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }</style>
+<style lang="scss" scoped>
+.finance-page { min-height:100%; padding:24rpx 24rpx calc(60rpx + env(safe-area-inset-bottom)); }
+.summary { margin:0 0 20rpx; background:#fff; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); padding:24rpx 28rpx; color:var(--yb-muted); font-size:24rpx; line-height:1.5; }
+.yield-summary { display:flex; flex-wrap:wrap; gap:20rpx; }.yield-summary > view { flex:1; min-width:0; }.yield-label,.yield-value { display:block; }.yield-label { margin-bottom:8rpx; }.yield-value { font-size:28rpx; font-weight:600; color:var(--yb-ink); overflow-wrap:anywhere; }.unit { font-size:24rpx; font-weight:400; color:var(--yb-muted); }
+.list-section { padding:0; }.loading { display:flex; flex-direction:column; align-items:center; padding:96rpx 0; gap:16rpx; color:var(--yb-muted); font-size:var(--yb-fs-body-sm); }
+</style>

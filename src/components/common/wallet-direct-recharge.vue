@@ -162,7 +162,7 @@ function copy(value: string) { if (page.visible.value) uni.setClipboardData({ da
         <text class="tip">{{ terms.chain }} · {{ terms.network }}，最低 {{ terms.minAmount }} USDT，至少 {{ terms.minConfirmations }} 个确认。</text>
         <wd-input v-model="amount" label="直充金额" type="digit" :disabled="busy" placeholder="USDT" />
         <template v-if="wallets.length">
-          <wd-radio-group v-model="walletKey" :disabled="busy"><wd-radio v-for="item in wallets" :key="item.key" :value="item.key">{{ item.label }}</wd-radio></wd-radio-group>
+          <wd-radio-group v-model="walletKey" :disabled="busy" class="yb-choice-group" inline><wd-radio v-for="item in wallets" :key="item.key" :value="item.key" shape="dot" icon-placement="left">{{ item.label }}</wd-radio></wd-radio-group>
           <wd-button block plain :loading="busy" :disabled="disabled" @click="transfer">连接钱包并充值</wd-button>
         </template>
         <WalletBrowserEntry v-else :chain="chain" path="/pages/wallet/deposit" />
@@ -173,8 +173,8 @@ function copy(value: string) { if (page.visible.value) uni.setClipboardData({ da
 <style scoped>
 .direct-recharge { padding:24rpx; margin-bottom:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; }
 .title { font-size:28rpx; font-weight:600; }.tip, .warning { display:block; margin:16rpx 0; font-size:24rpx; line-height:1.6; }
-.tip { color:var(--yb-muted); }.warning { color:#9a5700; }.progress { display:flex; flex-direction:column; gap:16rpx; font-size:24rpx; }.value { word-break:break-all; }
+.tip { color:var(--yb-muted); }.warning { color:#9a5700; }.progress { display:flex; flex-direction:column; gap:16rpx; font-size:24rpx; }.value { padding:14rpx; border-radius:var(--yb-radius-md); background:var(--yb-bg); font-family:ui-monospace,monospace; overflow-wrap:anywhere; line-height:1.6; }
 .section-toggle { display:flex; align-items:center; justify-content:space-between; gap:16rpx; min-height:88rpx; }
 .toggle-action { display:flex; align-items:center; justify-content:flex-end; gap:8rpx; min-width:88rpx; font-size:24rpx; color:var(--yb-muted); flex-shrink:0; }
-.transfer-body { padding-top:8rpx; }
+.transfer-body { padding-top:8rpx; --wot-input-padding:0px; --wot-cell-padding:12px; }
 </style>
