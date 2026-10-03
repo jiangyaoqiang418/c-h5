@@ -101,16 +101,19 @@ async function goCheckout() {
               <wd-icon v-if="item.selected" name="check" size="18px" color="#fff" />
             </view>
           </view>
-          <image
-            v-if="item.product"
-            :src="item.product.cover || UI_ASSETS.placeholders.product"
-            mode="aspectFill"
-            class="cover"
-          />
-          <view class="info">
-            <text class="title">{{ item.product?.title || '商品已删除' }}</text>
-
-            <text v-if="!item.available" class="invalid-note">当前不可结算，请调整商品</text>
+          <view class="item-body">
+            <view class="item-summary">
+              <image
+                v-if="item.product"
+                :src="item.product.cover || UI_ASSETS.placeholders.product"
+                mode="aspectFill"
+                class="cover"
+              />
+              <view class="info">
+                <text class="title">{{ item.product?.title || '商品已删除' }}</text>
+                <text v-if="!item.available" class="invalid-note">当前不可结算，请调整商品</text>
+              </view>
+            </view>
             <view class="price-row">
               <view class="price-block">
                 <PriceTag v-if="item.product && item.product.price != null" :price="item.product?.price || 0" size="sm" :show-rate="false" :show-reference="false" />
@@ -127,7 +130,7 @@ async function goCheckout() {
               </view>
             </view>
           </view>
-          <view v-if="managing" class="del yb-pressable" aria-label="移除商品" @click="remove(item.key)"><wd-icon name="delete" size="20px" color="var(--yb-muted)" /></view>
+          <view v-if="managing" class="del yb-pressable" aria-label="移除商品" @click="remove(item.key)"><wd-icon name="delete" size="20px" color="#fff" /></view>
         </view>
         </view>
       </view>
@@ -218,6 +221,8 @@ async function goCheckout() {
   flex: 1;
   min-width: 0;
 }
+.item-body { flex: 1; min-width: 0; }
+.item-summary { display: flex; align-items: flex-start; gap: 12rpx; }
 .title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -238,14 +243,16 @@ async function goCheckout() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8rpx;
+  margin-top: 12rpx;
 }
 .price-block {
   display: flex;
   flex-direction: column;
   min-width: 0;
   max-width: 100%;
+  flex: 1;
 }
 .price-unknown { color: var(--yb-muted); font-size: 24rpx; }
 .qty {
@@ -254,6 +261,7 @@ async function goCheckout() {
   background: var(--yb-bg);
   border-radius: var(--yb-radius-sm);
   margin-left: auto;
+  flex-shrink: 0;
 }
 .qty-btn {
   width: 44px;
@@ -262,6 +270,7 @@ async function goCheckout() {
   align-items: center;
   justify-content: center;
   color: var(--yb-ink-2);
+  flex-shrink: 0;
 }
 .qty-symbol {
   font-size: 32rpx;
@@ -272,6 +281,7 @@ async function goCheckout() {
   width: 48rpx;
   text-align: center;
   font-size: var(--yb-fs-body-sm);
+  flex-shrink: 0;
 }
 .del {
   display: flex;
@@ -281,7 +291,8 @@ async function goCheckout() {
   width: 44px;
   flex-shrink: 0;
   margin: -16rpx 0 -16rpx 0;
-  background: var(--yb-bg);
+  background: var(--yb-brand);
+  border-radius: 0 20rpx 20rpx 0;
 }
 .bottom-bar {
   position: fixed;

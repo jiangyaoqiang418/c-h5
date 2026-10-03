@@ -163,7 +163,7 @@ function copy(value: string) { if (page.visible.value) uni.setClipboardData({ da
         <wd-input v-model="amount" label="直充金额" type="digit" :disabled="busy" placeholder="USDT" />
         <template v-if="wallets.length">
           <wd-radio-group v-model="walletKey" :disabled="busy" class="yb-choice-group" inline><wd-radio v-for="item in wallets" :key="item.key" :value="item.key" shape="dot" icon-placement="left">{{ item.label }}</wd-radio></wd-radio-group>
-          <wd-button block plain :loading="busy" :disabled="disabled" @click="transfer">连接钱包并充值</wd-button>
+          <view class="wallet-transfer-action"><wd-button block plain :loading="busy" :disabled="disabled" @click="transfer">连接钱包并充值</wd-button></view>
         </template>
         <WalletBrowserEntry v-else :chain="chain" path="/pages/wallet/deposit" />
       </template>
@@ -171,6 +171,7 @@ function copy(value: string) { if (page.visible.value) uni.setClipboardData({ da
   </view>
 </template>
 <style scoped>
+.wallet-transfer-action { margin-top: 24rpx; }
 .direct-recharge { padding:24rpx; margin-bottom:20rpx; border:1rpx solid var(--yb-border); border-radius:var(--yb-radius-lg); background:#fff; }
 .title { font-size:28rpx; font-weight:600; }.tip, .warning { display:block; margin:16rpx 0; font-size:24rpx; line-height:1.6; }
 .tip { color:var(--yb-muted); }.warning { color:#9a5700; }.progress { display:flex; flex-direction:column; gap:16rpx; font-size:24rpx; }.value { padding:14rpx; border-radius:var(--yb-radius-md); background:var(--yb-bg); font-family:ui-monospace,monospace; overflow-wrap:anywhere; line-height:1.6; }
