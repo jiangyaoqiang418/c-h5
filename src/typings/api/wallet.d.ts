@@ -79,7 +79,30 @@ declare namespace Api {
       records: RechargeVO[];
     }
 
+    interface WithdrawFeePreviewVO {
+      chain: 'TRON' | 'ETH' | 'BSC';
+      tokenSymbol: 'USDT' | 'USDC';
+      networkFeeSymbol: string;
+      estimatedNetworkFee: string | null;
+    quoteId: string;
+    platformFeeUsdt: string;
+    chargedFuelFeeUsdt: string;
+    estimatedFuelFeeUsdt: string;
+    totalFeeUsdt: string;
+    requestedAmount: string;
+    estimatedReceiveAmount: string;
+    nativeAssetUsdtPrice: string;
+    priceSource: string;
+    priceSources: string[];
+    priceAt: string | number;
+    walletId: string | null;
+    walletVersion: string | number | null;
+      expiresAt: string | number;
+    }
+
     interface WithdrawVO {
+    feeQuote: WithdrawFeePreviewVO;
+      asset: 'USDT' | 'USDC';
       id: string | number;
       chain: string;
       toAddress?: string;

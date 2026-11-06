@@ -36,6 +36,7 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
     if (kind === 'finance' ? !('productId' in request && validId(request.productId))
       : !('chain' in request && typeof request.chain === 'string' && request.chain.trim())) throw new Error('原申请参数不完整');
     if (kind === 'withdraw' && !('toAddress' in request && typeof request.toAddress === 'string' && request.toAddress.trim())) throw new Error('原申请地址不完整');
+    if (kind === 'withdraw' && !('quoteId' in request && typeof request.quoteId === 'string' && request.quoteId)) throw new Error('原申请费用报价不完整');
   }
   function read(recordKey: string): Receipt | 'legacy' | undefined {
     const stored = uni.getStorageSync(recordKey), cached = memory.get(recordKey);
@@ -112,7 +113,8 @@ export function useSubmissionGuard<K extends Kind>(kind: K, historyUrl: string) 
     const matches = kind === 'finance'
       ? 'productId' in result && 'productId' in r.request && String(result.productId) === String(r.request.productId) && normalizeAmount(result.principal) === normalizeAmount(r.request.amount)
       : 'chain' in result && 'chain' in r.request && result.chain === r.request.chain && normalizeAmount(result.amount) === normalizeAmount(r.request.amount)
-        && (kind !== 'withdraw' || ('toAddress' in result && 'toAddress' in r.request && result.toAddress === r.request.toAddress));
+        && (kind !== 'withdraw' || ('toAddress' in result && 'toAddress' in r.request && result.toAddress === r.request.toAddress
+          && 'feeQuote' in result && 'quoteId' in r.request && result.feeQuote.quoteId === r.request.quoteId));
     if (!matches) throw new Error('原申请参数与回查记录不一致，已保留保护');
     save(recordKey, { ...r, recordId: result.id, verified: true });
     return result.id;

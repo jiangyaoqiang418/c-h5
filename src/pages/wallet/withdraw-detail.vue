@@ -2,7 +2,6 @@
 import { ref } from 'vue';
 import { onHide, onLoad, onShow } from '@dcloudio/uni-app';
 import { fetchWithdrawDetail } from '@/service/api/wallet';
-import { formatAmount } from '@/utils/format-bridge';
 import EmptyState from '@/components/common/empty-state.vue';
 import { useUserStore } from '@/stores';
 import { useNavigationGuards } from '@/utils/navigate';
@@ -71,20 +70,22 @@ onHide(() => { loadVersion++; loading.value = false; });
   <view v-if="detail" class="detail-page yb-page">
     <view class="summary">
       <text class="status">{{ detail.statusText || detail.status }}</text>
-      <text class="amount">U {{ formatAmount(detail.amount) }}</text>
-      <text class="chain">USDT-{{ detail.chain }}</text>
+      <text class="amount">{{ detail.amount }} {{ detail.asset }}</text>
+      <text class="chain">{{ detail.asset }}-{{ detail.chain }}</text>
     </view>
     <view class="section">
       <text v-if="loadFailed" class="block">刷新失败，暂时保留上次详情，请重试核对最新状态。</text>
       <wd-button block plain :loading="loading" @click="load">刷新提现状态</wd-button>
       <view class="row"><text class="label">提现单 ID</text><text>{{ detail.id }}</text></view>
-      <view v-if="detail.fee !== undefined" class="row"><text class="label">手续费</text><text>U {{ formatAmount(detail.fee) }}</text></view>
-      <view v-if="detail.actualAmount !== undefined" class="row"><text class="label">扣费后金额</text><text>U {{ formatAmount(detail.actualAmount) }}</text></view>
+      <view class="row"><text class="label">燃料费</text><text>{{ detail.feeQuote.chargedFuelFeeUsdt }} {{ detail.asset }}</text></view>
+      <view class="row"><text class="label">平台手续费（VIP 减免后）</text><text>{{ detail.feeQuote.platformFeeUsdt }} {{ detail.asset }}</text></view>
+      <view class="row"><text class="label">总手续费</text><text>{{ detail.fee }} {{ detail.asset }}</text></view>
+      <view v-if="detail.actualAmount !== undefined" class="row"><text class="label">实际到账金额</text><text>{{ detail.actualAmount }} {{ detail.asset }}</text></view>
       <view class="block"><text class="label">到账地址</text><text class="block-value">{{ detail.toAddress || '-' }}</text><wd-button plain size="small" @click="copy(detail.toAddress)">复制地址</wd-button></view>
       <view v-if="detail.txHash" class="block"><text class="label">交易哈希</text><text class="block-value">{{ detail.txHash }}</text><wd-button plain size="small" @click="copy(detail.txHash)">复制哈希</wd-button></view>
       <view v-if="detail.payoutId" class="row"><text class="label">链上打款单</text><text>{{ detail.payoutId }}</text></view>
       <view v-if="detail.payoutStatus" class="row"><text class="label">链上打款状态</text><text>{{ detail.payoutStatus }}</text></view>
-      <view v-if="detail.networkFee !== undefined" class="row"><text class="label">网络手续费</text><text>{{ detail.networkFee }} {{ detail.networkFeeSymbol || 'USDT' }}</text></view>
+      <view v-if="detail.networkFee !== undefined" class="row"><text class="label">网络手续费</text><text>{{ detail.networkFee }} {{ detail.networkFeeSymbol }}</text></view>
       <view v-if="detail.blockHeight !== undefined" class="row"><text class="label">区块高度</text><text>{{ detail.blockHeight }}</text></view>
       <view v-if="detail.reviewComment" class="block"><text class="label">审核意见</text><text class="reason">{{ detail.reviewComment }}</text></view>
       <view v-if="detail.failReason" class="block"><text class="label">失败原因</text><text class="reason">{{ detail.failReason }}</text></view>

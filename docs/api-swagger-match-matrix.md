@@ -2,6 +2,10 @@
 
 > 状态：部分完成。按契约、API/核心逻辑、页面调用和真实验证分层；构建、空态及历史回归不能替代新契约写入验收。问题归属和恢复条件集中维护在 [接口计划](./api-integration-plan.md)。
 
+提现预览（本地契约）：POST /withdraw/fee-preview 返回 quoteId、chargedFuelFeeUsdt、platformFeeUsdt、totalFeeUsdt、estimatedReceiveAmount；提现 create 必传 quoteId；detail.feeQuote 保存原报价，fee 为总手续费，actualAmount 为原报价到账额。USDC 与 USDT 按相同数值扣费。
+
+PC/H5 的费用预览及详情已用 Chrome 隔离请求核对，报价ID随原幂等请求保留；不以响应丢失或报价过期创建替代单。 发布需同步升级Java与客户端，并按用户决定先清理存量终态提现测试单；待处理任务必须查清状态。真实链上额度联调需先登记并激活 PAYOUT_HOT 版本钱包，未进行真实出款验收。
+
 ## 当前契约基线
 
 - 2026-09-08本轮基线main/ac49b70：live配置与order/user/notify分组200，定向递归核对分类、商品/求购创建、两下单、KYC详情、充值链/专属地址、IM分页/增量schema。商品分类描述新增三级；下单异参-311只在后端回复明确，Swagger仍旧；影像/params空值声明仍滞后。分组响应trace同值重复，已兼容，不据头关闭业务问题。

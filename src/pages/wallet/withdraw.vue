@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
+import { previewWithdrawFees } from '@/service/api/wallet';
+import { compareAmounts } from '@/utils/amount';
 import { onShow } from '@dcloudio/uni-app';
 import { useSubmissionGuard } from '@/utils/submission-guard';
 import SubmissionWarning from '@/components/common/submission-warning.vue';
-import { formatAmount } from '@/utils/format-bridge';
 import { useUserStore, useWalletStore } from '@/stores';
 import { go, useNavigationGuards } from '@/utils/navigate';
 import { usePageOperation } from '@/utils/page-operation';
@@ -16,9 +17,9 @@ const walletStore = useWalletStore();
 const form = reactive<{
   chain: 'TRON' | 'ETH' | 'BSC';
   toAddress: string;
-  amount: number;
+  amount: string;
   agreed: boolean;
-}>({ chain: 'TRON', toAddress: '', amount: 0, agreed: false });
+}>({ chain: 'TRON', toAddress: '', amount: '', agreed: false });
 const submitting = ref(false);
 const guard = useSubmissionGuard('withdraw', '/pages/wallet/withdraw-list');
 const { uncertain, running, submittedId, message, actionLabel } = guard;
@@ -31,20 +32,19 @@ const page = usePageOperation(() => {
   submittedId.value = undefined;
   loading.value = false;
   loadFailed.value = true;
-  Object.assign(form, { chain: 'TRON', toAddress: '', amount: 0, agreed: false });
+  Object.assign(form, { chain: 'TRON', toAddress: '', amount: '', agreed: false });
 });
 const payPasswordPopup = ref<InstanceType<typeof PayPasswordPopup>>();
 async function continuePending() { const password = await payPasswordPopup.value?.request('/pages/wallet/withdraw'); if (password) await guard.acknowledge(password); }
 
 const available = computed(() => {
   if (!userStore.currentUser || walletStore.account?.available == null) return undefined;
-  const value = Number(walletStore.account.available);
-  return Number.isFinite(value) ? value : undefined;
+  return String(walletStore.account.available);
 });
 const canSubmit = computed(() =>
-  !!userStore.currentUser && !loading.value && !loadFailed.value && !uncertain.value && submittedId.value == null && Number.isFinite(Number(form.amount)) && form.amount > 0
+  !!userStore.currentUser && !loading.value && !loadFailed.value && !uncertain.value && submittedId.value == null && /^\d{1,28}(?:\.\d{1,8})?$/.test(String(form.amount).trim()) && compareAmounts(form.amount, '0') > 0
   && (form.chain === 'TRON' ? /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(form.toAddress.trim()) : /^0x[0-9a-fA-F]{40}$/.test(form.toAddress.trim()))
-  && form.agreed && available.value !== undefined && form.amount <= available.value
+  && form.agreed && available.value !== undefined && compareAmounts(form.amount, available.value) <= 0
 );
 
 async function load() {
@@ -73,22 +73,26 @@ onShow(load);
 async function confirmWithdraw() {
   if (!page.visible.value || !canSubmit.value || submitting.value || running.value) return;
   const operation = page.capture();
-  const request = { amount: Number(form.amount), chain: form.chain, toAddress: form.toAddress.trim() };
+  const request = { amount: String(form.amount).trim(), chain: form.chain, toAddress: form.toAddress.trim() };
   submitting.value = true;
   try {
+    const quote = await previewWithdrawFees(request);
+    if (!operation.isCurrent()) return;
+    const networkFee = quote.estimatedNetworkFee == null ? '暂不可用' : `${quote.estimatedNetworkFee} ${quote.networkFeeSymbol}`;
     const result = await uni.showModal({
       title: '确认转出',
-      content: `链：${request.chain}\n收款地址：${request.toAddress}\n金额：${request.amount} U\n实际手续费及到账金额以实际处理结果为准。`,
+      content: `链：${request.chain}\n收款地址：${request.toAddress}\n转出金额：${request.amount} USDT\n预估网络费：${networkFee}\n燃料费：${quote.chargedFuelFeeUsdt} USDT\n平台手续费（VIP 减免后）：${quote.platformFeeUsdt} USDT\n总手续费：${quote.totalFeeUsdt} USDT\n预计到账金额：${quote.estimatedReceiveAmount} USDT`,
       confirmText: '确认转出'
     });
     if (!result.confirm || !operation.isCurrent()) return;
-    if (!canSubmit.value || form.chain !== request.chain || form.toAddress.trim() !== request.toAddress || Number(form.amount) !== request.amount) {
+    if (!canSubmit.value || form.chain !== request.chain || form.toAddress.trim() !== request.toAddress || String(form.amount).trim() !== request.amount) {
       uni.showToast({ title: '转出信息或余额已变化，请重新确认', icon: 'none' });
       return;
     }
     const payPassword = await payPasswordPopup.value?.request('/pages/wallet/withdraw');
     if (!payPassword || !operation.isCurrent()) return;
-    const id = await guard.run(request, payPassword);
+    if (Number(quote.expiresAt) <= Date.now()) throw new Error('费用预览已过期，请重新核对');
+    const id = await guard.run({ ...request, quoteId: quote.quoteId }, payPassword);
     if (!operation.sameSession()) return;
     submittedId.value = id;
     if (!operation.isCurrent()) return;
@@ -111,7 +115,7 @@ async function confirmWithdraw() {
     <wd-button v-if="submittedId != null" block plain @click="go(`/pages/wallet/withdraw-detail?id=${encodeURIComponent(String(submittedId))}`, true)">申请已提交，查看详情</wd-button>
     <view class="balance-card">
       <text class="lbl">可用余额</text>
-      <text class="amount">U {{ available === undefined ? '—' : formatAmount(available.toFixed(2)) }}</text>
+      <text class="amount">U {{ available === undefined ? '—' : available }}</text>
     </view>
 
     <view class="form-card">
@@ -140,7 +144,7 @@ async function confirmWithdraw() {
       class="submit-btn"
       @click="confirmWithdraw"
     >
-      提交转出
+      核对转出费用
     </wd-button>
   </view>
 </template>

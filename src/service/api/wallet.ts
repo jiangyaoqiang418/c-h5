@@ -14,10 +14,11 @@ interface WalletOverviewResponse {
 }
 
 export interface WithdrawParams {
+  quoteId?: string;
   idempotencyKey?: string;
   chain: 'TRON' | 'ETH' | 'BSC';
   toAddress: string;
-  amount: number;
+  amount: string;
   payPassword?: string;
 }
 
@@ -178,7 +179,22 @@ export async function fetchWalletLedger(query: Omit<Api.RealWallet.WalletLedgerP
   };
 }
 
+export async function previewWithdrawFees(params: Pick<WithdrawParams, 'chain' | 'toAddress' | 'amount'>) {
+  const quote = await realUserRequest<Api.RealWallet.WithdrawFeePreviewVO>({
+    url: '/withdraw/fee-preview', method: 'POST', data: { ...params, amount: String(params.amount), tokenSymbol: 'USDT' }
+  });
+  const isAmount = (value: unknown) => typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value);
+  if (quote.chain !== params.chain || quote.tokenSymbol !== 'USDT'
+    || quote.networkFeeSymbol !== { TRON: 'TRX', ETH: 'ETH', BSC: 'BNB' }[params.chain]
+    || !quote.quoteId || !isAmount(quote.platformFeeUsdt) || !isAmount(quote.chargedFuelFeeUsdt)
+    || !isAmount(quote.totalFeeUsdt) || !isAmount(quote.estimatedReceiveAmount)
+    || (quote.estimatedNetworkFee !== null && !isAmount(quote.estimatedNetworkFee))
+    || !(Number(quote.expiresAt) > Date.now())) throw new Error('费用预览不可用，请重试');
+  return quote;
+}
+
 export function createWithdraw(params: WithdrawParams): Promise<string | number> {
+  if (!params.quoteId) throw new Error('请先核对提现费用');
   return realUserRequest<string | number, WithdrawParams>({ url: '/withdraw/create', method: 'POST', data: params });
 }
 
